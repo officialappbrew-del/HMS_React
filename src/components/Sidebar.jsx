@@ -83,7 +83,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
     if (onMobileClose) onMobileClose();
   };
 
-  const sidebarClasses = `fixed left-0 top-0 z-50 h-screen border-r border-slate-200 bg-white transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
+  const sidebarClasses = `fixed left-0 top-0 z-50 h-screen w-72 max-w-[85vw] border-r border-slate-200 bg-white shadow-xl transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-20' : 'lg:w-72'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
 
   return (
     <>
@@ -94,7 +94,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
         />
       )}
       <aside className={sidebarClasses}>
-      <div className="flex h-full flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
           {!isCollapsed && <h2 className="text-base font-semibold text-slate-900">SmartCare HMS</h2>}
           <button onClick={() => setIsCollapsed(!isCollapsed)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">

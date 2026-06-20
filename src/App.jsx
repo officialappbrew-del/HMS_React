@@ -132,7 +132,7 @@ function AppLayout() {
   }, []);
 
   return (
-    <div className="app-shell flex">
+    <div className="app-shell relative flex min-h-screen overflow-x-hidden">
       {!isPublicPage && (
         <div className="print:hidden">
           <Sidebar
@@ -144,7 +144,7 @@ function AppLayout() {
           />
         </div>
       )}
-      <div className={`flex min-h-screen flex-1 flex-col transition-all duration-300 print:block ${!isPublicPage ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
+      <div className={`relative flex min-h-screen w-full min-w-0 flex-1 flex-col transition-all duration-300 print:block ${!isPublicPage ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
         {!isPublicPage && (
           <div className="print:hidden">
             <Header
@@ -153,7 +153,7 @@ function AppLayout() {
             />
           </div>
         )}
-        <main className={`flex-1 ${!isPublicPage ? 'bg-slate-50' : ''} print:bg-white`}>
+        <main className={`flex-1 overflow-x-hidden ${!isPublicPage ? 'bg-slate-50' : ''} print:bg-white`}>
           <PageErrorBoundary>
             <Routes>
               <Route path="/" element={<LandingPage />} />
