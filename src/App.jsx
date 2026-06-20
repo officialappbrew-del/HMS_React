@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { useState, useEffect } from 'react';
 import store from './store';
@@ -65,6 +65,8 @@ import NDPRCompliance from './pages/NDPRCompliance';
 import BudgetingForecasting from './pages/BudgetingForecasting';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
+import LandingPage from './pages/LandingPage';
 // import ClinicalDecisionSupport from './pages/ClinicalDecisionSupport';
 
 const getStoredRole = () => {
@@ -72,9 +74,35 @@ const getStoredRole = () => {
   return localStorage.getItem('userRole') || 'admin';
 };
 
+const isAuthenticated = () => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(localStorage.getItem('authToken'));
+};
+
+const ProtectedRoute = ({ children }) => {
+  const location = useLocation();
+
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  return children;
+};
+
+const PublicRoute = ({ children }) => {
+  if (isAuthenticated()) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
 function AppLayout() {
   const location = useLocation();
+  const isLandingPage = location.pathname === '/';
   const isLoginPage = location.pathname === '/login';
+  const isSignupPage = location.pathname === '/signup';
+  const isPublicPage = isLandingPage || isLoginPage || isSignupPage;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
 
@@ -95,7 +123,7 @@ function AppLayout() {
 
   return (
     <div className="app-shell flex">
-      {!isLoginPage && (
+      {!isPublicPage && (
         <div className="print:hidden">
           <Sidebar
             isCollapsed={isSidebarCollapsed}
@@ -104,76 +132,77 @@ function AppLayout() {
           />
         </div>
       )}
-      <div className={`flex min-h-screen flex-1 flex-col transition-all duration-300 print:block ${isLoginPage ? '' : (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72')}`}>
-        {!isLoginPage && (
+      <div className={`flex min-h-screen flex-1 flex-col transition-all duration-300 print:block ${!isPublicPage ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
+        {!isPublicPage && (
           <div className="print:hidden">
             <Header userRole={userRole} />
           </div>
         )}
-        <main className={`flex-1 ${isLoginPage ? '' : 'bg-slate-50'} print:bg-white`}>
+        <main className={`flex-1 ${!isPublicPage ? 'bg-slate-50' : ''} print:bg-white`}>
           <PageErrorBoundary>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/patients" element={<PatientManagement />} />
-              <Route path="/billing" element={<Billing />} />
-              <Route path="/pharmacy" element={<Pharmacy />} />
-              <Route path="/consultation" element={<Consultation />} />
-              <Route path="/laboratory" element={<Laboratory />} />
-              <Route path="/staff" element={<StaffManagement />} />
-              <Route path="/appointments" element={<Appointments />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/activities" element={<ActivityLog />} />
-              <Route path="/bed-allocation" element={<BedAllocation />} />
-              <Route path="/admissions" element={<AdmissionManagement />} />
-              <Route path="/ward-rounds" element={<WardRoundManagement />} />
-              <Route path="/staff-directory" element={<StaffDirectory />} />
-              <Route path="/license-tracking" element={<LicenseTracking />} />
-              <Route path="/duty-roster" element={<DutyRoster />} />
-              <Route path="/performance-management" element={<PerformanceManagement />} />
-              <Route path="/payroll-management" element={<PayrollManagement />} />
-              <Route path="/equipment" element={<EquipmentManagement />} />
-              <Route path="/maintenance" element={<MaintenanceManagement />} />
-              <Route path="/generators" element={<GeneratorManagement />} />
-              <Route path="/oxygen" element={<OxygenManagement />} />
-              <Route path="/ambulance-tracking" element={<AmbulanceTracking />} />
-              <Route path="/fleet-operations" element={<FleetOperations />} />
-              <Route path="/emergency-response" element={<EmergencyResponse />} />
-              <Route path="/referral-transport" element={<ReferralTransport />} />
-              <Route path="/pharmacy-inventory" element={<PharmacyInventory />} />
-              <Route path="/medical-supplies" element={<MedicalSupplies />} />
-              <Route path="/central-store" element={<CentralStore />} />
-              <Route path="/procurement" element={<Procurement />} />
-              <Route path="/vital-signs" element={<VitalSignsMonitoring />} />
-              <Route path="/emr" element={<ElectronicMedicalRecords />} />
-              <Route path="/ussd" element={<USSDSystem />} />
-              <Route path="/cds" element={<ClinicalDecisionSupport />} />
-              <Route path="/orders" element={<OrderEntrySystem />} />
-              <Route path="/emergency-dept" element={<EmergencyDepartmentManagement />} />
-              <Route path="/nhis" element={<NHISManagement />} />
-              <Route path="/patient-portal" element={<PatientPortal />} />
-              <Route path="/mobile-money" element={<MobileMoneyIntegration />} />
-              <Route path="/theater-scheduling" element={<TheaterScheduling />} />
-              <Route path="/pre-operative" element={<PreOperativeAssessment />} />
-              <Route path="/intra-operative" element={<IntraOperativeDocumentation />} />
-              <Route path="/post-operative" element={<PostOperativeCare />} />
-              <Route path="/theater-analytics" element={<TheaterAnalytics />} />
-              <Route path="/ambulance-tracking" element={<AmbulanceTracking />} />
-              <Route path="/appointment-reminders" element={<AppointmentReminders />} />
-              <Route path="/ncdc-surveillance" element={<NCDCDiseaseSurveillance />} />
-              <Route path="/external-integrations" element={<ExternalIntegrations />} />
-              <Route path="/financial-analytics" element={<FinancialAnalytics />} />
-              <Route path="/clinical-audit" element={<ClinicalAudit />} />
-              <Route path="/patient-feedback" element={<PatientFeedback />} />
-              <Route path="/credit-management" element={<CreditManagement />} />
-              <Route path="/ndpr-compliance" element={<NDPRCompliance />} />
-              <Route path="/budgeting-forecasting" element={<BudgetingForecasting />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+              <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/patients" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
+              <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+              <Route path="/pharmacy" element={<ProtectedRoute><Pharmacy /></ProtectedRoute>} />
+              <Route path="/consultation" element={<ProtectedRoute><Consultation /></ProtectedRoute>} />
+              <Route path="/laboratory" element={<ProtectedRoute><Laboratory /></ProtectedRoute>} />
+              <Route path="/staff" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
+              <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+              <Route path="/activities" element={<ProtectedRoute><ActivityLog /></ProtectedRoute>} />
+              <Route path="/bed-allocation" element={<ProtectedRoute><BedAllocation /></ProtectedRoute>} />
+              <Route path="/admissions" element={<ProtectedRoute><AdmissionManagement /></ProtectedRoute>} />
+              <Route path="/ward-rounds" element={<ProtectedRoute><WardRoundManagement /></ProtectedRoute>} />
+              <Route path="/staff-directory" element={<ProtectedRoute><StaffDirectory /></ProtectedRoute>} />
+              <Route path="/license-tracking" element={<ProtectedRoute><LicenseTracking /></ProtectedRoute>} />
+              <Route path="/duty-roster" element={<ProtectedRoute><DutyRoster /></ProtectedRoute>} />
+              <Route path="/performance-management" element={<ProtectedRoute><PerformanceManagement /></ProtectedRoute>} />
+              <Route path="/payroll-management" element={<ProtectedRoute><PayrollManagement /></ProtectedRoute>} />
+              <Route path="/equipment" element={<ProtectedRoute><EquipmentManagement /></ProtectedRoute>} />
+              <Route path="/maintenance" element={<ProtectedRoute><MaintenanceManagement /></ProtectedRoute>} />
+              <Route path="/generators" element={<ProtectedRoute><GeneratorManagement /></ProtectedRoute>} />
+              <Route path="/oxygen" element={<ProtectedRoute><OxygenManagement /></ProtectedRoute>} />
+              <Route path="/ambulance-tracking" element={<ProtectedRoute><AmbulanceTracking /></ProtectedRoute>} />
+              <Route path="/fleet-operations" element={<ProtectedRoute><FleetOperations /></ProtectedRoute>} />
+              <Route path="/emergency-response" element={<ProtectedRoute><EmergencyResponse /></ProtectedRoute>} />
+              <Route path="/referral-transport" element={<ProtectedRoute><ReferralTransport /></ProtectedRoute>} />
+              <Route path="/pharmacy-inventory" element={<ProtectedRoute><PharmacyInventory /></ProtectedRoute>} />
+              <Route path="/medical-supplies" element={<ProtectedRoute><MedicalSupplies /></ProtectedRoute>} />
+              <Route path="/central-store" element={<ProtectedRoute><CentralStore /></ProtectedRoute>} />
+              <Route path="/procurement" element={<ProtectedRoute><Procurement /></ProtectedRoute>} />
+              <Route path="/vital-signs" element={<ProtectedRoute><VitalSignsMonitoring /></ProtectedRoute>} />
+              <Route path="/emr" element={<ProtectedRoute><ElectronicMedicalRecords /></ProtectedRoute>} />
+              <Route path="/ussd" element={<ProtectedRoute><USSDSystem /></ProtectedRoute>} />
+              <Route path="/cds" element={<ProtectedRoute><ClinicalDecisionSupport /></ProtectedRoute>} />
+              <Route path="/orders" element={<ProtectedRoute><OrderEntrySystem /></ProtectedRoute>} />
+              <Route path="/emergency-dept" element={<ProtectedRoute><EmergencyDepartmentManagement /></ProtectedRoute>} />
+              <Route path="/nhis" element={<ProtectedRoute><NHISManagement /></ProtectedRoute>} />
+              <Route path="/patient-portal" element={<ProtectedRoute><PatientPortal /></ProtectedRoute>} />
+              <Route path="/mobile-money" element={<ProtectedRoute><MobileMoneyIntegration /></ProtectedRoute>} />
+              <Route path="/theater-scheduling" element={<ProtectedRoute><TheaterScheduling /></ProtectedRoute>} />
+              <Route path="/pre-operative" element={<ProtectedRoute><PreOperativeAssessment /></ProtectedRoute>} />
+              <Route path="/intra-operative" element={<ProtectedRoute><IntraOperativeDocumentation /></ProtectedRoute>} />
+              <Route path="/post-operative" element={<ProtectedRoute><PostOperativeCare /></ProtectedRoute>} />
+              <Route path="/theater-analytics" element={<ProtectedRoute><TheaterAnalytics /></ProtectedRoute>} />
+              <Route path="/appointment-reminders" element={<ProtectedRoute><AppointmentReminders /></ProtectedRoute>} />
+              <Route path="/ncdc-surveillance" element={<ProtectedRoute><NCDCDiseaseSurveillance /></ProtectedRoute>} />
+              <Route path="/external-integrations" element={<ProtectedRoute><ExternalIntegrations /></ProtectedRoute>} />
+              <Route path="/financial-analytics" element={<ProtectedRoute><FinancialAnalytics /></ProtectedRoute>} />
+              <Route path="/clinical-audit" element={<ProtectedRoute><ClinicalAudit /></ProtectedRoute>} />
+              <Route path="/patient-feedback" element={<ProtectedRoute><PatientFeedback /></ProtectedRoute>} />
+              <Route path="/credit-management" element={<ProtectedRoute><CreditManagement /></ProtectedRoute>} />
+              <Route path="/ndpr-compliance" element={<ProtectedRoute><NDPRCompliance /></ProtectedRoute>} />
+              <Route path="/budgeting-forecasting" element={<ProtectedRoute><BudgetingForecasting /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </PageErrorBoundary>
         </main>
-        {!isLoginPage && (
+        {!isPublicPage && (
           <div className="print:hidden">
             <Footer />
           </div>

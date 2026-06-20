@@ -44,7 +44,7 @@ const Header = ({ userRole: propUserRole }) => {
   const activeRole = propUserRole || userRole;
 
   const navLinks = [
-    { to: '/', label: 'Overview' },
+    { to: '/dashboard', label: 'Dashboard' },
     { to: '/patients', label: 'Patients' },
     { to: '/appointments', label: 'Appointments' },
   ];
@@ -89,7 +89,15 @@ const Header = ({ userRole: propUserRole }) => {
 
   const handleLogoClick = (e) => {
     e.preventDefault();
-    navigate('/');
+    navigate(localStorage.getItem('authToken') ? '/dashboard' : '/');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
+    window.dispatchEvent(new Event('authChanged'));
+    navigate('/login');
   };
 
   return (
@@ -135,6 +143,12 @@ const Header = ({ userRole: propUserRole }) => {
               aria-label="Toggle theme"
             >
               {userPreferences.theme === 'light' ? '🌙' : '☀️'}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="hidden rounded-full bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 md:block"
+            >
+              Logout
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -245,6 +259,15 @@ const Header = ({ userRole: propUserRole }) => {
                 {link.label}
               </Link>
             ))}
+            <button
+              onClick={() => {
+                handleLogout();
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-rose-600 hover:bg-white"
+            >
+              Logout
+            </button>
           </nav>
         )}
       </div>

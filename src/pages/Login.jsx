@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Stethoscope, Activity, Users, Pill } from 'lucide-react';
+import { ShieldCheck, Stethoscope, Activity, Users, Pill, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -9,9 +9,12 @@ const Login = () => {
   });
   const [selectedRole, setSelectedRole] = useState('doctor');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showAccountRecovery, setShowAccountRecovery] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
 
@@ -34,7 +37,7 @@ const Login = () => {
       window.dispatchEvent(new Event('authChanged'));
       setLoading(false);
       setMessage('Login successful!');
-      setTimeout(() => navigate('/'), 500);
+      setTimeout(() => navigate('/dashboard'), 500);
     }, 800);
   };
 
@@ -49,6 +52,17 @@ const Login = () => {
     }, 2000);
   };
 
+  const handleAccountRecovery = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    setTimeout(() => {
+      setLoading(false);
+      setMessage('Account recovery link sent to your email!');
+    }, 2000);
+  };
+
   const roleCards = [
     { value: 'doctor', label: 'Doctor', icon: Stethoscope },
     { value: 'nurse', label: 'Nurse', icon: Activity },
@@ -57,7 +71,7 @@ const Login = () => {
     { value: 'receptionist', label: 'Receptionist', icon: Users },
   ];
 
-  return (
+return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 lg:grid-cols-2">
         <div className="hidden bg-gradient-to-br from-blue-900 via-sky-800 to-cyan-700 p-10 lg:flex lg:flex-col lg:justify-between">
@@ -70,7 +84,7 @@ const Login = () => {
           </div>
           <div className="grid gap-3">
             <div className="rounded-2xl bg-white/10 p-4 text-white backdrop-blur">
-              <p className="text-sm text-blue-100">Today’s overview</p>
+              <p className="text-sm text-blue-100">Today's overview</p>
               <p className="mt-2 text-3xl font-semibold">128</p>
               <p className="mt-1 text-sm text-blue-100">Patients under active care</p>
             </div>
@@ -81,7 +95,9 @@ const Login = () => {
           <div className="w-full max-w-md">
             <div className="text-center">
               <p className="text-sm font-medium text-blue-700">Welcome back</p>
-              <h2 className="mt-2 text-3xl font-semibold text-slate-900">{showForgotPassword ? 'Reset password' : 'Sign in to your workspace'}</h2>
+              <h2 className="mt-2 text-3xl font-semibold text-slate-900">
+                {showForgotPassword ? (showAccountRecovery ? 'Account recovery' : 'Reset password') : 'Sign in to your workspace'}
+              </h2>
             </div>
 
             {message && (
@@ -98,7 +114,25 @@ const Login = () => {
                 </div>
                 <div>
                   <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">Password</label>
-                  <input id="password" name="password" type="password" required value={formData.password} onChange={handleChange} placeholder="••••••••" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
+                  <div className="relative">
+                    <input 
+                      id="password" 
+                      name="password" 
+                      type={showPassword ? 'text' : 'password'} 
+                      required 
+                      value={formData.password} 
+                      onChange={handleChange} 
+                      placeholder="••••••••" 
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 outline-none focus:border-blue-500" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">Role</label>
@@ -127,7 +161,7 @@ const Login = () => {
                   {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </form>
-            ) : (
+            ) : !showAccountRecovery ? (
               <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
                 <div>
                   <label htmlFor="forgotEmail" className="mb-1 block text-sm font-medium text-slate-700">Email</label>
@@ -136,7 +170,21 @@ const Login = () => {
                 <button type="submit" disabled={loading} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                   {loading ? 'Sending...' : 'Send reset link'}
                 </button>
-                <button type="button" onClick={() => setShowForgotPassword(false)} className="w-full text-sm font-medium text-blue-600">Back to login</button>
+                <div className="flex flex-col gap-2">
+                  <button type="button" onClick={() => setShowAccountRecovery(true)} className="text-sm font-medium text-blue-600">Need account recovery?</button>
+                  <button type="button" onClick={() => setShowForgotPassword(false)} className="text-sm font-medium text-blue-600">Back to login</button>
+                </div>
+              </form>
+            ) : (
+              <form className="mt-8 space-y-5" onSubmit={handleAccountRecovery}>
+                <div>
+                  <label htmlFor="recoveryEmail" className="mb-1 block text-sm font-medium text-slate-700">Email for recovery</label>
+                  <input id="recoveryEmail" name="recoveryEmail" type="email" required value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} placeholder="name@hospital.com" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
+                </div>
+                <button type="submit" disabled={loading} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                  {loading ? 'Sending...' : 'Send recovery link'}
+                </button>
+                <button type="button" onClick={() => { setShowAccountRecovery(false); setShowForgotPassword(false); }} className="w-full text-sm font-medium text-blue-600">Back to login</button>
               </form>
             )}
           </div>
