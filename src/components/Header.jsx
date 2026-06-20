@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Menu, X, ChevronDown, Bell, Search, UserCircle } from 'lucide-react';
 import { getUserPreferences, setUserPreferences } from '../utils/cookies';
 
@@ -18,8 +18,12 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     language: 'en',
     sidebarCollapsed: false
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const preferences = getUserPreferences();
@@ -82,6 +86,50 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     { to: '/external-integrations', label: 'External Integrations' },
   ];
 
+  const searchableRoutes = useMemo(() => [
+    { path: '/dashboard', label: 'Dashboard', aliases: ['home', 'overview'] },
+    { path: '/patients', label: 'Patient Management', aliases: ['patients', 'patient records', 'registrations'] },
+    { path: '/appointments', label: 'Appointments', aliases: ['schedule', 'booking', 'visits'] },
+    { path: '/billing', label: 'Billing', aliases: ['payments', 'invoices', 'charges'] },
+    { path: '/pharmacy', label: 'Pharmacy', aliases: ['medication', 'drugs', 'dispensary'] },
+    { path: '/consultation', label: 'Consultation', aliases: ['doctor notes', 'visits', 'clinical'] },
+    { path: '/laboratory', label: 'Laboratory', aliases: ['lab', 'tests', 'results'] },
+    { path: '/staff', label: 'Staff Management', aliases: ['employees', 'staff directory', 'personnel'] },
+    { path: '/inventory', label: 'Inventory', aliases: ['stock', 'supplies'] },
+    { path: '/activities', label: 'Activity Log', aliases: ['audit trail', 'recent activity'] },
+    { path: '/bed-allocation', label: 'Bed Allocation', aliases: ['beds', 'ward beds'] },
+    { path: '/admissions', label: 'Admissions', aliases: ['admit', 'inpatients'] },
+    { path: '/ward-rounds', label: 'Ward Rounds', aliases: ['rounds'] },
+    { path: '/vital-signs', label: 'Vital Signs', aliases: ['vitals'] },
+    { path: '/emr', label: 'EMR', aliases: ['electronic medical records'] },
+    { path: '/orders', label: 'Order Entry', aliases: ['orders', 'prescriptions'] },
+    { path: '/clinical-audit', label: 'Clinical Audit', aliases: ['quality audit'] },
+    { path: '/staff-directory', label: 'Staff Directory', aliases: ['employees', 'workforce'] },
+    { path: '/license-tracking', label: 'License Tracking', aliases: ['licenses'] },
+    { path: '/duty-roster', label: 'Duty Roster', aliases: ['roster', 'schedule'] },
+    { path: '/performance-management', label: 'Performance Management', aliases: ['performance'] },
+    { path: '/payroll-management', label: 'Payroll Management', aliases: ['payroll'] },
+    { path: '/equipment', label: 'Equipment Management', aliases: ['devices', 'medical equipment'] },
+    { path: '/maintenance', label: 'Maintenance Management', aliases: ['repairs'] },
+    { path: '/generators', label: 'Generator Management', aliases: ['power backup'] },
+    { path: '/oxygen', label: 'Oxygen Management', aliases: ['oxygen supply'] },
+    { path: '/ambulance-tracking', label: 'Ambulance Tracking', aliases: ['ambulance'] },
+    { path: '/fleet-operations', label: 'Fleet Operations', aliases: ['vehicles'] },
+    { path: '/emergency-response', label: 'Emergency Response', aliases: ['emergency'] },
+    { path: '/referral-transport', label: 'Referral Transport', aliases: ['referrals'] },
+    { path: '/pharmacy-inventory', label: 'Pharmacy Inventory', aliases: ['drug inventory'] },
+    { path: '/medical-supplies', label: 'Medical Supplies', aliases: ['supplies'] },
+    { path: '/central-store', label: 'Central Store', aliases: ['store'] },
+    { path: '/procurement', label: 'Procurement', aliases: ['procurement'] },
+    { path: '/financial-analytics', label: 'Financial Analytics', aliases: ['finance', 'revenue', 'analytics'] },
+    { path: '/external-integrations', label: 'External Integrations', aliases: ['integrations'] },
+    { path: '/credit-management', label: 'Credit Management', aliases: ['credit', 'debts'] },
+    { path: '/ndpr-compliance', label: 'NDPR Compliance', aliases: ['compliance', 'privacy'] },
+    { path: '/settings', label: 'Settings', aliases: ['preferences', 'configuration'] },
+    { path: '/patient-portal', label: 'Patient Portal', aliases: ['portal'] },
+    { path: '/mobile-money', label: 'Mobile Money Integration', aliases: ['mobile money'] },
+  ], []);
+
   const updatePreferences = (newPreferences) => {
     setUserPreferencesState(newPreferences);
     setUserPreferences(newPreferences);
@@ -99,6 +147,49 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     window.dispatchEvent(new Event('authChanged'));
     navigate('/login');
   };
+
+  const filteredSearchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+
+    return searchableRoutes.filter((item) => {
+      const searchText = `${item.label} ${item.path} ${item.aliases.join(' ')}`.toLowerCase();
+      return searchText.includes(query);
+    }).slice(0, 6);
+  }, [searchQuery, searchableRoutes]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (filteredSearchResults.length > 0) {
+      navigate(filteredSearchResults[0].path);
+      setSearchQuery('');
+      setShowSearchResults(false);
+    }
+  };
+
+  const handleSelectSearchResult = (path) => {
+    navigate(path);
+    setSearchQuery('');
+    setShowSearchResults(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -121,11 +212,44 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 lg:flex">
-            <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
-              <Search className="h-4 w-4 text-slate-500" />
-              <span className="text-sm text-slate-600">Search</span>
-            </div>
+          <div ref={searchRef} className="hidden flex-1 justify-center px-2 md:flex">
+            <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xl">
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-blue-500 focus-within:bg-white">
+                <Search className="h-4 w-4 text-slate-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchResults(true);
+                  }}
+                  onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
+                  placeholder="Search features, pages, or modules"
+                  className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                />
+              </div>
+              {showSearchResults && (
+                <div className="absolute left-0 right-0 top-12 z-50 mt-1 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                  {filteredSearchResults.length > 0 ? (
+                    filteredSearchResults.map((item) => (
+                      <button
+                        key={item.path}
+                        type="button"
+                        onClick={() => handleSelectSearchResult(item.path)}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
+                      >
+                        <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                        <span className="text-xs text-slate-500">{item.path.replace('/', '')}</span>
+                      </button>
+                    ))
+                  ) : (
+                    searchQuery.trim() && (
+                      <div className="px-4 py-3 text-sm text-slate-500">No matching features found</div>
+                    )
+                  )}
+                </div>
+              )}
+            </form>
           </div>
 
           <div className="flex items-center gap-2">
