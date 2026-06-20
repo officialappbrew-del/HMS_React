@@ -1,7 +1,8 @@
 import { useSelector } from 'react-redux';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Menu, X, ChevronDown, Bell, Search, UserCircle } from 'lucide-react';
+import { Menu, ChevronDown, Bell, Search, UserCircle, Moon, Sun } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 import { getUserPreferences, setUserPreferences } from '../utils/cookies';
 
 const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
@@ -20,15 +21,30 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const searchRef = useRef(null);
+  const notificationsRef = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
+  const isDark = userPreferences.theme === 'dark';
+
+  const notifications = useMemo(() => [
+    { id: 1, title: 'Lab results ready', message: 'CBC results for Jane Smith are available.', time: '5 min ago' },
+    { id: 2, title: 'Appointment reminder', message: 'You have a consultation at 2:00 PM.', time: '35 min ago' },
+    { id: 3, title: 'Inventory alert', message: 'Insulin stock is running low.', time: '1 hour ago' }
+  ], []);
 
   useEffect(() => {
     const preferences = getUserPreferences();
     setUserPreferencesState(preferences);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  }, [isDark]);
 
   useEffect(() => {
     const updateRole = () => {
@@ -133,6 +149,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   const updatePreferences = (newPreferences) => {
     setUserPreferencesState(newPreferences);
     setUserPreferences(newPreferences);
+    window.dispatchEvent(new Event('themeChanged'));
   };
 
   const handleLogoClick = (e) => {
@@ -140,12 +157,13 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     navigate(localStorage.getItem('authToken') ? '/dashboard' : '/');
   };
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userEmail');
     window.dispatchEvent(new Event('authChanged'));
     navigate('/login');
+    setShowLogoutConfirm(false);
   };
 
   const filteredSearchResults = useMemo(() => {
@@ -178,6 +196,9 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setShowSearchResults(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -192,210 +213,244 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="px-4 py-3 sm:px-6">
-        <div className="flex items-center justify-between gap-3">
-          <div onClick={handleLogoClick} className="flex min-w-0 cursor-pointer items-center gap-3">
-            {branding.logo && (
-              <img
-                src={branding.logo}
-                alt="Logo"
-                className="h-10 w-10 rounded-xl bg-slate-100 object-contain p-1"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            )}
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold text-slate-900 sm:text-lg">SmartCare HMS</h1>
-              <p className="hidden text-xs text-slate-500 sm:block">{subdomain || 'Hospital'} Operations</p>
-            </div>
-          </div>
-
-          <div ref={searchRef} className="hidden flex-1 justify-center px-2 md:flex">
-            <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xl">
-              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-blue-500 focus-within:bg-white">
-                <Search className="h-4 w-4 text-slate-500" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setShowSearchResults(true);
+    <>
+      <header className={`sticky top-0 z-40 border-b backdrop-blur ${isDark ? 'border-slate-700 bg-slate-900/95' : 'border-slate-200 bg-white/95'}`}>
+        <div className="px-4 py-3 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div onClick={handleLogoClick} className="flex min-w-0 cursor-pointer items-center gap-3">
+              {branding.logo && (
+                <img
+                  src={branding.logo}
+                  alt="Logo"
+                  className="h-10 w-10 rounded-xl bg-slate-100 object-contain p-1"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
                   }}
-                  onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
-                  placeholder="Search features, pages, or modules"
-                  className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
                 />
-              </div>
-              {showSearchResults && (
-                <div className="absolute left-0 right-0 top-12 z-50 mt-1 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                  {filteredSearchResults.length > 0 ? (
-                    filteredSearchResults.map((item) => (
-                      <button
-                        key={item.path}
-                        type="button"
-                        onClick={() => handleSelectSearchResult(item.path)}
-                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
-                      >
-                        <span className="text-sm font-medium text-slate-700">{item.label}</span>
-                        <span className="text-xs text-slate-500">{item.path.replace('/', '')}</span>
-                      </button>
-                    ))
-                  ) : (
-                    searchQuery.trim() && (
-                      <div className="px-4 py-3 text-sm text-slate-500">No matching features found</div>
-                    )
-                  )}
-                </div>
               )}
-            </form>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
-            </button>
-            <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1.5 md:flex">
-              <UserCircle className="h-5 w-5 text-slate-500" />
-              <span className="text-sm font-medium capitalize text-slate-700">{activeRole}</span>
+              <div className="min-w-0">
+                <h1 className={`truncate text-base font-semibold sm:text-lg ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>SmartCare HMS</h1>
+                <p className={`hidden text-xs sm:block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subdomain || 'Hospital'} Operations</p>
+              </div>
             </div>
-            <button
-              onClick={() => updatePreferences({ ...userPreferences, theme: userPreferences.theme === 'light' ? 'dark' : 'light' })}
-              className="hidden rounded-full p-2 text-slate-500 hover:bg-slate-100 md:block"
-              aria-label="Toggle theme"
-            >
-              {userPreferences.theme === 'light' ? '🌙' : '☀️'}
-            </button>
-            <button
-              onClick={handleLogout}
-              className="hidden rounded-full bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 md:block"
-            >
-              Logout
-            </button>
-            <button
-              onClick={() => onToggleSidebar?.()}
-              className="rounded-full p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
-              aria-label="Toggle sidebar"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
 
-        <div className="mt-3 hidden items-center gap-1 lg:flex">
-          {navLinks.map(link => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-            >
-              {link.label}
-            </Link>
-          ))}
+            <div ref={searchRef} className="hidden flex-1 justify-center px-2 md:flex">
+              <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xl">
+                <div className={`flex items-center gap-2 rounded-full border px-3 py-2 focus-within:border-blue-500 ${isDark ? 'border-slate-700 bg-slate-800 focus-within:bg-slate-900' : 'border-slate-200 bg-slate-50 focus-within:bg-white'}`}>
+                  <Search className={`h-4 w-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowSearchResults(true);
+                    }}
+                    onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
+                    placeholder="Search features, pages, or modules"
+                    className={`w-full bg-transparent text-sm outline-none ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-slate-700 placeholder:text-slate-400'}`}
+                  />
+                </div>
+                {showSearchResults && (
+                  <div className={`absolute left-0 right-0 top-12 z-50 mt-1 max-h-80 overflow-y-auto rounded-xl border shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                    {filteredSearchResults.length > 0 ? (
+                      filteredSearchResults.map((item) => (
+                        <button
+                          key={item.path}
+                          type="button"
+                          onClick={() => handleSelectSearchResult(item.path)}
+                          className={`flex w-full items-center justify-between px-4 py-3 text-left ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`}
+                        >
+                          <span className={`text-sm font-medium ${isDark ? 'text-slate-100' : 'text-slate-700'}`}>{item.label}</span>
+                          <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.path.replace('/', '')}</span>
+                        </button>
+                      ))
+                    ) : (
+                      searchQuery.trim() && (
+                        <div className={`px-4 py-3 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No matching features found</div>
+                      )
+                    )}
+                  </div>
+                )}
+              </form>
+            </div>
 
-          <div className="relative" onMouseEnter={() => setHospitalOpsMenuOpen(true)} onMouseLeave={() => setHospitalOpsMenuOpen(false)}>
-            <button className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-              Hospital Ops
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            {hospitalOpsMenuOpen && (
-              <div className="absolute left-0 mt-1 w-48 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                {hospitalOpsLinks.map(link => (
-                  <Link key={link.to} to={link.to} className="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-                    {link.label}
-                  </Link>
-                ))}
+            <div className="flex items-center gap-2">
+              <div ref={notificationsRef} className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`relative rounded-full p-2 ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
+                </button>
+                {showNotifications && (
+                  <div className={`absolute right-0 mt-2 w-80 rounded-xl border shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                    <div className={`border-b px-4 py-3 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                      <p className={`text-sm font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Notifications</p>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.map((item) => (
+                        <div key={item.id} className={`border-b px-4 py-3 last:border-b-0 ${isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-100 hover:bg-slate-50'}`}>
+                          <p className={`text-sm font-medium ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{item.title}</p>
+                          <p className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.message}</p>
+                          <p className={`mt-1 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.time}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          <div className="relative" onMouseEnter={() => setWorkforceMenuOpen(true)} onMouseLeave={() => setWorkforceMenuOpen(false)}>
-            <button className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-              Workforce
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            {workforceMenuOpen && (
-              <div className="absolute left-0 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                {workforceLinks.map(link => (
-                  <Link key={link.to} to={link.to} className="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-                    {link.label}
-                  </Link>
-                ))}
+              <div className={`hidden items-center gap-2 rounded-full px-2.5 py-1.5 md:flex ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                <UserCircle className={`h-5 w-5 ${isDark ? 'text-slate-300' : 'text-slate-500'}`} />
+                <span className={`text-sm font-medium capitalize ${isDark ? 'text-slate-100' : 'text-slate-700'}`}>{activeRole}</span>
               </div>
-            )}
+              <button
+                onClick={() => updatePreferences({ ...userPreferences, theme: isDark ? 'light' : 'dark' })}
+                className={`hidden rounded-full p-2 md:block ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(true)}
+                className={`hidden rounded-full px-3 py-2 text-sm font-medium md:block ${isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                Logout
+              </button>
+              <button
+                onClick={() => onToggleSidebar?.()}
+                className={`rounded-full p-2 lg:hidden ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}
+                aria-label="Toggle sidebar"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
-          <div className="relative" onMouseEnter={() => setEmergencyMenuOpen(true)} onMouseLeave={() => setEmergencyMenuOpen(false)}>
-            <button className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-              Emergency
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            {emergencyMenuOpen && (
-              <div className="absolute left-0 mt-1 w-48 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                {emergencyTransportLinks.map(link => (
-                  <Link key={link.to} to={link.to} className="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="relative" onMouseEnter={() => setStockManagementMenuOpen(true)} onMouseLeave={() => setStockManagementMenuOpen(false)}>
-            <button className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-              Stock Mgmt
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            {stockManagementMenuOpen && (
-              <div className="absolute left-0 mt-1 w-48 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                {stockManagementLinks.map(link => (
-                  <Link key={link.to} to={link.to} className="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="relative" onMouseEnter={() => setAnalyticsMenuOpen(true)} onMouseLeave={() => setAnalyticsMenuOpen(false)}>
-            <button className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-              Analytics
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            {analyticsMenuOpen && (
-              <div className="absolute left-0 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                {analyticsLinks.map(link => (
-                  <Link key={link.to} to={link.to} className="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <nav className="mt-3 space-y-1 rounded-2xl border border-slate-200 bg-slate-50 p-2 lg:hidden">
+          <div className="mt-3 hidden items-center gap-1 lg:flex">
             {navLinks.map(link => (
-              <Link key={link.to} to={link.to} className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-white" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+              >
                 {link.label}
               </Link>
             ))}
-            <button
-              onClick={() => {
-                handleLogout();
-                setMobileMenuOpen(false);
-              }}
-              className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-rose-600 hover:bg-white"
-            >
-              Logout
-            </button>
-          </nav>
-        )}
-      </div>
-    </header>
+
+            <div className="relative" onMouseEnter={() => setHospitalOpsMenuOpen(true)} onMouseLeave={() => setHospitalOpsMenuOpen(false)}>
+              <button className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+                Hospital Ops
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {hospitalOpsMenuOpen && (
+                <div className={`absolute left-0 mt-1 w-48 rounded-xl border p-1 shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  {hospitalOpsLinks.map(link => (
+                    <Link key={link.to} to={link.to} className={`block rounded-lg px-3 py-2 text-sm ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative" onMouseEnter={() => setWorkforceMenuOpen(true)} onMouseLeave={() => setWorkforceMenuOpen(false)}>
+              <button className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+                Workforce
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {workforceMenuOpen && (
+                <div className={`absolute left-0 mt-1 w-52 rounded-xl border p-1 shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  {workforceLinks.map(link => (
+                    <Link key={link.to} to={link.to} className={`block rounded-lg px-3 py-2 text-sm ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative" onMouseEnter={() => setEmergencyMenuOpen(true)} onMouseLeave={() => setEmergencyMenuOpen(false)}>
+              <button className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+                Emergency
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {emergencyMenuOpen && (
+                <div className={`absolute left-0 mt-1 w-48 rounded-xl border p-1 shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  {emergencyTransportLinks.map(link => (
+                    <Link key={link.to} to={link.to} className={`block rounded-lg px-3 py-2 text-sm ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative" onMouseEnter={() => setStockManagementMenuOpen(true)} onMouseLeave={() => setStockManagementMenuOpen(false)}>
+              <button className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+                Stock Mgmt
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {stockManagementMenuOpen && (
+                <div className={`absolute left-0 mt-1 w-48 rounded-xl border p-1 shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  {stockManagementLinks.map(link => (
+                    <Link key={link.to} to={link.to} className={`block rounded-lg px-3 py-2 text-sm ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative" onMouseEnter={() => setAnalyticsMenuOpen(true)} onMouseLeave={() => setAnalyticsMenuOpen(false)}>
+              <button className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+                Analytics
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {analyticsMenuOpen && (
+                <div className={`absolute left-0 mt-1 w-52 rounded-xl border p-1 shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  {analyticsLinks.map(link => (
+                    <Link key={link.to} to={link.to} className={`block rounded-lg px-3 py-2 text-sm ${isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {mobileMenuOpen && (
+            <nav className={`mt-3 space-y-1 rounded-2xl border p-2 lg:hidden ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50'}`}>
+              {navLinks.map(link => (
+                <Link key={link.to} to={link.to} className={`block rounded-lg px-3 py-2 text-sm ${isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-white'}`} onClick={() => setMobileMenuOpen(false)}>
+                  {link.label}
+                </Link>
+              ))}
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(true);
+                  setMobileMenuOpen(false);
+                }}
+                className={`block w-full rounded-lg px-3 py-2 text-left text-sm font-medium ${isDark ? 'text-rose-400 hover:bg-slate-800' : 'text-rose-600 hover:bg-white'}`}
+              >
+                Logout
+              </button>
+            </nav>
+          )}
+        </div>
+      </header>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to sign out of your account?"
+        confirmText="Yes, Logout"
+        cancelText="Cancel"
+        type="edit"
+      />
+    </>
   );
 };
 

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import ConfirmModal from './ConfirmModal';
 import {
   Home,
   Users,
@@ -23,6 +25,7 @@ import {
 const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const menuItems = {
     admin: [
@@ -83,6 +86,16 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
     if (onMobileClose) onMobileClose();
   };
 
+  const confirmLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
+    window.dispatchEvent(new Event('authChanged'));
+    navigate('/login');
+    if (onMobileClose) onMobileClose();
+    setShowLogoutConfirm(false);
+  };
+
   const sidebarClasses = `fixed left-0 top-0 z-50 h-screen w-72 max-w-[85vw] border-r border-slate-200 bg-white shadow-xl transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-20' : 'lg:w-72'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
 
   return (
@@ -126,7 +139,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
 
         <div className="border-t border-slate-200 p-3">
           <button
-            onClick={() => handleNavigate('/login')}
+            onClick={() => setShowLogoutConfirm(true)}
             className={`flex w-full items-center rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${isCollapsed ? 'justify-center' : ''}`}
           >
             <LogOut className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
@@ -135,6 +148,17 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
         </div>
       </div>
     </aside>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to sign out of your account?"
+        confirmText="Yes, Logout"
+        cancelText="Cancel"
+        type="edit"
+      />
     </>
   );
 };

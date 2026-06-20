@@ -8,6 +8,7 @@ import PageErrorBoundary from './components/PageErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Sidebar from './components/Sidebar';
+import { getUserPreferences } from './utils/cookies';
 import Dashboard from './pages/Dashboard';
 import PatientManagement from './pages/PatientManagement';
 import Billing from './pages/Billing';
@@ -106,10 +107,15 @@ function AppLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
+  const [isDark, setIsDark] = useState(() => getUserPreferences().theme === 'dark');
 
   useEffect(() => {
     const syncRole = () => {
       setUserRole(getStoredRole());
+    };
+
+    const syncTheme = () => {
+      setIsDark(getUserPreferences().theme === 'dark');
     };
 
     const handleResize = () => {
@@ -119,20 +125,31 @@ function AppLayout() {
     };
 
     syncRole();
+    syncTheme();
     handleResize();
     window.addEventListener('authChanged', syncRole);
     window.addEventListener('storage', syncRole);
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener('themeChanged', syncTheme);
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('authChanged', syncRole);
       window.removeEventListener('storage', syncRole);
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener('themeChanged', syncTheme);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
 
+  useEffect(() => {
+    const theme = isDark ? 'dark' : 'light';
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  }, [isDark]);
+
   return (
-    <div className="app-shell relative flex min-h-screen overflow-x-hidden">
+    <div className={`app-shell relative flex min-h-screen overflow-x-hidden transition-colors duration-300 ${isDark ? 'dark-theme' : ''}`}>
       {!isPublicPage && (
         <div className="print:hidden">
           <Sidebar
@@ -153,7 +170,7 @@ function AppLayout() {
             />
           </div>
         )}
-        <main className={`flex-1 overflow-x-hidden ${!isPublicPage ? 'bg-slate-50' : ''} print:bg-white`}>
+        <main className={`flex-1 overflow-x-hidden transition-colors duration-300 ${!isPublicPage ? (isDark ? 'bg-slate-950' : 'bg-slate-50') : ''} print:bg-white`}>
           <PageErrorBoundary>
             <Routes>
               <Route path="/" element={<LandingPage />} />
