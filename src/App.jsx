@@ -104,6 +104,7 @@ function AppLayout() {
   const isSignupPage = location.pathname === '/signup';
   const isPublicPage = isLandingPage || isLoginPage || isSignupPage;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
 
   useEffect(() => {
@@ -111,13 +112,22 @@ function AppLayout() {
       setUserRole(getStoredRole());
     };
 
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsSidebarOpenOnMobile(false);
+      }
+    };
+
     syncRole();
+    handleResize();
     window.addEventListener('authChanged', syncRole);
     window.addEventListener('storage', syncRole);
+    window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('authChanged', syncRole);
       window.removeEventListener('storage', syncRole);
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
@@ -129,13 +139,18 @@ function AppLayout() {
             isCollapsed={isSidebarCollapsed}
             setIsCollapsed={setIsSidebarCollapsed}
             userRole={userRole}
+            isMobileOpen={isSidebarOpenOnMobile}
+            onMobileClose={() => setIsSidebarOpenOnMobile(false)}
           />
         </div>
       )}
       <div className={`flex min-h-screen flex-1 flex-col transition-all duration-300 print:block ${!isPublicPage ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
         {!isPublicPage && (
           <div className="print:hidden">
-            <Header userRole={userRole} />
+            <Header
+              userRole={userRole}
+              onToggleSidebar={() => setIsSidebarOpenOnMobile(!isSidebarOpenOnMobile)}
+            />
           </div>
         )}
         <main className={`flex-1 ${!isPublicPage ? 'bg-slate-50' : ''} print:bg-white`}>

@@ -20,13 +20,13 @@ import {
   LogOut
 } from 'lucide-react';
 
-const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = {
     admin: [
-      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Users, label: 'Patient Management', path: '/patients' },
       { icon: Calendar, label: 'Appointments', path: '/appointments' },
       { icon: FileText, label: 'Billing', path: '/billing' },
@@ -39,7 +39,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
       { icon: Settings, label: 'Settings', path: '/settings' }
     ],
     doctor: [
-      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Stethoscope, label: 'Consultation', path: '/consultation' },
       { icon: Users, label: 'My Patients', path: '/patients' },
       { icon: Calendar, label: 'Appointments', path: '/appointments' },
@@ -49,7 +49,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
       { icon: Heart, label: 'Ward Rounds', path: '/ward-rounds' }
     ],
     nurse: [
-      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Users, label: 'Assigned Patients', path: '/patients' },
       { icon: Activity, label: 'Vital Signs', path: '/vital-signs' },
       { icon: Pill, label: 'Medications', path: '/pharmacy' },
@@ -59,7 +59,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
       { icon: Calendar, label: 'Schedule', path: '/appointments' }
     ],
     receptionist: [
-      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Users, label: 'Patient Registration', path: '/patients' },
       { icon: Calendar, label: 'Appointments', path: '/appointments' },
       { icon: FileText, label: 'Billing', path: '/billing' },
@@ -67,7 +67,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
       { icon: Ambulance, label: 'Referrals', path: '/emergency-dept' }
     ],
     pharmacist: [
-      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Pill, label: 'Pharmacy', path: '/pharmacy' },
       { icon: Activity, label: 'Inventory', path: '/inventory' },
       { icon: Users, label: 'Patient Profiles', path: '/patients' },
@@ -78,8 +78,22 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
 
   const currentMenu = menuItems[userRole] || menuItems.admin;
 
+  const handleNavigate = (path) => {
+    navigate(path);
+    if (onMobileClose) onMobileClose();
+  };
+
+  const sidebarClasses = `fixed left-0 top-0 z-50 h-screen border-r border-slate-200 bg-white transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
+
   return (
-    <aside className={`fixed left-0 top-0 z-40 h-screen border-r border-slate-200 bg-white transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'}`}>
+    <>
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+      <aside className={sidebarClasses}>
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
           {!isCollapsed && <h2 className="text-base font-semibold text-slate-900">SmartCare HMS</h2>}
@@ -95,7 +109,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
             return (
               <button
                 key={item.path}
-                onClick={() => navigate(item.path)}
+                onClick={() => handleNavigate(item.path)}
                 className={`flex w-full items-center rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-sm'
@@ -112,7 +126,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
 
         <div className="border-t border-slate-200 p-3">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => handleNavigate('/login')}
             className={`flex w-full items-center rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${isCollapsed ? 'justify-center' : ''}`}
           >
             <LogOut className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
@@ -121,6 +135,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
         </div>
       </div>
     </aside>
+    </>
   );
 };
 

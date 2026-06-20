@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X, ChevronDown, Bell, Search, UserCircle } from 'lucide-react';
 import { getUserPreferences, setUserPreferences } from '../utils/cookies';
 
-const Header = ({ userRole: propUserRole }) => {
+const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   const { branding = { logo: '' }, subdomain = 'hospital' } = useSelector(state => state.tenant || {});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hospitalOpsMenuOpen, setHospitalOpsMenuOpen] = useState(false);
@@ -151,11 +151,11 @@ const Header = ({ userRole: propUserRole }) => {
               Logout
             </button>
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => onToggleSidebar?.()}
               className="rounded-full p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
-              aria-label="Toggle menu"
+              aria-label="Toggle sidebar"
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <Menu className="h-5 w-5" />
             </button>
           </div>
         </div>
