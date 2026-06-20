@@ -1,0 +1,127 @@
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Home,
+  Users,
+  Calendar,
+  FileText,
+  Pill,
+  Bed,
+  Heart,
+  Stethoscope,
+  Building2,
+  Activity,
+  Clipboard,
+  Shield,
+  Ambulance,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  LogOut
+} from 'lucide-react';
+
+const Sidebar = ({ isCollapsed, setIsCollapsed, userRole }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const menuItems = {
+    admin: [
+      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Users, label: 'Patient Management', path: '/patients' },
+      { icon: Calendar, label: 'Appointments', path: '/appointments' },
+      { icon: FileText, label: 'Billing', path: '/billing' },
+      { icon: Building2, label: 'Staff Management', path: '/staff' },
+      { icon: Bed, label: 'Bed Allocation', path: '/bed-allocation' },
+      { icon: Heart, label: 'Admissions', path: '/admissions' },
+      { icon: Pill, label: 'Pharmacy', path: '/pharmacy' },
+      { icon: Activity, label: 'Inventory', path: '/inventory' },
+      { icon: Shield, label: 'Compliance', path: '/ndpr-compliance' },
+      { icon: Settings, label: 'Settings', path: '/settings' }
+    ],
+    doctor: [
+      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Stethoscope, label: 'Consultation', path: '/consultation' },
+      { icon: Users, label: 'My Patients', path: '/patients' },
+      { icon: Calendar, label: 'Appointments', path: '/appointments' },
+      { icon: Activity, label: 'Vital Signs', path: '/vital-signs' },
+      { icon: FileText, label: 'EMR', path: '/emr' },
+      { icon: Shield, label: 'Clinical Decision', path: '/cds' },
+      { icon: Heart, label: 'Ward Rounds', path: '/ward-rounds' }
+    ],
+    nurse: [
+      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Users, label: 'Assigned Patients', path: '/patients' },
+      { icon: Activity, label: 'Vital Signs', path: '/vital-signs' },
+      { icon: Pill, label: 'Medications', path: '/pharmacy' },
+      { icon: Bed, label: 'Bed Status', path: '/bed-allocation' },
+      { icon: Heart, label: 'Admissions', path: '/admissions' },
+      { icon: Stethoscope, label: 'Ward Rounds', path: '/ward-rounds' },
+      { icon: Calendar, label: 'Schedule', path: '/appointments' }
+    ],
+    receptionist: [
+      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Users, label: 'Patient Registration', path: '/patients' },
+      { icon: Calendar, label: 'Appointments', path: '/appointments' },
+      { icon: FileText, label: 'Billing', path: '/billing' },
+      { icon: Phone, label: 'Communications', path: '/patient-feedback' },
+      { icon: Ambulance, label: 'Referrals', path: '/emergency-dept' }
+    ],
+    pharmacist: [
+      { icon: Home, label: 'Dashboard', path: '/' },
+      { icon: Pill, label: 'Pharmacy', path: '/pharmacy' },
+      { icon: Activity, label: 'Inventory', path: '/inventory' },
+      { icon: Users, label: 'Patient Profiles', path: '/patients' },
+      { icon: FileText, label: 'Billing', path: '/billing' },
+      { icon: Clipboard, label: 'Reports', path: '/financial-analytics' }
+    ]
+  };
+
+  const currentMenu = menuItems[userRole] || menuItems.admin;
+
+  return (
+    <aside className={`fixed left-0 top-0 z-40 h-screen border-r border-slate-200 bg-white transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'}`}>
+      <div className="flex h-full flex-col">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
+          {!isCollapsed && <h2 className="text-base font-semibold text-slate-900">SmartCare HMS</h2>}
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          {currentMenu.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`flex w-full items-center rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                } ${isCollapsed ? 'justify-center' : ''}`}
+                title={isCollapsed ? item.label : ''}
+              >
+                <Icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                {!isCollapsed && <span>{item.label}</span>}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-slate-200 p-3">
+          <button
+            onClick={() => navigate('/login')}
+            className={`flex w-full items-center rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${isCollapsed ? 'justify-center' : ''}`}
+          >
+            <LogOut className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
+            {!isCollapsed && <span>Logout</span>}
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;

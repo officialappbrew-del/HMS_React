@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #f7f9fc;
+  --surface-elevated: #ffffff;
+  --surface-muted: #f3f5f9;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --primary: #0f6cbd;
+  --primary-hover: #0b5ea4;
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #b42318;
+  --info: #1d4ed8;
+}
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html {
+    font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--surface);
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply min-h-screen bg-slate-50;
+  }
+
+  .panel {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .panel-hover {
+    @apply transition-colors duration-200 hover:border-slate-300;
+  }
+
+  .metric-card {
+    @apply panel panel-hover p-5;
+  }
+
+  .page-header {
+    @apply flex flex-col gap-1 border-b border-slate-200 bg-white px-6 py-5;
+  }
+
+  .table-shell {
+    @apply overflow-hidden rounded-xl border border-slate-200 bg-white;
+  }
+}
+
+.naira::before {
+  content: '₦';
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eef2f7;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Print Styles */
+@media print {
+  /* Hide navigation elements */
+  .sidebar, 
+  .header, 
+  .footer,
+  .no-print,
+  button:not(.print-button) {
+    display: none !important;
+  }
+
+  /* Ensure page breaks properly */
+  .print-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    font-size: 10pt !important;
+  }
+
+  /* Prevent page breaks inside sections */
+  .print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 5px !important;
+  }
+
+  /* Keep tables compact */
+  table {
+    font-size: 8pt !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    padding: 2px 4px !important;
+  }
+
+  /* Heading sizes */
+  h1, h2, h3 {
+    font-size: 12pt !important;
+    margin: 3px 0 !important;
+  }
+
+  h4, h5, h6 {
+    font-size: 10pt !important;
+  }
+
+  /* Remove unnecessary spacing */
+  .print-container > div {
+    margin-bottom: 5px !important;
+  }
+
+  /* Force single page for consultation */
+  .consultation-print {
+    max-height: 100vh !important;
+    overflow: hidden !important;
+  }
+}
+
