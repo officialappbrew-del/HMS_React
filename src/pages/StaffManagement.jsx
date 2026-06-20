@@ -4,13 +4,40 @@ import {
   addStaff,
   updateStaff,
   deleteStaff,
+  archiveStaff,
   searchStaff,
   sortStaff,
   filterStaff,
 } from '../features/staffSlice.jsx';
-
 import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
+import { 
+  UserPlus, 
+  Search, 
+  Filter, 
+  ArrowUpDown, 
+  MoreVertical,
+  Edit2,
+  Archive,
+  Trash2,
+  Mail,
+  Phone,
+  Calendar,
+  Users,
+  Briefcase,
+  Clock,
+  CheckCircle,
+  XCircle,
+  User,
+  Building2,
+  Download,
+  Printer,
+  ChevronDown,
+  Plus,
+  X,
+  Save,
+  AlertCircle
+} from 'lucide-react';
 
 const StaffManagement = () => {
   const dispatch = useDispatch();
@@ -21,6 +48,7 @@ const StaffManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeDropdown, setActiveDropdown] = useState(null);
   const itemsPerPage = 10;
   const [formData, setFormData] = useState({
     name: '',
@@ -43,12 +71,10 @@ const StaffManagement = () => {
   const roles = ['Chief Medical Officer', 'Doctor', 'Surgeon', 'Registered Nurse', 'Nurse', 'Pharmacist', 'Lab Technician', 'Administrator', 'Receptionist', 'Cleaner', 'Security'];
   const departments = ['Administration', 'General Medicine', 'Surgery', 'Pediatrics', 'Obstetrics & Gynecology', 'Emergency', 'Pharmacy', 'Laboratory', 'Radiology', 'Cardiology', 'Neurology', 'Orthopedics'];
 
-  // Handlers for search, sort, filter
   const handleSearch = (e) => dispatch(searchStaff(e.target.value));
   const handleSort = (e) => dispatch(sortStaff(e.target.value));
   const handleFilter = (e) => dispatch(filterStaff(e.target.value));
 
-  // Open modal for delete
   const handleDeleteClick = (staff) => {
     setModalConfig({
       isOpen: true,
@@ -58,41 +84,38 @@ const StaffManagement = () => {
     });
   };
 
-  // Archive functionality removed - not implemented in slice
-
-  // Open modal for edit
-  const handleEditClick = (staff) => {
+  const handleArchiveClick = (staff) => {
     setModalConfig({
       isOpen: true,
-      type: 'edit',
+      type: 'archive',
       staffData: staff,
-      action: () => {
-        setFormData(staff);
-        setEditingId(staff.id);
-        setShowForm(true);
-      },
+      action: () => dispatch(archiveStaff(staff.id)),
     });
   };
 
+  const handleEditClick = (staff) => {
+    setFormData(staff);
+    setEditingId(staff.id);
+    setShowForm(true);
+    setActiveDropdown(null);
+  };
 
-  // Handle modal confirm
   const handleModalConfirm = () => {
     if (modalConfig.action) {
       modalConfig.action();
     }
-    setModalConfig({ ...modalConfig, isOpen: false });
+    setModalConfig(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Handle modal close
   const handleModalClose = () => {
-    setModalConfig({ ...modalConfig, isOpen: false });
+    setModalConfig(prev => ({ ...prev, isOpen: false }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validation
     if (!formData.name.trim() || !formData.email.trim() || !formData.role.trim()) {
+      // Use a more elegant notification system
       alert('Name, Email, and Role are required fields');
       return;
     }
@@ -131,14 +154,12 @@ const StaffManagement = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  // Calculate pagination
   const totalItems = filteredStaff.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const displayedStaff = filteredStaff.slice(startIndex, endIndex);
 
-  // Get modal configuration based on type
   const getModalConfig = () => {
     const configs = {
       delete: {
@@ -163,281 +184,403 @@ const StaffManagement = () => {
     return configs[modalConfig.type] || configs.delete;
   };
 
+  // Get status color
+  const getStatusColor = (status) => {
+    return status === 'active' 
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+      : 'bg-rose-50 text-rose-700 border-rose-200';
+  };
+
   return (
-    <div className="staff-management p-6">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold mb-2">Staff Management</h2>
-        <p className="text-gray-600">Manage medical staff records, roles, and departments</p>
+    <div className="min-h-screen bg-slate-50/80">
+      {/* Page Header */}
+      <div className="bg-white border-b border-slate-200/80 px-6 py-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Staff Management</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Manage your healthcare workforce efficiently</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-200">
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+            <button className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-200">
+              <Printer className="h-4 w-4" />
+              Print
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all duration-200"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add Staff
+            </button>
+          </div>
+        </div>
       </div>
 
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Add/Edit Form */}
-        <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-lg shadow-md sticky top-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">
-                {editingId ? 'Edit Staff' : 'Add New Staff'}
-              </h3>
-              {showForm && (
-                <button
-                  onClick={() => {
-                    setShowForm(false);
-                    resetForm();
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  ✕
-                </button>
-              )}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">{filteredStaff.length}</p>
+                <p className="text-xs text-slate-500">Total Staff</p>
+              </div>
             </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">
+                  {filteredStaff.filter(s => s.status === 'active').length}
+                </p>
+                <p className="text-xs text-slate-500">Active</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-50 rounded-lg">
+                <XCircle className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">
+                  {filteredStaff.filter(s => s.status === 'inactive').length}
+                </p>
+                <p className="text-xs text-slate-500">Inactive</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Briefcase className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">
+                  {new Set(filteredStaff.map(s => s.role)).size}
+                </p>
+                <p className="text-xs text-slate-500">Roles</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <Building2 className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">
+                  {new Set(filteredStaff.map(s => s.department)).size}
+                </p>
+                <p className="text-xs text-slate-500">Departments</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            {!showForm ? (
-              <button
-                onClick={() => setShowForm(true)}
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 font-medium"
-              >
-                + New Staff Member
-              </button>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Full Name *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Role *</label>
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    required
-                  >
-                    <option value="">Select Role</option>
-                    {roles.map(role => (
-                      <option key={role} value={role}>{role}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Department</label>
-                  <select
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Hire Date</label>
-                  <input
-                    type="date"
-                    name="hireDate"
-                    value={formData.hireDate}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Monthly Salary (₦)</label>
-                  <input
-                    type="number"
-                    name="salary"
-                    value={formData.salary}
-                    onChange={handleChange}
-                    placeholder="e.g., 150000"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-
-                <div className="flex gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Add/Edit Form */}
+          {showForm && (
+            <div className="lg:col-span-1 order-2 lg:order-1">
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden sticky top-6">
+                <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-blue-600 rounded-lg">
+                      {editingId ? <Edit2 className="h-4 w-4 text-white" /> : <UserPlus className="h-4 w-4 text-white" />}
+                    </div>
+                    <h3 className="font-semibold text-slate-800">
+                      {editingId ? 'Edit Staff' : 'New Staff Member'}
+                    </h3>
+                  </div>
                   <button
-                    type="submit"
-                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 font-medium"
-                  >
-                    {editingId ? 'Update' : 'Add'} Staff
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => {
                       setShowForm(false);
                       resetForm();
                     }}
-                    className="flex-1 bg-gray-300 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-400"
+                    className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
                   >
-                    Cancel
+                    <X className="h-4 w-4 text-slate-500" />
                   </button>
                 </div>
-              </form>
-            )}
-          </div>
-        </div>
 
-        {/* Staff List */}
-        <div className="lg:col-span-2">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-xl font-semibold mb-4">Staff List</h3>
+                <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Full Name *</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                      placeholder="Dr. Adebayo Ogunlesi"
+                      required
+                    />
+                  </div>
 
-            {/* Search, Sort, and Filter Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                <input
-                  type="text"
-                  placeholder="Search by name, email, role, or department..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Email Address *</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                        placeholder="staff@hospital.com"
+                        required
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={handleSort}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="name">Name</option>
-                  <option value="role">Role</option>
-                  <option value="department">Department</option>
-                  <option value="hireDate">Hire Date</option>
-                </select>
-              </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Phone Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                        placeholder="+234 800 000 0000"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter By Status</label>
-                <select
-                  value={filterBy}
-                  onChange={handleFilter}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="all">All Staff</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Role *</label>
+                    <select
+                      name="role"
+                      value={formData.role}
+                      onChange={handleChange}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 appearance-none"
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      {roles.map(role => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Department</label>
+                    <select
+                      name="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 appearance-none"
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Hire Date</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="date"
+                        name="hireDate"
+                        value={formData.hireDate}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Monthly Salary (₦)</label>
+                    <input
+                      type="number"
+                      name="salary"
+                      value={formData.salary}
+                      onChange={handleChange}
+                      placeholder="150,000"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="submit"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 transition-all duration-200"
+                    >
+                      <Save className="h-4 w-4" />
+                      {editingId ? 'Update' : 'Add'} Staff
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForm(false);
+                        resetForm();
+                      }}
+                      className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
+          )}
 
-            {/* Staff Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full table-auto">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {displayedStaff.map((staff) => (
-                    <tr key={staff.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{staff.name}</div>
-                            <div className="text-sm text-gray-500">{staff.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{staff.role}</div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{staff.department}</div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          staff.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {staff.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleEditClick(staff)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-3"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleArchiveClick(staff)}
-                          className="text-orange-600 hover:text-orange-900 mr-3"
-                        >
-                          Archive
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(staff)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {displayedStaff.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No staff members found
+          {/* Staff List */}
+          <div className={`${showForm ? 'lg:col-span-3' : 'lg:col-span-4'} order-1 lg:order-2`}>
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+              {/* Toolbar */}
+              <div className="px-5 py-4 border-b border-slate-200/80 bg-slate-50/50">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search staff..."
+                        value={searchTerm}
+                        onChange={handleSearch}
+                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                      />
+                    </div>
+                    <select
+                      value={sortBy}
+                      onChange={handleSort}
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 appearance-none"
+                    >
+                      <option value="name">Sort by Name</option>
+                      <option value="role">Sort by Role</option>
+                      <option value="department">Sort by Dept</option>
+                      <option value="hireDate">Sort by Date</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={filterBy}
+                      onChange={handleFilter}
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 appearance-none"
+                    >
+                      <option value="all">All Staff</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">
+                      {filteredStaff.length} records
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200/80 bg-slate-50/50">
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Staff</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Role</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden md:table-cell">Department</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Hire Date</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/60">
+                    {displayedStaff.map((staff) => (
+                      <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors duration-150">
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-medium shadow-sm flex-shrink-0">
+                              {staff.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{staff.name}</p>
+                              <p className="text-xs text-slate-400 flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {staff.email}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="text-sm text-slate-700">{staff.role}</span>
+                        </td>
+                        <td className="px-5 py-4 hidden md:table-cell">
+                          <span className="text-sm text-slate-600">{staff.department || '—'}</span>
+                        </td>
+                        <td className="px-5 py-4 hidden lg:table-cell">
+                          <span className="text-sm text-slate-500">{staff.hireDate || '—'}</span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(staff.status)}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${staff.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                            {staff.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleEditClick(staff)}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                              title="Edit"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleArchiveClick(staff)}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all duration-200"
+                              title="Archive"
+                            >
+                              <Archive className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(staff)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {displayedStaff.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="inline-flex p-4 bg-slate-100 rounded-full mb-4">
+                      <Users className="h-8 w-8 text-slate-400" />
+                    </div>
+                    <p className="text-slate-500 font-medium">No staff members found</p>
+                    <p className="text-sm text-slate-400 mt-1">Try adjusting your search or filter criteria</p>
+                  </div>
+                )}
+              </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Confirm Modal */}
       <ConfirmModal
         isOpen={modalConfig.isOpen}
         onClose={handleModalClose}

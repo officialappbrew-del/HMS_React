@@ -4,16 +4,106 @@ import {
   addPatient,
   updatePatient,
   deletePatient,
-  archivePatient, // Add this to your slice
+  archivePatient,
   searchPatients,
   sortPatients,
   filterPatients,
 } from '../features/patientSlice';
-
 import ConfirmModal from "../components/ConfirmModal";
-import Pagination from "../components/Pagination";
-import nigerianData from '../assets/nigerian-data.json';
+import { 
+  User, Search, Filter, Plus, Edit, Trash2, 
+  UserPlus, Phone, Mail, MapPin, Calendar, 
+  Heart, Users, FileText, Eye, Download,
+  ChevronLeft, ChevronRight, Grid, List, Printer,
+  X, AlertTriangle, CheckCircle, Shield, Clock,
+  UserCheck, UserX, Activity, Baby, Droplets,
+  Map, Building2, Globe, BookOpen, Award,
+  Menu, MoreVertical, UserCircle, IdCard
+} from 'lucide-react';
 
+// Tooltip Component
+const Tooltip = ({ children, text, position = 'top' }) => {
+  const [show, setShow] = useState(false);
+  
+  const positionClasses = {
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-2',
+  };
+
+  return (
+    <div 
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onTouchStart={() => setShow(!show)}
+    >
+      {children}
+      {show && (
+        <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
+          <div className="bg-gray-900 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-lg">
+            {text}
+            <div className={`absolute w-2 h-2 bg-gray-900 transform rotate-45 ${
+              position === 'top' ? 'bottom-[-4px] left-1/2 -translate-x-1/2' :
+              position === 'bottom' ? 'top-[-4px] left-1/2 -translate-x-1/2' :
+              position === 'left' ? 'right-[-4px] top-1/2 -translate-y-1/2' :
+              'left-[-4px] top-1/2 -translate-y-1/2'
+            }`} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Icon Button with Tooltip
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
+  const variantClasses = {
+    default: 'text-gray-400 hover:text-gray-600',
+    primary: 'text-blue-600 hover:text-blue-700',
+    success: 'text-green-600 hover:text-green-700',
+    danger: 'text-red-600 hover:text-red-700',
+    warning: 'text-yellow-600 hover:text-yellow-700',
+    info: 'text-blue-600 hover:text-blue-700',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
+        }`}
+      >
+        <Icon className="w-4 h-4" />
+      </button>
+    </Tooltip>
+  );
+};
+
+// Button with Tooltip
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '' }) => {
+  const variantClasses = {
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+    secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
+    success: 'bg-green-600 hover:bg-green-700 text-white',
+    danger: 'bg-red-600 hover:bg-red-700 text-white',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        onClick={onClick}
+        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+};
 
 const PatientManagement = () => {
   const dispatch = useDispatch();
@@ -24,7 +114,11 @@ const PatientManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState('table');
+  const [selectedPatients, setSelectedPatients] = useState([]);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const itemsPerPage = 10;
+  
   const [formData, setFormData] = useState({
     name: '',
     nin: '',
@@ -37,14 +131,22 @@ const PatientManagement = () => {
     state: '',
     dateOfBirth: '',
     bloodType: '',
+    gender: '',
+    maritalStatus: '',
+    occupation: '',
+    emergencyContact: '',
+    emergencyPhone: '',
+    nextOfKin: '',
+    nextOfKinPhone: '',
+    religion: '',
   });
 
   const [availableLGAs, setAvailableLGAs] = useState([]);
   const [nigerianStates, setNigerianStates] = useState([]);
-  const [nigerianData, setNigerianData] = useState({});
   const [countries, setCountries] = useState([]);
   const [countryStates, setCountryStates] = useState({});
   const [loadingData, setLoadingData] = useState(true);
+  const [nigerianData, setNigerianData] = useState({});
 
   // Modal states
   const [modalConfig, setModalConfig] = useState({
@@ -58,7 +160,6 @@ const PatientManagement = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch countries and states from CountriesNow API
         const statesResponse = await fetch('https://countriesnow.space/api/v0.1/countries/states');
         const statesData = await statesResponse.json();
 
@@ -72,10 +173,10 @@ const PatientManagement = () => {
         setCountryStates(statesMap);
 
         // Load Nigerian LGAs from local JSON
-        setNigerianStates(Object.keys(nigerianData));
+        const nigerianStatesList = Object.keys(nigerianData);
+        setNigerianStates(nigerianStatesList);
       } catch (error) {
         console.error('Error fetching global data:', error);
-        // Fallback
         setCountries(['Nigeria']);
         setCountryStates({ 'Nigeria': Object.keys(nigerianData) });
         setNigerianStates(Object.keys(nigerianData));
@@ -89,6 +190,20 @@ const PatientManagement = () => {
 
   const tribes = ['Yoruba', 'Hausa', 'Igbo', 'Fulani', 'Ijaw', 'Kanuri', 'Ibibio', 'Tiv', 'Other'];
   const bloodTypes = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
+  const genders = ['Male', 'Female', 'Other'];
+  const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
+  const religions = ['Christianity', 'Islam', 'Traditional', 'Other'];
+
+  // Stats calculation
+  const stats = {
+    total: filteredPatients.length,
+    active: filteredPatients.filter(p => p.status === 'active').length,
+    inactive: filteredPatients.filter(p => p.status === 'inactive' || p.status === 'archived').length,
+    byState: filteredPatients.reduce((acc, p) => {
+      acc[p.state] = (acc[p.state] || 0) + 1;
+      return acc;
+    }, {}),
+  };
 
   // Open modal for delete
   const handleDeleteClick = (patient) => {
@@ -102,19 +217,10 @@ const PatientManagement = () => {
 
   // Open modal for edit
   const handleEditClick = (patient) => {
-    setModalConfig({
-      isOpen: true,
-      type: 'edit',
-      patientData: patient,
-      action: () => {
-        // Ensure country is set for existing patients
-        const patientWithCountry = { ...patient, country: patient.country || 'Nigeria' };
-        setFormData(patientWithCountry);
-        setAvailableLGAs(nigerianData[patient.state] || []);
-        setEditingId(patient.id);
-        setShowForm(true);
-      },
-    });
+    setFormData(patient);
+    setAvailableLGAs(nigerianData[patient.state] || []);
+    setEditingId(patient.id);
+    setShowForm(true);
   };
 
   // Handle soft delete (archive)
@@ -139,7 +245,6 @@ const PatientManagement = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validation
     if (!formData.name.trim() || !formData.phone.trim()) {
       alert('Name and Phone are required fields');
       return;
@@ -175,6 +280,14 @@ const PatientManagement = () => {
       state: '',
       dateOfBirth: '',
       bloodType: '',
+      gender: '',
+      maritalStatus: '',
+      occupation: '',
+      emergencyContact: '',
+      emergencyPhone: '',
+      nextOfKin: '',
+      nextOfKinPhone: '',
+      religion: '',
     });
     setAvailableLGAs([]);
     setEditingId(null);
@@ -185,15 +298,11 @@ const PatientManagement = () => {
     setFormData({ ...formData, [name]: value });
 
     if (name === 'country') {
-      // Reset state and LGA when country changes
       setFormData(prev => ({ ...prev, state: '', lga: '' }));
       setAvailableLGAs([]);
-      // Set states based on country
       setNigerianStates(countryStates[value] || []);
     } else if (name === 'state') {
-      // Reset LGA when state changes
       setFormData(prev => ({ ...prev, lga: '' }));
-      // Set LGAs for the selected state (only for Nigeria)
       if (formData.country === 'Nigeria') {
         setAvailableLGAs(nigerianData[value] || []);
       }
@@ -210,7 +319,7 @@ const PatientManagement = () => {
 
   const handleFilter = (e) => {
     dispatch(filterPatients(e.target.value));
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   };
 
   // Calculate pagination
@@ -220,18 +329,18 @@ const PatientManagement = () => {
   const endIndex = startIndex + itemsPerPage;
   const displayedPatients = filteredPatients.slice(startIndex, endIndex);
 
-  // Get modal configuration based on type
+  // Get modal configuration
   const getModalConfig = () => {
     const configs = {
       delete: {
         title: 'Delete Patient Record',
-        message: 'Are you sure you want to permanently delete this patient record? This action is irreversible and will remove all associated data.',
+        message: 'Are you sure you want to permanently delete this patient record? This action is irreversible.',
         confirmText: 'Delete Permanently',
         showSoftDeleteOption: true,
       },
       edit: {
         title: 'Edit Patient Details',
-        message: 'You are about to modify patient information. Please ensure all changes are accurate and properly documented.',
+        message: 'You are about to modify patient information. Please ensure all changes are accurate.',
         confirmText: 'Save Changes',
         showSoftDeleteOption: false,
       },
@@ -245,331 +354,624 @@ const PatientManagement = () => {
     return configs[modalConfig.type] || configs.delete;
   };
 
-  return (
-    <div className="patient-management p-6">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold mb-2">Patient Management</h2>
-        <p className="text-gray-600">Manage patient records, medical history, and demographics</p>
+  // Render patient form
+  const renderPatientForm = () => (
+    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 sticky top-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+          {editingId ? 'Edit Patient' : 'Add New Patient'}
+        </h3>
+        {showForm && (
+          <IconButton
+            icon={X}
+            onClick={() => {
+              setShowForm(false);
+              resetForm();
+            }}
+            tooltip="Close form"
+            variant="default"
+          />
+        )}
       </div>
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Add/Edit Form */}
-        <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-lg shadow-md sticky top-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">
-                {editingId ? 'Edit Patient' : 'Add New Patient'}
-              </h3>
-              {showForm && (
-                <button
-                  onClick={() => {
-                    setShowForm(false);
-                    resetForm();
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {!showForm ? (
-              <button
-                onClick={() => setShowForm(true)}
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 font-medium"
-              >
-                + New Patient
-              </button>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {/* Form fields remain the same */}
-                {/* ... (keep all your existing form fields) ... */}
-                
+      {!showForm ? (
+        <ButtonWithTooltip
+          onClick={() => setShowForm(true)}
+          tooltip="Register a new patient"
+          variant="success"
+          className="w-full justify-center"
+        >
+          <UserPlus className="w-4 h-4" />
+          New Patient
+        </ButtonWithTooltip>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+          {/* Personal Information */}
+          <div className="border-b border-gray-200 pb-3">
+            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" />
+              Personal Information
+            </h4>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Full Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Full Name *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Date of Birth</label>
                   <input
                     type="date"
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">NIN</label>
-                  <input
-                    type="text"
-                    name="nin"
-                    value={formData.nin}
-                    onChange={handleChange}
-                    placeholder="National Identity Number"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Blood Type</label>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Gender</label>
                   <select
-                    name="bloodType"
-                    value={formData.bloodType}
+                    name="gender"
+                    value={formData.gender}
                     onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">Select Blood Type</option>
-                    {bloodTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
+                    <option value="">Select</option>
+                    {genders.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NIN</label>
+                <input
+                  type="text"
+                  name="nin"
+                  value={formData.nin}
+                  onChange={handleChange}
+                  placeholder="National Identity Number"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone Number *</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
+          {/* Contact Information */}
+          <div className="border-b border-gray-200 pb-3">
+            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5" />
+              Contact Information
+            </h4>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone Number *</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
 
+          {/* Location Information */}
+          <div className="border-b border-gray-200 pb-3">
+            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" />
+              Location
+            </h4>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Country</label>
+                <select
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Country</option>
+                  {countries.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">State</label>
+                <select
+                  name="state"
+                  value={formData.state}
+                  onChange={handleChange}
+                  disabled={!formData.country || loadingData}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+                >
+                  <option value="">Select State</option>
+                  {nigerianStates.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              {formData.country === 'Nigeria' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Tribe/Ethnicity</label>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">LGA</label>
                   <select
-                    name="tribe"
-                    value={formData.tribe}
+                    name="lga"
+                    value={formData.lga}
                     onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    disabled={!formData.state}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
                   >
-                    <option value="">Select Tribe</option>
-                    {tribes.map(tribe => (
-                      <option key={tribe} value={tribe}>{tribe}</option>
-                    ))}
+                    <option value="">Select LGA</option>
+                    {availableLGAs.map(lga => <option key={lga} value={lga}>{lga}</option>)}
                   </select>
                 </div>
+              )}
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  rows="2"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Country</label>
-                  <select
-                    name="country"
-                    value={formData.country}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="">Select Country</option>
-                    {countries.map(country => (
-                      <option key={country} value={country}>{country}</option>
-                    ))}
-                  </select>
-                </div>
+          {/* Medical & Demographic */}
+          <div className="border-b border-gray-200 pb-3">
+            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <Heart className="w-3.5 h-3.5" />
+              Medical & Demographic
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
+                <select
+                  name="bloodType"
+                  value={formData.bloodType}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select</option>
+                  {bloodTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Tribe</label>
+                <select
+                  name="tribe"
+                  value={formData.tribe}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select</option>
+                  {tribes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Religion</label>
+                <select
+                  name="religion"
+                  value={formData.religion}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select</option>
+                  {religions.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
+                <select
+                  name="maritalStatus"
+                  value={formData.maritalStatus}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select</option>
+                  {maritalStatuses.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">State</label>
-                  <select
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    disabled={!formData.country || loadingData}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="">
-                      {!formData.country ? 'Select Country first' : loadingData ? 'Loading states...' : 'Select State'}
-                    </option>
-                    {nigerianStates.map(state => (
-                      <option key={state} value={state}>{state}</option>
-                    ))}
-                  </select>
-                </div>
+          {/* Emergency Contact */}
+          <div className="border-b border-gray-200 pb-3">
+            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" />
+              Emergency Contact
+            </h4>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Contact Name</label>
+                <input
+                  type="text"
+                  name="emergencyContact"
+                  value={formData.emergencyContact}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Phone</label>
+                <input
+                  type="tel"
+                  name="emergencyPhone"
+                  value={formData.emergencyPhone}
+                  onChange={handleChange}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
 
-                {formData.country === 'Nigeria' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Local Government Area</label>
-                    <select
-                      name="lga"
-                      value={formData.lga}
-                      onChange={handleChange}
-                      disabled={!formData.state}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    >
-                      <option value="">
-                        {formData.state ? 'Select LGA' : 'Select State first'}
-                      </option>
-                      {availableLGAs.map(lga => (
-                        <option key={lga} value={lga}>{lga}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+          {/* Form Actions */}
+          <div className="flex gap-2 pt-2">
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+            >
+              {editingId ? 'Update' : 'Add'} Patient
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                resetForm();
+              }}
+              className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Address</label>
-                  <textarea
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    rows="3"
-                  />
-                </div>
+  // Render patient table
+  const renderPatientTable = () => (
+    <>
+      {filteredPatients.length === 0 ? (
+        <div className="text-center py-8 sm:py-12">
+          <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+          <p className="text-gray-600 font-medium text-sm sm:text-base">No patients found</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            {searchTerm ? 'Try adjusting your search or filters' : 'Start by registering your first patient'}
+          </p>
+          {!searchTerm && (
+            <ButtonWithTooltip
+              onClick={() => setShowForm(true)}
+              tooltip="Register a new patient"
+              variant="primary"
+              className="mt-3 sm:mt-4"
+            >
+              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Add Patient
+            </ButtonWithTooltip>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
+            <table className="w-full min-w-[640px] sm:min-w-0">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <Tooltip text="Select all patients">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPatients(displayedPatients.map(p => p.id));
+                          } else {
+                            setSelectedPatients([]);
+                          }
+                        }}
+                      />
+                    </Tooltip>
+                  </th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Location</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Blood</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {displayedPatients.map((patient) => (
+                  <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-2 sm:py-3">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
+                        checked={selectedPatients.includes(patient.id)}
+                        onChange={() => {
+                          setSelectedPatients(prev =>
+                            prev.includes(patient.id)
+                              ? prev.filter(id => id !== patient.id)
+                              : [...prev, patient.id]
+                          );
+                        }}
+                      />
+                    </td>
+                    <td className="py-2 sm:py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
+                          {patient.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900 text-xs sm:text-sm">{patient.name}</div>
+                          <div className="text-[10px] text-gray-500">
+                            {patient.nin ? `NIN: ${patient.nin}` : 'No NIN'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-2 sm:py-3 hidden sm:table-cell">
+                      <div className="text-xs sm:text-sm text-gray-600">{patient.phone}</div>
+                      <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
+                    </td>
+                    <td className="py-2 sm:py-3 hidden md:table-cell">
+                      <div className="text-xs sm:text-sm text-gray-600">{patient.state || '-'}</div>
+                      <div className="text-[10px] text-gray-400">{patient.lga || '-'}</div>
+                    </td>
+                    <td className="py-2 sm:py-3 hidden lg:table-cell">
+                      <span className="text-xs font-medium">{patient.bloodType || '-'}</span>
+                    </td>
+                    <td className="py-2 sm:py-3">
+                      <span className={`inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full ${
+                        patient.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {patient.status || 'active'}
+                      </span>
+                    </td>
+                    <td className="py-2 sm:py-3">
+                      <div className="flex items-center gap-0.5 sm:gap-1">
+                        <IconButton
+                          icon={Eye}
+                          onClick={() => {}}
+                          tooltip="View patient details"
+                          variant="primary"
+                        />
+                        <IconButton
+                          icon={Edit}
+                          onClick={() => handleEditClick(patient)}
+                          tooltip="Edit patient"
+                          variant="primary"
+                        />
+                        <IconButton
+                          icon={Trash2}
+                          onClick={() => handleDeleteClick(patient)}
+                          tooltip="Delete patient"
+                          variant="danger"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 font-medium"
-                  >
-                    {editingId ? 'Update' : 'Add'} Patient
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      resetForm();
-                    }}
-                    className="flex-1 bg-gray-300 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
+          {/* Pagination */}
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 gap-2 sm:gap-0">
+            <div className="text-[10px] sm:text-xs text-gray-500">
+              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <IconButton
+                icon={ChevronLeft}
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                tooltip="Previous page"
+                variant="default"
+                disabled={currentPage === 1}
+              />
+              <span className="text-[10px] sm:text-xs text-gray-600">
+                Page {currentPage} of {totalPages || 1}
+              </span>
+              <IconButton
+                icon={ChevronRight}
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                tooltip="Next page"
+                variant="default"
+                disabled={currentPage === totalPages}
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+              Patient Management
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
+              Manage patient records, demographics, and medical history
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ButtonWithTooltip
+              tooltip="Export patient data"
+              variant="secondary"
+            >
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Export</span>
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => setShowForm(true)}
+              tooltip="Register a new patient"
+              variant="primary"
+            >
+              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Add Patient</span>
+            </ButtonWithTooltip>
           </div>
         </div>
 
-        {/* Patient List */}
-        <div className="lg:col-span-2">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-xl font-semibold mb-4">Patient List</h3>
-
-            {/* Search, Sort, and Filter Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                <input
-                  type="text"
-                  placeholder="Search by name, NIN, phone, or email..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={handleSort}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="name">Name (A-Z)</option>
-                  <option value="date">Date Added (Newest)</option>
-                  <option value="state">State (A-Z)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by State</label>
-                <select
-                  value={filterBy}
-                  onChange={handleFilter}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="all">All States</option>
-                  {nigerianStates.map(state => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </select>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
+          <Tooltip text="Total registered patients">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                </div>
               </div>
             </div>
-
-            {/* Patient Records Table */}
-            <div className="overflow-x-auto">
-              {filteredPatients.length === 0 ? (
-                <p className="text-gray-600 text-center py-8">
-                  {filteredPatients.length === 0 && searchTerm
-                    ? 'No patients match your search.'
-                    : 'No patients added yet. Click "New Patient" to get started.'}
-                </p>
-              ) : (
-                <table className="min-w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Name</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">NIN</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Phone</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">State</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Blood Type</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Status</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayedPatients.map(patient => (
-                      <tr key={patient.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{patient.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{patient.nin || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{patient.phone}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{patient.state || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{patient.bloodType || '-'}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs ${patient.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                            {patient.status || 'active'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm space-x-2">
-                          <button
-                            onClick={() => handleEditClick(patient)}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(patient)}
-                            className="text-red-600 hover:text-red-800 font-medium"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+          </Tooltip>
+          
+          <Tooltip text="Active patients currently receiving care">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
+                  <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.active}</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                </div>
+              </div>
             </div>
+          </Tooltip>
+          
+          <Tooltip text="Inactive or archived patients">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Inactive</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-600 mt-0.5 sm:mt-1">{stats.inactive}</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-50 rounded-lg flex items-center justify-center">
+                  <UserX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                </div>
+              </div>
+            </div>
+          </Tooltip>
+          
+          <Tooltip text="Unique states represented in patient data">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">States</p>
+                  <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{Object.keys(stats.byState).length}</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                  <Map className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                </div>
+              </div>
+            </div>
+          </Tooltip>
+        </div>
 
-            {/* Summary */}
-            <div className="mt-4 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
-              Showing {displayedPatients.length} of {totalItems} patient(s)
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* Left Column - Form */}
+          <div className="lg:col-span-1">
+            {renderPatientForm()}
+          </div>
+
+          {/* Right Column - Patient List */}
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-lg border border-gray-200">
+              {/* Toolbar */}
+              <div className="p-3 sm:p-4 border-b border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="relative flex-1 max-w-full sm:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search patients..."
+                      value={searchTerm}
+                      onChange={handleSearch}
+                      className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                    <IconButton
+                      icon={Filter}
+                      onClick={() => setShowMobileFilters(!showMobileFilters)}
+                      tooltip={showMobileFilters ? "Hide filters" : "Show filters"}
+                      variant="default"
+                      className="lg:hidden"
+                    />
+                    <div className="hidden sm:flex items-center gap-1.5">
+                      <Tooltip text="Sort patients">
+                        <select
+                          value={sortBy}
+                          onChange={handleSort}
+                          className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="name">Name A-Z</option>
+                          <option value="date">Newest</option>
+                          <option value="state">State</option>
+                        </select>
+                      </Tooltip>
+                      <Tooltip text="Filter by state">
+                        <select
+                          value={filterBy}
+                          onChange={handleFilter}
+                          className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="all">All States</option>
+                          {nigerianStates.map(state => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                      </Tooltip>
+                    </div>
+                    <IconButton
+                      icon={viewMode === 'table' ? Grid : List}
+                      onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
+                      tooltip={viewMode === 'table' ? "Switch to grid view" : "Switch to table view"}
+                      variant="default"
+                    />
+                    <IconButton
+                      icon={Printer}
+                      onClick={() => window.print()}
+                      tooltip="Print patient list"
+                      variant="default"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Patient List Content */}
+              <div className="p-3 sm:p-4">
+                {renderPatientTable()}
+              </div>
             </div>
           </div>
         </div>
