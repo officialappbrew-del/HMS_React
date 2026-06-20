@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
 import { 
@@ -91,6 +92,7 @@ import {
   Check,
   MapPin,
   Menu,
+  X,
   CheckCheck,
   XCircle,
   Loader2,
@@ -131,6 +133,16 @@ import {
 } from 'lucide-react';
 
 const LandingPage = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
   const features = [
     {
       icon: Building2,
@@ -285,6 +297,8 @@ const LandingPage = () => {
                 </span>
               </div>
             </div>
+            
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">Features</a>
               <a href="#pricing" className="text-sm text-slate-600 hover:text-blue-600 transition-colors">Pricing</a>
@@ -297,11 +311,60 @@ const LandingPage = () => {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <button className="md:hidden p-2 rounded-lg hover:bg-slate-100">
-              <Menu className="h-6 w-6 text-slate-600" />
+
+            {/* Mobile Menu Button */}
+            <button 
+              onClick={toggleMobileMenu}
+              className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6 text-slate-600" />
+              ) : (
+                <Menu className="h-6 w-6 text-slate-600" />
+              )}
             </button>
           </div>
         </div>
+
+        {/* Mobile Navigation */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-slate-200 shadow-lg">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex flex-col space-y-3">
+                <a 
+                  href="#features" 
+                  onClick={closeMobileMenu}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors py-2 px-3 rounded-lg hover:bg-slate-50"
+                >
+                  Features
+                </a>
+                <a 
+                  href="#pricing" 
+                  onClick={closeMobileMenu}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors py-2 px-3 rounded-lg hover:bg-slate-50"
+                >
+                  Pricing
+                </a>
+                <a 
+                  href="#testimonials" 
+                  onClick={closeMobileMenu}
+                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors py-2 px-3 rounded-lg hover:bg-slate-50"
+                >
+                  Testimonials
+                </a>
+                <Link 
+                  to="/login" 
+                  onClick={closeMobileMenu}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40"
+                >
+                  Sign In
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <main>
