@@ -1,4 +1,14 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://hms-backend-onm9.onrender.com';
+const isLocalFrontend = () => {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname);
+};
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (isLocalFrontend()
+    ? 'http://0.0.0.0:8000'
+    : 'https://hms-backend-onm9.onrender.com');
 
 const PUBLIC_AUTH_PATHS = [
   '/api/v1/auth/login/',
