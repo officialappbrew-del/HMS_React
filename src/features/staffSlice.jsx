@@ -42,6 +42,7 @@ const initialState = {
   searchTerm: '',
   sortBy: 'name',
   filterBy: 'all',
+  loading: false,
   error: null,
 };
 
@@ -49,6 +50,13 @@ const staffSlice = createSlice({
   name: 'staff',
   initialState,
   reducers: {
+    setStaffList: (state, action) => {
+      state.staff = action.payload;
+      state.filteredStaff = action.payload;
+    },
+    setLoading: (state, action) => {
+      state.loading = action.payload;
+    },
     addStaff: (state, action) => {
       state.staff.push(action.payload);
       state.filteredStaff = state.staff;
@@ -110,6 +118,8 @@ const staffSlice = createSlice({
 });
 
 export const {
+  setStaffList,
+  setLoading,
   addStaff,
   updateStaff,
   deleteStaff,

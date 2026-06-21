@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Stethoscope, Activity, Users, Pill, Eye, EyeOff } from 'lucide-react';
+import { apiRequest } from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -30,15 +31,86 @@ const Login = () => {
     setLoading(true);
     setMessage('');
 
-    setTimeout(() => {
-      localStorage.setItem('authToken', 'demo-token');
-      localStorage.setItem('userRole', selectedRole);
-      localStorage.setItem('userEmail', formData.email);
+    try {
+      // Clear any stale auth data before attempting a fresh login.
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('tenantId');
+
+      const loginIdentifier = formData.email.trim();
+      const payload = {
+        password: formData.password,
+      };
+
+      if (loginIdentifier) {
+        payload.user_id = loginIdentifier;
+        payload.username = loginIdentifier;
+        payload.identifier = loginIdentifier;
+      }
+
+      const response = await apiRequest('/api/v1/auth/login/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      const authData = response?.tokens || response?.data || response || {};
+      const token =
+        authData.access_token ||
+        response?.access_token ||
+        response?.token ||
+        authData.token ||
+        response?.accessToken ||
+        authData.accessToken;
+      const refreshToken =
+        authData.refresh_token ||
+        response?.refresh_token ||
+        authData.refreshToken ||
+        response?.refreshToken;
+      const user = response?.user || authData.user || {};
+      const tenant = response?.tenant || authData.tenant || {};
+      const tenantPublicId =
+        tenant.public_id ||
+        tenant.publicId ||
+        tenant.id ||
+        response?.tenant_public_id ||
+        response?.tenantId ||
+        authData.tenant_public_id ||
+        authData.tenantId;
+
+      if (!token) {
+        throw new Error('Authentication token was not returned by the server.');
+      }
+
+      if (response?.requires_2fa || authData.requires_2fa) {
+        throw new Error('Two-factor verification is required before you can continue.');
+      }
+
+      localStorage.setItem('accessToken', token);
+      localStorage.setItem('refreshToken', refreshToken || '');
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userRole', user.role || selectedRole);
+      localStorage.setItem('userEmail', user.email || formData.email);
+      localStorage.setItem('userName', user.username || user.user_id || formData.email);
+      localStorage.setItem('userId', user.id || user.user_id || loginIdentifier);
+      if (tenantPublicId) {
+        localStorage.setItem('tenantId', tenantPublicId);
+      }
+      if (tenant.domain) {
+        localStorage.setItem('tenantDomain', tenant.domain);
+      }
+      if (tenant.name) {
+        localStorage.setItem('tenantName', tenant.name);
+      }
+
       window.dispatchEvent(new Event('authChanged'));
+      setMessage(response?.message || 'Login successful!');
+      setTimeout(() => navigate('/dashboard'), 400);
+    } catch (error) {
+      setMessage(error.message || 'Login failed. Please try again.');
+    } finally {
       setLoading(false);
-      setMessage('Login successful!');
-      setTimeout(() => navigate('/dashboard'), 500);
-    }, 800);
+    }
   };
 
   const handleForgotPassword = async (e) => {
@@ -109,8 +181,8 @@ return (
             {!showForgotPassword ? (
               <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
                 <div>
-                  <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">Email</label>
-                  <input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} placeholder="name@hospital.com" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none ring-0 focus:border-blue-500" />
+                  <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">User ID, email, or username</label>
+                  <input id="email" name="email" type="text" required value={formData.email} onChange={handleChange} placeholder="user ID or name@hospital.com" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none ring-0 focus:border-blue-500" />
                 </div>
                 <div>
                   <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">Password</label>

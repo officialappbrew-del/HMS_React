@@ -8,8 +8,11 @@ import {
   searchPatients,
   sortPatients,
   filterPatients,
+  setPatients,
 } from '../features/patientSlice';
 import ConfirmModal from "../components/ConfirmModal";
+import LoadingSpinner from "../components/LoadingSpinner";
+import { apiRequest } from '../utils/api';
 import { 
   User, Search, Filter, Plus, Edit, Trash2, 
   UserPlus, Phone, Mail, MapPin, Calendar, 
@@ -18,7 +21,7 @@ import {
   X, AlertTriangle, CheckCircle, Shield, Clock,
   UserCheck, UserX, Activity, Baby, Droplets,
   Map, Building2, Globe, BookOpen, Award,
-  Menu, MoreVertical, UserCircle, IdCard
+  Menu, MoreVertical, UserCircle, IdCard, Loader2
 } from 'lucide-react';
 
 // Tooltip Component
@@ -84,7 +87,7 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
 };
 
 // Button with Tooltip
-const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '' }) => {
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false }) => {
   const variantClasses = {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white',
     secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
@@ -97,7 +100,10 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
     <Tooltip text={tooltip}>
       <button
         onClick={onClick}
-        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
+        disabled={disabled}
+        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
       >
         {children}
       </button>
@@ -117,6 +123,7 @@ const PatientManagement = () => {
   const [viewMode, setViewMode] = useState('table');
   const [selectedPatients, setSelectedPatients] = useState([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const itemsPerPage = 10;
   
   const [formData, setFormData] = useState({
@@ -146,6 +153,7 @@ const PatientManagement = () => {
   const [countries, setCountries] = useState([]);
   const [countryStates, setCountryStates] = useState({});
   const [loadingData, setLoadingData] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [nigerianData, setNigerianData] = useState({});
 
   // Modal states
@@ -160,6 +168,7 @@ const PatientManagement = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoading(true);
         const statesResponse = await fetch('https://countriesnow.space/api/v0.1/countries/states');
         const statesData = await statesResponse.json();
 
@@ -182,17 +191,63 @@ const PatientManagement = () => {
         setNigerianStates(Object.keys(nigerianData));
       } finally {
         setLoadingData(false);
+        setIsLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [nigerianData]);
+
+  const loadPatients = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiRequest('/api/v1/patients/patients/');
+      const patients = Array.isArray(data) ? data : (data.results || []);
+      dispatch(setPatients(patients.map(normalizePatient)));
+    } catch (err) {
+      console.error('Failed to load patients:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPatients();
+  }, [dispatch]);
 
   const tribes = ['Yoruba', 'Hausa', 'Igbo', 'Fulani', 'Ijaw', 'Kanuri', 'Ibibio', 'Tiv', 'Other'];
   const bloodTypes = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
   const genders = ['Male', 'Female', 'Other'];
   const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
   const religions = ['Christianity', 'Islam', 'Traditional', 'Other'];
+
+  const normalizePatient = (patient) => ({
+    id: patient.id,
+    name: patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+    first_name: patient.first_name || '',
+    last_name: patient.last_name || '',
+    nin: patient.nin || '',
+    phone: patient.phone || '',
+    email: patient.email || '',
+    address: patient.address || '',
+    tribe: patient.ethnicity || patient.tribe || '',
+    country: patient.country || 'Nigeria',
+    lga: patient.lga || '',
+    state: patient.state || '',
+    dateOfBirth: patient.date_of_birth || '',
+    bloodType: patient.blood_group || patient.bloodType || '',
+    gender: patient.gender || '',
+    maritalStatus: patient.marital_status || patient.maritalStatus || '',
+    occupation: patient.occupation || '',
+    emergencyContact: patient.next_of_kin_name || '',
+    emergencyPhone: patient.next_of_kin_phone || '',
+    religion: patient.religion || '',
+    status: patient.patient_status || patient.status || 'active',
+    createdAt: patient.registration_date || patient.createdAt || new Date().toISOString(),
+    updatedAt: patient.updated_at || patient.updatedAt || new Date().toISOString(),
+    hospital_number: patient.hospital_number || '',
+    login_id: patient.login_id || '',
+  });
 
   // Stats calculation
   const stats = {
@@ -211,7 +266,21 @@ const PatientManagement = () => {
       isOpen: true,
       type: 'delete',
       patientData: patient,
-      action: () => dispatch(deletePatient(patient.id)),
+      action: async () => {
+        setIsLoading(true);
+        try {
+          await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+            method: 'DELETE',
+          });
+          dispatch(deletePatient(patient.id));
+          await loadPatients();
+        } catch (error) {
+          console.error('Delete failed:', error);
+          throw error;
+        } finally {
+          setIsLoading(false);
+        }
+      },
     });
   };
 
@@ -224,17 +293,38 @@ const PatientManagement = () => {
   };
 
   // Handle soft delete (archive)
-  const handleSoftDelete = (patient) => {
-    dispatch(archivePatient(patient.id));
-    setModalConfig({ ...modalConfig, isOpen: false });
+  const handleSoftDelete = async (patient) => {
+    setIsLoading(true);
+    try {
+      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          patient_status: 'archived',
+          is_active: false,
+        }),
+      });
+      dispatch(archivePatient(patient.id));
+      await loadPatients();
+    } catch (error) {
+      console.error('Archive failed:', error);
+      alert(error.message || 'Unable to archive patient');
+    } finally {
+      setIsLoading(false);
+      setModalConfig({ ...modalConfig, isOpen: false });
+    }
   };
 
   // Handle modal confirm
-  const handleModalConfirm = () => {
-    if (modalConfig.action) {
-      modalConfig.action();
+  const handleModalConfirm = async () => {
+    try {
+      if (modalConfig.action) {
+        await modalConfig.action();
+      }
+      setModalConfig({ ...modalConfig, isOpen: false });
+    } catch (error) {
+      console.error('Action failed:', error);
+      alert(error.message || 'Unable to complete this action');
     }
-    setModalConfig({ ...modalConfig, isOpen: false });
   };
 
   // Handle modal close
@@ -242,7 +332,7 @@ const PatientManagement = () => {
     setModalConfig({ ...modalConfig, isOpen: false });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.name.trim() || !formData.phone.trim()) {
@@ -250,21 +340,62 @@ const PatientManagement = () => {
       return;
     }
 
-    if (editingId) {
-      dispatch(updatePatient({ ...formData, id: editingId }));
-      setEditingId(null);
-    } else {
-      const newPatient = {
-        ...formData,
-        id: Date.now(),
-        createdAt: new Date().toISOString(),
-        status: 'active',
-      };
-      dispatch(addPatient(newPatient));
-    }
+    const fullName = formData.name.trim().split(/\s+/);
+    const firstName = fullName.shift() || '';
+    const lastName = fullName.join(' ') || 'Unknown';
 
-    resetForm();
-    setShowForm(false);
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      date_of_birth: formData.dateOfBirth || '1990-01-01',
+      gender: (formData.gender || 'unknown').toLowerCase(),
+      phone: formData.phone,
+      email: formData.email || '',
+      address: formData.address || '',
+      city: formData.state || '',
+      state: formData.state || 'Rivers',
+      lga: formData.lga || '',
+      country: formData.country || 'Nigeria',
+      blood_group: formData.bloodType || 'unknown',
+      marital_status: (formData.maritalStatus || 'single').toLowerCase(),
+      religion: formData.religion || '',
+      ethnicity: formData.tribe || '',
+      occupation: formData.occupation || '',
+      next_of_kin_name: formData.emergencyContact || '',
+      next_of_kin_phone: formData.emergencyPhone || '',
+      password: 'PatientPass123!',
+      nin: formData.nin || '',
+    };
+
+    try {
+      setIsSubmitting(true);
+      setIsLoading(true);
+
+      if (editingId) {
+        const updated = await apiRequest(`/api/v1/patients/patients/${editingId}/`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+        dispatch(updatePatient(normalizePatient(updated)));
+        setEditingId(null);
+      } else {
+        const created = await apiRequest('/api/v1/patients/patients/', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        dispatch(addPatient(normalizePatient(created)));
+      }
+
+      resetForm();
+      setShowForm(false);
+      await loadPatients();
+    } catch (err) {
+      console.error('Failed to save patient:', err);
+      alert(err.message || 'Unable to save patient');
+    } finally {
+      setIsSubmitting(false);
+      setIsLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -402,6 +533,7 @@ const PatientManagement = () => {
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -413,6 +545,7 @@ const PatientManagement = () => {
                     value={formData.dateOfBirth}
                     onChange={handleChange}
                     className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div>
@@ -422,6 +555,7 @@ const PatientManagement = () => {
                     value={formData.gender}
                     onChange={handleChange}
                     className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
                   >
                     <option value="">Select</option>
                     {genders.map(g => <option key={g} value={g}>{g}</option>)}
@@ -437,6 +571,7 @@ const PatientManagement = () => {
                   onChange={handleChange}
                   placeholder="National Identity Number"
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -458,6 +593,7 @@ const PatientManagement = () => {
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -468,6 +604,7 @@ const PatientManagement = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -487,6 +624,7 @@ const PatientManagement = () => {
                   value={formData.country}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting || loadingData}
                 >
                   <option value="">Select Country</option>
                   {countries.map(c => <option key={c} value={c}>{c}</option>)}
@@ -498,7 +636,7 @@ const PatientManagement = () => {
                   name="state"
                   value={formData.state}
                   onChange={handleChange}
-                  disabled={!formData.country || loadingData}
+                  disabled={!formData.country || loadingData || isSubmitting}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
                 >
                   <option value="">Select State</option>
@@ -512,7 +650,7 @@ const PatientManagement = () => {
                     name="lga"
                     value={formData.lga}
                     onChange={handleChange}
-                    disabled={!formData.state}
+                    disabled={!formData.state || isSubmitting}
                     className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
                   >
                     <option value="">Select LGA</option>
@@ -528,6 +666,7 @@ const PatientManagement = () => {
                   onChange={handleChange}
                   rows="2"
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -547,6 +686,7 @@ const PatientManagement = () => {
                   value={formData.bloodType}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 >
                   <option value="">Select</option>
                   {bloodTypes.map(t => <option key={t} value={t}>{t}</option>)}
@@ -559,6 +699,7 @@ const PatientManagement = () => {
                   value={formData.tribe}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 >
                   <option value="">Select</option>
                   {tribes.map(t => <option key={t} value={t}>{t}</option>)}
@@ -571,6 +712,7 @@ const PatientManagement = () => {
                   value={formData.religion}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 >
                   <option value="">Select</option>
                   {religions.map(r => <option key={r} value={r}>{r}</option>)}
@@ -583,6 +725,7 @@ const PatientManagement = () => {
                   value={formData.maritalStatus}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 >
                   <option value="">Select</option>
                   {maritalStatuses.map(m => <option key={m} value={m}>{m}</option>)}
@@ -606,6 +749,7 @@ const PatientManagement = () => {
                   value={formData.emergencyContact}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -616,6 +760,7 @@ const PatientManagement = () => {
                   value={formData.emergencyPhone}
                   onChange={handleChange}
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -625,9 +770,19 @@ const PatientManagement = () => {
           <div className="flex gap-2 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+              disabled={isSubmitting}
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {editingId ? 'Update' : 'Add'} Patient
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {editingId ? 'Updating...' : 'Adding...'}
+                </>
+              ) : (
+                <>
+                  {editingId ? 'Update' : 'Add'} Patient
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -635,7 +790,8 @@ const PatientManagement = () => {
                 setShowForm(false);
                 resetForm();
               }}
-              className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+              className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
@@ -685,6 +841,7 @@ const PatientManagement = () => {
                             setSelectedPatients([]);
                           }
                         }}
+                        disabled={isLoading}
                       />
                     </Tooltip>
                   </th>
@@ -711,6 +868,7 @@ const PatientManagement = () => {
                               : [...prev, patient.id]
                           );
                         }}
+                        disabled={isLoading}
                       />
                     </td>
                     <td className="py-2 sm:py-3">
@@ -753,18 +911,21 @@ const PatientManagement = () => {
                           onClick={() => {}}
                           tooltip="View patient details"
                           variant="primary"
+                          disabled={isLoading}
                         />
                         <IconButton
                           icon={Edit}
                           onClick={() => handleEditClick(patient)}
                           tooltip="Edit patient"
                           variant="primary"
+                          disabled={isLoading}
                         />
                         <IconButton
                           icon={Trash2}
                           onClick={() => handleDeleteClick(patient)}
                           tooltip="Delete patient"
                           variant="danger"
+                          disabled={isLoading}
                         />
                       </div>
                     </td>
@@ -785,7 +946,7 @@ const PatientManagement = () => {
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 tooltip="Previous page"
                 variant="default"
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || isLoading}
               />
               <span className="text-[10px] sm:text-xs text-gray-600">
                 Page {currentPage} of {totalPages || 1}
@@ -795,7 +956,7 @@ const PatientManagement = () => {
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 tooltip="Next page"
                 variant="default"
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || isLoading}
               />
             </div>
           </div>
@@ -804,6 +965,164 @@ const PatientManagement = () => {
     </>
   );
 
+  // Show loading spinner overlay when any API request is processing
+  if (isLoading) {
+    return (
+      <>
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+            {/* Header - Disabled during loading */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                  Patient Management
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
+                  Manage patient records, demographics, and medical history
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <ButtonWithTooltip
+                  tooltip="Export patient data"
+                  variant="secondary"
+                  disabled={true}
+                >
+                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">Export</span>
+                </ButtonWithTooltip>
+                <ButtonWithTooltip
+                  onClick={() => setShowForm(true)}
+                  tooltip="Register a new patient"
+                  variant="primary"
+                  disabled={true}
+                >
+                  <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">Add Patient</span>
+                </ButtonWithTooltip>
+              </div>
+            </div>
+
+            {/* Stats Grid - Disabled during loading */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 opacity-50 pointer-events-none">
+              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
+                  </div>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
+                    <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.active}</p>
+                  </div>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Inactive</p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-600 mt-0.5 sm:mt-1">{stats.inactive}</p>
+                  </div>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-50 rounded-lg flex items-center justify-center">
+                    <UserX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">States</p>
+                    <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{Object.keys(stats.byState).length}</p>
+                  </div>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                    <Map className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content - Disabled during loading */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 opacity-50 pointer-events-none">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">Add New Patient</h3>
+                  </div>
+                  <button className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    New Patient
+                  </button>
+                </div>
+              </div>
+
+              <div className="lg:col-span-3">
+                <div className="bg-white rounded-lg border border-gray-200">
+                  <div className="p-3 sm:p-4 border-b border-gray-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="relative flex-1 max-w-full sm:max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search patients..."
+                          value={searchTerm}
+                          className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg"
+                          disabled
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
+                          <option>Name A-Z</option>
+                        </select>
+                        <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
+                          <option>All States</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 sm:p-4">
+                    <div className="text-center py-8 sm:py-12">
+                      <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                      <p className="text-gray-600 font-medium text-sm sm:text-base">Loading patients...</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <ConfirmModal
+            isOpen={modalConfig.isOpen}
+            onClose={handleModalClose}
+            onConfirm={handleModalConfirm}
+            onSoftDelete={() => handleSoftDelete(modalConfig.patientData)}
+            type={modalConfig.type}
+            patientData={modalConfig.patientData}
+            title={getModalConfig().title}
+            message={getModalConfig().message}
+            confirmText={getModalConfig().confirmText}
+            showSoftDeleteOption={getModalConfig().showSoftDeleteOption}
+          />
+        </div>
+        <LoadingSpinner overlay text="Processing request..." />
+      </>
+    );
+  }
+
+  // Main render when not loading
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
