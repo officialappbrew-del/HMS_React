@@ -22,7 +22,7 @@ const API_BASE_URL = (() => {
 
   
   // return 'https://hms-backend-l09g.onrender.com';
-  
+
   return 'https://hms-backend-l09g.onrender.com';
 })();
 
@@ -114,12 +114,10 @@ const refreshAccessToken = async () => {
 export const apiRequest = async (path, options = {}) => {
   const makeRequest = async () => {
     const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-    const tenantId = localStorage.getItem('tenantId');
 
     const headers = {
       'Content-Type': 'application/json',
       ...(token && !shouldSkipAuthHeader(path) ? { Authorization: `Bearer ${token}` } : {}),
-      ...(tenantId && !shouldSkipAuthHeader(path) ? { 'X-Tenant-ID': tenantId } : {}),
       ...(options.headers || {}),
     };
 
