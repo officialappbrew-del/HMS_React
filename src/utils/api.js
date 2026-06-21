@@ -4,11 +4,22 @@ const isLocalFrontend = () => {
   return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname);
 };
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (isLocalFrontend()
-    ? 'http://0.0.0.0:8000'
-    : 'https://hms-backend-onm9.onrender.com');
+const isLocalApiUrl = (url = '') =>
+  /^(http|https):\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)(:|\/|$)/.test(url);
+
+const API_BASE_URL = (() => {
+  const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+  if (isLocalFrontend()) {
+    return configuredUrl || 'http://0.0.0.0:8000';
+  }
+
+  if (configuredUrl && !isLocalApiUrl(configuredUrl)) {
+    return configuredUrl;
+  }
+
+  return 'https://hms-backend-l09g.onrender.com';
+})();
 
 const PUBLIC_AUTH_PATHS = [
   '/api/v1/auth/login/',
