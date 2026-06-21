@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://hms-backend-onm9.onrender.com';
 
 const PUBLIC_AUTH_PATHS = [
   '/api/v1/auth/login/',
