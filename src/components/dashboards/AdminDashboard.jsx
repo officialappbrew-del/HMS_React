@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLoading } from '../../hooks/useLoading';
 import LoadingSpinner from '../LoadingSpinner';
+import { apiRequest } from '../../utils/api';
+import ConfirmModal from '../ConfirmModal';
 import {
   TrendingUp,
   Users,
@@ -137,7 +139,7 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
 };
 
 // Button with Tooltip
-const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '' }) => {
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', type = 'button' }) => {
   const variantClasses = {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white',
     secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
@@ -149,6 +151,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   return (
     <Tooltip text={tooltip}>
       <button
+        type={type}
         onClick={onClick}
         className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
       >
@@ -247,14 +250,25 @@ const AdminDashboard = () => {
     { id: 4, type: 'pharmacy', message: 'Stock alert', details: 'Paracetamol running low - 2 hours ago', icon: Pill, color: 'orange' }
   ]);
 
-  const [departments] = useState([
-    { id: 1, name: 'Emergency', patients: 12, doctors: 4, occupancy: 85 },
-    { id: 2, name: 'Cardiology', patients: 8, doctors: 3, occupancy: 70 },
-    { id: 3, name: 'Pediatrics', patients: 15, doctors: 5, occupancy: 90 },
-    { id: 4, name: 'Orthopedics', patients: 6, doctors: 2, occupancy: 55 },
-    { id: 5, name: 'Neurology', patients: 4, doctors: 2, occupancy: 40 },
-    { id: 6, name: 'Maternity', patients: 10, doctors: 4, occupancy: 80 }
-  ]);
+  const [departments, setDepartments] = useState([]);
+  const [showAddDeptForm, setShowAddDeptForm] = useState(false);
+  const [deptForm, setDeptForm] = useState({ name: '', code: '', description: '', is_clinical: false });
+  
+  // Edit/Delete state
+  const [editingDept, setEditingDept] = useState(null);
+  const [showEditDeptForm, setShowEditDeptForm] = useState(false);
+  const [editDeptForm, setEditDeptForm] = useState({ 
+    id: null,
+    name: '', 
+    code: '', 
+    description: '', 
+    is_clinical: false 
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Delete Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deptToDelete, setDeptToDelete] = useState(null);
 
   const [recentPatients] = useState([
     { id: 1, name: 'John Doe', age: 45, gender: 'Male', admissionDate: '2024-01-15', status: 'admitted', department: 'Emergency' },
@@ -309,7 +323,6 @@ const AdminDashboard = () => {
 
   // Handlers
   const handleRefresh = () => {
-    // Dispatch refresh action
     alert('Dashboard refreshed!');
   };
 
@@ -329,6 +342,108 @@ const AdminDashboard = () => {
 
   const handleMarkAllAlertsRead = () => {
     setAlerts(prev => prev.map(a => ({ ...a, read: true })));
+  };
+
+  // Department CRUD Operations
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const data = await apiRequest('/api/v1/tenants/departments/');
+        const results = Array.isArray(data) ? data : (data.results || []);
+        setDepartments(results);
+      } catch (error) {
+        console.error('Failed to load departments:', error);
+      }
+    };
+    loadDepartments();
+  }, []);
+
+  const handleAddDepartment = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: deptForm.name,
+        code: deptForm.code || deptForm.name.slice(0, 4).toUpperCase(),
+        description: deptForm.description || '',
+        is_clinical: deptForm.is_clinical,
+      };
+      const created = await apiRequest('/api/v1/tenants/departments/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      setDepartments(prev => [...prev, created]);
+      setDeptForm({ name: '', code: '', description: '', is_clinical: false });
+      setShowAddDeptForm(false);
+    } catch (error) {
+      console.error('Failed to create department:', error);
+      alert(error.message || 'Unable to create department');
+    }
+  };
+
+  const handleEditDepartment = (dept) => {
+    setEditingDept(dept);
+    setEditDeptForm({
+      id: dept.id,
+      name: dept.name || '',
+      code: dept.code || '',
+      description: dept.description || '',
+      is_clinical: dept.is_clinical || false,
+    });
+    setShowEditDeptForm(true);
+  };
+
+  const handleUpdateDepartment = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: editDeptForm.name,
+        code: editDeptForm.code || editDeptForm.name.slice(0, 4).toUpperCase(),
+        description: editDeptForm.description || '',
+        is_clinical: editDeptForm.is_clinical,
+      };
+      
+      const updated = await apiRequest(`/api/v1/tenants/departments/${editDeptForm.id}/`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      
+      setDepartments(prev => prev.map(dept => 
+        dept.id === updated.id ? updated : dept
+      ));
+      
+      setShowEditDeptForm(false);
+      setEditingDept(null);
+      setEditDeptForm({ id: null, name: '', code: '', description: '', is_clinical: false });
+    } catch (error) {
+      console.error('Failed to update department:', error);
+      alert(error.message || 'Unable to update department');
+    }
+  };
+
+  const handleDeleteDepartment = (id) => {
+    const dept = departments.find(d => d.id === id);
+    setDeptToDelete(dept);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteDepartment = async () => {
+    if (!deptToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await apiRequest(`/api/v1/tenants/departments/${deptToDelete.id}/`, {
+        method: 'DELETE',
+      });
+      
+      setDepartments(prev => prev.filter(dept => dept.id !== deptToDelete.id));
+      setShowDeleteModal(false);
+      setDeptToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete department:', error);
+      alert(error.message || 'Unable to delete department');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -721,55 +836,211 @@ const AdminDashboard = () => {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-gray-900">Department Overview</h2>
-          <ButtonWithTooltip
-            onClick={() => navigate('/departments/add')}
-            tooltip="Add new department"
-            variant="primary"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Department
-          </ButtonWithTooltip>
+          <div className="flex items-center gap-2">
+            <ButtonWithTooltip
+              onClick={() => setShowAddDeptForm(prev => !prev)}
+              tooltip={showAddDeptForm ? 'Cancel' : 'Add new department'}
+              variant="primary"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {showAddDeptForm ? 'Cancel' : 'Add Department'}
+            </ButtonWithTooltip>
+          </div>
         </div>
 
+        {/* Add Department Form */}
+        {showAddDeptForm && (
+          <form onSubmit={handleAddDepartment} className="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">New Department</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={deptForm.name}
+                  onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                  placeholder="e.g. Cardiology"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Code</label>
+                <input
+                  type="text"
+                  value={deptForm.code}
+                  onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
+                  placeholder="e.g. CARD"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-700">Description</label>
+                <input
+                  type="text"
+                  value={deptForm.description}
+                  onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
+                  placeholder="Optional description"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-2">
+                <input
+                  id="is_clinical"
+                  type="checkbox"
+                  checked={deptForm.is_clinical}
+                  onChange={(e) => setDeptForm({ ...deptForm, is_clinical: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="is_clinical" className="text-xs font-medium text-gray-700">Clinical department</label>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <ButtonWithTooltip
+                onClick={() => setShowAddDeptForm(false)}
+                tooltip="Cancel"
+                variant="secondary"
+              >
+                Cancel
+              </ButtonWithTooltip>
+              <ButtonWithTooltip
+                type="submit"
+                tooltip="Save department"
+                variant="primary"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Save Department
+              </ButtonWithTooltip>
+            </div>
+          </form>
+        )}
+
+        {/* Edit Department Form */}
+        {showEditDeptForm && (
+          <form onSubmit={handleUpdateDepartment} className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Edit Department</h3>
+              <IconButton
+                icon={X}
+                onClick={() => {
+                  setShowEditDeptForm(false);
+                  setEditingDept(null);
+                  setEditDeptForm({ id: null, name: '', code: '', description: '', is_clinical: false });
+                }}
+                tooltip="Close"
+                variant="default"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editDeptForm.name}
+                  onChange={(e) => setEditDeptForm({ ...editDeptForm, name: e.target.value })}
+                  placeholder="e.g. Cardiology"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Code</label>
+                <input
+                  type="text"
+                  value={editDeptForm.code}
+                  onChange={(e) => setEditDeptForm({ ...editDeptForm, code: e.target.value.toUpperCase() })}
+                  placeholder="e.g. CARD"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-700">Description</label>
+                <input
+                  type="text"
+                  value={editDeptForm.description}
+                  onChange={(e) => setEditDeptForm({ ...editDeptForm, description: e.target.value })}
+                  placeholder="Optional description"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-2">
+                <input
+                  id="edit_is_clinical"
+                  type="checkbox"
+                  checked={editDeptForm.is_clinical}
+                  onChange={(e) => setEditDeptForm({ ...editDeptForm, is_clinical: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="edit_is_clinical" className="text-xs font-medium text-gray-700">Clinical department</label>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <ButtonWithTooltip
+                onClick={() => {
+                  setShowEditDeptForm(false);
+                  setEditingDept(null);
+                  setEditDeptForm({ id: null, name: '', code: '', description: '', is_clinical: false });
+                }}
+                tooltip="Cancel"
+                variant="secondary"
+              >
+                Cancel
+              </ButtonWithTooltip>
+              <ButtonWithTooltip
+                type="submit"
+                tooltip="Update department"
+                variant="primary"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Update Department
+              </ButtonWithTooltip>
+            </div>
+          </form>
+        )}
+
+        {/* Department Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {departments.map((dept) => (
             <div key={dept.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-medium text-gray-900">{dept.name}</h4>
-                <span className="text-xs text-gray-500">{dept.patients} patients</span>
+                <div className="flex items-center gap-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${dept.is_clinical ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {dept.is_clinical ? 'Clinical' : 'Support'}
+                  </span>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Doctors</span>
-                  <span className="font-medium">{dept.doctors}</span>
+                  <span className="text-gray-500">Code</span>
+                  <span className="font-medium">{dept.code || '—'}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Occupancy</span>
-                  <span className="font-medium">{dept.occupancy}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div 
-                    className={`h-1.5 rounded-full ${dept.occupancy > 80 ? 'bg-red-500' : dept.occupancy > 60 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                    style={{ width: `${dept.occupancy}%` }}
-                  />
-                </div>
+                {dept.description && (
+                  <p className="text-xs text-gray-500">{dept.description}</p>
+                )}
               </div>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end gap-1">
                 <IconButton
-                  icon={Eye}
-                  onClick={() => navigate(`/departments/${dept.id}`)}
-                  tooltip="View department"
+                  icon={Edit}
+                  onClick={() => handleEditDepartment(dept)}
+                  tooltip="Edit department"
                   variant="primary"
                 />
                 <IconButton
-                  icon={Edit}
-                  onClick={() => navigate(`/departments/${dept.id}/edit`)}
-                  tooltip="Edit department"
-                  variant="primary"
+                  icon={Trash2}
+                  onClick={() => handleDeleteDepartment(dept.id)}
+                  tooltip="Delete department"
+                  variant="danger"
+                  disabled={isDeleting}
                 />
               </div>
             </div>
           ))}
+          {departments.length === 0 && (
+            <div className="col-span-full text-center py-12 text-gray-500 text-sm">
+              No departments found. Add your first department above.
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1032,6 +1303,26 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeptToDelete(null);
+        }}
+        onConfirm={confirmDeleteDepartment}
+        title="Delete Department"
+        message={`Are you sure you want to delete the department "${deptToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete Department"
+        cancelText="Cancel"
+        type="delete"
+        patientData={deptToDelete ? {
+          name: deptToDelete.name,
+          role: deptToDelete.is_clinical ? 'Clinical Department' : 'Support Department',
+          phone: deptToDelete.code || 'No code'
+        } : null}
+      />
     </div>
   );
 };
