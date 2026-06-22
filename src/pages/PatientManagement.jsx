@@ -111,7 +111,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
-// Custom Confirm Modal Component
+// Compact Custom Confirm Modal
 const CustomConfirmModal = ({ 
   isOpen, 
   onClose, 
@@ -123,7 +123,6 @@ const CustomConfirmModal = ({
   cancelText = 'Cancel',
   patientData = null,
   showSoftDelete = false,
-  type = 'danger'
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -154,117 +153,61 @@ const CustomConfirmModal = ({
     }
   };
 
-  const getTypeStyles = () => {
-    switch (type) {
-      case 'danger':
-        return {
-          iconBg: 'bg-red-100',
-          iconColor: 'text-red-600',
-          buttonBg: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-          border: 'border-red-200',
-          titleColor: 'text-red-800',
-        };
-      case 'warning':
-        return {
-          iconBg: 'bg-yellow-100',
-          iconColor: 'text-yellow-600',
-          buttonBg: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
-          border: 'border-yellow-200',
-          titleColor: 'text-yellow-800',
-        };
-      case 'info':
-        return {
-          iconBg: 'bg-blue-100',
-          iconColor: 'text-blue-600',
-          buttonBg: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
-          border: 'border-blue-200',
-          titleColor: 'text-blue-800',
-        };
-      default:
-        return {
-          iconBg: 'bg-gray-100',
-          iconColor: 'text-gray-600',
-          buttonBg: 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500',
-          border: 'border-gray-200',
-          titleColor: 'text-gray-800',
-        };
-    }
-  };
-
-  const styles = getTypeStyles();
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity backdrop-blur-sm"
+        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm transform transition-all duration-200">
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            className="absolute top-3 right-3 p-1 rounded-lg hover:bg-gray-100 transition-colors"
             disabled={isDeleting}
           >
-            <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+            <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
           </button>
 
-          <div className="p-6">
-            {/* Icon */}
-            <div className={`w-16 h-16 rounded-full ${styles.iconBg} flex items-center justify-center mx-auto mb-4`}>
-              <Trash2 className={`w-8 h-8 ${styles.iconColor}`} />
+          <div className="p-5">
+            {/* Icon and Title */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-gray-900">
+                {title}
+              </h3>
             </div>
 
-            {/* Title */}
-            <h3 className={`text-xl font-bold text-center ${styles.titleColor} mb-2`}>
-              {title}
-            </h3>
-
             {/* Message */}
-            <p className="text-gray-600 text-center text-sm leading-relaxed mb-6">
+            <p className="text-sm text-gray-600 leading-relaxed mb-4">
               {message}
             </p>
 
-            {/* Patient Details */}
+            {/* Patient Details - Compact */}
             {patientData && (
-              <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <User className="w-5 h-5 text-blue-600" />
+              <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <User className="w-3.5 h-3.5 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm truncate">
                       {patientData.name || patientData.full_name}
                     </p>
-                    <div className="grid grid-cols-2 gap-1 mt-1 text-xs">
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-500">
                       {patientData.phone && (
-                        <p className="text-gray-600 flex items-center gap-1">
+                        <span className="flex items-center gap-1">
                           <Phone className="w-3 h-3" /> {patientData.phone}
-                        </p>
+                        </span>
                       )}
                       {patientData.email && (
-                        <p className="text-gray-600 flex items-center gap-1 truncate">
+                        <span className="flex items-center gap-1 truncate max-w-[120px]">
                           <Mail className="w-3 h-3 flex-shrink-0" /> {patientData.email}
-                        </p>
-                      )}
-                      {patientData.nin && (
-                        <p className="text-gray-600 flex items-center gap-1">
-                          <IdCard className="w-3 h-3" /> {patientData.nin}
-                        </p>
-                      )}
-                      {patientData.bloodType && (
-                        <p className="text-gray-600 flex items-center gap-1">
-                          <Heart className="w-3 h-3" /> {patientData.bloodType}
-                        </p>
-                      )}
-                      {patientData.gender && (
-                        <p className="text-gray-600 flex items-center gap-1">
-                          <User className="w-3 h-3" /> {patientData.gender}
-                        </p>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -272,67 +215,51 @@ const CustomConfirmModal = ({
               </div>
             )}
 
-            {/* Warning Messages */}
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium text-red-800 mb-1">⚠️ Important Warnings:</p>
-                  <ul className="text-xs text-red-700 space-y-1">
-                    <li className="flex items-start gap-1.5">
-                      <span className="text-red-500">•</span>
-                      Record will be permanently deleted
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="text-red-500">•</span>
-                      All associated data will be lost
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="text-red-500">•</span>
-                      This action cannot be undone
-                    </li>
-                  </ul>
-                </div>
+            {/* Warning - Compact */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2.5 mb-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                <p className="text-xs text-red-700">
+                  This action cannot be undone
+                </p>
               </div>
             </div>
 
-            {/* Soft Delete Option */}
+            {/* Soft Delete Option - Compact */}
             {showSoftDelete && onSoftDelete && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div className="flex items-start gap-2">
-                  <Archive className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <Archive className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-xs font-medium text-blue-800 mb-1">Alternative: Archive Patient</p>
-                    <p className="text-xs text-blue-600 mb-2">
-                      Mark as inactive instead of permanent deletion. The record will be preserved but hidden from active lists.
-                    </p>
+                    <p className="text-xs font-medium text-blue-800">Archive instead?</p>
+                    <p className="text-xs text-blue-600 mb-2">Preserve record, hide from active lists</p>
                     <button
                       onClick={onSoftDelete}
                       disabled={isDeleting}
-                      className="w-full py-2 px-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-1.5 px-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Archive Instead (Soft Delete)
+                      Archive Patient
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* Action Buttons - Compact */}
+            <div className="flex gap-2">
               <button
                 onClick={handleConfirm}
                 disabled={isDeleting}
-                className={`flex-1 py-2.5 px-4 text-white font-medium rounded-xl transition-all duration-200 ${styles.buttonBg} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+                className="flex-1 py-2 px-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 {isDeleting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     Deleting...
                   </>
                 ) : (
                   <>
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                     {confirmText}
                   </>
                 )}
@@ -340,16 +267,11 @@ const CustomConfirmModal = ({
               <button
                 onClick={onClose}
                 disabled={isDeleting}
-                className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2 px-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {cancelText}
               </button>
             </div>
-
-            {/* Keyboard hint */}
-            <p className="text-xs text-gray-400 text-center mt-4">
-              Press ESC to cancel or click outside
-            </p>
           </div>
         </div>
       </div>
@@ -414,7 +336,6 @@ const PatientManagement = () => {
     title: '',
     message: '',
     confirmText: '',
-    type: 'danger',
     showSoftDelete: false,
   });
 
@@ -604,11 +525,7 @@ const PatientManagement = () => {
       patientData: {
         name: patient.name || patient.full_name || '',
         email: patient.email || '',
-        nin: patient.nin || '',
         phone: patient.phone || '',
-        bloodType: patient.bloodType || '',
-        gender: patient.gender || '',
-        full_name: patient.full_name || '',
       },
       action: async () => {
         setIsLoading(true);
@@ -648,10 +565,9 @@ const PatientManagement = () => {
           setIsLoading(false);
         }
       },
-      title: 'Delete Patient Record',
-      message: 'Are you sure you want to permanently delete this patient record? This action is irreversible and all associated data will be lost.',
-      confirmText: 'Delete Permanently',
-      type: 'danger',
+      title: 'Delete Patient?',
+      message: 'This will permanently delete the patient record and all associated data.',
+      confirmText: 'Delete',
       showSoftDelete: true,
     });
   };
@@ -1960,7 +1876,6 @@ const PatientManagement = () => {
         cancelText="Cancel"
         patientData={confirmModal.patientData}
         showSoftDelete={confirmModal.showSoftDelete}
-        type={confirmModal.type}
       />
     </div>
   );
