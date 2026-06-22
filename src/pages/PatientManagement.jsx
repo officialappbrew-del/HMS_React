@@ -198,12 +198,23 @@ const PatientManagement = () => {
     fetchData();
   }, [nigerianData]);
 
+  const dedupePatientsById = (patientsList = []) => {
+    const seen = new Set();
+    return patientsList.filter((patient) => {
+      const key = patient?.id ?? patient?.hospital_number ?? patient?.email ?? patient?.nin;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   const loadPatients = async () => {
     try {
       setIsLoading(true);
       const data = await apiRequest('/api/v1/patients/patients/');
       const patients = Array.isArray(data) ? data : (data.results || []);
-      dispatch(setPatients(patients.map(normalizePatient)));
+      const normalizedPatients = dedupePatientsById(patients.map(normalizePatient));
+      dispatch(setPatients(normalizedPatients));
     } catch (err) {
       console.error('Failed to load patients:', err);
     } finally {
@@ -250,11 +261,13 @@ const PatientManagement = () => {
   });
 
   // Stats calculation
+  const uniqueFilteredPatients = dedupePatientsById(filteredPatients);
+
   const stats = {
-    total: filteredPatients.length,
-    active: filteredPatients.filter(p => p.status === 'active').length,
-    inactive: filteredPatients.filter(p => p.status === 'inactive' || p.status === 'archived').length,
-    byState: filteredPatients.reduce((acc, p) => {
+    total: uniqueFilteredPatients.length,
+    active: uniqueFilteredPatients.filter(p => p.status === 'active').length,
+    inactive: uniqueFilteredPatients.filter(p => p.status === 'inactive' || p.status === 'archived').length,
+    byState: uniqueFilteredPatients.reduce((acc, p) => {
       acc[p.state] = (acc[p.state] || 0) + 1;
       return acc;
     }, {}),
@@ -454,11 +467,11 @@ const PatientManagement = () => {
   };
 
   // Calculate pagination
-  const totalItems = filteredPatients.length;
+  const totalItems = uniqueFilteredPatients.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const displayedPatients = filteredPatients.slice(startIndex, endIndex);
+  const displayedPatients = uniqueFilteredPatients.slice(startIndex, endIndex);
 
   // Get modal configuration
   const getModalConfig = () => {

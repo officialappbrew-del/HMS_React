@@ -1,68 +1,28 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-// Sample patient data
-const samplePatients = [
-  {
-    id: 1,
-    name: 'John Doe',
-    nin: '12345678901',
-    phone: '08012345678',
-    email: 'john.doe@example.com',
-    address: '123 Main Street, Lagos',
-    tribe: 'Yoruba',
-    lga: 'Ikeja',
-    state: 'Lagos',
-    dateOfBirth: '1990-05-15',
-    bloodType: 'O+',
-    status: 'active',
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-15T10:30:00Z',
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    nin: '23456789012',
-    phone: '08023456789',
-    email: 'jane.smith@example.com',
-    address: '456 Broad Street, Abuja',
-    tribe: 'Hausa',
-    lga: 'Municipal Area Council',
-    state: 'FCT (Abuja)',
-    dateOfBirth: '1985-08-22',
-    bloodType: 'A+',
-    status: 'active',
-    createdAt: '2024-01-16T14:20:00Z',
-    updatedAt: '2024-01-16T14:20:00Z',
-  },
-  {
-    id: 3,
-    name: 'Chika Nwosu',
-    nin: '34567890123',
-    phone: '08034567890',
-    email: 'chika.nwosu@example.com',
-    address: '789 Independence Road, Enugu',
-    tribe: 'Igbo',
-    lga: 'Enugu North',
-    state: 'Enugu',
-    dateOfBirth: '1992-11-30',
-    bloodType: 'B+',
-    status: 'active',
-    createdAt: '2024-01-17T09:15:00Z',
-    updatedAt: '2024-01-17T09:15:00Z',
-  }
-];
+const initialPatients = [];
 
-// Initial state with sample data for testing
+const dedupePatients = (items = []) => {
+  const seen = new Map();
+  items.forEach((item) => {
+    const key = item?.id ?? item?.hospital_number ?? item?.email ?? item?.nin ?? `${item?.name || ''}-${item?.phone || ''}`;
+    if (!seen.has(key)) {
+      seen.set(key, item);
+    }
+  });
+  return Array.from(seen.values());
+};
+
 const initialState = {
-  patients: samplePatients,
-  filteredPatients: samplePatients,
+  patients: initialPatients,
+  filteredPatients: initialPatients,
   currentPatient: null,
   loading: false,
   error: null,
   searchTerm: '',
   sortBy: 'name',
   filterBy: 'all',
-  showArchived: false, // New state for toggling archived patients
+  showArchived: false,
 };
 
 const patientSlice = createSlice({
@@ -71,9 +31,10 @@ const patientSlice = createSlice({
   reducers: {
     // Set all patients (useful for initial load)
     setPatients: (state, action) => {
-      state.patients = action.payload;
+      const uniquePatients = dedupePatients(action.payload);
+      state.patients = uniquePatients;
       // Filter only active patients by default
-      state.filteredPatients = action.payload.filter(patient => 
+      state.filteredPatients = uniquePatients.filter(patient => 
         state.showArchived ? true : patient.status === 'active'
       );
     },
@@ -92,7 +53,10 @@ const patientSlice = createSlice({
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      state.patients.unshift(newPatient); // Add to beginning
+      if (!state.patients.some(patient => patient.id === newPatient.id)) {
+        state.patients.unshift(newPatient);
+      }
+      state.patients = dedupePatients(state.patients);
       
       // Update filtered patients based on current filters
       updateFilteredPatients(state);
@@ -123,7 +87,7 @@ const patientSlice = createSlice({
       const patientId = action.payload;
       
       // Remove from patients array
-      state.patients = state.patients.filter(p => p.id !== patientId);
+      state.patients = dedupePatients(state.patients.filter(p => p.id !== patientId));
       
       // Clear current patient if it's the one being deleted
       if (state.currentPatient && state.currentPatient.id === patientId) {
@@ -248,7 +212,7 @@ const patientSlice = createSlice({
 
 // Helper function to update filtered patients based on all criteria
 const updateFilteredPatients = (state) => {
-  let filtered = [...state.patients];
+  let filtered = dedupePatients([...state.patients]);
   
   // Filter by status (active/archived)
   if (!state.showArchived) {

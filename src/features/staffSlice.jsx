@@ -1,40 +1,17 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-const initialStaff = [
-  {
-    id: 1,
-    name: 'Dr. Adebayo Johnson',
-    email: 'adebayo.johnson@hms.ng',
-    phone: '+2348012345678',
-    role: 'Chief Medical Officer',
-    department: 'Administration',
-    status: 'active',
-    hireDate: '2020-01-15',
-    salary: 500000,
-  },
-  {
-    id: 2,
-    name: 'Nurse Fatima Ibrahim',
-    email: 'fatima.ibrahim@hms.ng',
-    phone: '+2348012345679',
-    role: 'Registered Nurse',
-    department: 'General Medicine',
-    status: 'active',
-    hireDate: '2021-03-10',
-    salary: 150000,
-  },
-  {
-    id: 3,
-    name: 'Dr. Chukwuemeka Nwosu',
-    email: 'chukwuemeka.nwosu@hms.ng',
-    phone: '+2348012345680',
-    role: 'Surgeon',
-    department: 'Surgery',
-    status: 'active',
-    hireDate: '2019-07-22',
-    salary: 400000,
-  },
-];
+const initialStaff = [];
+
+const dedupeStaff = (items = []) => {
+  const seen = new Map();
+  items.forEach((item) => {
+    const key = item?.id ?? item?.email ?? item?.employeeId ?? `${item?.name || ''}-${item?.email || ''}`;
+    if (!seen.has(key)) {
+      seen.set(key, item);
+    }
+  });
+  return Array.from(seen.values());
+};
 
 const initialState = {
   staff: initialStaff,
@@ -51,64 +28,70 @@ const staffSlice = createSlice({
   initialState,
   reducers: {
     setStaffList: (state, action) => {
-      state.staff = action.payload;
-      state.filteredStaff = action.payload;
+      const uniqueStaff = dedupeStaff(action.payload);
+      state.staff = uniqueStaff;
+      state.filteredStaff = uniqueStaff;
     },
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
     addStaff: (state, action) => {
-      state.staff.push(action.payload);
-      state.filteredStaff = state.staff;
+      if (!state.staff.some(staff => staff.id === action.payload.id)) {
+        state.staff.push(action.payload);
+      }
+      state.filteredStaff = dedupeStaff(state.staff);
     },
     updateStaff: (state, action) => {
       const index = state.staff.findIndex(staff => staff.id === action.payload.id);
       if (index !== -1) {
         state.staff[index] = action.payload;
-        state.filteredStaff = state.staff;
       }
+      state.staff = dedupeStaff(state.staff);
+      state.filteredStaff = dedupeStaff(state.staff);
     },
     deleteStaff: (state, action) => {
-      state.staff = state.staff.filter(staff => staff.id !== action.payload);
+      state.staff = dedupeStaff(state.staff.filter(staff => staff.id !== action.payload));
       state.filteredStaff = state.staff;
     },
     archiveStaff: (state, action) => {
       const staff = state.staff.find(s => s.id === action.payload);
       if (staff) {
         staff.status = 'inactive';
-        state.filteredStaff = state.staff;
+        state.staff = dedupeStaff(state.staff);
+        state.filteredStaff = dedupeStaff(state.staff);
       }
     },
     searchStaff: (state, action) => {
       state.searchTerm = action.payload;
-      state.filteredStaff = state.staff.filter(staff =>
-        staff.name.toLowerCase().includes(action.payload.toLowerCase()) ||
-        staff.email.toLowerCase().includes(action.payload.toLowerCase()) ||
-        staff.role.toLowerCase().includes(action.payload.toLowerCase()) ||
-        staff.department.toLowerCase().includes(action.payload.toLowerCase())
-      );
+      const query = action.payload.toLowerCase();
+      state.filteredStaff = dedupeStaff(state.staff.filter(staff =>
+        (staff.name || '').toLowerCase().includes(query) ||
+        (staff.email || '').toLowerCase().includes(query) ||
+        (staff.role || '').toLowerCase().includes(query) ||
+        (staff.department || '').toLowerCase().includes(query)
+      ));
     },
     sortStaff: (state, action) => {
       state.sortBy = action.payload;
-      state.filteredStaff = [...state.staff].sort((a, b) => {
+      state.filteredStaff = dedupeStaff([...state.staff].sort((a, b) => {
         if (action.payload === 'name') {
-          return a.name.localeCompare(b.name);
+          return (a.name || '').localeCompare(b.name || '');
         } else if (action.payload === 'role') {
-          return a.role.localeCompare(b.role);
+          return (a.role || '').localeCompare(b.role || '');
         } else if (action.payload === 'department') {
-          return a.department.localeCompare(b.department);
+          return (a.department || '').localeCompare(b.department || '');
         } else if (action.payload === 'hireDate') {
-          return new Date(b.hireDate) - new Date(a.hireDate);
+          return new Date(b.hireDate || 0) - new Date(a.hireDate || 0);
         }
         return 0;
-      });
+      }));
     },
     filterStaff: (state, action) => {
       state.filterBy = action.payload;
       if (action.payload === 'all') {
-        state.filteredStaff = state.staff;
+        state.filteredStaff = dedupeStaff(state.staff);
       } else {
-        state.filteredStaff = state.staff.filter(staff => staff.status === action.payload);
+        state.filteredStaff = dedupeStaff(state.staff.filter(staff => staff.status === action.payload));
       }
     },
     setError: (state, action) => {

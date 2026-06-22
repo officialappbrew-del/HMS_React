@@ -88,6 +88,16 @@ const StaffManagement = () => {
     { value: 'accountant', label: 'Accountant' },
   ];
 
+  const dedupeStaffById = (staffList = []) => {
+    const seen = new Set();
+    return staffList.filter((member) => {
+      const key = member?.id ?? member?.email ?? member?.employeeId;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   const normalizeRole = (role = '') => {
     const normalized = String(role).toLowerCase();
     if (normalized.includes('admin') || normalized === 'administrator') return 'admin';
@@ -135,7 +145,8 @@ const StaffManagement = () => {
       dispatch(setLoading(true));
       const data = await apiRequest('/api/v1/tenants/users/');
       const users = Array.isArray(data) ? data : (data.results || []);
-      dispatch(setStaffList(users.map(normalizeStaff)));
+      const normalizedUsers = dedupeStaffById(users.map(normalizeStaff));
+      dispatch(setStaffList(normalizedUsers));
     } catch (error) {
       console.error('Failed to load staff users:', error);
     } finally {
@@ -320,11 +331,12 @@ const StaffManagement = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const totalItems = filteredStaff.length;
+  const uniqueFilteredStaff = dedupeStaffById(filteredStaff);
+  const totalItems = uniqueFilteredStaff.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const displayedStaff = filteredStaff.slice(startIndex, endIndex);
+  const displayedStaff = uniqueFilteredStaff.slice(startIndex, endIndex);
 
   const getModalConfig = () => {
     const configs = {
@@ -491,7 +503,7 @@ const StaffManagement = () => {
                           value={formData.name}
                           onChange={handleChange}
                           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
-                          placeholder="Dr. Adebayo Ogunlesi"
+                          placeholder=""
                           required
                           disabled={isLoading}
                         />
