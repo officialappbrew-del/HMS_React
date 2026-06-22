@@ -10,7 +10,6 @@ import {
   filterPatients,
   setPatients,
 } from '../features/patientSlice';
-import ConfirmModal from "../components/ConfirmModal";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { apiRequest } from '../utils/api';
 import { 
@@ -21,7 +20,8 @@ import {
   X, AlertTriangle, CheckCircle, Shield, Clock,
   UserCheck, UserX, Activity, Baby, Droplets,
   Map, Building2, Globe, BookOpen, Award,
-  Menu, MoreVertical, UserCircle, IdCard, Loader2
+  Menu, MoreVertical, UserCircle, IdCard, Loader2,
+  Archive
 } from 'lucide-react';
 
 // Tooltip Component
@@ -111,6 +111,252 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
+// Custom Confirm Modal Component
+const CustomConfirmModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  onSoftDelete,
+  title, 
+  message, 
+  confirmText = 'Delete',
+  cancelText = 'Cancel',
+  patientData = null,
+  showSoftDelete = false,
+  type = 'danger'
+}) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getTypeStyles = () => {
+    switch (type) {
+      case 'danger':
+        return {
+          iconBg: 'bg-red-100',
+          iconColor: 'text-red-600',
+          buttonBg: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+          border: 'border-red-200',
+          titleColor: 'text-red-800',
+        };
+      case 'warning':
+        return {
+          iconBg: 'bg-yellow-100',
+          iconColor: 'text-yellow-600',
+          buttonBg: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
+          border: 'border-yellow-200',
+          titleColor: 'text-yellow-800',
+        };
+      case 'info':
+        return {
+          iconBg: 'bg-blue-100',
+          iconColor: 'text-blue-600',
+          buttonBg: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
+          border: 'border-blue-200',
+          titleColor: 'text-blue-800',
+        };
+      default:
+        return {
+          iconBg: 'bg-gray-100',
+          iconColor: 'text-gray-600',
+          buttonBg: 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500',
+          border: 'border-gray-200',
+          titleColor: 'text-gray-800',
+        };
+    }
+  };
+
+  const styles = getTypeStyles();
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            disabled={isDeleting}
+          >
+            <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+          </button>
+
+          <div className="p-6">
+            {/* Icon */}
+            <div className={`w-16 h-16 rounded-full ${styles.iconBg} flex items-center justify-center mx-auto mb-4`}>
+              <Trash2 className={`w-8 h-8 ${styles.iconColor}`} />
+            </div>
+
+            {/* Title */}
+            <h3 className={`text-xl font-bold text-center ${styles.titleColor} mb-2`}>
+              {title}
+            </h3>
+
+            {/* Message */}
+            <p className="text-gray-600 text-center text-sm leading-relaxed mb-6">
+              {message}
+            </p>
+
+            {/* Patient Details */}
+            {patientData && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <User className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
+                      {patientData.name || patientData.full_name}
+                    </p>
+                    <div className="grid grid-cols-2 gap-1 mt-1 text-xs">
+                      {patientData.phone && (
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <Phone className="w-3 h-3" /> {patientData.phone}
+                        </p>
+                      )}
+                      {patientData.email && (
+                        <p className="text-gray-600 flex items-center gap-1 truncate">
+                          <Mail className="w-3 h-3 flex-shrink-0" /> {patientData.email}
+                        </p>
+                      )}
+                      {patientData.nin && (
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <IdCard className="w-3 h-3" /> {patientData.nin}
+                        </p>
+                      )}
+                      {patientData.bloodType && (
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <Heart className="w-3 h-3" /> {patientData.bloodType}
+                        </p>
+                      )}
+                      {patientData.gender && (
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <User className="w-3 h-3" /> {patientData.gender}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Warning Messages */}
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-red-800 mb-1">⚠️ Important Warnings:</p>
+                  <ul className="text-xs text-red-700 space-y-1">
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-red-500">•</span>
+                      Record will be permanently deleted
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-red-500">•</span>
+                      All associated data will be lost
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-red-500">•</span>
+                      This action cannot be undone
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Soft Delete Option */}
+            {showSoftDelete && onSoftDelete && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-2">
+                  <Archive className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-blue-800 mb-1">Alternative: Archive Patient</p>
+                    <p className="text-xs text-blue-600 mb-2">
+                      Mark as inactive instead of permanent deletion. The record will be preserved but hidden from active lists.
+                    </p>
+                    <button
+                      onClick={onSoftDelete}
+                      disabled={isDeleting}
+                      className="w-full py-2 px-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Archive Instead (Soft Delete)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleConfirm}
+                disabled={isDeleting}
+                className={`flex-1 py-2.5 px-4 text-white font-medium rounded-xl transition-all duration-200 ${styles.buttonBg} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    {confirmText}
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {cancelText}
+              </button>
+            </div>
+
+            {/* Keyboard hint */}
+            <p className="text-xs text-gray-400 text-center mt-4">
+              Press ESC to cancel or click outside
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PatientManagement = () => {
   const dispatch = useDispatch();
   const { filteredPatients, searchTerm, sortBy, filterBy, error } = useSelector(
@@ -159,16 +405,17 @@ const PatientManagement = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
 
-  // Modal states
-  const [modalConfig, setModalConfig] = useState({
+  // Custom Modal states
+  const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
-    type: 'delete',
     patientData: null,
     action: null,
+    softDeleteAction: null,
     title: '',
     message: '',
     confirmText: '',
-    showSoftDeleteOption: false,
+    type: 'danger',
+    showSoftDelete: false,
   });
 
   // Load countries, states, and Nigerian LGAs
@@ -350,17 +597,18 @@ const PatientManagement = () => {
     setShowPatientDetails(true);
   };
 
-  // Open modal for delete
+  // Open custom confirm modal for delete
   const handleDeleteClick = (patient) => {
-    setModalConfig({
+    setConfirmModal({
       isOpen: true,
-      type: 'delete',
       patientData: {
         name: patient.name || patient.full_name || '',
         email: patient.email || '',
         nin: patient.nin || '',
         phone: patient.phone || '',
         bloodType: patient.bloodType || '',
+        gender: patient.gender || '',
+        full_name: patient.full_name || '',
       },
       action: async () => {
         setIsLoading(true);
@@ -370,18 +618,49 @@ const PatientManagement = () => {
           });
           dispatch(deletePatient(patient.id));
           await loadPatients();
+          setConfirmModal({ ...confirmModal, isOpen: false });
         } catch (error) {
           console.error('Delete failed:', error);
+          alert(error.message || 'Unable to delete patient');
+          throw error;
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      softDeleteAction: async () => {
+        setIsLoading(true);
+        try {
+          await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              patient_status: 'archived',
+              is_active: false,
+            }),
+          });
+          dispatch(archivePatient(patient.id));
+          await loadPatients();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        } catch (error) {
+          console.error('Archive failed:', error);
+          alert(error.message || 'Unable to archive patient');
           throw error;
         } finally {
           setIsLoading(false);
         }
       },
       title: 'Delete Patient Record',
-      message: 'Are you sure you want to permanently delete this patient record? This action is irreversible.',
+      message: 'Are you sure you want to permanently delete this patient record? This action is irreversible and all associated data will be lost.',
       confirmText: 'Delete Permanently',
-      showSoftDeleteOption: true,
+      type: 'danger',
+      showSoftDelete: true,
     });
+  };
+
+  // Close confirm modal
+  const handleConfirmModalClose = () => {
+    if (!isLoading) {
+      setConfirmModal({ ...confirmModal, isOpen: false });
+    }
   };
 
   // Open modal for edit
@@ -430,46 +709,6 @@ const PatientManagement = () => {
     setAvailableLGAs(nigerianData[patient.state] || []);
     setEditingId(patient.id);
     setShowForm(true);
-  };
-
-  // Handle soft delete (archive)
-  const handleSoftDelete = async (patient) => {
-    setIsLoading(true);
-    try {
-      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          patient_status: 'archived',
-          is_active: false,
-        }),
-      });
-      dispatch(archivePatient(patient.id));
-      await loadPatients();
-    } catch (error) {
-      console.error('Archive failed:', error);
-      alert(error.message || 'Unable to archive patient');
-    } finally {
-      setIsLoading(false);
-      setModalConfig({ ...modalConfig, isOpen: false });
-    }
-  };
-
-  // Handle modal confirm
-  const handleModalConfirm = async () => {
-    try {
-      if (modalConfig.action) {
-        await modalConfig.action();
-      }
-      setModalConfig({ ...modalConfig, isOpen: false });
-    } catch (error) {
-      console.error('Action failed:', error);
-      alert(error.message || 'Unable to complete this action');
-    }
-  };
-
-  // Handle modal close
-  const handleModalClose = () => {
-    setModalConfig({ ...modalConfig, isOpen: false });
   };
 
   const handleSubmit = async (e) => {
@@ -1526,19 +1765,6 @@ const PatientManagement = () => {
               </div>
             </div>
           </div>
-
-          <ConfirmModal
-            isOpen={modalConfig.isOpen}
-            onClose={handleModalClose}
-            onConfirm={handleModalConfirm}
-            onSoftDelete={() => handleSoftDelete(modalConfig.patientData)}
-            type={modalConfig.type}
-            patientData={modalConfig.patientData}
-            title={modalConfig.title}
-            message={modalConfig.message}
-            confirmText={modalConfig.confirmText}
-            showSoftDeleteOption={modalConfig.showSoftDeleteOption}
-          />
         </div>
         <LoadingSpinner overlay text="Processing request..." />
       </>
@@ -1722,19 +1948,19 @@ const PatientManagement = () => {
       {/* Patient Details Modal */}
       {showPatientDetails && renderPatientDetails()}
 
-      {/* Confirmation Modal */}
-      <ConfirmModal
-        isOpen={modalConfig.isOpen}
-        onClose={handleModalClose}
-        onConfirm={handleModalConfirm}
-        onSoftDelete={() => handleSoftDelete(modalConfig.patientData)}
-        type={modalConfig.type}
-        patientData={modalConfig.patientData}
-        title={modalConfig.title}
-        message={modalConfig.message}
-        confirmText={modalConfig.confirmText}
+      {/* Custom Confirm Modal */}
+      <CustomConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={handleConfirmModalClose}
+        onConfirm={confirmModal.action}
+        onSoftDelete={confirmModal.softDeleteAction}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
         cancelText="Cancel"
-        showSoftDeleteOption={modalConfig.showSoftDeleteOption}
+        patientData={confirmModal.patientData}
+        showSoftDelete={confirmModal.showSoftDelete}
+        type={confirmModal.type}
       />
     </div>
   );
