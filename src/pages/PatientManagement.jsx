@@ -136,6 +136,7 @@ const PatientManagement = () => {
     country: 'Nigeria',
     lga: '',
     state: '',
+    city: '',
     dateOfBirth: '',
     bloodType: '',
     gender: '',
@@ -155,6 +156,8 @@ const PatientManagement = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nigerianData, setNigerianData] = useState({});
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [showPatientDetails, setShowPatientDetails] = useState(false);
 
   // Modal states
   const [modalConfig, setModalConfig] = useState({
@@ -162,6 +165,10 @@ const PatientManagement = () => {
     type: 'delete',
     patientData: null,
     action: null,
+    title: '',
+    message: '',
+    confirmText: '',
+    showSoftDeleteOption: false,
   });
 
   // Load countries, states, and Nigerian LGAs
@@ -208,6 +215,98 @@ const PatientManagement = () => {
     });
   };
 
+  // Updated normalizePatient function to handle all fields properly
+  const normalizePatient = (patient) => {
+    // Capitalize gender for display
+    const genderMap = {
+      'male': 'Male',
+      'female': 'Female',
+      'other': 'Other',
+      '': ''
+    };
+
+    // Capitalize marital status for display
+    const maritalStatusMap = {
+      'single': 'Single',
+      'married': 'Married',
+      'divorced': 'Divorced',
+      'widowed': 'Widowed',
+      'separated': 'Separated',
+      '': ''
+    };
+
+    // Parse date of birth to calculate age
+    const calculateAge = (dob) => {
+      if (!dob) return 'N/A';
+      const birthDate = new Date(dob);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    return {
+      id: patient.id,
+      name: patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+      first_name: patient.first_name || '',
+      last_name: patient.last_name || '',
+      nin: patient.nin || '',
+      phone: patient.phone || '',
+      email: patient.email || '',
+      address: patient.address || '',
+      tribe: patient.ethnicity || patient.tribe || '',
+      country: patient.country || 'Nigeria',
+      lga: patient.lga || '',
+      state: patient.state || '',
+      city: patient.city || '',
+      dateOfBirth: patient.date_of_birth || '',
+      bloodType: patient.blood_group || patient.bloodType || '',
+      gender: genderMap[patient.gender?.toLowerCase()] || patient.gender || '',
+      maritalStatus: maritalStatusMap[patient.marital_status?.toLowerCase()] || patient.marital_status || '',
+      occupation: patient.occupation || '',
+      emergencyContact: patient.next_of_kin_name || '',
+      emergencyPhone: patient.next_of_kin_phone || '',
+      religion: patient.religion || '',
+      status: patient.patient_status || patient.status || 'active',
+      createdAt: patient.registration_date || patient.createdAt || new Date().toISOString(),
+      updatedAt: patient.updated_at || patient.updatedAt || new Date().toISOString(),
+      hospital_number: patient.hospital_number || '',
+      login_id: patient.login_id || '',
+      age: calculateAge(patient.date_of_birth),
+      full_name: patient.full_name || '',
+      age_display: patient.age_display || '',
+      tenant_name: patient.tenant_name || '',
+      nhis_number: patient.nhis_number || '',
+      middle_name: patient.middle_name || '',
+      phone2: patient.phone2 || '',
+      next_of_kin_relationship: patient.next_of_kin_relationship || '',
+      next_of_kin_address: patient.next_of_kin_address || '',
+      known_allergies: patient.known_allergies || '',
+      chronic_conditions: patient.chronic_conditions || '',
+      current_medications: patient.current_medications || '',
+      surgical_history: patient.surgical_history || '',
+      family_history: patient.family_history || '',
+      has_insurance: patient.has_insurance || false,
+      insurance_company: patient.insurance_company || '',
+      insurance_policy_number: patient.insurance_policy_number || '',
+      insurance_expiry: patient.insurance_expiry || null,
+      ethnicity: patient.ethnicity || '',
+      language_spoken: patient.language_spoken || '',
+      patient_status: patient.patient_status || 'active',
+      photo: patient.photo || null,
+      notes: patient.notes || '',
+      registration_date: patient.registration_date || '',
+      last_visit: patient.last_visit || null,
+      registered_by: patient.registered_by || null,
+      is_active: patient.is_active !== undefined ? patient.is_active : true,
+      tenant: patient.tenant || null,
+      genotype: patient.genotype || '',
+    };
+  };
+
   const loadPatients = async () => {
     try {
       setIsLoading(true);
@@ -232,34 +331,6 @@ const PatientManagement = () => {
   const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
   const religions = ['Christianity', 'Islam', 'Traditional', 'Other'];
 
-  const normalizePatient = (patient) => ({
-    id: patient.id,
-    name: patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
-    first_name: patient.first_name || '',
-    last_name: patient.last_name || '',
-    nin: patient.nin || '',
-    phone: patient.phone || '',
-    email: patient.email || '',
-    address: patient.address || '',
-    tribe: patient.ethnicity || patient.tribe || '',
-    country: patient.country || 'Nigeria',
-    lga: patient.lga || '',
-    state: patient.state || '',
-    dateOfBirth: patient.date_of_birth || '',
-    bloodType: patient.blood_group || patient.bloodType || '',
-    gender: patient.gender || '',
-    maritalStatus: patient.marital_status || patient.maritalStatus || '',
-    occupation: patient.occupation || '',
-    emergencyContact: patient.next_of_kin_name || '',
-    emergencyPhone: patient.next_of_kin_phone || '',
-    religion: patient.religion || '',
-    status: patient.patient_status || patient.status || 'active',
-    createdAt: patient.registration_date || patient.createdAt || new Date().toISOString(),
-    updatedAt: patient.updated_at || patient.updatedAt || new Date().toISOString(),
-    hospital_number: patient.hospital_number || '',
-    login_id: patient.login_id || '',
-  });
-
   // Stats calculation
   const uniqueFilteredPatients = dedupePatientsById(filteredPatients);
 
@@ -273,12 +344,24 @@ const PatientManagement = () => {
     }, {}),
   };
 
+  // View patient details handler
+  const handleViewPatient = (patient) => {
+    setSelectedPatient(patient);
+    setShowPatientDetails(true);
+  };
+
   // Open modal for delete
   const handleDeleteClick = (patient) => {
     setModalConfig({
       isOpen: true,
       type: 'delete',
-      patientData: patient,
+      patientData: {
+        name: patient.name || patient.full_name || '',
+        email: patient.email || '',
+        nin: patient.nin || '',
+        phone: patient.phone || '',
+        bloodType: patient.bloodType || '',
+      },
       action: async () => {
         setIsLoading(true);
         try {
@@ -294,12 +377,56 @@ const PatientManagement = () => {
           setIsLoading(false);
         }
       },
+      title: 'Delete Patient Record',
+      message: 'Are you sure you want to permanently delete this patient record? This action is irreversible.',
+      confirmText: 'Delete Permanently',
+      showSoftDeleteOption: true,
     });
   };
 
   // Open modal for edit
   const handleEditClick = (patient) => {
-    setFormData(patient);
+    // Ensure marital status is properly capitalized for the form
+    const maritalStatusMap = {
+      'single': 'Single',
+      'married': 'Married',
+      'divorced': 'Divorced',
+      'widowed': 'Widowed',
+      'separated': 'Separated',
+      '': ''
+    };
+
+    // Ensure gender is properly capitalized for the form
+    const genderMap = {
+      'male': 'Male',
+      'female': 'Female',
+      'other': 'Other',
+      '': ''
+    };
+
+    const formPatient = {
+      ...patient,
+      maritalStatus: maritalStatusMap[patient.maritalStatus?.toLowerCase()] || patient.maritalStatus || '',
+      gender: genderMap[patient.gender?.toLowerCase()] || patient.gender || '',
+      state: patient.state || '',
+      city: patient.city || '',
+      lga: patient.lga || '',
+      country: patient.country || 'Nigeria',
+      dateOfBirth: patient.dateOfBirth || '',
+      bloodType: patient.bloodType || '',
+      tribe: patient.tribe || '',
+      religion: patient.religion || '',
+      occupation: patient.occupation || '',
+      emergencyContact: patient.emergencyContact || '',
+      emergencyPhone: patient.emergencyPhone || '',
+      nin: patient.nin || '',
+      phone: patient.phone || '',
+      email: patient.email || '',
+      address: patient.address || '',
+      name: patient.name || '',
+    };
+
+    setFormData(formPatient);
     setAvailableLGAs(nigerianData[patient.state] || []);
     setEditingId(patient.id);
     setShowForm(true);
@@ -357,20 +484,38 @@ const PatientManagement = () => {
     const firstName = fullName.shift() || '';
     const lastName = fullName.join(' ') || 'Unknown';
 
+    // Map marital status to lowercase for API
+    const maritalStatusMap = {
+      'Single': 'single',
+      'Married': 'married',
+      'Divorced': 'divorced',
+      'Widowed': 'widowed',
+      'Separated': 'separated',
+      '': ''
+    };
+
+    // Map gender to lowercase for API
+    const genderMap = {
+      'Male': 'male',
+      'Female': 'female',
+      'Other': 'other',
+      '': 'unknown'
+    };
+
     const payload = {
       first_name: firstName,
       last_name: lastName,
       date_of_birth: formData.dateOfBirth || '1990-01-01',
-      gender: (formData.gender || 'unknown').toLowerCase(),
+      gender: genderMap[formData.gender] || (formData.gender || 'unknown').toLowerCase(),
       phone: formData.phone,
       email: formData.email || '',
       address: formData.address || '',
-      city: formData.state || '',
+      city: formData.city || '',
       state: formData.state || 'Rivers',
       lga: formData.lga || '',
       country: formData.country || 'Nigeria',
       blood_group: formData.bloodType || 'unknown',
-      marital_status: (formData.maritalStatus || 'single').toLowerCase(),
+      marital_status: maritalStatusMap[formData.maritalStatus] || (formData.maritalStatus || 'single').toLowerCase(),
       religion: formData.religion || '',
       ethnicity: formData.tribe || '',
       occupation: formData.occupation || '',
@@ -422,6 +567,7 @@ const PatientManagement = () => {
       country: 'Nigeria',
       lga: '',
       state: '',
+      city: '',
       dateOfBirth: '',
       bloodType: '',
       gender: '',
@@ -442,11 +588,11 @@ const PatientManagement = () => {
     setFormData({ ...formData, [name]: value });
 
     if (name === 'country') {
-      setFormData(prev => ({ ...prev, state: '', lga: '' }));
+      setFormData(prev => ({ ...prev, state: '', lga: '', city: '' }));
       setAvailableLGAs([]);
       setNigerianStates(countryStates[value] || []);
     } else if (name === 'state') {
-      setFormData(prev => ({ ...prev, lga: '' }));
+      setFormData(prev => ({ ...prev, lga: '', city: '' }));
       if (formData.country === 'Nigeria') {
         setAvailableLGAs(nigerianData[value] || []);
       }
@@ -473,29 +619,281 @@ const PatientManagement = () => {
   const endIndex = startIndex + itemsPerPage;
   const displayedPatients = uniqueFilteredPatients.slice(startIndex, endIndex);
 
-  // Get modal configuration
-  const getModalConfig = () => {
-    const configs = {
-      delete: {
-        title: 'Delete Patient Record',
-        message: 'Are you sure you want to permanently delete this patient record? This action is irreversible.',
-        confirmText: 'Delete Permanently',
-        showSoftDeleteOption: true,
-      },
-      edit: {
-        title: 'Edit Patient Details',
-        message: 'You are about to modify patient information. Please ensure all changes are accurate.',
-        confirmText: 'Save Changes',
-        showSoftDeleteOption: false,
-      },
-      archive: {
-        title: 'Archive Patient Record',
-        message: 'This will mark the patient as inactive. The record will be preserved but hidden from active lists.',
-        confirmText: 'Archive Patient',
-        showSoftDeleteOption: false,
-      },
-    };
-    return configs[modalConfig.type] || configs.delete;
+  // Render patient details modal
+  const renderPatientDetails = () => {
+    if (!selectedPatient) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <User className="w-5 h-5 text-blue-600" />
+              Patient Details
+            </h2>
+            <button
+              onClick={() => {
+                setShowPatientDetails(false);
+                setSelectedPatient(null);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Personal Information */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <User className="w-4 h-4 text-blue-600" />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Full Name</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.full_name || selectedPatient.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Gender</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.gender || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Date of Birth</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {selectedPatient.dateOfBirth ? new Date(selectedPatient.dateOfBirth).toLocaleDateString() : 'N/A'}
+                    {selectedPatient.age !== undefined && selectedPatient.age !== 'N/A' && ` (${selectedPatient.age} years)`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">NIN</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.nin || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Marital Status</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.maritalStatus || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Religion</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.religion || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Ethnicity</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.ethnicity || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Occupation</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.occupation || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Phone className="w-4 h-4 text-green-600" />
+                Contact Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Email</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Address</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.address || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Location Information */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-purple-600" />
+                Location
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Country</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.country || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">State</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.state || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">LGA</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.lga || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">City</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.city || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Medical Information */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Heart className="w-4 h-4 text-red-600" />
+                Medical Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Blood Group</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.bloodType || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Genotype</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.genotype || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Known Allergies</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.known_allergies || 'None'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Chronic Conditions</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.chronic_conditions || 'None'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Current Medications</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.current_medications || 'None'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Surgical History</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.surgical_history || 'None'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Family History</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.family_history || 'None'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-yellow-600" />
+                Emergency Contact
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Contact Name</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.emergencyContact || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Contact Phone</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.emergencyPhone || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Relationship</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.next_of_kin_relationship || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Address</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.next_of_kin_address || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Insurance Information */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <IdCard className="w-4 h-4 text-blue-600" />
+                Insurance Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Has Insurance</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.has_insurance ? 'Yes' : 'No'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Insurance Company</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.insurance_company || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Policy Number</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.insurance_policy_number || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">NHIS Number</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.nhis_number || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Hospital Information */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Hospital Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Hospital Number</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.hospital_number || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Login ID</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.login_id || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Tenant/Hospital</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.tenant_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Registration Date</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {selectedPatient.registration_date ? new Date(selectedPatient.registration_date).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Status</p>
+                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                    selectedPatient.status === 'active'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {selectedPatient.status || 'active'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Last Visit</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {selectedPatient.last_visit ? new Date(selectedPatient.last_visit).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Language Spoken</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.language_spoken || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Notes</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPatient.notes || 'None'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Close button at bottom */}
+            <div className="flex justify-end pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowPatientDetails(false);
+                  setSelectedPatient(null);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Render patient form
@@ -671,6 +1069,18 @@ const PatientManagement = () => {
                   </select>
                 </div>
               )}
+              <div>
+                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">City</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="City/Town"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
+                />
+              </div>
               <div>
                 <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
                 <textarea
@@ -903,7 +1313,7 @@ const PatientManagement = () => {
                     </td>
                     <td className="py-2 sm:py-3 hidden md:table-cell">
                       <div className="text-xs sm:text-sm text-gray-600">{patient.state || '-'}</div>
-                      <div className="text-[10px] text-gray-400">{patient.lga || '-'}</div>
+                      <div className="text-[10px] text-gray-400">{patient.lga || patient.city || '-'}</div>
                     </td>
                     <td className="py-2 sm:py-3 hidden lg:table-cell">
                       <span className="text-xs font-medium">{patient.bloodType || '-'}</span>
@@ -921,7 +1331,7 @@ const PatientManagement = () => {
                       <div className="flex items-center gap-0.5 sm:gap-1">
                         <IconButton
                           icon={Eye}
-                          onClick={() => {}}
+                          onClick={() => handleViewPatient(patient)}
                           tooltip="View patient details"
                           variant="primary"
                           disabled={isLoading}
@@ -1124,10 +1534,10 @@ const PatientManagement = () => {
             onSoftDelete={() => handleSoftDelete(modalConfig.patientData)}
             type={modalConfig.type}
             patientData={modalConfig.patientData}
-            title={getModalConfig().title}
-            message={getModalConfig().message}
-            confirmText={getModalConfig().confirmText}
-            showSoftDeleteOption={getModalConfig().showSoftDeleteOption}
+            title={modalConfig.title}
+            message={modalConfig.message}
+            confirmText={modalConfig.confirmText}
+            showSoftDeleteOption={modalConfig.showSoftDeleteOption}
           />
         </div>
         <LoadingSpinner overlay text="Processing request..." />
@@ -1309,6 +1719,9 @@ const PatientManagement = () => {
         </div>
       </div>
 
+      {/* Patient Details Modal */}
+      {showPatientDetails && renderPatientDetails()}
+
       {/* Confirmation Modal */}
       <ConfirmModal
         isOpen={modalConfig.isOpen}
@@ -1317,10 +1730,11 @@ const PatientManagement = () => {
         onSoftDelete={() => handleSoftDelete(modalConfig.patientData)}
         type={modalConfig.type}
         patientData={modalConfig.patientData}
-        title={getModalConfig().title}
-        message={getModalConfig().message}
-        confirmText={getModalConfig().confirmText}
-        showSoftDeleteOption={getModalConfig().showSoftDeleteOption}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.confirmText}
+        cancelText="Cancel"
+        showSoftDeleteOption={modalConfig.showSoftDeleteOption}
       />
     </div>
   );

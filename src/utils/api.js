@@ -21,9 +21,9 @@ const API_BASE_URL = (() => {
 
 
   
-  // return 'http://localhost:8000';
+  return 'http://localhost:8000';
 
-  return 'https://hms-backend-l09g.onrender.com';
+  // return 'https://hms-backend-l09g.onrender.com';
 })();
 
 const PUBLIC_AUTH_PATHS = [
