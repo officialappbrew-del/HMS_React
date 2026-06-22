@@ -286,7 +286,7 @@ const StaffManagement = () => {
       setIsLoading(true);
       if (editingId) {
         const updated = await apiRequest(`/api/v1/tenants/users/${editingId}/`, {
-          method: 'PUT',
+          method: 'PATCH',
           body: JSON.stringify(payload),
         });
         dispatch(updateStaff(normalizeStaff(updated)));
