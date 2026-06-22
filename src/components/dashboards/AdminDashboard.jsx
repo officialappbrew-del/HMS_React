@@ -1,6 +1,7 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { useLoading } from '../../hooks/useLoading';
 import LoadingSpinner from '../LoadingSpinner';
 import {
@@ -196,6 +197,7 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
 };
 
 const AdminDashboard = () => {
+  const { user: authUser, tenant: authTenant } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { withLoading } = useLoading();
@@ -205,6 +207,10 @@ const AdminDashboard = () => {
   const { staff } = useSelector(state => state.staff || { staff: [] });
   const { wards, stats: wardStats } = useSelector(state => state.ward || { wards: [], stats: {} });
   const { admissions } = useSelector(state => state.admission || { admissions: [] });
+
+  const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hospital';
+  const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
+  const displayRole = authUser?.role || 'admin';
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -895,15 +901,10 @@ const AdminDashboard = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-              Welcome to {hospitalName || subdomain || 'Hospital'} Management System
+              Welcome back, {displayUserName}
             </h1>
             <p className="text-sm text-gray-500">
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
+              {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
             </p>
           </div>
           <div className="flex items-center gap-2">

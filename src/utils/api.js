@@ -11,7 +11,7 @@ const API_BASE_URL = (() => {
   const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
   if (isLocalFrontend()) {
-    return configuredUrl || 'http://0.0.0.0:8000';
+    return configuredUrl || 'http://localhost:8000';
   }
 
   if (configuredUrl && !isLocalApiUrl(configuredUrl)) {
@@ -21,7 +21,7 @@ const API_BASE_URL = (() => {
 
 
   
-  // return 'https://hms-backend-l09g.onrender.com';
+  // return 'http://localhost:8000';
 
   return 'https://hms-backend-l09g.onrender.com';
 })();

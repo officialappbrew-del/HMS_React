@@ -51,10 +51,12 @@ const StaffManagement = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [originalStaff, setOriginalStaff] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const itemsPerPage = 10;
   const [formData, setFormData] = useState({
@@ -143,10 +145,12 @@ const StaffManagement = () => {
     try {
       setIsLoading(true);
       dispatch(setLoading(true));
-      const data = await apiRequest('/api/v1/tenants/users/');
-      const users = Array.isArray(data) ? data : (data.results || []);
-      const normalizedUsers = dedupeStaffById(users.map(normalizeStaff));
+      const data = await apiRequest('/api/v1/tenants/users/?page_size=200');
+      const results = Array.isArray(data) ? data : (data.results || []);
+      const count = data.count ?? results.length;
+      const normalizedUsers = dedupeStaffById(results.map(normalizeStaff));
       dispatch(setStaffList(normalizedUsers));
+      setTotalCount(count);
     } catch (error) {
       console.error('Failed to load staff users:', error);
     } finally {
@@ -223,6 +227,7 @@ const StaffManagement = () => {
   };
 
   const handleEditClick = (staff) => {
+    setOriginalStaff({ ...staff });
     setFormData({
       name: staff.name || '',
       email: staff.email || '',
@@ -255,19 +260,12 @@ const StaffManagement = () => {
     setModalConfig(prev => ({ ...prev, isOpen: false }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!formData.name.trim() || !formData.email.trim() || !formData.role.trim()) {
-      alert('Name, Email, and Role are required fields');
-      return;
-    }
-
+  const buildCreatePayload = () => {
     const parts = formData.name.trim().split(/\s+/);
     const firstName = parts[0] || '';
     const lastName = parts.length > 1 ? parts.slice(1).join(' ') : firstName;
 
-    const payload = {
+    return {
       first_name: firstName,
       last_name: lastName || firstName,
       email: formData.email,
@@ -280,21 +278,84 @@ const StaffManagement = () => {
       is_staff: true,
       employment_status: 'active',
     };
+  };
+
+  const buildUpdatePayload = () => {
+    if (!originalStaff) return {};
+
+    const parts = formData.name.trim().split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.length > 1 ? parts.slice(1).join(' ') : firstName;
+
+    const patch = {};
+
+    if (firstName !== (originalStaff.first_name || '')) {
+      patch.first_name = firstName;
+    }
+    if (lastName || firstName !== (originalStaff.last_name || '')) {
+      patch.last_name = lastName || firstName;
+    }
+    if (formData.email !== (originalStaff.email || '')) {
+      patch.email = formData.email;
+    }
+    if (formData.phone !== (originalStaff.phone || '')) {
+      patch.phone = formData.phone;
+    }
+    if (normalizeRole(formData.role) !== (originalStaff.roleValue || '')) {
+      patch.role = normalizeRole(formData.role);
+    }
+    if (formData.departmentId && Number(formData.departmentId) !== originalStaff.departmentId) {
+      patch.department = Number(formData.departmentId);
+    }
+    if (formData.designation !== (originalStaff.designation || '')) {
+      patch.designation = formData.designation;
+    }
+    if (formData.hireDate !== (originalStaff.hireDate || '')) {
+      patch.employment_date = formData.hireDate;
+    }
+
+    return patch;
+  };
+
+  const cleanPayload = (payload) => {
+    const cleaned = {};
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        cleaned[key] = value;
+      }
+    });
+    return cleaned;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.name.trim() || !formData.email.trim() || !formData.role.trim()) {
+      alert('Name, Email, and Role are required fields');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
       setIsLoading(true);
+
       if (editingId) {
+        const patchPayload = cleanPayload(buildUpdatePayload());
+        if (Object.keys(patchPayload).length === 0) {
+          alert('No changes detected');
+          return;
+        }
         const updated = await apiRequest(`/api/v1/tenants/users/${editingId}/`, {
           method: 'PATCH',
-          body: JSON.stringify(payload),
+          body: JSON.stringify(patchPayload),
         });
         dispatch(updateStaff(normalizeStaff(updated)));
         setEditingId(null);
       } else {
+        const createPayload = cleanPayload(buildCreatePayload());
         const created = await apiRequest('/api/v1/tenants/users/', {
           method: 'POST',
-          body: JSON.stringify(payload),
+          body: JSON.stringify(createPayload),
         });
         dispatch(addStaff(normalizeStaff(created)));
       }
@@ -324,6 +385,7 @@ const StaffManagement = () => {
       salary: '',
     });
     setEditingId(null);
+    setOriginalStaff(null);
   };
 
   const handleChange = (e) => {

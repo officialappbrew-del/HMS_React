@@ -92,6 +92,8 @@ const Login = () => {
       localStorage.setItem('userRole', user.role || selectedRole);
       localStorage.setItem('userEmail', user.email || formData.email);
       localStorage.setItem('userName', user.username || user.user_id || formData.email);
+      localStorage.setItem('userFirstName', user.first_name || '');
+      localStorage.setItem('userLastName', user.last_name || '');
       localStorage.setItem('userId', user.id || user.user_id || loginIdentifier);
       if (tenantPublicId) {
         localStorage.setItem('tenantId', tenantPublicId);
