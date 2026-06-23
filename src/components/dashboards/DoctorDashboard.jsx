@@ -53,7 +53,33 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  Plus
+  Plus,
+  Phone,
+  Mail,
+  MapPin,
+  Building2,
+  Globe,
+  BookOpen,
+  Award as AwardIcon,
+  UserCircle,
+  IdCard,
+  Droplets,
+  Baby,
+  Activity as ActivityIcon,
+  Heart as HeartIcon,
+  Stethoscope as StethoscopeIcon,
+  Calendar as CalendarIcon2,
+  Clock as ClockIcon2,
+  User as UserIcon,
+  Home as HomeIcon,
+  Briefcase as BriefcaseIcon,
+  Shield as ShieldIcon,
+  HeartPulse as HeartPulseIcon,
+  Brain as BrainIcon,
+  Bone as BoneIcon,
+  Droplets as DropletsIcon,
+  Pill as PillIcon,
+  Syringe as SyringeIcon,
 } from 'lucide-react';
 
 // Tooltip Component
@@ -140,6 +166,373 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
+// Patient Detail Modal Component
+const PatientDetailModal = ({ patient, onClose }) => {
+  if (!patient) return null;
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    try {
+      return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getStatusColor = (status) => {
+    const statusMap = {
+      'active': 'bg-green-100 text-green-800 border-green-200',
+      'inactive': 'bg-gray-100 text-gray-800 border-gray-200',
+      'archived': 'bg-gray-100 text-gray-800 border-gray-200',
+      'critical': 'bg-red-100 text-red-800 border-red-200',
+      'stable': 'bg-green-100 text-green-800 border-green-200',
+      'monitoring': 'bg-blue-100 text-blue-800 border-blue-200',
+    };
+    return statusMap[status?.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  const getGenderIcon = (gender) => {
+    if (gender?.toLowerCase() === 'male') return <UserIcon className="w-4 h-4 text-blue-500" />;
+    if (gender?.toLowerCase() === 'female') return <UserIcon className="w-4 h-4 text-pink-500" />;
+    return <UserCircle className="w-4 h-4 text-gray-400" />;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
+          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold text-white border-2 border-white/30">
+                  {getInitials(patient.name)}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{patient.name}</h2>
+                  <div className="flex items-center gap-3 mt-1 text-sm text-blue-100">
+                    <span className="flex items-center gap-1">
+                      {getGenderIcon(patient.gender)}
+                      {patient.gender || 'Not specified'}
+                    </span>
+                    {patient.age && (
+                      <span className="flex items-center gap-1">
+                        <CalendarIcon2 className="w-3.5 h-3.5" />
+                        {patient.age} years
+                      </span>
+                    )}
+                    {patient.hospital_number && (
+                      <span className="flex items-center gap-1">
+                        <IdCard className="w-3.5 h-3.5" />
+                        HN: {patient.hospital_number}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(patient.status)}`}>
+                {patient.status || 'Active'}
+              </span>
+              {patient.bloodType && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                  <DropletsIcon className="w-3 h-3 mr-1" />
+                  {patient.bloodType}
+                </span>
+              )}
+              {patient.genotype && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                  <BrainIcon className="w-3 h-3 mr-1" />
+                  Genotype: {patient.genotype}
+                </span>
+              )}
+              {patient.has_insurance && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                  <ShieldIcon className="w-3 h-3 mr-1" />
+                  Insured
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <UserCircle className="w-4 h-4 text-blue-600" />
+                  Personal Information
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Full Name</span>
+                    <span className="font-medium text-gray-900">{patient.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Date of Birth</span>
+                    <span className="font-medium text-gray-900">{formatDate(patient.dateOfBirth)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Age</span>
+                    <span className="font-medium text-gray-900">{patient.age || 'N/A'} years</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Gender</span>
+                    <span className="font-medium text-gray-900">{patient.gender || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">NIN</span>
+                    <span className="font-medium text-gray-900">{patient.nin || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Marital Status</span>
+                    <span className="font-medium text-gray-900">{patient.maritalStatus || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Religion</span>
+                    <span className="font-medium text-gray-900">{patient.religion || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Ethnicity</span>
+                    <span className="font-medium text-gray-900">{patient.tribe || patient.ethnicity || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Occupation</span>
+                    <span className="font-medium text-gray-900">{patient.occupation || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-green-600" />
+                  Contact Information
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Phone</span>
+                    <span className="font-medium text-gray-900">{patient.phone || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Email</span>
+                    <span className="font-medium text-gray-900">{patient.email || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Address</span>
+                    <span className="font-medium text-gray-900">{patient.address || 'N/A'}</span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h4 className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-purple-600" />
+                    Location
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Country</span>
+                      <span className="font-medium text-gray-900">{patient.country || 'Nigeria'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">State</span>
+                      <span className="font-medium text-gray-900">{patient.state || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">LGA</span>
+                      <span className="font-medium text-gray-900">{patient.lga || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">City</span>
+                      <span className="font-medium text-gray-900">{patient.city || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <HeartPulseIcon className="w-4 h-4 text-red-600" />
+                  Medical Information
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Blood Group</span>
+                    <span className="font-medium text-gray-900">{patient.bloodType || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Genotype</span>
+                    <span className="font-medium text-gray-900">{patient.genotype || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Known Allergies</span>
+                    <span className="font-medium text-gray-900">{patient.known_allergies || 'None'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Chronic Conditions</span>
+                    <span className="font-medium text-gray-900">{patient.chronic_conditions || 'None'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Current Medications</span>
+                    <span className="font-medium text-gray-900">{patient.current_medications || 'None'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Surgical History</span>
+                    <span className="font-medium text-gray-900">{patient.surgical_history || 'None'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Family History</span>
+                    <span className="font-medium text-gray-900">{patient.family_history || 'None'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <ShieldIcon className="w-4 h-4 text-yellow-600" />
+                  Emergency Contact
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Contact Name</span>
+                    <span className="font-medium text-gray-900">{patient.emergencyContact || patient.next_of_kin_name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Contact Phone</span>
+                    <span className="font-medium text-gray-900">{patient.emergencyPhone || patient.next_of_kin_phone || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Relationship</span>
+                    <span className="font-medium text-gray-900">{patient.next_of_kin_relationship || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Address</span>
+                    <span className="font-medium text-gray-900">{patient.next_of_kin_address || 'N/A'}</span>
+                  </div>
+                </div>
+                {patient.has_insurance && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-2">
+                      <IdCard className="w-3.5 h-3.5 text-blue-600" />
+                      Insurance Information
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Insurance Company</span>
+                        <span className="font-medium text-gray-900">{patient.insurance_company || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Policy Number</span>
+                        <span className="font-medium text-gray-900">{patient.insurance_policy_number || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">NHIS Number</span>
+                        <span className="font-medium text-gray-900">{patient.nhis_number || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 md:col-span-2">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-blue-600" />
+                  Hospital Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Hospital Number</span>
+                    <span className="font-medium text-gray-900">{patient.hospital_number || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Login ID</span>
+                    <span className="font-medium text-gray-900">{patient.login_id || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Tenant/Hospital</span>
+                    <span className="font-medium text-gray-900">{patient.tenant_name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Registration Date</span>
+                    <span className="font-medium text-gray-900">{formatDate(patient.registration_date || patient.created_at)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Last Visit</span>
+                    <span className="font-medium text-gray-900">{formatDate(patient.lastVisit)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Language Spoken</span>
+                    <span className="font-medium text-gray-900">{patient.language_spoken || 'N/A'}</span>
+                  </div>
+                </div>
+                {patient.notes && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Notes</span>
+                      <span className="font-medium text-gray-900 text-right max-w-[60%]">{patient.notes}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
+            <ButtonWithTooltip
+              onClick={onClose}
+              tooltip="Close patient details"
+              variant="secondary"
+            >
+              <X className="w-3.5 h-3.5" />
+              Close
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => window.open(`/patients/${patient.id}/consult`, '_blank')}
+              tooltip="Start consultation"
+              variant="primary"
+            >
+              <StethoscopeIcon className="w-3.5 h-3.5" />
+              Consult
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => window.open(`/patients/${patient.id}/emr`, '_blank')}
+              tooltip="View medical records"
+              variant="success"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              View EMR
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => window.open(`/patients/edit/${patient.id}`, '_blank')}
+              tooltip="Edit patient"
+              variant="warning"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              Edit
+            </ButtonWithTooltip>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DoctorDashboard = () => {
   const { user: authUser, tenant: authTenant } = useAuth();
   const dispatch = useDispatch();
@@ -159,6 +552,9 @@ const DoctorDashboard = () => {
   const [viewMode, setViewMode] = useState('table');
   const itemsPerPage = 10;
 
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [showPatientModal, setShowPatientModal] = useState(false);
+
   const [stats, setStats] = useState({
     myPatients: 0,
     todaysRounds: 0,
@@ -169,6 +565,12 @@ const DoctorDashboard = () => {
   const [consultationForm, setConsultationForm] = useState({
     patientId: '',
     patientName: '',
+    patientAge: '',
+    patientGender: '',
+    patientBloodType: '',
+    patientPhone: '',
+    patientEmail: '',
+    patientAddress: '',
     temperature: '',
     weight: '',
     bloodPressure: '',
@@ -177,12 +579,15 @@ const DoctorDashboard = () => {
     oxygenSaturation: '',
     presentingComplaints: '',
     medicalHistory: '',
-    drugPrescription: ''
+    drugPrescription: '',
+    diagnosis: '',
+    notes: ''
   });
 
   const [savedConsultation, setSavedConsultation] = useState(null);
   const [showConsultationForm, setShowConsultationForm] = useState(false);
   const [editingConsultationId, setEditingConsultationId] = useState(null);
+  const [consultationPatientSearch, setConsultationPatientSearch] = useState('');
 
   const [alerts, setAlerts] = useState([
     { id: 1, type: 'critical', message: 'Patient John Doe - Critical vitals', time: '5 min ago', read: false },
@@ -197,37 +602,182 @@ const DoctorDashboard = () => {
     { id: 4, time: '15:30', patient: 'Alice Brown', type: 'Surgery Review', status: 'scheduled' }
   ]);
 
-  const [consultations, setConsultations] = useState([
-    { id: 1, patient: 'John Doe', date: '2024-01-15', diagnosis: 'Malaria', status: 'completed' },
-    { id: 2, patient: 'Jane Smith', date: '2024-01-14', diagnosis: 'Hypertension', status: 'pending' },
-    { id: 3, patient: 'Bob Johnson', date: '2024-01-13', diagnosis: 'Diabetes Type 2', status: 'in-progress' }
-  ]);
+  const [consultations, setConsultations] = useState([]);
 
-  const [recentPatients] = useState([
-    { id: 1, name: 'John Doe', condition: 'Malaria', status: 'critical', lastVisit: '2024-01-15' },
-    { id: 2, name: 'Jane Smith', condition: 'Hypertension', status: 'stable', lastVisit: '2024-01-14' },
-    { id: 3, name: 'Bob Johnson', condition: 'Diabetes Type 2', status: 'monitoring', lastVisit: '2024-01-13' }
-  ]);
+  const handleViewPatient = (patient) => {
+    setSelectedPatient(patient);
+    setShowPatientModal(true);
+  };
 
-  useEffect(() => {
-    setStats({
-      myPatients: patients.length || 12,
-      todaysRounds: wardRounds.filter(r => r.status === 'Scheduled').length || 4,
-      pendingReviews: 5,
-      criticalPatients: alerts.filter(a => a.type === 'critical').length,
-    });
-  }, [patients, wardRounds, alerts]);
+  const handleClosePatientModal = () => {
+    setShowPatientModal(false);
+    setSelectedPatient(null);
+  };
 
-  useEffect(() => {
-    if (patients.length > 0 && !consultationForm.patientId) {
-      const firstPatient = patients[0];
-      setConsultationForm(prev => ({
-        ...prev,
-        patientId: firstPatient.patientId || firstPatient.id || '',
-        patientName: firstPatient.name || 'Selected Patient'
-      }));
+  const getPatientCondition = (patient) => {
+    if (patient.chronic_conditions) {
+      const conditions = patient.chronic_conditions.split(',').map(c => c.trim());
+      return conditions[0] || 'Under observation';
     }
-  }, [patients, consultationForm.patientId]);
+    if (patient.notes) {
+      const noteLines = patient.notes.split('\n').filter(line => line.trim());
+      if (noteLines.length > 0) {
+        return noteLines[0].substring(0, 30) + (noteLines[0].length > 30 ? '...' : '');
+      }
+    }
+    if (patient.known_allergies) {
+      return 'Allergy: ' + patient.known_allergies.split(',')[0].trim();
+    }
+    return 'Active patient';
+  };
+
+  const normalizePatientForDisplay = (patient) => {
+    const calculateAge = (dob) => {
+      if (!dob) return null;
+      try {
+        const birthDate = new Date(dob);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
+      } catch {
+        return null;
+      }
+    };
+
+    return {
+      id: patient.id,
+      name: patient.name || patient.full_name || 'Unnamed Patient',
+      first_name: patient.first_name || '',
+      last_name: patient.last_name || '',
+      condition: getPatientCondition(patient),
+      status: patient.patient_status || patient.status || 'active',
+      lastVisit: patient.last_visit || patient.registration_date || patient.createdAt || new Date().toISOString().split('T')[0],
+      phone: patient.phone || '',
+      email: patient.email || '',
+      state: patient.state || '',
+      lga: patient.lga || '',
+      bloodType: patient.bloodType || patient.blood_group || '',
+      gender: patient.gender || '',
+      dateOfBirth: patient.dateOfBirth || patient.date_of_birth || '',
+      age: calculateAge(patient.dateOfBirth || patient.date_of_birth),
+      hospital_number: patient.hospital_number || '',
+      nin: patient.nin || '',
+      address: patient.address || '',
+      city: patient.city || '',
+      country: patient.country || 'Nigeria',
+      tribe: patient.tribe || patient.ethnicity || '',
+      maritalStatus: patient.maritalStatus || patient.marital_status || '',
+      occupation: patient.occupation || '',
+      religion: patient.religion || '',
+      emergencyContact: patient.emergencyContact || patient.next_of_kin_name || '',
+      emergencyPhone: patient.emergencyPhone || patient.next_of_kin_phone || '',
+      known_allergies: patient.known_allergies || '',
+      chronic_conditions: patient.chronic_conditions || '',
+      current_medications: patient.current_medications || '',
+      surgical_history: patient.surgical_history || '',
+      family_history: patient.family_history || '',
+      has_insurance: patient.has_insurance || false,
+      insurance_company: patient.insurance_company || '',
+      insurance_policy_number: patient.insurance_policy_number || '',
+      nhis_number: patient.nhis_number || '',
+      genotype: patient.genotype || '',
+      notes: patient.notes || '',
+      registration_date: patient.registration_date || patient.createdAt || '',
+      created_at: patient.created_at || patient.createdAt || '',
+      updated_at: patient.updated_at || patient.updatedAt || '',
+      tenant_name: patient.tenant_name || '',
+      login_id: patient.login_id || '',
+      next_of_kin_name: patient.next_of_kin_name || '',
+      next_of_kin_phone: patient.next_of_kin_phone || '',
+      next_of_kin_relationship: patient.next_of_kin_relationship || '',
+      next_of_kin_address: patient.next_of_kin_address || '',
+      language_spoken: patient.language_spoken || '',
+    };
+  };
+
+  const recentPatients = patients
+    .map(normalizePatientForDisplay)
+    .filter(p => p.name && p.name !== 'Unnamed Patient')
+    .sort((a, b) => {
+      const dateA = new Date(a.registration_date || a.lastVisit || a.created_at || 0);
+      const dateB = new Date(b.registration_date || b.lastVisit || b.created_at || 0);
+      return dateB - dateA;
+    })
+    .slice(0, 10);
+
+  // Filter patients for consultation dropdown
+  const filteredConsultationPatients = patients
+    .map(normalizePatientForDisplay)
+    .filter(p => {
+      if (!consultationPatientSearch) return true;
+      const searchLower = consultationPatientSearch.toLowerCase();
+      return p.name.toLowerCase().includes(searchLower) || 
+             p.phone.includes(searchLower) ||
+             (p.hospital_number && p.hospital_number.toLowerCase().includes(searchLower));
+    })
+    .slice(0, 20);
+
+  useEffect(() => {
+    const activePatients = patients.filter(p => 
+      p.patient_status === 'active' || p.status === 'active'
+    );
+    
+    setStats({
+      myPatients: patients.length || 0,
+      todaysRounds: wardRounds.filter(r => r.status === 'Scheduled').length || 0,
+      pendingReviews: consultations.filter(c => c.status === 'pending').length || 0,
+      criticalPatients: alerts.filter(a => a.type === 'critical').length || 0,
+    });
+  }, [patients, wardRounds, alerts, consultations]);
+
+  // Reset consultation form
+  const resetConsultationForm = () => {
+    setConsultationForm({
+      patientId: '',
+      patientName: '',
+      patientAge: '',
+      patientGender: '',
+      patientBloodType: '',
+      patientPhone: '',
+      patientEmail: '',
+      patientAddress: '',
+      temperature: '',
+      weight: '',
+      bloodPressure: '',
+      heartRate: '',
+      respiratoryRate: '',
+      oxygenSaturation: '',
+      presentingComplaints: '',
+      medicalHistory: '',
+      drugPrescription: '',
+      diagnosis: '',
+      notes: ''
+    });
+    setConsultationPatientSearch('');
+    setEditingConsultationId(null);
+  };
+
+  // Handle selecting a patient for consultation
+  const handleSelectPatientForConsultation = (patient) => {
+    const normalizedPatient = normalizePatientForDisplay(patient);
+    setConsultationForm(prev => ({
+      ...prev,
+      patientId: patient.id,
+      patientName: normalizedPatient.name,
+      patientAge: normalizedPatient.age ? `${normalizedPatient.age} years` : '',
+      patientGender: normalizedPatient.gender || '',
+      patientBloodType: normalizedPatient.bloodType || '',
+      patientPhone: normalizedPatient.phone || '',
+      patientEmail: normalizedPatient.email || '',
+      patientAddress: normalizedPatient.address || '',
+      medicalHistory: normalizedPatient.chronic_conditions || normalizedPatient.notes || ''
+    }));
+    setConsultationPatientSearch(normalizedPatient.name);
+  };
 
   const handleConsultationChange = (field, value) => {
     setConsultationForm(prev => ({
@@ -243,39 +793,47 @@ const DoctorDashboard = () => {
     }
 
     const newConsultation = {
-      ...consultationForm,
       id: Date.now(),
-      savedAt: new Date().toLocaleString(),
-      status: 'completed'
+      patient: consultationForm.patientName,
+      patientId: consultationForm.patientId,
+      date: new Date().toISOString().split('T')[0],
+      diagnosis: consultationForm.diagnosis || 'Under review',
+      status: 'completed',
+      temperature: consultationForm.temperature,
+      weight: consultationForm.weight,
+      bloodPressure: consultationForm.bloodPressure,
+      heartRate: consultationForm.heartRate,
+      respiratoryRate: consultationForm.respiratoryRate,
+      oxygenSaturation: consultationForm.oxygenSaturation,
+      presentingComplaints: consultationForm.presentingComplaints,
+      medicalHistory: consultationForm.medicalHistory,
+      drugPrescription: consultationForm.drugPrescription,
+      notes: consultationForm.notes,
+      savedAt: new Date().toLocaleString()
     };
 
-    setSavedConsultation(newConsultation);
-    setConsultations(prev => [newConsultation, ...prev]);
+    if (editingConsultationId) {
+      setConsultations(prev => prev.map(c => 
+        c.id === editingConsultationId ? { ...newConsultation, id: editingConsultationId } : c
+      ));
+    } else {
+      setConsultations(prev => [newConsultation, ...prev]);
+    }
+    
     setShowConsultationForm(false);
     resetConsultationForm();
-  };
-
-  const resetConsultationForm = () => {
-    setConsultationForm({
-      patientId: '',
-      patientName: '',
-      temperature: '',
-      weight: '',
-      bloodPressure: '',
-      heartRate: '',
-      respiratoryRate: '',
-      oxygenSaturation: '',
-      presentingComplaints: '',
-      medicalHistory: '',
-      drugPrescription: ''
-    });
-    setEditingConsultationId(null);
   };
 
   const handleEditConsultation = (consultation) => {
     setConsultationForm({
       patientId: consultation.patientId || '',
       patientName: consultation.patient,
+      patientAge: '',
+      patientGender: '',
+      patientBloodType: '',
+      patientPhone: '',
+      patientEmail: '',
+      patientAddress: '',
       temperature: consultation.temperature || '',
       weight: consultation.weight || '',
       bloodPressure: consultation.bloodPressure || '',
@@ -284,8 +842,11 @@ const DoctorDashboard = () => {
       oxygenSaturation: consultation.oxygenSaturation || '',
       presentingComplaints: consultation.presentingComplaints || '',
       medicalHistory: consultation.medicalHistory || '',
-      drugPrescription: consultation.drugPrescription || ''
+      drugPrescription: consultation.drugPrescription || '',
+      diagnosis: consultation.diagnosis || '',
+      notes: consultation.notes || ''
     });
+    setConsultationPatientSearch(consultation.patient);
     setEditingConsultationId(consultation.id);
     setShowConsultationForm(true);
   };
@@ -331,8 +892,11 @@ const DoctorDashboard = () => {
       'critical': { label: 'Critical', color: 'bg-red-100 text-red-800' },
       'stable': { label: 'Stable', color: 'bg-green-100 text-green-800' },
       'monitoring': { label: 'Monitoring', color: 'bg-blue-100 text-blue-800' },
+      'active': { label: 'Active', color: 'bg-green-100 text-green-800' },
+      'inactive': { label: 'Inactive', color: 'bg-gray-100 text-gray-800' },
+      'archived': { label: 'Archived', color: 'bg-gray-100 text-gray-800' },
     };
-    return statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
+    return statusMap[status] || { label: status || 'Unknown', color: 'bg-gray-100 text-gray-800' };
   };
 
   // Render tab content
@@ -354,7 +918,6 @@ const DoctorDashboard = () => {
   const renderOverviewContent = () => {
     return (
       <>
-        {/* Critical Alerts */}
         {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
             <div className="flex items-center justify-between">
@@ -378,7 +941,6 @@ const DoctorDashboard = () => {
           </div>
         )}
 
-        {/* Key Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Tooltip text="Total patients under your care">
             <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -453,7 +1015,6 @@ const DoctorDashboard = () => {
           </Tooltip>
         </div>
 
-        {/* Quick Actions */}
         <div className="mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -474,7 +1035,6 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {/* Clinical Alerts */}
         <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-900">Clinical Alerts</h2>
@@ -545,7 +1105,10 @@ const DoctorDashboard = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-gray-900">Consultations</h2>
           <ButtonWithTooltip
-            onClick={() => setShowConsultationForm(true)}
+            onClick={() => {
+              resetConsultationForm();
+              setShowConsultationForm(true);
+            }}
             tooltip="Start new consultation"
             variant="primary"
           >
@@ -572,35 +1135,102 @@ const DoctorDashboard = () => {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Patient</label>
-                <select
-                  value={consultationForm.patientId}
-                  onChange={(e) => {
-                    const selectedPatient = patients.find(patient =>
-                      (patient.patientId || patient.id) === e.target.value
-                    );
-                    handleConsultationChange('patientId', e.target.value);
-                    handleConsultationChange('patientName', selectedPatient?.name || '');
-                  }}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
-                >
-                  {patients.length === 0 ? (
-                    <option value="">No patients available</option>
-                  ) : (
-                    patients.map((patient) => (
-                      <option key={patient.patientId || patient.id} value={patient.patientId || patient.id}>
-                        {patient.name || 'Unnamed Patient'}
-                      </option>
-                    ))
-                  )}
-                </select>
+            {/* Patient Selection with Search */}
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-medium text-gray-700">Search Patient</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, phone, or hospital number..."
+                  value={consultationPatientSearch}
+                  onChange={(e) => setConsultationPatientSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
               </div>
+              {consultationPatientSearch && filteredConsultationPatients.length > 0 && !consultationForm.patientId && (
+                <div className="mt-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                  {filteredConsultationPatients.map((patient) => (
+                    <button
+                      key={patient.id}
+                      onClick={() => {
+                        const fullPatient = patients.find(p => p.id === patient.id);
+                        if (fullPatient) handleSelectPatientForConsultation(fullPatient);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100 last:border-0"
+                    >
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">{patient.name}</span>
+                        <div className="text-xs text-gray-500">
+                          {patient.hospital_number && `HN: ${patient.hospital_number} • `}
+                          {patient.phone}
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        patient.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {patient.status || 'active'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected Patient Info */}
+            {consultationForm.patientName && (
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                      {consultationForm.patientName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{consultationForm.patientName}</p>
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                        {consultationForm.patientAge && <span>Age: {consultationForm.patientAge}</span>}
+                        {consultationForm.patientGender && <span>• {consultationForm.patientGender}</span>}
+                        {consultationForm.patientBloodType && <span>• Blood: {consultationForm.patientBloodType}</span>}
+                        {consultationForm.patientPhone && <span>• {consultationForm.patientPhone}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setConsultationForm(prev => ({
+                        ...prev,
+                        patientId: '',
+                        patientName: '',
+                        patientAge: '',
+                        patientGender: '',
+                        patientBloodType: '',
+                        patientPhone: '',
+                        patientEmail: '',
+                        patientAddress: ''
+                      }));
+                      setConsultationPatientSearch('');
+                    }}
+                    className="text-xs text-red-600 hover:text-red-700 font-medium"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700">Doctor</label>
                 <input
-                  value="Dr. James Okafor"
+                  value={`Dr. ${displayUserName}`}
+                  readOnly
+                  className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Date</label>
+                <input
+                  value={new Date().toISOString().split('T')[0]}
                   readOnly
                   className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900"
                 />
@@ -630,7 +1260,7 @@ const DoctorDashboard = () => {
 
             <div className="mt-4 space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Presenting Complaints</label>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Presenting Complaints *</label>
                 <textarea
                   rows="2"
                   value={consultationForm.presentingComplaints}
@@ -652,12 +1282,33 @@ const DoctorDashboard = () => {
               </div>
 
               <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Diagnosis</label>
+                <input
+                  value={consultationForm.diagnosis}
+                  onChange={(e) => handleConsultationChange('diagnosis', e.target.value)}
+                  placeholder="Initial diagnosis..."
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700">Drug Prescription</label>
                 <textarea
                   rows="2"
                   value={consultationForm.drugPrescription}
                   onChange={(e) => handleConsultationChange('drugPrescription', e.target.value)}
                   placeholder="Medication name, dosage, route, duration..."
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Notes</label>
+                <textarea
+                  rows="2"
+                  value={consultationForm.notes}
+                  onChange={(e) => handleConsultationChange('notes', e.target.value)}
+                  placeholder="Additional notes..."
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
                 />
               </div>
@@ -680,7 +1331,7 @@ const DoctorDashboard = () => {
                 variant="primary"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                Save Consultation
+                {editingConsultationId ? 'Update' : 'Save'} Consultation
               </ButtonWithTooltip>
             </div>
           </div>
@@ -688,34 +1339,42 @@ const DoctorDashboard = () => {
 
         {/* Consultations List */}
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Diagnosis</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {consultations.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="py-8 text-center text-gray-500">
-                    <Clipboard className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                    No consultations yet
-                  </td>
+          {consultations.length === 0 ? (
+            <div className="text-center py-8">
+              <Clipboard className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">No consultations yet</p>
+              <p className="text-xs text-gray-400 mt-1">Start by creating your first consultation</p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Date</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Diagnosis</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
-              ) : (
-                consultations.map((consultation) => {
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {consultations.map((consultation) => {
                   const status = getStatusBadge(consultation.status);
                   return (
                     <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-3">
-                        <span className="text-sm font-medium text-gray-900">{consultation.patient}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
+                            {consultation.patient.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">{consultation.patient}</span>
+                        </div>
                       </td>
-                      <td className="py-3 text-sm text-gray-600">{consultation.date}</td>
-                      <td className="py-3 text-sm text-gray-600">{consultation.diagnosis}</td>
+                      <td className="py-3 hidden sm:table-cell">
+                        <span className="text-sm text-gray-600">{consultation.date}</span>
+                      </td>
+                      <td className="py-3 hidden md:table-cell">
+                        <span className="text-sm text-gray-600">{consultation.diagnosis || 'N/A'}</span>
+                      </td>
                       <td className="py-3">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
                           {status.label}
@@ -745,10 +1404,10 @@ const DoctorDashboard = () => {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     );
@@ -768,57 +1427,123 @@ const DoctorDashboard = () => {
               <UserPlus className="w-3.5 h-3.5" />
               Add Patient
             </ButtonWithTooltip>
+            <ButtonWithTooltip
+              tooltip="View all patients"
+              variant="secondary"
+              onClick={() => navigate('/patients')}
+            >
+              <Users className="w-3.5 h-3.5" />
+              View All
+            </ButtonWithTooltip>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Visit</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {recentPatients.map((patient) => {
-                const status = getStatusBadge(patient.status);
-                return (
-                  <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3">
-                      <span className="text-sm font-medium text-gray-900">{patient.name}</span>
-                    </td>
-                    <td className="py-3 text-sm text-gray-600">{patient.condition}</td>
-                    <td className="py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="py-3 text-sm text-gray-600">{patient.lastVisit}</td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-1">
-                        <IconButton
-                          icon={Eye}
-                          onClick={() => navigate(`/patients/${patient.id}`)}
-                          tooltip="View patient"
-                          variant="primary"
-                        />
-                        <IconButton
-                          icon={Stethoscope}
-                          onClick={() => navigate(`/patients/${patient.id}/consult`)}
-                          tooltip="Consult patient"
-                          variant="success"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {recentPatients.length === 0 ? (
+          <div className="text-center py-8">
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-500 text-sm">No patients found</p>
+            <p className="text-xs text-gray-400 mt-1">Start by adding your first patient</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Condition</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recentPatients.map((patient) => {
+                  const status = getStatusBadge(patient.status);
+                  return (
+                    <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
+                            {patient.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-900">{patient.name}</span>
+                            {patient.age && (
+                              <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>
+                            )}
+                            {patient.hospital_number && (
+                              <div className="text-[10px] text-gray-400">HN: {patient.hospital_number}</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 hidden sm:table-cell">
+                        <div className="text-xs text-gray-600">{patient.phone || 'No phone'}</div>
+                        <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
+                      </td>
+                      <td className="py-3 hidden md:table-cell">
+                        <span className="text-xs text-gray-600">{patient.condition || 'Active'}</span>
+                        {patient.bloodType && (
+                          <div className="text-[10px] text-gray-400">Blood: {patient.bloodType}</div>
+                        )}
+                      </td>
+                      <td className="py-3">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="py-3 hidden lg:table-cell">
+                        <span className="text-xs text-gray-600">
+                          {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-1">
+                          <IconButton
+                            icon={Eye}
+                            onClick={() => handleViewPatient(patient)}
+                            tooltip="View patient details"
+                            variant="primary"
+                          />
+                          <IconButton
+                            icon={Stethoscope}
+                            onClick={() => {
+                              const fullPatient = patients.find(p => p.id === patient.id);
+                              if (fullPatient) {
+                                handleSelectPatientForConsultation(fullPatient);
+                                setActiveTab('consultations');
+                                setShowConsultationForm(true);
+                              }
+                            }}
+                            tooltip="Consult patient"
+                            variant="success"
+                          />
+                          <IconButton
+                            icon={FileText}
+                            onClick={() => navigate(`/patients/${patient.id}/emr`)}
+                            tooltip="View EMR"
+                            variant="info"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {patients.length > 10 && (
+              <div className="mt-3 text-center">
+                <button
+                  onClick={() => navigate('/patients')}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  View all {patients.length} patients →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -865,7 +1590,6 @@ const DoctorDashboard = () => {
 
   return (
     <div className="dashboard min-h-screen bg-gray-50 p-4 sm:p-6">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -900,7 +1624,6 @@ const DoctorDashboard = () => {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-gray-200 mb-6 overflow-x-auto">
         <nav className="flex gap-4 min-w-max" aria-label="Tabs">
           {tabs.map((tab) => {
@@ -927,10 +1650,16 @@ const DoctorDashboard = () => {
         </nav>
       </div>
 
-      {/* Tab Content */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
         {renderTabContent()}
       </div>
+
+      {showPatientModal && (
+        <PatientDetailModal 
+          patient={selectedPatient} 
+          onClose={handleClosePatientModal} 
+        />
+      )}
     </div>
   );
 };

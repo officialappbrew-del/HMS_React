@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   Calendar, 
@@ -20,18 +20,9 @@ import {
   X,
   Grid,
   List,
-  Eye,
-  FileText,
-  Calendar as CalendarIcon,
-  Clock as ClockIcon,
-  Users,
-  TrendingUp,
-  BarChart3,
-  Activity,
-  UserPlus,
-  Settings,
-  ChevronDown,
-  ChevronUp
+  RefreshCw,
+  Ban,
+  Activity
 } from 'lucide-react';
 
 // Tooltip Component
@@ -118,9 +109,87 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
+// Delete Confirmation Modal Component
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, appointment }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-600" />
+              Delete Appointment
+            </h3>
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+          
+          <div className="mb-4">
+            <div className="p-4 bg-red-50 border border-red-100 rounded-lg mb-4">
+              <p className="text-sm text-red-700 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>This action cannot be undone. This will permanently delete the appointment.</span>
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Patient:</span> {appointment?.patientName}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Date:</span> {appointment?.date} at {appointment?.time}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Doctor:</span> {appointment?.doctor}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Reason:</span> {appointment?.reason}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Status:</span> 
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  appointment?.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                  appointment?.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {appointment?.status?.charAt(0).toUpperCase() + appointment?.status?.slice(1)}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Appointment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Appointments = () => {
   const dispatch = useDispatch();
-  const { patients } = useSelector(state => state.patient || { patients: [] });
+  const { patients, loading, error } = useSelector(state => state.patient || { patients: [], loading: false, error: null });
   
   const [appointments, setAppointments] = useState([
     {
@@ -201,6 +270,17 @@ const Appointments = () => {
   const [selectedAppointments, setSelectedAppointments] = useState([]);
   const itemsPerPage = 5;
   const [showStatusMenu, setShowStatusMenu] = useState(null);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(null); // New state for delete modal
+  const [rescheduleData, setRescheduleData] = useState({
+    date: '',
+    time: '',
+    reason: ''
+  });
+  const [cancelReason, setCancelReason] = useState('');
+  const [activityLog, setActivityLog] = useState([]);
+  const [showActivityLog, setShowActivityLog] = useState(false);
 
   const [formData, setFormData] = useState({
     patientName: '',
@@ -276,9 +356,24 @@ const Appointments = () => {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this appointment?')) {
-      setAppointments(appointments.filter(apt => apt.id !== id));
+  // Updated delete handler - shows modal instead of alert
+  const handleDelete = (appointment) => {
+    setShowDeleteModal(appointment);
+  };
+
+  // Confirm delete
+  const confirmDelete = () => {
+    if (showDeleteModal) {
+      setAppointments(appointments.filter(apt => apt.id !== showDeleteModal.id));
+      
+      // Log activity
+      addActivityLog(
+        showDeleteModal.patientName,
+        'deleted',
+        `Appointment deleted: ${showDeleteModal.date} at ${showDeleteModal.time}`
+      );
+      
+      setShowDeleteModal(null);
     }
   };
 
@@ -292,7 +387,7 @@ const Appointments = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'scheduled':
-        return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 flex items-center gap-1"><ClockIcon className="w-3 h-3" />Scheduled</span>;
+        return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 flex items-center gap-1"><Clock className="w-3 h-3" />Scheduled</span>;
       case 'completed':
         return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Completed</span>;
       case 'cancelled':
@@ -302,13 +397,102 @@ const Appointments = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'scheduled': return 'border-blue-500';
-      case 'completed': return 'border-green-500';
-      case 'cancelled': return 'border-red-500';
-      default: return 'border-gray-500';
+  // Handle Reschedule
+  const handleReschedule = (appointment) => {
+    setShowRescheduleModal(appointment);
+    setRescheduleData({
+      date: appointment.date,
+      time: appointment.time,
+      reason: ''
+    });
+  };
+
+  const confirmReschedule = (e) => {
+    e.preventDefault();
+    if (!rescheduleData.reason.trim()) {
+      alert('Please provide a reason for rescheduling');
+      return;
     }
+
+    const appointment = showRescheduleModal;
+    const oldDate = appointment.date;
+    const oldTime = appointment.time;
+
+    setAppointments(appointments.map(apt => 
+      apt.id === appointment.id 
+        ? { 
+            ...apt, 
+            date: rescheduleData.date, 
+            time: rescheduleData.time,
+            status: 'scheduled',
+            notes: apt.notes + `\nRescheduled from ${oldDate} ${oldTime} to ${rescheduleData.date} ${rescheduleData.time}. Reason: ${rescheduleData.reason}`
+          } 
+        : apt
+    ));
+
+    // Log activity
+    addActivityLog(
+      appointment.patientName,
+      'rescheduled',
+      `Rescheduled from ${oldDate} ${oldTime} to ${rescheduleData.date} ${rescheduleData.time}. Reason: ${rescheduleData.reason}`
+    );
+
+    setShowRescheduleModal(null);
+    setRescheduleData({ date: '', time: '', reason: '' });
+  };
+
+  // Handle Cancel
+  const handleCancel = (appointment) => {
+    setShowCancelModal(appointment);
+    setCancelReason('');
+  };
+
+  const confirmCancel = () => {
+    if (!cancelReason.trim()) {
+      alert('Please provide a reason for cancellation');
+      return;
+    }
+
+    const appointment = showCancelModal;
+
+    setAppointments(appointments.map(apt => 
+      apt.id === appointment.id 
+        ? { 
+            ...apt, 
+            status: 'cancelled',
+            notes: apt.notes + `\nCancelled. Reason: ${cancelReason}`
+          } 
+        : apt
+    ));
+
+    // Log activity
+    addActivityLog(
+      appointment.patientName,
+      'cancelled',
+      `Cancelled. Reason: ${cancelReason}`
+    );
+
+    setShowCancelModal(null);
+    setCancelReason('');
+  };
+
+  // Add to activity log
+  const addActivityLog = (patientName, action, details) => {
+    const newLog = {
+      id: activityLog.length + 1,
+      patientName,
+      action,
+      details,
+      timestamp: new Date().toLocaleString('en-NG', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+    };
+    setActivityLog([newLog, ...activityLog]);
   };
 
   // Stats
@@ -335,19 +519,28 @@ const Appointments = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {/* Activity Log Button */}
+            {activityLog.length > 0 && (
+              <ButtonWithTooltip
+                tooltip="View activity log"
+                variant="secondary"
+                onClick={() => setShowActivityLog(!showActivityLog)}
+              >
+                <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Activity</span>
+                {activityLog.length > 0 && (
+                  <span className="ml-1 bg-blue-100 text-blue-600 text-xs px-1.5 py-0.5 rounded-full">
+                    {activityLog.length}
+                  </span>
+                )}
+              </ButtonWithTooltip>
+            )}
             <ButtonWithTooltip
               tooltip="Export appointments data"
               variant="secondary"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Export</span>
-            </ButtonWithTooltip>
-            <ButtonWithTooltip
-              tooltip="View appointment analytics"
-              variant="secondary"
-            >
-              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Analytics</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
               onClick={() => {
@@ -402,7 +595,7 @@ const Appointments = () => {
                   <p className="text-lg sm:text-2xl font-bold text-blue-600 mt-0.5 sm:mt-1">{stats.scheduled}</p>
                 </div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
               </div>
             </div>
@@ -436,6 +629,49 @@ const Appointments = () => {
             </div>
           </Tooltip>
         </div>
+
+        {/* Activity Log Panel */}
+        {showActivityLog && activityLog.length > 0 && (
+          <div className="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-600" />
+                Recent Activity Log
+              </h3>
+              <button
+                onClick={() => setShowActivityLog(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {activityLog.map((log) => (
+                <div key={log.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded-lg">
+                  <div className={`w-2 h-2 mt-1.5 rounded-full ${
+                    log.action === 'rescheduled' ? 'bg-yellow-500' : 
+                    log.action === 'cancelled' ? 'bg-red-500' : 
+                    log.action === 'deleted' ? 'bg-gray-500' : 'bg-blue-500'
+                  }`} />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm text-gray-900">{log.patientName}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        log.action === 'rescheduled' ? 'bg-yellow-100 text-yellow-700' : 
+                        log.action === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        log.action === 'deleted' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {log.action.charAt(0).toUpperCase() + log.action.slice(1)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-0.5">{log.details}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{log.timestamp}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="bg-white rounded-lg border border-gray-200">
@@ -702,11 +938,11 @@ const Appointments = () => {
                           <td className="py-2 sm:py-3 hidden sm:table-cell">
                             <div className="text-xs sm:text-sm text-gray-600">
                               <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-3 h-3 text-gray-400" />
+                                <Calendar className="w-3 h-3 text-gray-400" />
                                 {new Date(appointment.date).toLocaleDateString('en-NG')}
                               </div>
                               <div className="flex items-center gap-1 text-gray-500">
-                                <ClockIcon className="w-3 h-3 text-gray-400" />
+                                <Clock className="w-3 h-3 text-gray-400" />
                                 {appointment.time}
                               </div>
                             </div>
@@ -723,13 +959,31 @@ const Appointments = () => {
                             </div>
                           </td>
                           <td className="py-2 sm:py-3">
-                            <div className="flex items-center gap-0.5 sm:gap-1">
+                            <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
                               <IconButton
                                 icon={Edit2}
                                 onClick={() => handleEdit(appointment)}
                                 tooltip="Edit appointment"
                                 variant="primary"
                               />
+                              {/* Reschedule Button */}
+                              {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                                <IconButton
+                                  icon={RefreshCw}
+                                  onClick={() => handleReschedule(appointment)}
+                                  tooltip="Reschedule appointment"
+                                  variant="warning"
+                                />
+                              )}
+                              {/* Cancel Button */}
+                              {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                                <IconButton
+                                  icon={Ban}
+                                  onClick={() => handleCancel(appointment)}
+                                  tooltip="Cancel appointment"
+                                  variant="danger"
+                                />
+                              )}
                               <div className="relative">
                                 <IconButton
                                   icon={MoreVertical}
@@ -743,7 +997,7 @@ const Appointments = () => {
                                       onClick={() => handleStatusChange(appointment.id, 'scheduled')}
                                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
                                     >
-                                      <ClockIcon className="w-3 h-3 text-blue-500" />
+                                      <Clock className="w-3 h-3 text-blue-500" />
                                       Scheduled
                                     </button>
                                     <button
@@ -765,7 +1019,7 @@ const Appointments = () => {
                               </div>
                               <IconButton
                                 icon={Trash2}
-                                onClick={() => handleDelete(appointment.id)}
+                                onClick={() => handleDelete(appointment)}
                                 tooltip="Delete appointment"
                                 variant="danger"
                               />
@@ -830,6 +1084,166 @@ const Appointments = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={!!showDeleteModal}
+        onClose={() => setShowDeleteModal(null)}
+        onConfirm={confirmDelete}
+        appointment={showDeleteModal}
+      />
+
+      {/* Reschedule Modal */}
+      {showRescheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Reschedule Appointment</h3>
+                <button
+                  onClick={() => {
+                    setShowRescheduleModal(null);
+                    setRescheduleData({ date: '', time: '', reason: '' });
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">
+                  Patient: <span className="font-medium">{showRescheduleModal.patientName}</span>
+                </p>
+                <p className="text-sm text-gray-600">
+                  Current: <span className="font-medium">{showRescheduleModal.date} at {showRescheduleModal.time}</span>
+                </p>
+              </div>
+              <form onSubmit={confirmReschedule} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New Date *</label>
+                  <input
+                    type="date"
+                    value={rescheduleData.date}
+                    onChange={(e) => setRescheduleData({ ...rescheduleData, date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New Time *</label>
+                  <input
+                    type="time"
+                    value={rescheduleData.time}
+                    onChange={(e) => setRescheduleData({ ...rescheduleData, time: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reason for Rescheduling *
+                  </label>
+                  <textarea
+                    value={rescheduleData.reason}
+                    onChange={(e) => setRescheduleData({ ...rescheduleData, reason: e.target.value })}
+                    placeholder="Please provide a reason for rescheduling..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows="3"
+                    required
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRescheduleModal(null);
+                      setRescheduleData({ date: '', time: '', reason: '' });
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Reschedule
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Cancel Appointment</h3>
+                <button
+                  onClick={() => {
+                    setShowCancelModal(null);
+                    setCancelReason('');
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">
+                  Patient: <span className="font-medium">{showCancelModal.patientName}</span>
+                </p>
+                <p className="text-sm text-gray-600">
+                  Date & Time: <span className="font-medium">{showCancelModal.date} at {showCancelModal.time}</span>
+                </p>
+              </div>
+              <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg">
+                <p className="text-sm text-red-700 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>This action will cancel the appointment and notify the patient.</span>
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason for Cancellation *
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Please provide a reason for cancellation..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  rows="3"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCancelModal(null);
+                    setCancelReason('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Keep Appointment
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmCancel}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Cancel Appointment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
