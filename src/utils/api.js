@@ -17,13 +17,10 @@ const API_BASE_URL = (() => {
   if (configuredUrl && !isLocalApiUrl(configuredUrl)) {
     return configuredUrl;
   }
-
-
-
   
   // return 'http://localhost:8000';
 
-   return 'https://hms-backend-l09g.onrender.com';
+  return 'https://hms-backend-l09g.onrender.com';
 })();
 
 const PUBLIC_AUTH_PATHS = [

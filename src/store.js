@@ -43,6 +43,7 @@ import ndprReducer from './features/ndprSlice';
 import budgetReducer from './features/budgetSlice';
 import loadingReducer from './features/loadingSlice';
 import clinicalReducer from './features/clinicalSlice';
+import consultationReducer from './features/consultationSlice';
 // import ambulanceReducer from './features/ambulanceSlice';
 // import fleetReducer from './features/fleetSlice';
 // import emergencyResponseReducer from './features/emergencyResponseSlice';
@@ -102,5 +103,6 @@ export default configureStore({
     centralStore: centralStoreReducer,
     procurement: procurementReducer,
     clinical: clinicalReducer,
+    consultation: consultationReducer,
   },
 });

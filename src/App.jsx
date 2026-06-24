@@ -14,6 +14,7 @@ import PatientManagement from './pages/PatientManagement';
 import Billing from './pages/Billing';
 import Pharmacy from './pages/Pharmacy';
 import Consultation from './pages/Consultation';
+import ConsultationV2 from './pages/ConsultationV2';
 import Laboratory from './pages/Laboratory';
 import StaffManagement from './pages/StaffManagement';
 import Appointments from './pages/Appointments';
@@ -180,7 +181,8 @@ function AppLayout() {
               <Route path="/patients" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
               <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
               <Route path="/pharmacy" element={<ProtectedRoute><Pharmacy /></ProtectedRoute>} />
-              <Route path="/consultation" element={<ProtectedRoute><Consultation /></ProtectedRoute>} />
+              <Route path="/consultation" element={<ProtectedRoute><ConsultationV2 /></ProtectedRoute>} />
+              <Route path="/consultation-legacy" element={<ProtectedRoute><Consultation /></ProtectedRoute>} />
               <Route path="/laboratory" element={<ProtectedRoute><Laboratory /></ProtectedRoute>} />
               <Route path="/staff" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
               <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />

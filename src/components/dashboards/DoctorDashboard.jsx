@@ -2,6 +2,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { apiRequest } from '../../utils/api';
 import {
   Users,
   Stethoscope,
@@ -595,12 +596,72 @@ const DoctorDashboard = () => {
     { id: 3, type: 'info', message: 'New lab results available', time: '1 hour ago', read: false }
   ]);
 
-  const [todaysSchedule] = useState([
-    { id: 1, time: '09:00', patient: 'John Doe', type: 'Consultation', status: 'completed' },
-    { id: 2, time: '10:30', patient: 'Jane Smith', type: 'Follow-up', status: 'in-progress' },
-    { id: 3, time: '14:00', patient: 'Bob Johnson', type: 'Ward Round', status: 'scheduled' },
-    { id: 4, time: '15:30', patient: 'Alice Brown', type: 'Surgery Review', status: 'scheduled' }
-  ]);
+  const [todaysSchedule, setTodaysSchedule] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState(null);
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    const hours = parseInt(parts[0], 10);
+    const minutes = parts[1];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const formatAppointmentType = (type) => {
+    const typeMap = {
+      'consultation': 'Consultation',
+      'followup': 'Follow-up',
+      'procedure': 'Procedure',
+      'test': 'Test/Investigation',
+      'review': 'Review',
+      'immunization': 'Immunization',
+      'antenatal': 'Antenatal',
+      'other': 'Other'
+    };
+    return typeMap[type] || type || 'Consultation';
+  };
+
+  const normalizeAppointmentStatus = (status) => {
+    const statusMap = {
+      'scheduled': 'scheduled',
+      'confirmed': 'scheduled',
+      'checked_in': 'in-progress',
+      'in_progress': 'in-progress',
+      'completed': 'completed',
+      'cancelled': 'cancelled',
+      'no_show': 'cancelled',
+      'rescheduled': 'scheduled'
+    };
+    return statusMap[status] || status || 'scheduled';
+  };
+
+  useEffect(() => {
+    const fetchTodaysSchedule = async () => {
+      try {
+        setScheduleLoading(true);
+        setScheduleError(null);
+        const today = new Date().toISOString().split('T')[0];
+        const data = await apiRequest(`/api/v1/patients/appointments/?start_date=${today}&end_date=${today}`);
+        const results = Array.isArray(data) ? data : (data.results || []);
+        const mapped = results.map(apt => ({
+          id: apt.id,
+          time: formatTime(apt.scheduled_time),
+          patient: apt.patient_name || 'Unknown Patient',
+          type: formatAppointmentType(apt.appointment_type),
+          status: normalizeAppointmentStatus(apt.status),
+        }));
+        setTodaysSchedule(mapped);
+      } catch (err) {
+        setScheduleError(err.message || 'Failed to load schedule');
+      } finally {
+        setScheduleLoading(false);
+      }
+    };
+    fetchTodaysSchedule();
+  }, []);
 
   const [consultations, setConsultations] = useState([]);
 
@@ -1565,25 +1626,62 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        <div className="space-y-3">
-          {todaysSchedule.map((item) => (
-            <div key={item.id} className="flex items-center rounded-lg bg-gray-50 p-3 hover:bg-gray-100 transition-colors">
-              <Clock className="mr-3 h-5 w-5 text-blue-500 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{item.time} - {item.patient}</p>
-                <p className="text-xs text-gray-500">{item.type}</p>
+        {scheduleLoading ? (
+          <div className="text-center py-8">
+            <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2 animate-pulse" />
+            <p className="text-gray-500 text-sm">Loading schedule...</p>
+          </div>
+        ) : scheduleError ? (
+          <div className="text-center py-8">
+            <AlertCircle className="w-10 h-10 text-red-300 mx-auto mb-2" />
+            <p className="text-red-600 text-sm font-medium">{scheduleError}</p>
+            <button
+              onClick={() => {
+                const today = new Date().toISOString().split('T')[0];
+                apiRequest(`/api/v1/patients/appointments/?start_date=${today}&end_date=${today}`).then(data => {
+                  const results = Array.isArray(data) ? data : (data.results || []);
+                  const mapped = results.map(apt => ({
+                    id: apt.id,
+                    time: formatTime(apt.scheduled_time),
+                    patient: apt.patient_name || 'Unknown Patient',
+                    type: formatAppointmentType(apt.appointment_type),
+                    status: normalizeAppointmentStatus(apt.status),
+                  }));
+                  setTodaysSchedule(mapped);
+                  setScheduleError(null);
+                }).catch(err => setScheduleError(err.message));
+              }}
+              className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        ) : todaysSchedule.length === 0 ? (
+          <div className="text-center py-8">
+            <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-500 text-sm">No appointments scheduled for today</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {todaysSchedule.map((item) => (
+              <div key={item.id} className="flex items-center rounded-lg bg-gray-50 p-3 hover:bg-gray-100 transition-colors">
+                <Clock className="mr-3 h-5 w-5 text-blue-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{item.time} - {item.patient}</p>
+                  <p className="text-xs text-gray-500">{item.type}</p>
+                </div>
+                <span className={`rounded-full px-2 py-1 text-xs ${
+                  item.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  item.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {item.status === 'in-progress' ? 'In Progress' : 
+                   item.status === 'completed' ? 'Completed' : 'Scheduled'}
+                </span>
               </div>
-              <span className={`rounded-full px-2 py-1 text-xs ${
-                item.status === 'completed' ? 'bg-green-100 text-green-800' :
-                item.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {item.status === 'in-progress' ? 'In Progress' : 
-                 item.status === 'completed' ? 'Completed' : 'Scheduled'}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
