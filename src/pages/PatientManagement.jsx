@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   addPatient,
   updatePatient,
@@ -11,7 +11,7 @@ import {
   setPatients,
 } from '../features/patientSlice';
 import LoadingSpinner from "../components/LoadingSpinner";
-import { apiRequest } from '../utils/api';
+import { apiRequest, API_BASE_URL } from '../utils/api';
 import { 
   User, Search, Filter, Plus, Edit, Trash2, 
   UserPlus, Phone, Mail, MapPin, Calendar, 
@@ -21,7 +21,7 @@ import {
   UserCheck, UserX, Activity, Baby, Droplets,
   Map, Building2, Globe, BookOpen, Award,
   Menu, MoreVertical, UserCircle, IdCard, Loader2,
-  Archive
+  Archive, Upload
 } from 'lucide-react';
 
 // Tooltip Component
@@ -281,18 +281,21 @@ const CustomConfirmModal = ({
 
 const PatientManagement = () => {
   const dispatch = useDispatch();
-  const { filteredPatients, searchTerm, sortBy, filterBy, error } = useSelector(
+  const { patients, filteredPatients, searchTerm, sortBy, filterBy, error } = useSelector(
     state => state.patient
   );
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('table');
-  const [selectedPatients, setSelectedPatients] = useState([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [patientsNextPage, setPatientsNextPage] = useState(null);
+  const [patientsPreviousPage, setPatientsPreviousPage] = useState(null);
+  const [currentPageUrl, setCurrentPageUrl] = useState('/api/v1/patients/patients/');
   const itemsPerPage = 10;
+  const [currentPageNumber, setCurrentPageNumber] = useState(1);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -326,6 +329,97 @@ const PatientManagement = () => {
   const [nigerianData, setNigerianData] = useState({});
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
+
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState(null);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null);
+  const bulkUploadPollsRef = useRef({});
+
+  // Helper function to get current page number
+  const getCurrentPage = () => {
+    return currentPageNumber;
+  };
+
+  const resetBulkUpload = () => {
+    setBulkUploadFile(null);
+    setBulkUploading(false);
+    setBulkUploadProgress(null);
+    setBulkUploadResult(null);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkUploadFile) return;
+    setBulkUploading(true);
+    setBulkUploadProgress({ status: 'uploading', message: 'Uploading file...' });
+    setBulkUploadResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', bulkUploadFile);
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/v1/patients/bulk-uploads/upload/`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+        const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Upload failed with status ${response.status}`;
+        throw new Error(message);
+      }
+      const upload = await response.json();
+      setBulkUploadProgress({ status: 'processing', uploadId: upload.id, message: 'Processing in background...' });
+      pollBulkUploadStatus(upload.id);
+    } catch (err) {
+      setBulkUploadProgress(null);
+      setBulkUploadResult({ status: 'failed', message: err.message || 'Upload failed.' });
+      setBulkUploading(false);
+    }
+  };
+
+  const pollBulkUploadStatus = async (uploadId) => {
+    const maxAttempts = 120;
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      try {
+        const data = await apiRequest(`/api/v1/patients/bulk-uploads/${uploadId}/`);
+        const status = data.status;
+        setBulkUploadProgress(prev => prev ? { ...prev, status, message: status === 'completed' ? 'Completed' : status === 'failed' ? 'Failed' : `Processing... ${data.processed_records || 0}/${data.total_records || 0}` } : null);
+        if (status === 'completed' || status === 'failed') {
+          clearInterval(interval);
+          setBulkUploading(false);
+          setBulkUploadResult({
+            status,
+            message: data.result_message || (status === 'completed' ? 'Bulk upload completed.' : 'Bulk upload failed.'),
+            success_count: data.success_count,
+            failure_count: data.failure_count,
+            total_records: data.total_records,
+            errors: data.errors,
+          });
+          if (status === 'completed') {
+            loadPatients();
+          }
+        }
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          setBulkUploading(false);
+          setBulkUploadProgress(null);
+        }
+      } catch {
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          setBulkUploading(false);
+          setBulkUploadProgress(null);
+        }
+      }
+    }, 2000);
+    bulkUploadPollsRef.current[uploadId] = interval;
+  };
 
   // Custom Modal states
   const [confirmModal, setConfirmModal] = useState({
@@ -475,15 +569,66 @@ const PatientManagement = () => {
     };
   };
 
-  const loadPatients = async () => {
+  const loadPatients = async (url = '/api/v1/patients/patients/') => {
     try {
       setIsLoading(true);
-      const data = await apiRequest('/api/v1/patients/patients/');
-      const patients = Array.isArray(data) ? data : (data.results || []);
-      const normalizedPatients = dedupePatientsById(patients.map(normalizePatient));
+      
+      let data;
+      let apiUrl = url;
+      
+      // If the URL is a full URL (starts with http), use it directly with fetch
+      if (url.startsWith('http')) {
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        data = await response.json();
+        // Keep the full URL for display purposes
+        apiUrl = url;
+      } else {
+        // Use the apiRequest for relative URLs
+        data = await apiRequest(url);
+        apiUrl = url;
+      }
+      
+      // Handle both paginated and non-paginated responses
+      const patientsList = Array.isArray(data) ? data : (data.results || []);
+      const normalizedPatients = dedupePatientsById(patientsList.map(normalizePatient));
+      
       dispatch(setPatients(normalizedPatients));
+      
+      // Update pagination state
+      if (data.count !== undefined) {
+        setTotalCount(data.count);
+      } else {
+        setTotalCount(normalizedPatients.length);
+      }
+      
+      // Store the full URL for next/previous
+      setPatientsNextPage(data.next || null);
+      setPatientsPreviousPage(data.previous || null);
+      setCurrentPageUrl(apiUrl);
+      
+      // Extract current page number from URL
+      const urlParams = new URLSearchParams(apiUrl.split('?')[1] || '');
+      const pageParam = urlParams.get('page');
+      if (pageParam) {
+        setCurrentPageNumber(parseInt(pageParam, 10));
+      } else {
+        setCurrentPageNumber(1);
+      }
+      
     } catch (err) {
       console.error('Failed to load patients:', err);
+      alert('Failed to load patients: ' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -503,7 +648,7 @@ const PatientManagement = () => {
   const uniqueFilteredPatients = dedupePatientsById(filteredPatients);
 
   const stats = {
-    total: uniqueFilteredPatients.length,
+    total: totalCount || uniqueFilteredPatients.length,
     active: uniqueFilteredPatients.filter(p => p.status === 'active').length,
     inactive: uniqueFilteredPatients.filter(p => p.status === 'inactive' || p.status === 'archived').length,
     byState: uniqueFilteredPatients.reduce((acc, p) => {
@@ -764,15 +909,14 @@ const PatientManagement = () => {
 
   const handleFilter = (e) => {
     dispatch(filterPatients(e.target.value));
-    setCurrentPage(1);
+    loadPatients('/api/v1/patients/patients/');
   };
 
   // Calculate pagination
-  const totalItems = uniqueFilteredPatients.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const displayedPatients = uniqueFilteredPatients.slice(startIndex, endIndex);
+  const totalItems = totalCount || patients.length;
+  const totalPages = Math.ceil(totalItems / 20);
+  const startIndex = patients.length > 0 ? (totalItems - patients.length + 1) : 0;
+  const endIndex = startIndex + patients.length - 1;
 
   // Render patient details modal
   const renderPatientDetails = () => {
@@ -1051,337 +1195,55 @@ const PatientManagement = () => {
     );
   };
 
-  // Render patient form
-  const renderPatientForm = () => (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 sticky top-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-          {editingId ? 'Edit Patient' : 'Add New Patient'}
-        </h3>
-        {showForm && (
-          <IconButton
-            icon={X}
-            onClick={() => {
-              setShowForm(false);
-              resetForm();
-            }}
-            tooltip="Close form"
-            variant="default"
-          />
-        )}
-      </div>
-
-      {!showForm ? (
-        <ButtonWithTooltip
-          onClick={() => setShowForm(true)}
-          tooltip="Register a new patient"
-          variant="success"
-          className="w-full justify-center"
-        >
-          <UserPlus className="w-4 h-4" />
-          New Patient
-        </ButtonWithTooltip>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
-          {/* Personal Information */}
-          <div className="border-b border-gray-200 pb-3">
-            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" />
-              Personal Information
-            </h4>
-            <div className="space-y-2">
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Full Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Date of Birth</label>
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    disabled={isSubmitting}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Gender</label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Select</option>
-                    {genders.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NIN</label>
-                <input
-                  type="text"
-                  name="nin"
-                  value={formData.nin}
-                  onChange={handleChange}
-                  placeholder="National Identity Number"
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div className="border-b border-gray-200 pb-3">
-            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5" />
-              Contact Information
-            </h4>
-            <div className="space-y-2">
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone Number *</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Location Information */}
-          <div className="border-b border-gray-200 pb-3">
-            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" />
-              Location
-            </h4>
-            <div className="space-y-2">
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Country</label>
-                <select
-                  name="country"
-                  value={formData.country}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting || loadingData}
-                >
-                  <option value="">Select Country</option>
-                  {countries.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">State</label>
-                <select
-                  name="state"
-                  value={formData.state}
-                  onChange={handleChange}
-                  disabled={!formData.country || loadingData || isSubmitting}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-                >
-                  <option value="">Select State</option>
-                  {nigerianStates.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              {formData.country === 'Nigeria' && (
-                <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">LGA</label>
-                  <select
-                    name="lga"
-                    value={formData.lga}
-                    onChange={handleChange}
-                    disabled={!formData.state || isSubmitting}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-                  >
-                    <option value="">Select LGA</option>
-                    {availableLGAs.map(lga => <option key={lga} value={lga}>{lga}</option>)}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">City</label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  placeholder="City/Town"
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  rows="2"
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Medical & Demographic */}
-          <div className="border-b border-gray-200 pb-3">
-            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
-              <Heart className="w-3.5 h-3.5" />
-              Medical & Demographic
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
-                <select
-                  name="bloodType"
-                  value={formData.bloodType}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                >
-                  <option value="">Select</option>
-                  {bloodTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Tribe</label>
-                <select
-                  name="tribe"
-                  value={formData.tribe}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                >
-                  <option value="">Select</option>
-                  {tribes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Religion</label>
-                <select
-                  name="religion"
-                  value={formData.religion}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                >
-                  <option value="">Select</option>
-                  {religions.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
-                <select
-                  name="maritalStatus"
-                  value={formData.maritalStatus}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                >
-                  <option value="">Select</option>
-                  {maritalStatuses.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Emergency Contact */}
-          <div className="border-b border-gray-200 pb-3">
-            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" />
-              Emergency Contact
-            </h4>
-            <div className="space-y-2">
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Contact Name</label>
-                <input
-                  type="text"
-                  name="emergencyContact"
-                  value={formData.emergencyContact}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Phone</label>
-                <input
-                  type="tel"
-                  name="emergencyPhone"
-                  value={formData.emergencyPhone}
-                  onChange={handleChange}
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex gap-2 pt-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {editingId ? 'Updating...' : 'Adding...'}
-                </>
-              ) : (
-                <>
-                  {editingId ? 'Update' : 'Add'} Patient
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForm(false);
-                resetForm();
-              }}
-              className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
-
   // Render patient table
   const renderPatientTable = () => (
     <>
+      {/* Add Patient Button at Top of Table */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-900">Patient List</h3>
+          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+            {totalItems} total
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <ButtonWithTooltip
+            onClick={() => setShowForm(true)}
+            tooltip="Register a new patient"
+            variant="primary"
+          >
+            <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden xs:inline">Add Patient</span>
+          </ButtonWithTooltip>
+          <ButtonWithTooltip
+            tooltip="Bulk upload patients from CSV"
+            variant="secondary"
+            onClick={() => document.getElementById('bulk-upload-input')?.click()}
+          >
+            {bulkUploading ? (
+              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+            ) : (
+              <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            )}
+            <span className="hidden xs:inline">Bulk Upload</span>
+          </ButtonWithTooltip>
+          <input
+            id="bulk-upload-input"
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setBulkUploadFile(file);
+                handleBulkUpload();
+              }
+              e.target.value = '';
+            }}
+          />
+        </div>
+      </div>
+
       {filteredPatients.length === 0 ? (
         <div className="text-center py-8 sm:py-12">
           <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
@@ -1407,21 +1269,8 @@ const PatientManagement = () => {
             <table className="w-full min-w-[640px] sm:min-w-0">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <Tooltip text="Select all patients">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedPatients(displayedPatients.map(p => p.id));
-                          } else {
-                            setSelectedPatients([]);
-                          }
-                        }}
-                        disabled={isLoading}
-                      />
-                    </Tooltip>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    #
                   </th>
                   <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
                   <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
@@ -1432,109 +1281,111 @@ const PatientManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {displayedPatients.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-2 sm:py-3">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
-                        checked={selectedPatients.includes(patient.id)}
-                        onChange={() => {
-                          setSelectedPatients(prev =>
-                            prev.includes(patient.id)
-                              ? prev.filter(id => id !== patient.id)
-                              : [...prev, patient.id]
-                          );
-                        }}
-                        disabled={isLoading}
-                      />
-                    </td>
-                    <td className="py-2 sm:py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
-                          {patient.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900 text-xs sm:text-sm">{patient.name}</div>
-                          <div className="text-[10px] text-gray-500">
-                            {patient.nin ? `NIN: ${patient.nin}` : 'No NIN'}
+                {uniqueFilteredPatients.map((patient, index) => {
+                  // Calculate serial number based on current page and index
+                  const serialNumber = (currentPageNumber - 1) * 20 + index + 1;
+                  return (
+                    <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-2 sm:py-3 text-center text-xs sm:text-sm text-gray-500 font-medium">
+                        {serialNumber}
+                      </td>
+                      <td className="py-2 sm:py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
+                            {patient.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900 text-xs sm:text-sm">{patient.name}</div>
+                            <div className="text-[10px] text-gray-500">
+                              {patient.nin ? `NIN: ${patient.nin}` : 'No NIN'}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-2 sm:py-3 hidden sm:table-cell">
-                      <div className="text-xs sm:text-sm text-gray-600">{patient.phone}</div>
-                      <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
-                    </td>
-                    <td className="py-2 sm:py-3 hidden md:table-cell">
-                      <div className="text-xs sm:text-sm text-gray-600">{patient.state || '-'}</div>
-                      <div className="text-[10px] text-gray-400">{patient.lga || patient.city || '-'}</div>
-                    </td>
-                    <td className="py-2 sm:py-3 hidden lg:table-cell">
-                      <span className="text-xs font-medium">{patient.bloodType || '-'}</span>
-                    </td>
-                    <td className="py-2 sm:py-3">
-                      <span className={`inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full ${
-                        patient.status === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {patient.status || 'active'}
-                      </span>
-                    </td>
-                    <td className="py-2 sm:py-3">
-                      <div className="flex items-center gap-0.5 sm:gap-1">
-                        <IconButton
-                          icon={Eye}
-                          onClick={() => handleViewPatient(patient)}
-                          tooltip="View patient details"
-                          variant="primary"
-                          disabled={isLoading}
-                        />
-                        <IconButton
-                          icon={Edit}
-                          onClick={() => handleEditClick(patient)}
-                          tooltip="Edit patient"
-                          variant="primary"
-                          disabled={isLoading}
-                        />
-                        <IconButton
-                          icon={Trash2}
-                          onClick={() => handleDeleteClick(patient)}
-                          tooltip="Delete patient"
-                          variant="danger"
-                          disabled={isLoading}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-2 sm:py-3 hidden sm:table-cell">
+                        <div className="text-xs sm:text-sm text-gray-600">{patient.phone}</div>
+                        <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
+                      </td>
+                      <td className="py-2 sm:py-3 hidden md:table-cell">
+                        <div className="text-xs sm:text-sm text-gray-600">{patient.state || '-'}</div>
+                        <div className="text-[10px] text-gray-400">{patient.lga || patient.city || '-'}</div>
+                      </td>
+                      <td className="py-2 sm:py-3 hidden lg:table-cell">
+                        <span className="text-xs font-medium">{patient.bloodType || '-'}</span>
+                      </td>
+                      <td className="py-2 sm:py-3">
+                        <span className={`inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full ${
+                          patient.status === 'active'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {patient.status || 'active'}
+                        </span>
+                      </td>
+                      <td className="py-2 sm:py-3">
+                        <div className="flex items-center gap-0.5 sm:gap-1">
+                          <IconButton
+                            icon={Eye}
+                            onClick={() => handleViewPatient(patient)}
+                            tooltip="View patient details"
+                            variant="primary"
+                            disabled={isLoading}
+                          />
+                          <IconButton
+                            icon={Edit}
+                            onClick={() => handleEditClick(patient)}
+                            tooltip="Edit patient"
+                            variant="primary"
+                            disabled={isLoading}
+                          />
+                          <IconButton
+                            icon={Trash2}
+                            onClick={() => handleDeleteClick(patient)}
+                            tooltip="Delete patient"
+                            variant="danger"
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* Pagination */}
+          {/* Fixed Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 gap-2 sm:gap-0">
             <div className="text-[10px] sm:text-xs text-gray-500">
-              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
+              Showing {totalItems === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
               <IconButton
                 icon={ChevronLeft}
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                onClick={() => {
+                  if (patientsPreviousPage) {
+                    console.log('Loading previous page:', patientsPreviousPage);
+                    loadPatients(patientsPreviousPage);
+                  }
+                }}
                 tooltip="Previous page"
                 variant="default"
-                disabled={currentPage === 1 || isLoading}
+                disabled={!patientsPreviousPage || isLoading}
               />
               <span className="text-[10px] sm:text-xs text-gray-600">
-                Page {currentPage} of {totalPages || 1}
+                Page {getCurrentPage()} of {totalPages || 1}
               </span>
               <IconButton
                 icon={ChevronRight}
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() => {
+                  if (patientsNextPage) {
+                    console.log('Loading next page:', patientsNextPage);
+                    loadPatients(patientsNextPage);
+                  }
+                }}
                 tooltip="Next page"
                 variant="default"
-                disabled={currentPage === totalPages || isLoading}
+                disabled={!patientsNextPage || isLoading}
               />
             </div>
           </div>
@@ -1578,6 +1429,28 @@ const PatientManagement = () => {
                   <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden xs:inline">Add Patient</span>
                 </ButtonWithTooltip>
+                <ButtonWithTooltip
+                  tooltip="Bulk upload patients from CSV"
+                  variant="secondary"
+                  onClick={() => document.getElementById('bulk-upload-input')?.click()}
+                >
+                  <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">Bulk Upload</span>
+                </ButtonWithTooltip>
+                <input
+                  id="bulk-upload-input"
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setBulkUploadFile(file);
+                      handleBulkUpload();
+                    }
+                    e.target.value = '';
+                  }}
+                />
               </div>
             </div>
 
@@ -1632,51 +1505,81 @@ const PatientManagement = () => {
               </div>
             </div>
 
-            {/* Main Content - Disabled during loading */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 opacity-50 pointer-events-none">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">Add New Patient</h3>
+            {(bulkUploadProgress || bulkUploadResult) && (
+              <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${bulkUploadResult?.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {bulkUploading ? (
+                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    ) : bulkUploadResult?.status === 'completed' ? (
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    ) : bulkUploadResult?.status === 'failed' ? (
+                      <AlertTriangle className="w-4 h-4 text-red-600" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    )}
+                    <span className="text-xs sm:text-sm font-medium text-gray-900">
+                      {bulkUploadProgress?.message || bulkUploadResult?.message}
+                    </span>
                   </div>
-                  <button className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2">
-                    <UserPlus className="w-4 h-4" />
-                    New Patient
-                  </button>
+                  {!bulkUploading && (
+                    <button
+                      onClick={resetBulkUpload}
+                      className="p-1 hover:bg-gray-200 rounded"
+                    >
+                      <X className="w-4 h-4 text-gray-600" />
+                    </button>
+                  )}
+                </div>
+                {bulkUploadResult && (
+                  <div className="mt-2 text-xs sm:text-sm text-gray-700">
+                    <p>Total: {bulkUploadResult.total_records} | Success: {bulkUploadResult.success_count} | Failed: {bulkUploadResult.failure_count}</p>
+                    {bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-red-700 font-medium">View errors ({bulkUploadResult.errors.length})</summary>
+                        <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded border border-red-100 p-2">
+                          {bulkUploadResult.errors.map((err, idx) => (
+                            <div key={idx} className="text-xs text-red-800 py-1 border-b border-red-50 last:border-0">
+                              Row {err.row}: {err.error}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Main Content - Disabled during loading */}
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="p-3 sm:p-4 border-b border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="relative flex-1 max-w-full sm:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search patients..."
+                      value={searchTerm}
+                      className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg"
+                      disabled
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                    <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
+                      <option>Name A-Z</option>
+                    </select>
+                    <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
+                      <option>All States</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="lg:col-span-3">
-                <div className="bg-white rounded-lg border border-gray-200">
-                  <div className="p-3 sm:p-4 border-b border-gray-200">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="relative flex-1 max-w-full sm:max-w-sm">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search patients..."
-                          value={searchTerm}
-                          className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg"
-                          disabled
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
-                          <option>Name A-Z</option>
-                        </select>
-                        <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
-                          <option>All States</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-3 sm:p-4">
-                    <div className="text-center py-8 sm:py-12">
-                      <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                      <p className="text-gray-600 font-medium text-sm sm:text-base">Loading patients...</p>
-                    </div>
-                  </div>
+              <div className="p-3 sm:p-4">
+                <div className="text-center py-8 sm:py-12">
+                  <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-gray-600 font-medium text-sm sm:text-base">Loading patients...</p>
                 </div>
               </div>
             </div>
@@ -1706,17 +1609,31 @@ const PatientManagement = () => {
             <ButtonWithTooltip
               tooltip="Export patient data"
               variant="secondary"
+              disabled={true}
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Export</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
-              onClick={() => setShowForm(true)}
-              tooltip="Register a new patient"
-              variant="primary"
+              onClick={() => {
+                const csvContent = `first_name,last_name,date_of_birth,gender,marital_status,phone,email,address,city,state,lga,country,blood_group,genotype,next_of_kin_name,next_of_kin_phone,next_of_kin_address
+John,Smith,1985-03-12,male,single,08012345678,john@example.com,12 Main Street,Lagos,Lagos,Ikeja,Nigeria,O+,AA,Mary Smith,08087654321,45 Church Road
+Jane,Doe,1990-07-25,female,married,09098765432,jane@example.com,34 Park Avenue,Abuja,FCT,Maitama,Nigeria,A-,AS,Richard Doe,08123456789,18 London Street
+Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Road,Enugu,Enugu,Enugu North,Nigeria,AB+,SS,Ngozi Okafor,09065432109,30 Market Square`;
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'patient_upload_template.csv';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              tooltip="Download CSV template with example data for bulk upload"
+              variant="secondary"
             >
-              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Add Patient</span>
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Template</span>
             </ButtonWithTooltip>
           </div>
         </div>
@@ -1780,86 +1697,441 @@ const PatientManagement = () => {
           </Tooltip>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-          {/* Left Column - Form */}
-          <div className="lg:col-span-1">
-            {renderPatientForm()}
-          </div>
-
-          {/* Right Column - Patient List */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg border border-gray-200">
-              {/* Toolbar */}
-              <div className="p-3 sm:p-4 border-b border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="relative flex-1 max-w-full sm:max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search patients..."
-                      value={searchTerm}
-                      onChange={handleSearch}
-                      className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                    <IconButton
-                      icon={Filter}
-                      onClick={() => setShowMobileFilters(!showMobileFilters)}
-                      tooltip={showMobileFilters ? "Hide filters" : "Show filters"}
-                      variant="default"
-                      className="lg:hidden"
-                    />
-                    <div className="hidden sm:flex items-center gap-1.5">
-                      <Tooltip text="Sort patients">
-                        <select
-                          value={sortBy}
-                          onChange={handleSort}
-                          className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="name">Name A-Z</option>
-                          <option value="date">Newest</option>
-                          <option value="state">State</option>
-                        </select>
-                      </Tooltip>
-                      <Tooltip text="Filter by state">
-                        <select
-                          value={filterBy}
-                          onChange={handleFilter}
-                          className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="all">All States</option>
-                          {nigerianStates.map(state => (
-                            <option key={state} value={state}>{state}</option>
-                          ))}
-                        </select>
-                      </Tooltip>
-                    </div>
-                    <IconButton
-                      icon={viewMode === 'table' ? Grid : List}
-                      onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
-                      tooltip={viewMode === 'table' ? "Switch to grid view" : "Switch to table view"}
-                      variant="default"
-                    />
-                    <IconButton
-                      icon={Printer}
-                      onClick={() => window.print()}
-                      tooltip="Print patient list"
-                      variant="default"
-                    />
-                  </div>
-                </div>
+        {(bulkUploadProgress || bulkUploadResult) && (
+          <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${bulkUploadResult?.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {bulkUploading ? (
+                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                ) : bulkUploadResult?.status === 'completed' ? (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                ) : bulkUploadResult?.status === 'failed' ? (
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                ) : (
+                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                )}
+                <span className="text-xs sm:text-sm font-medium text-gray-900">
+                  {bulkUploadProgress?.message || bulkUploadResult?.message}
+                </span>
               </div>
+              {!bulkUploading && (
+                <button
+                  onClick={resetBulkUpload}
+                  className="p-1 hover:bg-gray-200 rounded"
+                >
+                  <X className="w-4 h-4 text-gray-600" />
+                </button>
+              )}
+            </div>
+            {bulkUploadResult && (
+              <div className="mt-2 text-xs sm:text-sm text-gray-700">
+                <p>Total: {bulkUploadResult.total_records} | Success: {bulkUploadResult.success_count} | Failed: {bulkUploadResult.failure_count}</p>
+                {bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-red-700 font-medium">View errors ({bulkUploadResult.errors.length})</summary>
+                    <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded border border-red-100 p-2">
+                      {bulkUploadResult.errors.map((err, idx) => (
+                        <div key={idx} className="text-xs text-red-800 py-1 border-b border-red-50 last:border-0">
+                          Row {err.row}: {err.error}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* Patient List Content */}
-              <div className="p-3 sm:p-4">
-                {renderPatientTable()}
+        {/* Main Content - Full width table with form modal */}
+        <div className="bg-white rounded-lg border border-gray-200">
+          {/* Toolbar */}
+          <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="relative flex-1 max-w-full sm:max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search patients..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <IconButton
+                  icon={Filter}
+                  onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  tooltip={showMobileFilters ? "Hide filters" : "Show filters"}
+                  variant="default"
+                  className="lg:hidden"
+                />
+                <div className="hidden sm:flex items-center gap-1.5">
+                  <Tooltip text="Sort patients">
+                    <select
+                      value={sortBy}
+                      onChange={handleSort}
+                      className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="name">Name A-Z</option>
+                      <option value="date">Newest</option>
+                      <option value="state">State</option>
+                    </select>
+                  </Tooltip>
+                  <Tooltip text="Filter by state">
+                    <select
+                      value={filterBy}
+                      onChange={handleFilter}
+                      className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All States</option>
+                      {nigerianStates.map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                  </Tooltip>
+                </div>
+                <IconButton
+                  icon={viewMode === 'table' ? Grid : List}
+                  onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
+                  tooltip={viewMode === 'table' ? "Switch to grid view" : "Switch to table view"}
+                  variant="default"
+                />
+                <IconButton
+                  icon={Printer}
+                  onClick={() => window.print()}
+                  tooltip="Print patient list"
+                  variant="default"
+                />
               </div>
             </div>
           </div>
+
+          {/* Patient List Content */}
+          <div className="p-3 sm:p-4">
+            {renderPatientTable()}
+          </div>
         </div>
       </div>
+
+      {/* Add/Edit Patient Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-blue-600" />
+                {editingId ? 'Edit Patient' : 'Add New Patient'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Personal Information */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <User className="w-4 h-4 text-blue-600" />
+                    Personal Information
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                        <input
+                          type="date"
+                          name="dateOfBirth"
+                          value={formData.dateOfBirth}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                        <select
+                          name="gender"
+                          value={formData.gender}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Select</option>
+                          {genders.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">NIN</label>
+                      <input
+                        type="text"
+                        name="nin"
+                        value={formData.nin}
+                        onChange={handleChange}
+                        placeholder="National Identity Number"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-green-600" />
+                    Contact Information
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location Information */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-purple-600" />
+                    Location
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                      <select
+                        name="country"
+                        value={formData.country}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting || loadingData}
+                      >
+                        <option value="">Select Country</option>
+                        {countries.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                      <select
+                        name="state"
+                        value={formData.state}
+                        onChange={handleChange}
+                        disabled={!formData.country || loadingData || isSubmitting}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+                      >
+                        <option value="">Select State</option>
+                        {nigerianStates.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    {formData.country === 'Nigeria' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">LGA</label>
+                        <select
+                          name="lga"
+                          value={formData.lga}
+                          onChange={handleChange}
+                          disabled={!formData.state || isSubmitting}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+                        >
+                          <option value="">Select LGA</option>
+                          {availableLGAs.map(lga => <option key={lga} value={lga}>{lga}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                        placeholder="City/Town"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                      <textarea
+                        name="address"
+                        value={formData.address}
+                        onChange={handleChange}
+                        rows="2"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medical & Demographic */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-red-600" />
+                    Medical & Demographic
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Blood Type</label>
+                      <select
+                        name="bloodType"
+                        value={formData.bloodType}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">Select</option>
+                        {bloodTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tribe</label>
+                      <select
+                        name="tribe"
+                        value={formData.tribe}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">Select</option>
+                        {tribes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Religion</label>
+                      <select
+                        name="religion"
+                        value={formData.religion}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">Select</option>
+                        {religions.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                      <select
+                        name="maritalStatus"
+                        value={formData.maritalStatus}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">Select</option>
+                        {maritalStatuses.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Emergency Contact */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-yellow-600" />
+                    Emergency Contact
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Name</label>
+                      <input
+                        type="text"
+                        name="emergencyContact"
+                        value={formData.emergencyContact}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Phone</label>
+                      <input
+                        type="tel"
+                        name="emergencyPhone"
+                        value={formData.emergencyPhone}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {editingId ? 'Updating...' : 'Adding...'}
+                      </>
+                    ) : (
+                      <>
+                        {editingId ? 'Update' : 'Add'} Patient
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      resetForm();
+                    }}
+                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Patient Details Modal */}
       {showPatientDetails && renderPatientDetails()}

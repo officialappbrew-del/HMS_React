@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
+import { setPatients } from '../../features/patientSlice';  // Fixed import path
 import {
   Users,
   Stethoscope,
@@ -602,12 +603,11 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                       const file = e.target.files?.[0];
                       if (file) {
                         if (file.size > 5 * 1024 * 1024) {
-                          onChange('profile_picture_file', null);
-                          setProfilePicturePreview('');
+                          onProfilePictureChange('profile_picture_file', null);
                           alert('Image must be less than 5MB');
                           return;
                         }
-                        onChange('profile_picture_file', file);
+                        onProfilePictureChange('profile_picture_file', file);
                       }
                     }}
                   />
@@ -616,8 +616,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                   <button
                     type="button"
                     onClick={() => {
-                      onChange('profile_picture_file', null);
-                      setProfilePicturePreview('');
+                      onProfilePictureChange('profile_picture_file', null);
                     }}
                     className="mt-1 text-xs text-red-600 hover:text-red-700"
                   >
@@ -810,6 +809,11 @@ const DoctorDashboard = () => {
     pendingReviews: 0,
     criticalPatients: 0,
   });
+  const [patientsCount, setPatientsCount] = useState(0);
+  const [patientsNextPage, setPatientsNextPage] = useState(null);
+  const [patientsPreviousPage, setPatientsPreviousPage] = useState(null);
+  const [dashboardPatients, setDashboardPatients] = useState([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
 
   const [consultationForm, setConsultationForm] = useState({
     patientId: '',
@@ -839,7 +843,7 @@ const DoctorDashboard = () => {
   const [consultationPatientSearch, setConsultationPatientSearch] = useState('');
 
   const [alerts, setAlerts] = useState([
-    { id: 1, type: 'critical', message: 'Patient John Doe - Critical vitals', time: '5 min ago', read: false },
+    { id: 1, type: 'critical', message: 'Critical patient alert - Immediate attention needed', time: '5 min ago', read: false },
     { id: 2, type: 'warning', message: 'Ward round overdue - Room 203', time: '15 min ago', read: false },
     { id: 3, type: 'info', message: 'New lab results available', time: '1 hour ago', read: false }
   ]);
@@ -959,20 +963,136 @@ const DoctorDashboard = () => {
     return 'Active patient';
   };
 
-  // Use the normalized patient store data loaded by PatientManagement.
-  const normalizePatientForDisplay = (patient) => patient;
+  // Normalize patient for display
+  const normalizePatientForDisplay = (patient) => {
+    return {
+      id: patient.id,
+      name: patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim() || 'Unnamed Patient',
+      first_name: patient.first_name || '',
+      last_name: patient.last_name || '',
+      nin: patient.nin || '',
+      phone: patient.phone || '',
+      email: patient.email || '',
+      address: patient.address || '',
+      tribe: patient.ethnicity || patient.tribe || '',
+      country: patient.country || 'Nigeria',
+      lga: patient.lga || '',
+      state: patient.state || '',
+      city: patient.city || '',
+      dateOfBirth: patient.date_of_birth || '',
+      bloodType: patient.blood_group || patient.bloodType || '',
+      gender: patient.gender || '',
+      maritalStatus: patient.marital_status || patient.maritalStatus || '',
+      occupation: patient.occupation || '',
+      emergencyContact: patient.next_of_kin_name || '',
+      emergencyPhone: patient.next_of_kin_phone || '',
+      religion: patient.religion || '',
+      status: patient.patient_status || patient.status || 'active',
+      createdAt: patient.registration_date || patient.createdAt || new Date().toISOString(),
+      updatedAt: patient.updated_at || patient.updatedAt || new Date().toISOString(),
+      hospital_number: patient.hospital_number || '',
+      login_id: patient.login_id || '',
+      age: patient.age || '',
+      full_name: patient.full_name || '',
+      age_display: patient.age_display || '',
+      tenant_name: patient.tenant_name || '',
+      nhis_number: patient.nhis_number || '',
+      middle_name: patient.middle_name || '',
+      phone2: patient.phone2 || '',
+      next_of_kin_relationship: patient.next_of_kin_relationship || '',
+      next_of_kin_address: patient.next_of_kin_address || '',
+      known_allergies: patient.known_allergies || '',
+      chronic_conditions: patient.chronic_conditions || '',
+      current_medications: patient.current_medications || '',
+      surgical_history: patient.surgical_history || '',
+      family_history: patient.family_history || '',
+      has_insurance: patient.has_insurance || false,
+      insurance_company: patient.insurance_company || '',
+      insurance_policy_number: patient.insurance_policy_number || '',
+      insurance_expiry: patient.insurance_expiry || null,
+      ethnicity: patient.ethnicity || '',
+      language_spoken: patient.language_spoken || '',
+      patient_status: patient.patient_status || 'active',
+      photo: patient.photo || null,
+      notes: patient.notes || '',
+      registration_date: patient.registration_date || '',
+      last_visit: patient.last_visit || null,
+      registered_by: patient.registered_by || null,
+      is_active: patient.is_active !== undefined ? patient.is_active : true,
+      tenant: patient.tenant || null,
+      genotype: patient.genotype || '',
+    };
+  };
 
-  const recentPatients = patients
+  const loadDashboardPatients = async (url = '/api/v1/patients/patients/') => {
+    try {
+      setPatientsLoading(true);
+      let data;
+      let apiUrl = url;
+      
+      // If the URL is a full URL (starts with http), use it directly with fetch
+      if (url.startsWith('http')) {
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        data = await response.json();
+        apiUrl = url;
+      } else {
+        // Use the apiRequest for relative URLs
+        data = await apiRequest(url);
+        apiUrl = url;
+      }
+      
+      const results = Array.isArray(data) ? data : (data.results || []);
+      const normalized = results.map(normalizePatientForDisplay);
+      
+      // Update Redux store
+      dispatch(setPatients(normalized));
+      
+      // Update local state
+      setDashboardPatients(normalized);
+      setPatientsCount(data.count || normalized.length);
+      setPatientsNextPage(data.next || null);
+      setPatientsPreviousPage(data.previous || null);
+    } catch (err) {
+      console.error('Failed to load dashboard patients:', err);
+      setDashboardPatients([]);
+      setPatientsCount(0);
+    } finally {
+      setPatientsLoading(false);
+    }
+  };
+
+  // Load patients when component mounts
+  useEffect(() => {
+    loadDashboardPatients('/api/v1/patients/patients/');
+  }, []);
+
+  const totalItems = patientsCount || dashboardPatients.length;
+  const totalPages = Math.ceil(totalItems / 20);
+  const startIndex = dashboardPatients.length > 0 ? (totalItems - dashboardPatients.length + 1) : 0;
+  const endIndex = startIndex + dashboardPatients.length - 1;
+
+  const recentPatients = dashboardPatients
     .filter(p => p.name && p.name !== 'Unnamed Patient')
     .sort((a, b) => {
-      const dateA = new Date(a.registration_date || a.lastVisit || a.created_at || 0);
-      const dateB = new Date(b.registration_date || b.lastVisit || b.created_at || 0);
+      const dateA = new Date(a.registration_date || a.last_visit || a.createdAt || 0);
+      const dateB = new Date(b.registration_date || b.last_visit || b.createdAt || 0);
       return dateB - dateA;
     })
     .slice(0, 10);
 
-  // Filter patients for consultation dropdown using the same patient data source as PatientManagement
-  const filteredConsultationPatients = patients
+  // Filter patients for consultation dropdown
+  const filteredConsultationPatients = dashboardPatients
     .filter(p => {
       if (!consultationPatientSearch) return true;
       const searchLower = consultationPatientSearch.toLowerCase();
@@ -983,17 +1103,17 @@ const DoctorDashboard = () => {
     .slice(0, 20);
 
   useEffect(() => {
-    const activePatients = patients.filter(p => 
+    const activePatients = dashboardPatients.filter(p => 
       p.patient_status === 'active' || p.status === 'active'
     );
     
     setStats({
-      myPatients: patients.length || 0,
+      myPatients: patientsCount || dashboardPatients.length || 0,
       todaysRounds: wardRounds.filter(r => r.status === 'Scheduled').length || 0,
       pendingReviews: consultations.filter(c => c.status === 'pending').length || 0,
       criticalPatients: alerts.filter(a => a.type === 'critical').length || 0,
     });
-  }, [patients, wardRounds, alerts, consultations]);
+  }, [dashboardPatients, patientsCount, wardRounds, alerts, consultations]);
 
   // Reset consultation form
   const resetConsultationForm = () => {
@@ -1616,7 +1736,7 @@ const DoctorDashboard = () => {
                     <button
                       key={patient.id}
                       onClick={() => {
-                        const fullPatient = patients.find(p => p.id === patient.id);
+                        const fullPatient = dashboardPatients.find(p => p.id === patient.id);
                         if (fullPatient) handleSelectPatientForConsultation(fullPatient);
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100 last:border-0"
@@ -1876,6 +1996,15 @@ const DoctorDashboard = () => {
   };
 
   const renderPatientsContent = () => {
+    if (patientsLoading) {
+      return (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-500 text-sm mt-2">Loading patients...</p>
+        </div>
+      );
+    }
+
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -1900,7 +2029,7 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {recentPatients.length === 0 ? (
+        {dashboardPatients.length === 0 ? (
           <div className="text-center py-8">
             <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
             <p className="text-gray-500 text-sm">No patients found</p>
@@ -1920,17 +2049,17 @@ const DoctorDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {recentPatients.map((patient) => {
+                {dashboardPatients.map((patient) => {
                   const status = getStatusBadge(patient.status);
                   return (
                     <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
-                            {patient.name.charAt(0).toUpperCase()}
+                            {patient.name && patient.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <span className="text-sm font-medium text-gray-900">{patient.name}</span>
+                            <span className="text-sm font-medium text-gray-900">{patient.name || 'Unnamed Patient'}</span>
                             {patient.age && (
                               <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>
                             )}
@@ -1945,7 +2074,7 @@ const DoctorDashboard = () => {
                         <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
                       </td>
                       <td className="py-3 hidden md:table-cell">
-                        <span className="text-xs text-gray-600">{patient.condition || 'Active'}</span>
+                        <span className="text-xs text-gray-600">{getPatientCondition(patient)}</span>
                         {patient.bloodType && (
                           <div className="text-[10px] text-gray-400">Blood: {patient.bloodType}</div>
                         )}
@@ -1957,7 +2086,7 @@ const DoctorDashboard = () => {
                       </td>
                       <td className="py-3 hidden lg:table-cell">
                         <span className="text-xs text-gray-600">
-                          {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'}
+                          {patient.last_visit || patient.lastVisit ? new Date(patient.last_visit || patient.lastVisit).toLocaleDateString() : 'N/A'}
                         </span>
                       </td>
                       <td className="py-3">
@@ -1971,12 +2100,9 @@ const DoctorDashboard = () => {
                           <IconButton
                             icon={Stethoscope}
                             onClick={() => {
-                              const fullPatient = patients.find(p => p.id === patient.id);
-                              if (fullPatient) {
-                                handleSelectPatientForConsultation(fullPatient);
-                                setActiveTab('consultations');
-                                setShowConsultationForm(true);
-                              }
+                              handleSelectPatientForConsultation(patient);
+                              setActiveTab('consultations');
+                              setShowConsultationForm(true);
                             }}
                             tooltip="Consult patient"
                             variant="success"
@@ -1994,16 +2120,31 @@ const DoctorDashboard = () => {
                 })}
               </tbody>
             </table>
-            {patients.length > 10 && (
-              <div className="mt-3 text-center">
-                <button
-                  onClick={() => navigate('/patients')}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  View all {patients.length} patients →
-                </button>
+            {/* Pagination */}
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 gap-2 sm:gap-0">
+              <div className="text-[10px] sm:text-xs text-gray-500">
+                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
               </div>
-            )}
+              <div className="flex items-center gap-1 sm:gap-2">
+                <IconButton
+                  icon={ChevronLeft}
+                  onClick={() => patientsPreviousPage && loadDashboardPatients(patientsPreviousPage)}
+                  tooltip="Previous page"
+                  variant="default"
+                  disabled={!patientsPreviousPage || patientsLoading}
+                />
+                <span className="text-[10px] sm:text-xs text-gray-600">
+                  Page {dashboardPatients.length > 0 ? Math.ceil((totalItems - dashboardPatients.length + 1) / 20) : 0} of {totalPages || 1}
+                </span>
+                <IconButton
+                  icon={ChevronRight}
+                  onClick={() => patientsNextPage && loadDashboardPatients(patientsNextPage)}
+                  tooltip="Next page"
+                  variant="default"
+                  disabled={!patientsNextPage || patientsLoading}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>
