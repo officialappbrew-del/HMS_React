@@ -2,7 +2,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { apiRequest } from '../../utils/api';
+import { apiRequest, API_BASE_URL } from '../../utils/api';
 import {
   Users,
   Stethoscope,
@@ -82,6 +82,7 @@ import {
   Pill as PillIcon,
   Syringe as SyringeIcon,
   MoreVertical,
+  Upload,
 } from 'lucide-react';
 
 // Tooltip Component
@@ -535,7 +536,7 @@ const PatientDetailModal = ({ patient, onClose }) => {
   );
 };
 
-const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading, saving, error, success, specializations, specializationsLoading }) => {
+const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading, saving, error, success, specializations, specializationsLoading, profilePicturePreview, onProfilePictureChange }) => {
   if (!isOpen) return null;
 
   return (
@@ -565,6 +566,64 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
             {(error || success) && (
               <div className={`mb-4 p-3 rounded-lg text-sm whitespace-pre-line ${error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                 {error || success}
+              </div>
+            )}
+
+            {!loading && (
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                    {profilePicturePreview ? (
+                      <img
+                        key={profilePicturePreview}
+                        src={profilePicturePreview}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          const fallback = e.target.parentElement?.querySelector('.profile-fallback');
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: profilePicturePreview ? 'none' : 'flex' }}>
+                      <UserIcon className="w-12 h-12 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+                <label className="mt-3 cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Upload className="w-4 h-4" />
+                  {profilePicturePreview ? 'Change Photo' : 'Upload Photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          onChange('profile_picture_file', null);
+                          setProfilePicturePreview('');
+                          alert('Image must be less than 5MB');
+                          return;
+                        }
+                        onChange('profile_picture_file', file);
+                      }
+                    }}
+                  />
+                </label>
+                {profilePicturePreview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange('profile_picture_file', null);
+                      setProfilePicturePreview('');
+                    }}
+                    className="mt-1 text-xs text-red-600 hover:text-red-700"
+                  >
+                    Remove photo
+                  </button>
+                )}
               </div>
             )}
 
@@ -810,6 +869,9 @@ const DoctorDashboard = () => {
   const [profileSuccess, setProfileSuccess] = useState(null);
   const [specializations, setSpecializations] = useState([]);
   const [specializationsLoading, setSpecializationsLoading] = useState(false);
+  const [profilePictureFile, setProfilePictureFile] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState('');
+  const [dashboardProfilePicture, setDashboardProfilePicture] = useState(authUser?.profile_picture || '');
 
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
@@ -1071,6 +1133,9 @@ const DoctorDashboard = () => {
     setProfileError(null);
     setProfileSuccess(null);
     setSpecializationsLoading(true);
+    setProfilePictureFile(null);
+    setProfilePicturePreview('');
+    setDashboardProfilePicture(authUser?.profile_picture || '');
     try {
       const [profileRes, specsRes] = await Promise.all([
         apiRequest('/api/v1/tenants/users/me/'),
@@ -1091,6 +1156,15 @@ const DoctorDashboard = () => {
         specialization: profileRes.specialization || '',
         qualification: profileRes.qualification || '',
       });
+      const pic = profileRes.profile_picture || '';
+      const cached = localStorage.getItem('userProfilePicture') || '';
+      const effectivePic = pic || cached;
+      if (effectivePic) {
+        const cacheBusted = effectivePic.includes('?') ? `${effectivePic}&t=${Date.now()}` : `${effectivePic}?t=${Date.now()}`;
+        setProfilePicturePreview(cacheBusted);
+        setDashboardProfilePicture(cacheBusted);
+        localStorage.setItem('userProfilePicture', effectivePic);
+      }
     } catch (err) {
       if (err.data && typeof err.data === 'object') {
         const friendlyMessages = Object.entries(err.data)
@@ -1111,7 +1185,18 @@ const DoctorDashboard = () => {
   };
 
   const handleProfileChange = (field, value) => {
-    setProfileData(prev => ({ ...prev, [field]: value }));
+    if (field === 'profile_picture_file') {
+      setProfilePictureFile(value);
+      if (value) {
+        const reader = new FileReader();
+        reader.onload = (e) => setProfilePicturePreview(e.target.result);
+        reader.readAsDataURL(value);
+      } else {
+        setProfilePicturePreview('');
+      }
+    } else {
+      setProfileData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -1133,23 +1218,69 @@ const DoctorDashboard = () => {
     }
 
     const trimmedSpecialization = profileData.specialization.trim();
-    const payload = {
-      first_name: profileData.first_name.trim(),
-      last_name: profileData.last_name.trim(),
-      email: profileData.email.trim(),
-      phone: profileData.phone.trim(),
-      designation: profileData.designation.trim(),
-      license_number: profileData.license_number.trim(),
-      specialization: trimmedSpecialization,
-      qualification: profileData.qualification.trim(),
-    };
 
     try {
-      await apiRequest('/api/v1/tenants/users/me/', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
+      if (profilePictureFile) {
+        const formData = new FormData();
+        formData.append('first_name', profileData.first_name.trim());
+        formData.append('last_name', profileData.last_name.trim());
+        formData.append('email', profileData.email.trim());
+        formData.append('phone', profileData.phone.trim());
+        formData.append('designation', profileData.designation.trim());
+        formData.append('license_number', profileData.license_number.trim());
+        formData.append('specialization', trimmedSpecialization);
+        formData.append('qualification', profileData.qualification.trim());
+        formData.append('profile_picture', profilePictureFile);
+
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/v1/tenants/users/me/`, {
+          method: 'PATCH',
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const contentType = response.headers.get('content-type') || '';
+          const isJson = contentType.includes('application/json');
+          const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+          const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Request failed with status ${response.status}`;
+          const error = new Error(message);
+          error.data = data;
+          error.status = response.status;
+          throw error;
+        }
+      } else {
+        const payload = {
+          first_name: profileData.first_name.trim(),
+          last_name: profileData.last_name.trim(),
+          email: profileData.email.trim(),
+          phone: profileData.phone.trim(),
+          designation: profileData.designation.trim(),
+          license_number: profileData.license_number.trim(),
+          specialization: trimmedSpecialization,
+          qualification: profileData.qualification.trim(),
+        };
+        await apiRequest('/api/v1/tenants/users/me/', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      }
       setProfileSuccess('Profile updated successfully');
+      setProfilePictureFile(null);
+      const refreshed = await apiRequest('/api/v1/tenants/users/me/');
+      const pic = refreshed?.profile_picture || '';
+      if (pic) {
+        const cacheBusted = pic.includes('?') ? `${pic}&t=${Date.now()}` : `${pic}?t=${Date.now()}`;
+        localStorage.setItem('userProfilePicture', pic);
+        setDashboardProfilePicture(cacheBusted);
+        setProfilePicturePreview(cacheBusted);
+      } else {
+        localStorage.removeItem('userProfilePicture');
+        setDashboardProfilePicture('');
+        setProfilePicturePreview('');
+      }
     } catch (err) {
       if (err.data && typeof err.data === 'object') {
         const friendlyMessages = Object.entries(err.data)
@@ -2064,13 +2195,33 @@ const DoctorDashboard = () => {
     <div className="dashboard min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {displayUserName}
-            </h1>
-            <p className="text-sm text-gray-500">
-              {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {dashboardProfilePicture ? (
+                <img
+                  key={dashboardProfilePicture}
+                  src={dashboardProfilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.parentElement?.querySelector('.profile-fallback');
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: dashboardProfilePicture ? 'none' : 'flex' }}>
+                <UserIcon className="w-5 h-5 text-gray-400" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Welcome back, {displayUserName}
+              </h1>
+              <p className="text-sm text-gray-500">
+                {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
@@ -2146,6 +2297,8 @@ const DoctorDashboard = () => {
           success={profileSuccess}
           specializations={specializations}
           specializationsLoading={specializationsLoading}
+          profilePicturePreview={profilePicturePreview}
+          onProfilePictureChange={handleProfileChange}
         />
       )}
     </div>

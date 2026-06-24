@@ -18,9 +18,9 @@ const API_BASE_URL = (() => {
     return configuredUrl;
   }
   
-  // return 'http://localhost:8000';
+  return 'http://localhost:8000';
 
-  return 'https://hms-backend-l09g.onrender.com';
+  // return 'https://hms-backend-l09g.onrender.com';
 })();
 
 const PUBLIC_AUTH_PATHS = [
@@ -160,4 +160,5 @@ export const apiRequest = async (path, options = {}) => {
   return makeRequest();
 };
 
+export { API_BASE_URL };
 export default API_BASE_URL;

@@ -17,6 +17,7 @@ export const useAuth = () => {
       last_name: localStorage.getItem('userLastName'),
       email: localStorage.getItem('userEmail'),
       role: localStorage.getItem('userRole'),
+      profile_picture: localStorage.getItem('userProfilePicture') || null,
       is_active: true,
     };
     const storedTenant = {
