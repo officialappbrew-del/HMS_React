@@ -692,76 +692,10 @@ const DoctorDashboard = () => {
     return 'Active patient';
   };
 
-  const normalizePatientForDisplay = (patient) => {
-    const calculateAge = (dob) => {
-      if (!dob) return null;
-      try {
-        const birthDate = new Date(dob);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-        }
-        return age;
-      } catch {
-        return null;
-      }
-    };
-
-    return {
-      id: patient.id,
-      name: patient.name || patient.full_name || 'Unnamed Patient',
-      first_name: patient.first_name || '',
-      last_name: patient.last_name || '',
-      condition: getPatientCondition(patient),
-      status: patient.patient_status || patient.status || 'active',
-      lastVisit: patient.last_visit || patient.registration_date || patient.createdAt || new Date().toISOString().split('T')[0],
-      phone: patient.phone || '',
-      email: patient.email || '',
-      state: patient.state || '',
-      lga: patient.lga || '',
-      bloodType: patient.bloodType || patient.blood_group || '',
-      gender: patient.gender || '',
-      dateOfBirth: patient.dateOfBirth || patient.date_of_birth || '',
-      age: calculateAge(patient.dateOfBirth || patient.date_of_birth),
-      hospital_number: patient.hospital_number || '',
-      nin: patient.nin || '',
-      address: patient.address || '',
-      city: patient.city || '',
-      country: patient.country || 'Nigeria',
-      tribe: patient.tribe || patient.ethnicity || '',
-      maritalStatus: patient.maritalStatus || patient.marital_status || '',
-      occupation: patient.occupation || '',
-      religion: patient.religion || '',
-      emergencyContact: patient.emergencyContact || patient.next_of_kin_name || '',
-      emergencyPhone: patient.emergencyPhone || patient.next_of_kin_phone || '',
-      known_allergies: patient.known_allergies || '',
-      chronic_conditions: patient.chronic_conditions || '',
-      current_medications: patient.current_medications || '',
-      surgical_history: patient.surgical_history || '',
-      family_history: patient.family_history || '',
-      has_insurance: patient.has_insurance || false,
-      insurance_company: patient.insurance_company || '',
-      insurance_policy_number: patient.insurance_policy_number || '',
-      nhis_number: patient.nhis_number || '',
-      genotype: patient.genotype || '',
-      notes: patient.notes || '',
-      registration_date: patient.registration_date || patient.createdAt || '',
-      created_at: patient.created_at || patient.createdAt || '',
-      updated_at: patient.updated_at || patient.updatedAt || '',
-      tenant_name: patient.tenant_name || '',
-      login_id: patient.login_id || '',
-      next_of_kin_name: patient.next_of_kin_name || '',
-      next_of_kin_phone: patient.next_of_kin_phone || '',
-      next_of_kin_relationship: patient.next_of_kin_relationship || '',
-      next_of_kin_address: patient.next_of_kin_address || '',
-      language_spoken: patient.language_spoken || '',
-    };
-  };
+  // Use the normalized patient store data loaded by PatientManagement.
+  const normalizePatientForDisplay = (patient) => patient;
 
   const recentPatients = patients
-    .map(normalizePatientForDisplay)
     .filter(p => p.name && p.name !== 'Unnamed Patient')
     .sort((a, b) => {
       const dateA = new Date(a.registration_date || a.lastVisit || a.created_at || 0);
@@ -770,15 +704,14 @@ const DoctorDashboard = () => {
     })
     .slice(0, 10);
 
-  // Filter patients for consultation dropdown
+  // Filter patients for consultation dropdown using the same patient data source as PatientManagement
   const filteredConsultationPatients = patients
-    .map(normalizePatientForDisplay)
     .filter(p => {
       if (!consultationPatientSearch) return true;
       const searchLower = consultationPatientSearch.toLowerCase();
-      return p.name.toLowerCase().includes(searchLower) || 
-             p.phone.includes(searchLower) ||
-             (p.hospital_number && p.hospital_number.toLowerCase().includes(searchLower));
+      return (p.name || '').toLowerCase().includes(searchLower) || 
+             (p.phone || '').includes(searchLower) ||
+             (p.hospital_number || '').toLowerCase().includes(searchLower);
     })
     .slice(0, 20);
 
@@ -824,20 +757,19 @@ const DoctorDashboard = () => {
 
   // Handle selecting a patient for consultation
   const handleSelectPatientForConsultation = (patient) => {
-    const normalizedPatient = normalizePatientForDisplay(patient);
     setConsultationForm(prev => ({
       ...prev,
       patientId: patient.id,
-      patientName: normalizedPatient.name,
-      patientAge: normalizedPatient.age ? `${normalizedPatient.age} years` : '',
-      patientGender: normalizedPatient.gender || '',
-      patientBloodType: normalizedPatient.bloodType || '',
-      patientPhone: normalizedPatient.phone || '',
-      patientEmail: normalizedPatient.email || '',
-      patientAddress: normalizedPatient.address || '',
-      medicalHistory: normalizedPatient.chronic_conditions || normalizedPatient.notes || ''
+      patientName: patient.name,
+      patientAge: patient.age ? `${patient.age} years` : '',
+      patientGender: patient.gender || '',
+      patientBloodType: patient.bloodType || '',
+      patientPhone: patient.phone || '',
+      patientEmail: patient.email || '',
+      patientAddress: patient.address || '',
+      medicalHistory: patient.chronic_conditions || patient.notes || ''
     }));
-    setConsultationPatientSearch(normalizedPatient.name);
+    setConsultationPatientSearch(patient.name || '');
   };
 
   const handleConsultationChange = (field, value) => {

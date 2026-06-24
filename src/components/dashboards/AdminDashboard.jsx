@@ -270,11 +270,22 @@ const AdminDashboard = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deptToDelete, setDeptToDelete] = useState(null);
 
-  const [recentPatients] = useState([
-    { id: 1, name: 'John Doe', age: 45, gender: 'Male', admissionDate: '2024-01-15', status: 'admitted', department: 'Emergency' },
-    { id: 2, name: 'Jane Smith', age: 32, gender: 'Female', admissionDate: '2024-01-14', status: 'discharged', department: 'Maternity' },
-    { id: 3, name: 'Bob Johnson', age: 67, gender: 'Male', admissionDate: '2024-01-13', status: 'admitted', department: 'Cardiology' }
-  ]);
+  const recentPatients = patients
+    .filter(patient => patient.name && patient.name !== 'Unnamed Patient')
+    .map(patient => ({
+      ...patient,
+      department: patient.department || patient.ward || patient.current_department || 'N/A',
+      admissionDate: patient.registration_date || patient.createdAt || patient.created_at || 'N/A',
+      status: patient.patient_status || patient.status || 'active',
+      gender: patient.gender || 'N/A',
+      age: patient.age != null ? patient.age : 'N/A',
+    }))
+    .sort((a, b) => {
+      const dateA = new Date(a.admissionDate || 0);
+      const dateB = new Date(b.admissionDate || 0);
+      return dateB - dateA;
+    })
+    .slice(0, 10);
 
   const [dateRange, setDateRange] = useState({
     start: new Date().toISOString().split('T')[0],
