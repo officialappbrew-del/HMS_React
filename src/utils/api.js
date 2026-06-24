@@ -148,7 +148,10 @@ export const apiRequest = async (path, options = {}) => {
         }
       }
 
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      error.data = data;
+      throw error;
     }
 
     return data;

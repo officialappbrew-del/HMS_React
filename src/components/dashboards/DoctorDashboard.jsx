@@ -81,6 +81,7 @@ import {
   Droplets as DropletsIcon,
   Pill as PillIcon,
   Syringe as SyringeIcon,
+  MoreVertical,
 } from 'lucide-react';
 
 // Tooltip Component
@@ -534,6 +535,194 @@ const PatientDetailModal = ({ patient, onClose }) => {
   );
 };
 
+const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading, saving, error, success, specializations, specializationsLoading }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
+          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">My Profile</h2>
+                <p className="text-sm text-blue-100 mt-1">View and update your personal information</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+            {(error || success) && (
+              <div className={`mb-4 p-3 rounded-lg text-sm whitespace-pre-line ${error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                {error || success}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 text-sm mt-2">Loading profile...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">First Name *</label>
+                    <input
+                      type="text"
+                      value={profileData.first_name}
+                      onChange={(e) => onChange('first_name', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Last Name *</label>
+                    <input
+                      type="text"
+                      value={profileData.last_name}
+                      onChange={(e) => onChange('last_name', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email *</label>
+                    <input
+                      type="email"
+                      value={profileData.email}
+                      onChange={(e) => onChange('email', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => onChange('phone', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Employee ID</label>
+                    <input
+                      type="text"
+                      value={profileData.employee_id}
+                      disabled
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                    <input
+                      type="text"
+                      value={profileData.role}
+                      disabled
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={profileData.department_name}
+                      disabled
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
+                    <input
+                      type="text"
+                      value={profileData.designation}
+                      onChange={(e) => onChange('designation', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
+                    <input
+                      type="text"
+                      value={profileData.license_number}
+                      onChange={(e) => onChange('license_number', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Specialization</label>
+                    <select
+                      value={profileData.specialization}
+                      onChange={(e) => onChange('specialization', e.target.value)}
+                      disabled={specializationsLoading}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-600"
+                    >
+                      <option value="">-- Select specialization --</option>
+                      {specializations.map(spec => (
+                        <option key={spec} value={spec}>{spec}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Qualification</label>
+                  <textarea
+                    value={profileData.qualification}
+                    onChange={(e) => onChange('qualification', e.target.value)}
+                    rows="2"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
+            <ButtonWithTooltip
+              onClick={onClose}
+              tooltip="Close profile editor"
+              variant="secondary"
+            >
+              <X className="w-3.5 h-3.5" />
+              Close
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={onSave}
+              tooltip="Save profile changes"
+              variant="primary"
+              disabled={saving}
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </ButtonWithTooltip>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DoctorDashboard = () => {
   const { user: authUser, tenant: authTenant } = useAuth();
   const dispatch = useDispatch();
@@ -599,6 +788,28 @@ const DoctorDashboard = () => {
   const [todaysSchedule, setTodaysSchedule] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(null);
+
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileData, setProfileData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    role: '',
+    employee_id: '',
+    department_name: '',
+    designation: '',
+    license_number: '',
+    specialization: '',
+    qualification: '',
+  });
+  const [profileError, setProfileError] = useState(null);
+  const [profileSuccess, setProfileSuccess] = useState(null);
+  const [specializations, setSpecializations] = useState([]);
+  const [specializationsLoading, setSpecializationsLoading] = useState(false);
 
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
@@ -608,20 +819,6 @@ const DoctorDashboard = () => {
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const hour12 = hours % 12 || 12;
     return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  const formatAppointmentType = (type) => {
-    const typeMap = {
-      'consultation': 'Consultation',
-      'followup': 'Follow-up',
-      'procedure': 'Procedure',
-      'test': 'Test/Investigation',
-      'review': 'Review',
-      'immunization': 'Immunization',
-      'antenatal': 'Antenatal',
-      'other': 'Other'
-    };
-    return typeMap[type] || type || 'Consultation';
   };
 
   const normalizeAppointmentStatus = (status) => {
@@ -643,15 +840,23 @@ const DoctorDashboard = () => {
       try {
         setScheduleLoading(true);
         setScheduleError(null);
-        const today = new Date().toISOString().split('T')[0];
-        const data = await apiRequest(`/api/v1/patients/appointments/?start_date=${today}&end_date=${today}`);
+        const data = await apiRequest('/api/v1/patients/appointments/');
         const results = Array.isArray(data) ? data : (data.results || []);
         const mapped = results.map(apt => ({
           id: apt.id,
+          patientName: apt.patient_name || 'Unknown Patient',
+          patientId: apt.patient || '',
+          date: apt.scheduled_date || '',
           time: formatTime(apt.scheduled_time),
-          patient: apt.patient_name || 'Unknown Patient',
-          type: formatAppointmentType(apt.appointment_type),
+          timeRaw: apt.scheduled_time ? apt.scheduled_time.substring(0, 5) : '',
+          reason: apt.reason || '',
+          doctor: apt.doctor_name || '',
+          doctorId: apt.doctor || '',
           status: normalizeAppointmentStatus(apt.status),
+          notes: apt.notes || '',
+          phone: apt.patient_phone || '',
+          email: apt.patient_email || '',
+          appointment_type: apt.appointment_type || 'consultation',
         }));
         setTodaysSchedule(mapped);
       } catch (err) {
@@ -858,6 +1063,139 @@ const DoctorDashboard = () => {
 
   const handleDismissAlert = (id) => {
     setAlerts(prev => prev.filter(alert => alert.id !== id));
+  };
+
+  const handleOpenProfile = async () => {
+    setShowProfileModal(true);
+    setProfileLoading(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+    setSpecializationsLoading(true);
+    try {
+      const [profileRes, specsRes] = await Promise.all([
+        apiRequest('/api/v1/tenants/users/me/'),
+        apiRequest('/api/v1/core/specializations/'),
+      ]);
+      const specList = Array.isArray(specsRes) ? specsRes : (specsRes.results || []);
+      setSpecializations(specList.map(s => s.name));
+      setProfileData({
+        first_name: profileRes.first_name || '',
+        last_name: profileRes.last_name || '',
+        email: profileRes.email || '',
+        phone: profileRes.phone || '',
+        role: profileRes.role || '',
+        employee_id: profileRes.employee_id || '',
+        department_name: profileRes.department_name || '',
+        designation: profileRes.designation || '',
+        license_number: profileRes.license_number || '',
+        specialization: profileRes.specialization || '',
+        qualification: profileRes.qualification || '',
+      });
+    } catch (err) {
+      if (err.data && typeof err.data === 'object') {
+        const friendlyMessages = Object.entries(err.data)
+          .map(([field, errors]) => {
+            const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const msg = Array.isArray(errors) ? errors[0] : errors;
+            return `${fieldLabel}: ${msg}`;
+          })
+          .join('\n');
+        setProfileError(friendlyMessages);
+      } else {
+        setProfileError(err.message || 'Failed to load profile. Please try again.');
+      }
+    } finally {
+      setProfileLoading(false);
+      setSpecializationsLoading(false);
+    }
+  };
+
+  const handleProfileChange = (field, value) => {
+    setProfileData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+
+    if (!profileData.first_name.trim() || !profileData.last_name.trim()) {
+      setProfileError('First name and last name are required.');
+      setProfileSaving(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(profileData.email)) {
+      setProfileError('Please enter a valid email address.');
+      setProfileSaving(false);
+      return;
+    }
+
+    const trimmedSpecialization = profileData.specialization.trim();
+    const payload = {
+      first_name: profileData.first_name.trim(),
+      last_name: profileData.last_name.trim(),
+      email: profileData.email.trim(),
+      phone: profileData.phone.trim(),
+      designation: profileData.designation.trim(),
+      license_number: profileData.license_number.trim(),
+      specialization: trimmedSpecialization,
+      qualification: profileData.qualification.trim(),
+    };
+
+    try {
+      await apiRequest('/api/v1/tenants/users/me/', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      setProfileSuccess('Profile updated successfully');
+    } catch (err) {
+      if (err.data && typeof err.data === 'object') {
+        const friendlyMessages = Object.entries(err.data)
+          .map(([field, errors]) => {
+            const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const msg = Array.isArray(errors) ? errors[0] : errors;
+            if (field === 'email' && msg.includes('already exists')) {
+              return `${fieldLabel}: This email address is already in use. Please choose a different one.`;
+            }
+            if (field === 'specialization' && msg.includes('not found')) {
+              return `${fieldLabel}: "${trimmedSpecialization}" is not a recognized specialization.`;
+            }
+            return `${fieldLabel}: ${msg}`;
+          })
+          .join('\n');
+        setProfileError(friendlyMessages);
+      } else {
+        setProfileError(err.message || 'Failed to update profile. Please try again.');
+      }
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const updated = await apiRequest(`/api/v1/patients/appointments/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const statusMap = {
+        'scheduled': 'scheduled',
+        'confirmed': 'scheduled',
+        'checked_in': 'in-progress',
+        'in_progress': 'in-progress',
+        'completed': 'completed',
+        'cancelled': 'cancelled',
+        'no_show': 'cancelled',
+        'rescheduled': 'scheduled'
+      };
+      const normalized = { ...updated, status: statusMap[updated.status] || updated.status || 'scheduled' };
+      setTodaysSchedule(prev => prev.map(apt => apt.id === id ? normalized : apt));
+    } catch (err) {
+      alert(err.message || 'Failed to update status');
+    }
+    setShowStatusMenu(null);
   };
 
   const quickActions = [
@@ -1545,7 +1883,7 @@ const DoctorDashboard = () => {
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-gray-900">Today's Schedule</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Appointments</h2>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
               tooltip="View full schedule"
@@ -1569,15 +1907,23 @@ const DoctorDashboard = () => {
             <p className="text-red-600 text-sm font-medium">{scheduleError}</p>
             <button
               onClick={() => {
-                const today = new Date().toISOString().split('T')[0];
-                apiRequest(`/api/v1/patients/appointments/?start_date=${today}&end_date=${today}`).then(data => {
+                apiRequest('/api/v1/patients/appointments/').then(data => {
                   const results = Array.isArray(data) ? data : (data.results || []);
                   const mapped = results.map(apt => ({
                     id: apt.id,
+                    patientName: apt.patient_name || 'Unknown Patient',
+                    patientId: apt.patient || '',
+                    date: apt.scheduled_date || '',
                     time: formatTime(apt.scheduled_time),
-                    patient: apt.patient_name || 'Unknown Patient',
-                    type: formatAppointmentType(apt.appointment_type),
+                    timeRaw: apt.scheduled_time ? apt.scheduled_time.substring(0, 5) : '',
+                    reason: apt.reason || '',
+                    doctor: apt.doctor_name || '',
+                    doctorId: apt.doctor || '',
                     status: normalizeAppointmentStatus(apt.status),
+                    notes: apt.notes || '',
+                    phone: apt.patient_phone || '',
+                    email: apt.patient_email || '',
+                    appointment_type: apt.appointment_type || 'consultation',
                   }));
                   setTodaysSchedule(mapped);
                   setScheduleError(null);
@@ -1591,27 +1937,123 @@ const DoctorDashboard = () => {
         ) : todaysSchedule.length === 0 ? (
           <div className="text-center py-8">
             <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No appointments scheduled for today</p>
+            <p className="text-gray-500 text-sm">No appointments found</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {todaysSchedule.map((item) => (
-              <div key={item.id} className="flex items-center rounded-lg bg-gray-50 p-3 hover:bg-gray-100 transition-colors">
-                <Clock className="mr-3 h-5 w-5 text-blue-500 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{item.time} - {item.patient}</p>
-                  <p className="text-xs text-gray-500">{item.type}</p>
-                </div>
-                <span className={`rounded-full px-2 py-1 text-xs ${
-                  item.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  item.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {item.status === 'in-progress' ? 'In Progress' : 
-                   item.status === 'completed' ? 'Completed' : 'Scheduled'}
-                </span>
-              </div>
-            ))}
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
+            <table className="w-full min-w-[640px] lg:min-w-0">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Date & Time</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Doctor</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Reason</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {todaysSchedule.map((appointment) => (
+                  <tr key={appointment.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-2 sm:py-3">
+                       <div className="flex items-center gap-2">
+                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-blue-600 font-medium text-sm">
+                           {(appointment.patientName || '?').charAt(0).toUpperCase()}
+                         </div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[200px]">{appointment.patientName}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-2 sm:py-3 hidden sm:table-cell">
+                      <div className="text-xs sm:text-sm text-gray-600">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          <span className="whitespace-nowrap">{new Date(appointment.date).toLocaleDateString('en-NG')}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          <span className="whitespace-nowrap">{appointment.time}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-2 sm:py-3 hidden md:table-cell">
+                      <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[120px] block">{appointment.doctor || 'N/A'}</span>
+                    </td>
+                    <td className="py-2 sm:py-3 hidden lg:table-cell">
+                      <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[150px] block">{appointment.reason || 'N/A'}</span>
+                    </td>
+                    <td className="py-2 sm:py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        appointment.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                        appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {appointment.status === 'in-progress' ? 'In Progress' : 
+                         appointment.status === 'completed' ? 'Completed' : 
+                         appointment.status === 'cancelled' ? 'Cancelled' : 'Scheduled'}
+                      </span>
+                    </td>
+                    <td className="py-2 sm:py-3">
+                      <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
+                        <IconButton
+                          icon={Eye}
+                          onClick={() => navigate('/appointments')}
+                          tooltip="View appointment"
+                          variant="primary"
+                        />
+                        <IconButton
+                          icon={Edit}
+                          onClick={() => navigate('/appointments')}
+                          tooltip="Edit appointment"
+                          variant="primary"
+                        />
+                        <div className="relative">
+                          <IconButton
+                            icon={MoreVertical}
+                            onClick={() => setShowStatusMenu(showStatusMenu === appointment.id ? null : appointment.id)}
+                            tooltip="Change status"
+                            variant="default"
+                          />
+                          {showStatusMenu === appointment.id && (
+                            <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 z-10 py-1">
+                              <button
+                                onClick={() => handleStatusChange(appointment.id, 'scheduled')}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Clock className="w-3 h-3 text-blue-500" />
+                                Scheduled
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(appointment.id, 'completed')}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <CheckCircle className="w-3 h-3 text-green-500" />
+                                Completed
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <X className="w-3 h-3 text-red-500" />
+                                Cancelled
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <IconButton
+                          icon={Trash2}
+                          onClick={() => navigate('/appointments')}
+                          tooltip="Delete appointment"
+                          variant="danger"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -1644,11 +2086,11 @@ const DoctorDashboard = () => {
               )}
             </ButtonWithTooltip>
             <ButtonWithTooltip
-              tooltip="Settings"
+              tooltip="My Profile"
               variant="secondary"
-              onClick={() => navigate('/settings')}
+              onClick={handleOpenProfile}
             >
-              <Settings className="w-4 h-4" />
+              <UserIcon className="w-4 h-4" />
             </ButtonWithTooltip>
           </div>
         </div>
@@ -1688,6 +2130,22 @@ const DoctorDashboard = () => {
         <PatientDetailModal 
           patient={selectedPatient} 
           onClose={handleClosePatientModal} 
+        />
+      )}
+
+      {showProfileModal && (
+        <ProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          profileData={profileData}
+          onChange={handleProfileChange}
+          onSave={handleSaveProfile}
+          loading={profileLoading}
+          saving={profileSaving}
+          error={profileError}
+          success={profileSuccess}
+          specializations={specializations}
+          specializationsLoading={specializationsLoading}
         />
       )}
     </div>
