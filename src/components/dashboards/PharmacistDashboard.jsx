@@ -2,6 +2,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { apiRequest, API_BASE_URL } from '../../utils/api';
 import {
   Pill,
   FileText,
@@ -55,7 +56,16 @@ import {
   DollarSign,
   ShoppingCart,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  UserCircle,
+  IdCard,
+  Droplets,
+  Baby,
+  Phone,
+  MapPin,
+  User as UserIcon,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 
 // Tooltip Component
@@ -142,6 +152,251 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
+// Profile Modal Component
+const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading, saving, error, success, specializations, specializationsLoading, profilePicturePreview, onProfilePictureChange }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
+          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">My Profile</h2>
+                <p className="text-sm text-blue-100 mt-1">View and update your personal information</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+            {(error || success) && (
+              <div className={`mb-4 p-3 rounded-lg text-sm whitespace-pre-line ${error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                {error || success}
+              </div>
+            )}
+
+            {!loading && (
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                    {profilePicturePreview ? (
+                      <img
+                        key={profilePicturePreview}
+                        src={profilePicturePreview}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          const fallback = e.target.parentElement?.querySelector('.profile-fallback');
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: profilePicturePreview ? 'none' : 'flex' }}>
+                      <UserIcon className="w-12 h-12 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+                <label className="mt-3 cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Upload className="w-4 h-4" />
+                  {profilePicturePreview ? 'Change Photo' : 'Upload Photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          onProfilePictureChange('profile_picture_file', null);
+                          alert('Image must be less than 5MB');
+                          return;
+                        }
+                        onProfilePictureChange('profile_picture_file', file);
+                      }
+                    }}
+                  />
+                </label>
+                {profilePicturePreview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onProfilePictureChange('profile_picture_file', null);
+                    }}
+                    className="mt-1 text-xs text-red-600 hover:text-red-700"
+                  >
+                    Remove photo
+                  </button>
+                )}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 text-sm mt-2">Loading profile...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">First Name *</label>
+                    <input
+                      type="text"
+                      value={profileData.first_name}
+                      onChange={(e) => onChange('first_name', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Last Name *</label>
+                    <input
+                      type="text"
+                      value={profileData.last_name}
+                      onChange={(e) => onChange('last_name', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email *</label>
+                    <input
+                      type="email"
+                      value={profileData.email}
+                      onChange={(e) => onChange('email', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => onChange('phone', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Employee ID</label>
+                    <input
+                      type="text"
+                      value={profileData.employee_id}
+                      disabled
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                    <input
+                      type="text"
+                      value={profileData.role}
+                      disabled
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={profileData.department_name}
+                      disabled
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
+                    <input
+                      type="text"
+                      value={profileData.designation}
+                      onChange={(e) => onChange('designation', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
+                    <input
+                      type="text"
+                      value={profileData.license_number}
+                      onChange={(e) => onChange('license_number', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Specialization</label>
+                    <select
+                      value={profileData.specialization}
+                      onChange={(e) => onChange('specialization', e.target.value)}
+                      disabled={specializationsLoading}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-600"
+                    >
+                      <option value="">-- Select specialization --</option>
+                      {specializations.map(spec => (
+                        <option key={spec} value={spec}>{spec}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Qualification</label>
+                  <textarea
+                    value={profileData.qualification}
+                    onChange={(e) => onChange('qualification', e.target.value)}
+                    rows="2"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
+            <ButtonWithTooltip
+              onClick={onClose}
+              tooltip="Close profile editor"
+              variant="secondary"
+            >
+              <X className="w-3.5 h-3.5" />
+              Close
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={onSave}
+              tooltip="Save profile changes"
+              variant="primary"
+              disabled={saving}
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </ButtonWithTooltip>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PharmacistDashboard = () => {
   const { user: authUser, tenant: authTenant } = useAuth();
   const dispatch = useDispatch();
@@ -151,6 +406,31 @@ const PharmacistDashboard = () => {
   const displayTenantName = authTenant?.name || 'Hospital';
   const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
   const displayRole = authUser?.role || 'pharmacist';
+
+  // Profile Modal State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileData, setProfileData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    role: '',
+    employee_id: '',
+    department_name: '',
+    designation: '',
+    license_number: '',
+    specialization: '',
+    qualification: '',
+  });
+  const [profileError, setProfileError] = useState(null);
+  const [profileSuccess, setProfileSuccess] = useState(null);
+  const [specializations, setSpecializations] = useState([]);
+  const [specializationsLoading, setSpecializationsLoading] = useState(false);
+  const [profilePictureFile, setProfilePictureFile] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState('');
+  const [dashboardProfilePicture, setDashboardProfilePicture] = useState(authUser?.profile_picture || '');
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -229,6 +509,185 @@ const PharmacistDashboard = () => {
     });
   }, [drugs, pendingPrescriptions, suppliers]);
 
+  // Profile Handlers
+  const handleOpenProfile = async () => {
+    setShowProfileModal(true);
+    setProfileLoading(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+    setSpecializationsLoading(true);
+    setProfilePictureFile(null);
+    setProfilePicturePreview('');
+    setDashboardProfilePicture(authUser?.profile_picture || '');
+    try {
+      const [profileRes, specsRes] = await Promise.all([
+        apiRequest('/api/v1/tenants/users/me/'),
+        apiRequest('/api/v1/core/specializations/'),
+      ]);
+      const specList = Array.isArray(specsRes) ? specsRes : (specsRes.results || []);
+      setSpecializations(specList.map(s => s.name));
+      setProfileData({
+        first_name: profileRes.first_name || '',
+        last_name: profileRes.last_name || '',
+        email: profileRes.email || '',
+        phone: profileRes.phone || '',
+        role: profileRes.role || '',
+        employee_id: profileRes.employee_id || '',
+        department_name: profileRes.department_name || '',
+        designation: profileRes.designation || '',
+        license_number: profileRes.license_number || '',
+        specialization: profileRes.specialization || '',
+        qualification: profileRes.qualification || '',
+      });
+      const pic = profileRes.profile_picture || '';
+      const cached = localStorage.getItem('userProfilePicture') || '';
+      const effectivePic = pic || cached;
+      if (effectivePic) {
+        const cacheBusted = effectivePic.includes('?') ? `${effectivePic}&t=${Date.now()}` : `${effectivePic}?t=${Date.now()}`;
+        setProfilePicturePreview(cacheBusted);
+        setDashboardProfilePicture(cacheBusted);
+        localStorage.setItem('userProfilePicture', effectivePic);
+      }
+    } catch (err) {
+      if (err.data && typeof err.data === 'object') {
+        const friendlyMessages = Object.entries(err.data)
+          .map(([field, errors]) => {
+            const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const msg = Array.isArray(errors) ? errors[0] : errors;
+            return `${fieldLabel}: ${msg}`;
+          })
+          .join('\n');
+        setProfileError(friendlyMessages);
+      } else {
+        setProfileError(err.message || 'Failed to load profile. Please try again.');
+      }
+    } finally {
+      setProfileLoading(false);
+      setSpecializationsLoading(false);
+    }
+  };
+
+  const handleProfileChange = (field, value) => {
+    if (field === 'profile_picture_file') {
+      setProfilePictureFile(value);
+      if (value) {
+        const reader = new FileReader();
+        reader.onload = (e) => setProfilePicturePreview(e.target.result);
+        reader.readAsDataURL(value);
+      } else {
+        setProfilePicturePreview('');
+      }
+    } else {
+      setProfileData(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+
+    if (!profileData.first_name.trim() || !profileData.last_name.trim()) {
+      setProfileError('First name and last name are required.');
+      setProfileSaving(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(profileData.email)) {
+      setProfileError('Please enter a valid email address.');
+      setProfileSaving(false);
+      return;
+    }
+
+    const trimmedSpecialization = profileData.specialization.trim();
+
+    try {
+      if (profilePictureFile) {
+        const formData = new FormData();
+        formData.append('first_name', profileData.first_name.trim());
+        formData.append('last_name', profileData.last_name.trim());
+        formData.append('email', profileData.email.trim());
+        formData.append('phone', profileData.phone.trim());
+        formData.append('designation', profileData.designation.trim());
+        formData.append('license_number', profileData.license_number.trim());
+        formData.append('specialization', trimmedSpecialization);
+        formData.append('qualification', profileData.qualification.trim());
+        formData.append('profile_picture', profilePictureFile);
+
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/v1/tenants/users/me/`, {
+          method: 'PATCH',
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const contentType = response.headers.get('content-type') || '';
+          const isJson = contentType.includes('application/json');
+          const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+          const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Request failed with status ${response.status}`;
+          const error = new Error(message);
+          error.data = data;
+          error.status = response.status;
+          throw error;
+        }
+      } else {
+        const payload = {
+          first_name: profileData.first_name.trim(),
+          last_name: profileData.last_name.trim(),
+          email: profileData.email.trim(),
+          phone: profileData.phone.trim(),
+          designation: profileData.designation.trim(),
+          license_number: profileData.license_number.trim(),
+          specialization: trimmedSpecialization,
+          qualification: profileData.qualification.trim(),
+        };
+        await apiRequest('/api/v1/tenants/users/me/', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      }
+      setProfileSuccess('Profile updated successfully');
+      setProfilePictureFile(null);
+      const refreshed = await apiRequest('/api/v1/tenants/users/me/');
+      const pic = refreshed?.profile_picture || '';
+      if (pic) {
+        const cacheBusted = pic.includes('?') ? `${pic}&t=${Date.now()}` : `${pic}?t=${Date.now()}`;
+        localStorage.setItem('userProfilePicture', pic);
+        setDashboardProfilePicture(cacheBusted);
+        setProfilePicturePreview(cacheBusted);
+      } else {
+        localStorage.removeItem('userProfilePicture');
+        setDashboardProfilePicture('');
+        setProfilePicturePreview('');
+      }
+    } catch (err) {
+      if (err.data && typeof err.data === 'object') {
+        const friendlyMessages = Object.entries(err.data)
+          .map(([field, errors]) => {
+            const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const msg = Array.isArray(errors) ? errors[0] : errors;
+            if (field === 'email' && msg.includes('already exists')) {
+              return `${fieldLabel}: This email address is already in use. Please choose a different one.`;
+            }
+            if (field === 'specialization' && msg.includes('not found')) {
+              return `${fieldLabel}: "${trimmedSpecialization}" is not a recognized specialization.`;
+            }
+            return `${fieldLabel}: ${msg}`;
+          })
+          .join('\n');
+        setProfileError(friendlyMessages);
+      } else {
+        setProfileError(err.message || 'Failed to update profile. Please try again.');
+      }
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const handleDispensePrescription = (id) => {
     setPendingPrescriptions(prev => prev.filter(p => p.id !== id));
     setStats(prev => ({
@@ -236,11 +695,6 @@ const PharmacistDashboard = () => {
       prescriptionsPending: prev.prescriptionsPending - 1,
       dispensedToday: prev.dispensedToday + 1
     }));
-    // Add to dispensed history
-    const prescription = pendingPrescriptions.find(p => p.id === id);
-    if (prescription) {
-      // Would dispatch action to add to history
-    }
   };
 
   const handleReorderDrug = (id) => {
@@ -249,7 +703,6 @@ const PharmacistDashboard = () => {
       ...prev,
       lowStockItems: prev.lowStockItems - 1
     }));
-    // Would dispatch action to create purchase order
   };
 
   const handleMarkAlertRead = (id) => {
@@ -907,13 +1360,33 @@ const PharmacistDashboard = () => {
       {/* Header */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {displayUserName}
-            </h1>
-            <p className="text-sm text-gray-500">
-              {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {dashboardProfilePicture ? (
+                <img
+                  key={dashboardProfilePicture}
+                  src={dashboardProfilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.parentElement?.querySelector('.profile-fallback');
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: dashboardProfilePicture ? 'none' : 'flex' }}>
+                <UserIcon className="w-5 h-5 text-gray-400" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Welcome back, {displayUserName}
+              </h1>
+              <p className="text-sm text-gray-500">
+                {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
@@ -929,11 +1402,12 @@ const PharmacistDashboard = () => {
               )}
             </ButtonWithTooltip>
             <ButtonWithTooltip
-              tooltip="Settings"
+              tooltip="My Profile"
               variant="secondary"
-              onClick={() => navigate('/settings')}
+              onClick={handleOpenProfile}
             >
-              <Settings className="w-4 h-4" />
+              <UserIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Profile</span>
             </ButtonWithTooltip>
           </div>
         </div>
@@ -941,30 +1415,22 @@ const PharmacistDashboard = () => {
 
       {/* Additional Stats - Extended metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <Tooltip text="Total inventory items">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-            <p className="text-xs text-gray-500">Total Inventory</p>
-            <p className="text-lg font-bold text-gray-900">{stats.totalInventory}</p>
-          </div>
-        </Tooltip>
-        <Tooltip text="Total inventory value">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-            <p className="text-xs text-gray-500">Inventory Value</p>
-            <p className="text-lg font-bold text-green-600">₦{stats.inventoryValue.toLocaleString()}</p>
-          </div>
-        </Tooltip>
-        <Tooltip text="Total suppliers">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-            <p className="text-xs text-gray-500">Suppliers</p>
-            <p className="text-lg font-bold text-gray-900">{stats.totalSuppliers}</p>
-          </div>
-        </Tooltip>
-        <Tooltip text="Active prescriptions">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-            <p className="text-xs text-gray-500">Active Prescriptions</p>
-            <p className="text-lg font-bold text-blue-600">{stats.prescriptionsPending}</p>
-          </div>
-        </Tooltip>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+          <p className="text-xs text-gray-500">Total Inventory</p>
+          <p className="text-lg font-bold text-gray-900">{stats.totalInventory}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+          <p className="text-xs text-gray-500">Inventory Value</p>
+          <p className="text-lg font-bold text-green-600">₦{stats.inventoryValue.toLocaleString()}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+          <p className="text-xs text-gray-500">Suppliers</p>
+          <p className="text-lg font-bold text-gray-900">{stats.totalSuppliers}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+          <p className="text-xs text-gray-500">Active Prescriptions</p>
+          <p className="text-lg font-bold text-blue-600">{stats.prescriptionsPending}</p>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -998,6 +1464,25 @@ const PharmacistDashboard = () => {
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
         {renderTabContent()}
       </div>
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <ProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          profileData={profileData}
+          onChange={handleProfileChange}
+          onSave={handleSaveProfile}
+          loading={profileLoading}
+          saving={profileSaving}
+          error={profileError}
+          success={profileSuccess}
+          specializations={specializations}
+          specializationsLoading={specializationsLoading}
+          profilePicturePreview={profilePicturePreview}
+          onProfilePictureChange={handleProfileChange}
+        />
+      )}
     </div>
   );
 };

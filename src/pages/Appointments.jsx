@@ -636,77 +636,67 @@ const Appointments = () => {
           </div>
         </div>
 
-        {/* Stats Grid - Improved responsiveness */}
+        {/* Stats Grid - Tooltips removed */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
-          <Tooltip text="Total appointments scheduled">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Total</p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Total</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Appointments scheduled for today">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Today</p>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.today}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Today</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.today}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Scheduled appointments waiting">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Scheduled</p>
-                  <p className="text-lg sm:text-2xl font-bold text-blue-600 mt-0.5 sm:mt-1">{stats.scheduled}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Scheduled</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-600 mt-0.5 sm:mt-1">{stats.scheduled}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Completed appointments">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Completed</p>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.completed}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Completed</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.completed}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Cancelled appointments">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Cancelled</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600 mt-0.5 sm:mt-1">{stats.cancelled}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase truncate">Cancelled</p>
+                <p className="text-lg sm:text-2xl font-bold text-red-600 mt-0.5 sm:mt-1">{stats.cancelled}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
         </div>
 
         {/* Activity Log Panel */}

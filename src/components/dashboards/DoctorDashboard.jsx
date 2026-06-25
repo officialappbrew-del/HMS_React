@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
@@ -84,6 +84,7 @@ import {
   Syringe as SyringeIcon,
   MoreVertical,
   Upload,
+  Loader2,
 } from 'lucide-react';
 
 // Tooltip Component
@@ -877,6 +878,12 @@ const DoctorDashboard = () => {
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
   const [dashboardProfilePicture, setDashboardProfilePicture] = useState(authUser?.profile_picture || '');
 
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState(null);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null);
+  const bulkUploadPollsRef = useRef({});
+
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
     const parts = timeStr.split(':');
@@ -1449,6 +1456,86 @@ const DoctorDashboard = () => {
     setShowStatusMenu(null);
   };
 
+  const resetBulkUpload = () => {
+    setBulkUploadFile(null);
+    setBulkUploading(false);
+    setBulkUploadProgress(null);
+    setBulkUploadResult(null);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkUploadFile) return;
+    setBulkUploading(true);
+    setBulkUploadProgress({ status: 'uploading', message: 'Uploading file...' });
+    setBulkUploadResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', bulkUploadFile);
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/v1/patients/bulk-uploads/upload/`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+        const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Upload failed with status ${response.status}`;
+        throw new Error(message);
+      }
+      const upload = await response.json();
+      setBulkUploadProgress({ status: 'processing', uploadId: upload.id, message: 'Processing in background...' });
+      pollBulkUploadStatus(upload.id);
+    } catch (err) {
+      setBulkUploadProgress(null);
+      setBulkUploadResult({ status: 'failed', message: err.message || 'Upload failed.' });
+      setBulkUploading(false);
+    }
+  };
+
+  const pollBulkUploadStatus = async (uploadId) => {
+    const maxAttempts = 120;
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      try {
+        const data = await apiRequest(`/api/v1/patients/bulk-uploads/${uploadId}/`);
+        const status = data.status;
+        setBulkUploadProgress(prev => prev ? { ...prev, status, message: status === 'completed' ? 'Completed' : status === 'failed' ? 'Failed' : `Processing... ${data.processed_records || 0}/${data.total_records || 0}` } : null);
+        if (status === 'completed' || status === 'failed') {
+          clearInterval(interval);
+          setBulkUploading(false);
+          setBulkUploadResult({
+            status,
+            message: data.result_message || (status === 'completed' ? 'Bulk upload completed.' : 'Bulk upload failed.'),
+            success_count: data.success_count,
+            failure_count: data.failure_count,
+            total_records: data.total_records,
+            errors: data.errors,
+          });
+          if (status === 'completed') {
+            loadDashboardPatients('/api/v1/patients/patients/');
+          }
+        }
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          setBulkUploading(false);
+          setBulkUploadProgress(null);
+        }
+      } catch {
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          setBulkUploading(false);
+          setBulkUploadProgress(null);
+        }
+      }
+    }, 2000);
+    bulkUploadPollsRef.current[uploadId] = interval;
+  };
+
   const quickActions = [
     { icon: Users, label: 'My Patients', action: '/patients', color: 'bg-blue-500' },
     { icon: Stethoscope, label: 'Ward Rounds', action: '/ward-rounds', color: 'bg-green-500' },
@@ -2007,9 +2094,9 @@ const DoctorDashboard = () => {
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h2 className="text-sm font-semibold text-gray-900">My Patients</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ButtonWithTooltip
               tooltip="Add new patient"
               variant="primary"
@@ -2018,6 +2105,53 @@ const DoctorDashboard = () => {
               <UserPlus className="w-3.5 h-3.5" />
               Add Patient
             </ButtonWithTooltip>
+            <ButtonWithTooltip
+              tooltip="Download CSV template with example data for bulk upload"
+              variant="secondary"
+              onClick={() => {
+                const csvContent = `first_name,last_name,date_of_birth,gender,marital_status,phone,email,address,city,state,lga,country,blood_group,genotype,next_of_kin_name,next_of_kin_phone,next_of_kin_address
+John,Smith,1985-03-12,male,single,08012345678,john@example.com,12 Main Street,Lagos,Lagos,Ikeja,Nigeria,O+,AA,Mary Smith,08087654321,45 Church Road
+Jane,Doe,1990-07-25,female,married,09098765432,jane@example.com,34 Park Avenue,Abuja,FCT,Maitama,Nigeria,A-,AS,Richard Doe,08123456789,18 London Street
+Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Road,Enugu,Enugu,Enugu North,Nigeria,AB+,SS,Ngozi Okafor,09065432109,30 Market Square`;
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'patient_upload_template.csv';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Template
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              tooltip="Bulk upload patients from CSV"
+              variant="secondary"
+              onClick={() => document.getElementById('dashboard-bulk-upload-input')?.click()}
+            >
+              {bulkUploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              Bulk Upload
+            </ButtonWithTooltip>
+            <input
+              id="dashboard-bulk-upload-input"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setBulkUploadFile(file);
+                  handleBulkUpload();
+                }
+                e.target.value = '';
+              }}
+            />
             <ButtonWithTooltip
               tooltip="View all patients"
               variant="secondary"
@@ -2028,6 +2162,52 @@ const DoctorDashboard = () => {
             </ButtonWithTooltip>
           </div>
         </div>
+
+        {(bulkUploadProgress || bulkUploadResult) && (
+          <div className={`mb-4 p-3 sm:p-4 rounded-lg border ${bulkUploadResult?.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {bulkUploading ? (
+                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                ) : bulkUploadResult?.status === 'completed' ? (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                ) : bulkUploadResult?.status === 'failed' ? (
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                ) : (
+                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                )}
+                <span className="text-xs sm:text-sm font-medium text-gray-900">
+                  {bulkUploadProgress?.message || bulkUploadResult?.message}
+                </span>
+              </div>
+              {!bulkUploading && (
+                <button
+                  onClick={resetBulkUpload}
+                  className="p-1 hover:bg-gray-200 rounded"
+                >
+                  <X className="w-4 h-4 text-gray-600" />
+                </button>
+              )}
+            </div>
+            {bulkUploadResult && (
+              <div className="mt-2 text-xs sm:text-sm text-gray-700">
+                <p>Total: {bulkUploadResult.total_records} | Success: {bulkUploadResult.success_count} | Failed: {bulkUploadResult.failure_count}</p>
+                {bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-red-700 font-medium">View errors ({bulkUploadResult.errors.length})</summary>
+                    <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded border border-red-100 p-2">
+                      {bulkUploadResult.errors.map((err, idx) => (
+                        <div key={idx} className="text-xs text-red-800 py-1 border-b border-red-50 last:border-0">
+                          Row {err.row}: {err.error}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {dashboardPatients.length === 0 ? (
           <div className="text-center py-8">

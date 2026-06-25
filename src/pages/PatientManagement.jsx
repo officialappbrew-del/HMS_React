@@ -330,6 +330,9 @@ const PatientManagement = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
 
+  const [apiError, setApiError] = useState(null);
+  const [showApiError, setShowApiError] = useState(false);
+
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState(null);
@@ -346,6 +349,22 @@ const PatientManagement = () => {
     setBulkUploading(false);
     setBulkUploadProgress(null);
     setBulkUploadResult(null);
+  };
+
+  const extractApiError = (err) => {
+    const data = err?.data;
+    if (data && typeof data === 'object') {
+      const lines = [];
+      for (const [field, messages] of Object.entries(data)) {
+        if (Array.isArray(messages)) {
+          messages.forEach(msg => lines.push(`${field}: ${msg}`));
+        } else {
+          lines.push(`${field}: ${messages}`);
+        }
+      }
+      if (lines.length > 0) return lines.join('\n');
+    }
+    return err?.message || 'Unable to save patient';
   };
 
   const handleBulkUpload = async () => {
@@ -628,7 +647,8 @@ const PatientManagement = () => {
       
     } catch (err) {
       console.error('Failed to load patients:', err);
-      alert('Failed to load patients: ' + err.message);
+      setApiError(extractApiError(err));
+      setShowApiError(true);
     } finally {
       setIsLoading(false);
     }
@@ -683,7 +703,8 @@ const PatientManagement = () => {
           setConfirmModal({ ...confirmModal, isOpen: false });
         } catch (error) {
           console.error('Delete failed:', error);
-          alert(error.message || 'Unable to delete patient');
+          setApiError(extractApiError(error));
+          setShowApiError(true);
           throw error;
         } finally {
           setIsLoading(false);
@@ -704,7 +725,8 @@ const PatientManagement = () => {
           setConfirmModal({ ...confirmModal, isOpen: false });
         } catch (error) {
           console.error('Archive failed:', error);
-          alert(error.message || 'Unable to archive patient');
+          setApiError(extractApiError(error));
+          setShowApiError(true);
           throw error;
         } finally {
           setIsLoading(false);
@@ -849,7 +871,8 @@ const PatientManagement = () => {
       await loadPatients();
     } catch (err) {
       console.error('Failed to save patient:', err);
-      alert(err.message || 'Unable to save patient');
+      setApiError(extractApiError(err));
+      setShowApiError(true);
     } finally {
       setIsSubmitting(false);
       setIsLoading(false);
@@ -1219,13 +1242,14 @@ const PatientManagement = () => {
             tooltip="Bulk upload patients from CSV"
             variant="secondary"
             onClick={() => document.getElementById('bulk-upload-input')?.click()}
+            className="font-bold border-blue-300 text-blue-700 hover:bg-blue-50"
           >
             {bulkUploading ? (
               <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
             ) : (
               <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             )}
-            <span className="hidden xs:inline">Bulk Upload</span>
+            <span className="hidden xs:inline font-bold">Bulk Upload</span>
           </ButtonWithTooltip>
           <input
             id="bulk-upload-input"
@@ -1454,7 +1478,7 @@ const PatientManagement = () => {
               </div>
             </div>
 
-            {/* Stats Grid - Disabled during loading */}
+            {/* Stats Grid - Disabled during loading - No tooltips */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 opacity-50 pointer-events-none">
               <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
                 <div className="flex items-center justify-between">
@@ -1638,63 +1662,55 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Tooltips removed from stats cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
-          <Tooltip text="Total registered patients">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Active patients currently receiving care">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.active}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.active}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Inactive or archived patients">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Inactive</p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-600 mt-0.5 sm:mt-1">{stats.inactive}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-50 rounded-lg flex items-center justify-center">
-                  <UserX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Inactive</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-600 mt-0.5 sm:mt-1">{stats.inactive}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-50 rounded-lg flex items-center justify-center">
+                <UserX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Unique states represented in patient data">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">States</p>
-                  <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{Object.keys(stats.byState).length}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                  <Map className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">States</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{Object.keys(stats.byState).length}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Map className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
         </div>
 
         {(bulkUploadProgress || bulkUploadResult) && (
@@ -2135,6 +2151,31 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
       {/* Patient Details Modal */}
       {showPatientDetails && renderPatientDetails()}
+
+      {/* API Error Modal */}
+      {showApiError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900">Save Failed</h3>
+              </div>
+              <div className="bg-red-50 rounded-lg border border-red-200 p-3 mb-4">
+                <p className="text-sm text-red-800 whitespace-pre-line">{apiError}</p>
+              </div>
+              <button
+                onClick={() => setShowApiError(false)}
+                className="w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom Confirm Modal */}
       <CustomConfirmModal

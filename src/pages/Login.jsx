@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Stethoscope, Activity, Users, Pill, Eye, EyeOff } from 'lucide-react';
 import { apiRequest } from '../utils/api';
+import { API_BASE_URL } from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -16,8 +17,64 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('rememberMe') === 'true');
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const remembered = localStorage.getItem('rememberMe') === 'true';
+    const refreshToken = localStorage.getItem('refreshToken');
+
+    if (!remembered || !refreshToken) return;
+
+    const restoreSession = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json().catch(() => ({})) : {};
+
+        if (!response.ok) {
+          throw new Error(data?.detail || data?.message || 'Session expired');
+        }
+
+        const accessToken = data.access || data.access_token;
+        if (!accessToken) {
+          throw new Error('No access token returned');
+        }
+
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('authToken', accessToken);
+        if (data.refresh || data.refresh_token) {
+          localStorage.setItem('refreshToken', data.refresh || data.refresh_token);
+        }
+        window.dispatchEvent(new Event('authChanged'));
+        navigate('/dashboard');
+      } catch {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('tenantId');
+        localStorage.removeItem('tenantDomain');
+        localStorage.removeItem('tenantName');
+        setRememberMe(false);
+        localStorage.removeItem('rememberMe');
+        setLoading(false);
+      }
+    };
+
+    restoreSession();
+  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -96,6 +153,7 @@ const Login = () => {
       if (tenant.name) {
         localStorage.setItem('tenantName', tenant.name);
       }
+      localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
 
       window.dispatchEvent(new Event('authChanged'));
       setMessage(response?.message || 'Login successful!');
@@ -221,6 +279,15 @@ return (
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-slate-700">Remember me</span>
+                  </label>
                   <button type="button" onClick={() => setShowForgotPassword(true)} className="text-sm font-medium text-blue-600">Forgot password?</button>
                 </div>
                 <button type="submit" disabled={loading} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
