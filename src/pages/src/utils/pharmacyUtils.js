@@ -8,8 +8,8 @@ export const validateDrug = (drugData) => {
   
   if (!drugData.nafdacNumber?.trim()) {
     errors.push('NAFDAC number is required');
-  } else if (!/^NAFDAC-\d{2}-\d{4}$/i.test(drugData.nafdacNumber)) {
-    errors.push('NAFDAC number must be in format: NAFDAC-04-1234');
+  } else if (!/^NAFDAC-\d{2,4}-\d{3,}$/i.test(drugData.nafdacNumber)) {
+    errors.push('NAFDAC number must be in format: NAFDAC-04-1234 (e.g., NAFDAC-2024-001, NAFDAC-24-123)');
   }
   
   if (!drugData.category) {

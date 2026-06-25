@@ -220,7 +220,8 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                       if (file) {
                         if (file.size > 5 * 1024 * 1024) {
                           onProfilePictureChange('profile_picture_file', null);
-                          alert('Image must be less than 5MB');
+                          // Use modal instead of alert
+                          onProfilePictureChange('profile_error', 'Image must be less than 5MB');
                           return;
                         }
                         onProfilePictureChange('profile_picture_file', file);
@@ -397,11 +398,79 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
   );
 };
 
+// Error Modal Component
+const ErrorModal = ({ isOpen, onClose, title, message, details }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
+          <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-6 h-6" />
+                <h2 className="text-xl font-bold">{title || 'Validation Error'}</h2>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="mb-4">
+              <p className="text-gray-700 text-sm">{message}</p>
+            </div>
+            {details && (
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-500 font-medium mb-1">Details:</p>
+                <p className="text-sm text-gray-700">{details}</p>
+              </div>
+            )}
+            <div className="mt-6 flex justify-end">
+              <ButtonWithTooltip
+                onClick={onClose}
+                tooltip="Close"
+                variant="primary"
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                Got it
+              </ButtonWithTooltip>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PharmacistDashboard = () => {
   const { user: authUser, tenant: authTenant } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { drugs } = useSelector(state => state.pharmacy || { drugs: [] });
+  const [apiDrugs, setApiDrugs] = useState([]);
+  const [apiPrescriptions, setApiPrescriptions] = useState([]);
+  const [loadingDrugs, setLoadingDrugs] = useState(false);
+  const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
+  const [errorDrugs, setErrorDrugs] = useState(null);
+  const [errorPrescriptions, setErrorPrescriptions] = useState(null);
+
+  // Error Modal State
+  const [errorModal, setErrorModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    details: '',
+  });
 
   const displayTenantName = authTenant?.name || 'Hospital';
   const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
@@ -495,19 +564,21 @@ const PharmacistDashboard = () => {
   ]);
 
   useEffect(() => {
-    const lowStockItems = drugs.filter(drug => drug.quantityInStock <= drug.reorderLevel).length;
-    const totalValue = drugs.reduce((sum, drug) => sum + (drug.quantityInStock * drug.unitPrice), 0);
-    
+    const allDrugs = apiDrugs.length > 0 ? apiDrugs : [];
+    const lowStockItems = allDrugs.filter(drug => drug.quantityInStock <= drug.reorderLevel).length;
+    const totalValue = allDrugs.reduce((sum, drug) => sum + (drug.quantityInStock * parseFloat(drug.unitPrice || drug.unit_price || 0)), 0);
+    const pendingRx = apiPrescriptions.filter(p => p.status === 'prescribed').length;
+
     setStats({
-      prescriptionsPending: pendingPrescriptions.length,
-      lowStockItems: lowStockItems || 4,
+      prescriptionsPending: pendingRx > 0 ? pendingRx : pendingPrescriptions.length,
+      lowStockItems: lowStockItems > 0 ? lowStockItems : 4,
       expiringSoon: 5,
       dispensedToday: 23,
-      totalInventory: drugs.length || 45,
-      inventoryValue: totalValue || 125000,
+      totalInventory: allDrugs.length > 0 ? allDrugs.length : 45,
+      inventoryValue: totalValue > 0 ? totalValue : 125000,
       totalSuppliers: suppliers.length,
     });
-  }, [drugs, pendingPrescriptions, suppliers]);
+  }, [apiDrugs, apiPrescriptions, pendingPrescriptions, suppliers]);
 
   // Profile Handlers
   const handleOpenProfile = async () => {
@@ -577,6 +648,8 @@ const PharmacistDashboard = () => {
       } else {
         setProfilePicturePreview('');
       }
+    } else if (field === 'profile_error') {
+      showErrorModal('Upload Error', value, 'Please select an image smaller than 5MB');
     } else {
       setProfileData(prev => ({ ...prev, [field]: value }));
     }
@@ -588,14 +661,14 @@ const PharmacistDashboard = () => {
     setProfileSuccess(null);
 
     if (!profileData.first_name.trim() || !profileData.last_name.trim()) {
-      setProfileError('First name and last name are required.');
+      showErrorModal('Validation Error', 'First name and last name are required.', 'Please fill in all required fields.');
       setProfileSaving(false);
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(profileData.email)) {
-      setProfileError('Please enter a valid email address.');
+      showErrorModal('Validation Error', 'Please enter a valid email address.', 'Example: name@domain.com');
       setProfileSaving(false);
       return;
     }
@@ -679,51 +752,210 @@ const PharmacistDashboard = () => {
             return `${fieldLabel}: ${msg}`;
           })
           .join('\n');
-        setProfileError(friendlyMessages);
+        showErrorModal('Update Failed', friendlyMessages, 'Please correct the errors and try again.');
       } else {
-        setProfileError(err.message || 'Failed to update profile. Please try again.');
+        showErrorModal('Update Failed', err.message || 'Failed to update profile. Please try again.', '');
       }
     } finally {
       setProfileSaving(false);
     }
   };
 
-  const handleDispensePrescription = (id) => {
-    setPendingPrescriptions(prev => prev.filter(p => p.id !== id));
-    setStats(prev => ({
-      ...prev,
-      prescriptionsPending: prev.prescriptionsPending - 1,
-      dispensedToday: prev.dispensedToday + 1
-    }));
+  // Error Modal Helpers
+  const showErrorModal = (title, message, details) => {
+    setErrorModal({
+      isOpen: true,
+      title,
+      message,
+      details,
+    });
   };
 
-  const handleReorderDrug = (id) => {
-    setLowStockAlerts(prev => prev.filter(item => item.id !== id));
-    setStats(prev => ({
-      ...prev,
-      lowStockItems: prev.lowStockItems - 1
-    }));
+  const closeErrorModal = () => {
+    setErrorModal({
+      isOpen: false,
+      title: '',
+      message: '',
+      details: '',
+    });
   };
 
-  const handleMarkAlertRead = (id) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === id ? { ...alert, read: true } : alert
-    ));
+  const handleDispensePrescription = async (id) => {
+    try {
+      const prescription = apiPrescriptions.find(p => p.prescriptionId === id);
+      if (!prescription) return;
+
+      const drug = apiDrugs.length > 0 ? apiDrugs.find(d => d.name === prescription.medication) : null;
+      if (!drug) {
+        showErrorModal(
+          'Dispense Error',
+          'Drug not found in inventory for dispensing',
+          `Medication: ${prescription.medication}`
+        );
+        return;
+      }
+
+      await apiRequest('/api/v1/pharmacy/dispenses/', {
+        method: 'POST',
+        body: JSON.stringify({
+          prescription: prescription.prescriptionId,
+          patient: prescription.patientId,
+          drug: drug.id,
+          quantity: 1,
+          unit_price: parseFloat(drug.unit_price || drug.unitPrice || 0),
+          instructions: '',
+        }),
+      });
+
+      setApiPrescriptions(prev => prev.filter(p => p.prescriptionId !== id));
+      setPendingPrescriptions(prev => prev.filter(p => p.id !== id));
+      setStats(prev => ({
+        ...prev,
+        prescriptionsPending: Math.max(0, prev.prescriptionsPending - 1),
+        dispensedToday: prev.dispensedToday + 1
+      }));
+    } catch (err) {
+      showErrorModal(
+        'Dispense Failed',
+        err.message || 'Failed to dispense prescription',
+        'Please check the prescription details and try again.'
+      );
+    }
   };
 
-  const handleDismissAlert = (id) => {
-    setAlerts(prev => prev.filter(alert => alert.id !== id));
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoadingDrugs(true);
+      setErrorDrugs(null);
+      try {
+        const data = await apiRequest('/api/v1/pharmacy/drugs/');
+        const list = Array.isArray(data) ? data : (data.results || []);
+        const normalized = list.map(drug => ({
+          ...drug,
+          quantityInStock: drug.stock_quantity,
+          reorderLevel: drug.reorder_level,
+          unitPrice: drug.unit_price,
+          sellingPrice: drug.unit_price,
+          drugCode: drug.drug_code,
+          genericName: drug.generic_name,
+          brandName: drug.brand_name,
+          nafdacNumber: drug.nafdac_number,
+          isControlled: drug.is_controlled,
+          id: drug.id,
+          name: drug.name,
+          category: drug.category,
+          form: drug.form,
+          strength: drug.strength,
+          tenant: drug.tenant,
+          created_at: drug.created_at,
+          updated_at: drug.updated_at,
+          is_active: drug.is_active,
+        }));
+        setApiDrugs(normalized);
+      } catch (err) {
+        setErrorDrugs(err.message || 'Failed to load drugs');
+        showErrorModal(
+          'Load Error',
+          'Failed to load drugs inventory',
+          err.message || 'Please try refreshing the page.'
+        );
+      } finally {
+        setLoadingDrugs(false);
+      }
+    };
+
+    const fetchPrescriptions = async () => {
+      setLoadingPrescriptions(true);
+      setErrorPrescriptions(null);
+      try {
+        const data = await apiRequest('/api/v1/clinical/prescriptions/?status=prescribed');
+        const list = Array.isArray(data) ? data : (data.results || []);
+        const normalized = list.map(rx => ({
+          ...rx,
+          patient: rx.patient_name || 'Unknown',
+          medication: rx.drug_name || 'Unknown',
+          date: rx.prescribed_date ? new Date(rx.prescribed_date).toISOString().split('T')[0] : '',
+          priority: 'Normal',
+          prescriptionId: rx.id,
+          patientId: rx.patient,
+        }));
+        setApiPrescriptions(normalized);
+      } catch (err) {
+        setErrorPrescriptions(err.message || 'Failed to load prescriptions');
+        showErrorModal(
+          'Load Error',
+          'Failed to load prescriptions',
+          err.message || 'Please try refreshing the page.'
+        );
+      } finally {
+        setLoadingPrescriptions(false);
+      }
+    };
+
+    fetchData();
+    fetchPrescriptions();
+  }, []);
+
+  const handleReorderDrug = async (id) => {
+    try {
+      await apiRequest(`/api/v1/pharmacy/drugs/${id}/reorder/`, { method: 'POST' });
+      setLowStockAlerts(prev => prev.filter(item => item.id !== id));
+      setStats(prev => ({
+        ...prev,
+        lowStockItems: Math.max(0, prev.lowStockItems - 1)
+      }));
+    } catch (err) {
+      showErrorModal(
+        'Reorder Failed',
+        err.message || 'Failed to process reorder',
+        'Please check the drug details and try again.'
+      );
+    }
   };
 
-  const handleMarkNotificationRead = (id) => {
-    setNotifications(prev => prev.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
+  // NAFDAC validation helper
+  const isValidNafdac = (number) => {
+    if (!number) return true; // Allow empty
+    const pattern = /^NAFDAC-\d{2}-\d{4}$/;
+    return pattern.test(number);
   };
 
-  const handleDismissNotification = (id) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
-  };
+  const displayPendingPrescriptions = apiPrescriptions.length > 0
+    ? apiPrescriptions
+    : pendingPrescriptions;
+
+  const displayLowStockAlerts = apiDrugs.length > 0
+    ? apiDrugs.filter(d => d.quantityInStock <= d.reorderLevel).map(d => ({
+        id: d.id,
+        drug: d.name,
+        current: d.quantityInStock,
+        reorder: d.reorderLevel,
+        supplier: '',
+        status: d.quantityInStock === 0 ? 'critical' : 'warning'
+      }))
+    : lowStockAlerts;
+
+  const allPrescriptions = [
+    ...apiPrescriptions.map(p => ({
+      id: p.prescriptionId,
+      patient: p.patient,
+      medication: p.medication,
+      date: p.date,
+      status: p.status,
+    })),
+    ...prescriptionHistory,
+  ];
+
+  const displayInventoryItems = apiDrugs.length > 0
+    ? apiDrugs.map(d => ({
+        id: d.id,
+        name: d.name,
+        stock: d.quantityInStock,
+        price: parseFloat(d.unitPrice || d.unit_price || 0),
+        category: d.category,
+        status: d.quantityInStock <= d.reorderLevel ? (d.quantityInStock === 0 ? 'critical' : 'low') : 'ok'
+      }))
+    : inventoryItems;
 
   const quickActions = [
     { icon: Pill, label: 'Inventory', action: '/inventory', color: 'bg-blue-500' },
@@ -754,6 +986,7 @@ const PharmacistDashboard = () => {
       'Normal': { label: 'Normal', color: 'bg-blue-100 text-blue-800' },
       'info': { label: 'Info', color: 'bg-blue-100 text-blue-800' },
       'success': { label: 'Success', color: 'bg-green-100 text-green-800' },
+      'ok': { label: 'OK', color: 'bg-green-100 text-green-800' },
     };
     return statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
   };
@@ -915,26 +1148,26 @@ const PharmacistDashboard = () => {
               </ButtonWithTooltip>
             </div>
             <div className="space-y-3">
-              {pendingPrescriptions.length === 0 ? (
+              {displayPendingPrescriptions.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">No pending prescriptions</p>
                 </div>
               ) : (
-                pendingPrescriptions.map((prescription) => {
+                displayPendingPrescriptions.map((prescription) => {
                   const status = getStatusBadge(prescription.priority);
                   return (
                     <div key={prescription.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{prescription.patient}</p>
-                        <p className="text-xs text-gray-500">{prescription.medication} • {prescription.time}</p>
+                        <p className="text-xs text-gray-500">{prescription.medication} • {prescription.time || prescription.date}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
                           {status.label}
                         </span>
                         <ButtonWithTooltip
-                          onClick={() => handleDispensePrescription(prescription.id)}
+                          onClick={() => handleDispensePrescription(prescription.prescriptionId || prescription.id)}
                           tooltip="Dispense prescription"
                           variant="success"
                           className="text-xs px-2 py-1"
@@ -964,20 +1197,20 @@ const PharmacistDashboard = () => {
               </ButtonWithTooltip>
             </div>
             <div className="space-y-3">
-              {lowStockAlerts.length === 0 ? (
+              {displayLowStockAlerts.length === 0 ? (
                 <div className="text-center py-8">
                   <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">All items well stocked</p>
                 </div>
               ) : (
-                lowStockAlerts.map((item) => {
+                displayLowStockAlerts.map((item) => {
                   const status = getStatusBadge(item.status);
                   return (
                     <div key={item.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">{item.drug}</p>
                         <p className="text-xs text-gray-500">
-                          Current: {item.current} • Reorder: {item.reorder} • {item.supplier}
+                          Current: {item.current} • Reorder: {item.reorder} • {item.supplier || 'N/A'}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1040,7 +1273,7 @@ const PharmacistDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {prescriptionHistory.map((prescription) => {
+              {allPrescriptions.map((prescription) => {
                 const status = getStatusBadge(prescription.status);
                 return (
                   <tr key={prescription.id} className="hover:bg-gray-50 transition-colors">
@@ -1107,7 +1340,7 @@ const PharmacistDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {inventoryItems.map((item) => {
+              {displayInventoryItems.map((item) => {
                 const status = getStatusBadge(item.status);
                 return (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
@@ -1355,6 +1588,26 @@ const PharmacistDashboard = () => {
     );
   };
 
+  const handleMarkAlertRead = (id) => {
+    setAlerts(prev => prev.map(alert => 
+      alert.id === id ? { ...alert, read: true } : alert
+    ));
+  };
+
+  const handleDismissAlert = (id) => {
+    setAlerts(prev => prev.filter(alert => alert.id !== id));
+  };
+
+  const handleMarkNotificationRead = (id) => {
+    setNotifications(prev => prev.map(notif => 
+      notif.id === id ? { ...notif, read: true } : notif
+    ));
+  };
+
+  const handleDismissNotification = (id) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
+
   return (
     <div className="dashboard min-h-screen bg-gray-50 p-4 sm:p-6">
       {/* Header */}
@@ -1483,6 +1736,15 @@ const PharmacistDashboard = () => {
           onProfilePictureChange={handleProfileChange}
         />
       )}
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={closeErrorModal}
+        title={errorModal.title}
+        message={errorModal.message}
+        details={errorModal.details}
+      />
     </div>
   );
 };

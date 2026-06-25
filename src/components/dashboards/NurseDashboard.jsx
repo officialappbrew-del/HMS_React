@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1372,8 +1366,6 @@ const NurseDashboard = () => {
       'inactive': { label: 'Inactive', color: 'bg-gray-100 text-gray-800' },
       'archived': { label: 'Archived', color: 'bg-gray-100 text-gray-800' },
       'scheduled': { label: 'Scheduled', color: 'bg-gray-100 text-gray-800' },
-      'in-progress': { label: 'In Progress', color: 'bg-blue-100 text-blue-800' },
-      'completed': { label: 'Completed', color: 'bg-green-100 text-green-800' },
       'cancelled': { label: 'Cancelled', color: 'bg-red-100 text-red-800' },
     };
     return statusMap[status] || { label: status || 'Active', color: 'bg-green-100 text-green-800' };

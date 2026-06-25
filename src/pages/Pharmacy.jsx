@@ -24,6 +24,7 @@ import {
   validateDrug, formatNafdacNumber,
   calculateExpiryStatus, calculateReorderLevel
 } from '../pages/src/utils/pharmacyUtils';
+import { apiRequest } from '../utils/api';
 
 // Tooltip Component
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -87,6 +88,43 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
   );
 };
 
+// Error Modal Component
+const ErrorModal = ({ isOpen, onClose, title, message }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="mb-6">
+              <p className="text-gray-700 whitespace-pre-line">{message}</p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Button with Tooltip
 const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '' }) => {
   const variantClasses = {
@@ -119,6 +157,22 @@ const Pharmacy = () => {
     expiredDrugs, prescriptions,
     inventoryValue
   } = useSelector(state => state.pharmacy);
+  const [tenantId, setTenantId] = useState(null);
+
+  useEffect(() => {
+    const fetchTenant = async () => {
+      try {
+        const data = await apiRequest('/api/v1/tenants/active-tenants/');
+        const tenantList = Array.isArray(data) ? data : (data.results || []);
+        if (tenantList.length > 0) {
+          setTenantId(tenantList[0].id || tenantList[0].public_id || tenantList[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch tenant:', err);
+      }
+    };
+    fetchTenant();
+  }, []);
 
   // State
   const [activeTab, setActiveTab] = useState('inventory');
@@ -143,7 +197,14 @@ const Pharmacy = () => {
     action: null,
   });
 
-  // Form data with Nigerian context
+  // Error modal state
+  const [errorModal, setErrorModal] = useState({
+    isOpen: false,
+    title: 'Error',
+    message: '',
+  });
+
+  // Form data with Nigerian context - MATCHING DJANGO MODEL EXACTLY
   const [drugForm, setDrugForm] = useState({
     name: '',
     genericName: '',
@@ -183,51 +244,36 @@ const Pharmacy = () => {
     lastRestocked: new Date().toISOString().split('T')[0],
   });
 
-  // Constants
-  const nemlCategories = [
-    'Essential - Core',
-    'Essential - Complementary',
-    'Specialist',
-    'Supplementary',
-    'Not in NEML'
-  ];
-
+  // Constants - MATCHING DJANGO MODEL CHOICES EXACTLY
   const drugCategories = [
-    'Antimalarial',
-    'Antibiotic',
-    'Analgesic',
-    'Antihypertensive',
-    'Antidiabetic',
-    'Antiretroviral',
-    'Antitubercular',
-    'Antifungal',
-    'Antiemetic',
-    'Antacid',
-    'Cough & Cold',
-    'Vitamin & Supplement',
-    'IV Fluid',
-    'Vaccine',
-    'Surgical',
-    'Diagnostic',
-    'Other'
+    { value: 'antibiotic', label: 'Antibiotic' },
+    { value: 'analgesic', label: 'Analgesic' },
+    { value: 'antihypertensive', label: 'Antihypertensive' },
+    { value: 'antidiabetic', label: 'Antidiabetic' },
+    { value: 'antimalarial', label: 'Antimalarial' },
+    { value: 'vaccine', label: 'Vaccine' },
+    { value: 'supplement', label: 'Supplement' },
+    { value: 'other', label: 'Other' }
   ];
 
   const dosageForms = [
-    'Tablet',
-    'Capsule',
-    'Syrup',
-    'Suspension',
-    'Injection',
-    'IV Infusion',
-    'Ointment',
-    'Cream',
-    'Lotion',
-    'Suppository',
-    'Inhaler',
-    'Drops',
-    'Spray',
-    'Powder',
-    'Other'
+    { value: 'tablet', label: 'Tablet' },
+    { value: 'capsule', label: 'Capsule' },
+    { value: 'syrup', label: 'Syrup' },
+    { value: 'injection', label: 'Injection' },
+    { value: 'ointment', label: 'Ointment' },
+    { value: 'cream', label: 'Cream' },
+    { value: 'drops', label: 'Drops' },
+    { value: 'inhaler', label: 'Inhaler' },
+    { value: 'suppository', label: 'Suppository' }
+  ];
+
+  const nemlCategories = [
+    'Essential-Core',
+    'Essential-Complementary',
+    'Specialist',
+    'Supplementary',
+    'Not-in-NEML'
   ];
 
   const controlledSchedules = [
@@ -304,28 +350,86 @@ const Pharmacy = () => {
   const displayedDrugs = filteredDrugs.slice(startIndex, endIndex);
 
   // Handlers
-  const handleDrugFormSubmit = (e) => {
+  const handleDrugFormSubmit = async (e) => {
     e.preventDefault();
     const validation = validateDrug(drugForm);
     if (!validation.isValid) {
-      alert(validation.errors.join('\n'));
+      setErrorModal({
+        isOpen: true,
+        title: 'Validation Error',
+        message: validation.errors.join('\n'),
+      });
       return;
     }
 
-    if (editingDrugId) {
-      dispatch(updateDrug({ ...drugForm, id: editingDrugId }));
-    } else {
-      const newDrug = {
-        ...drugForm,
-        id: Date.now(),
-        createdAt: new Date().toISOString(),
-        status: 'active',
-      };
-      dispatch(addDrug(newDrug));
+    // Ensure tenant ID is available
+    if (!tenantId) {
+      setErrorModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Tenant information is required. Please refresh the page and try again.',
+      });
+      return;
     }
 
-    resetDrugForm();
-    setShowDrugForm(false);
+    try {
+      const toSnakeCase = (str) => str ? str.toLowerCase().replace(/[\s&]+/g, '_') : '';
+      
+      // Build payload matching Django model exactly
+      const payload = {
+        tenant: tenantId, // CRITICAL: Include tenant field
+        name: drugForm.name.trim(),
+        generic_name: drugForm.genericName.trim(),
+        brand_name: drugForm.brandName.trim(),
+        drug_code: drugForm.drugCode.trim(),
+        nafdac_number: formatNafdacNumber(drugForm.nafdacNumber),
+        strength: drugForm.strength.trim(),
+        form: toSnakeCase(drugForm.dosageForm), // Must match model choices
+        category: toSnakeCase(drugForm.category), // Must match model choices
+        stock_quantity: parseInt(drugForm.quantityInStock) || 0,
+        reorder_level: parseInt(drugForm.reorderLevel) || 10,
+        unit_price: parseFloat(drugForm.unitPrice) || 0,
+        is_controlled: drugForm.controlledSubstance,
+      };
+
+      if (editingDrugId) {
+        await apiRequest(`/api/v1/pharmacy/drugs/${editingDrugId}/`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        dispatch(updateDrug({ ...drugForm, id: editingDrugId }));
+      } else {
+        const response = await apiRequest('/api/v1/pharmacy/drugs/', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        dispatch(addDrug({ ...drugForm, id: response.id || Date.now() }));
+      }
+
+      setErrorModal({
+        isOpen: true,
+        title: 'Success',
+        message: editingDrugId ? 'Drug updated successfully' : 'Drug added successfully',
+      });
+      resetDrugForm();
+      setShowDrugForm(false);
+    } catch (err) {
+      let errorMessage = err.message || 'Failed to save drug. Please try again.';
+      if (err.data && typeof err.data === 'object') {
+        errorMessage = Object.entries(err.data)
+          .map(([field, errors]) => {
+            const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const msg = Array.isArray(errors) ? errors.join(', ') : errors;
+            return `${fieldLabel}: ${msg}`;
+          })
+          .join('\n');
+      }
+      setErrorModal({
+        isOpen: true,
+        title: 'Error',
+        message: errorMessage,
+      });
+    }
   };
 
   const resetDrugForm = () => {
@@ -371,7 +475,14 @@ const Pharmacy = () => {
   };
 
   const handleEditDrug = (drug) => {
-    setDrugForm(drug);
+    setDrugForm({
+      ...drug,
+      dosageForm: drug.form, // Map form to dosageForm for display
+      category: drug.category,
+      quantityInStock: drug.stock_quantity,
+      unitPrice: drug.unit_price,
+      reorderLevel: drug.reorder_level,
+    });
     setEditingDrugId(drug.id);
     setShowDrugForm(true);
   };
@@ -411,7 +522,11 @@ const Pharmacy = () => {
 
   const handleExportReport = () => {
     dispatch(exportPharmacyReport());
-    alert('Report exported successfully');
+    setErrorModal({
+      isOpen: true,
+      title: 'Success',
+      message: 'Report exported successfully',
+    });
   };
 
   const handleAddToCart = (drug) => {
@@ -424,7 +539,11 @@ const Pharmacy = () => {
 
   const handleProcessSale = () => {
     if (cart.length === 0) {
-      alert('Cart is empty');
+      setErrorModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Cart is empty',
+      });
       return;
     }
     dispatch(processSale(cart));
@@ -1093,7 +1212,7 @@ const Pharmacy = () => {
                     >
                       <option value="all">All Categories</option>
                       {drugCategories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                        <option key={cat.value} value={cat.value}>{cat.label}</option>
                       ))}
                     </select>
                   </div>
@@ -1292,14 +1411,13 @@ const Pharmacy = () => {
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Regulatory Information</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">NAFDAC Number *</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">NAFDAC Number</label>
                       <input
                         type="text"
                         value={drugForm.nafdacNumber}
                         onChange={(e) => setDrugForm({...drugForm, nafdacNumber: e.target.value})}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="NAFDAC-04-1234"
-                        required
                       />
                     </div>
                     <div>
@@ -1340,7 +1458,7 @@ const Pharmacy = () => {
                   </div>
                 </div>
 
-                {/* Drug Specifications */}
+                {/* Drug Specifications - MATCHING DJANGO MODEL */}
                 <div className="border-b border-gray-200 pb-3 sm:pb-4">
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Specifications</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -1355,28 +1473,30 @@ const Pharmacy = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Dosage Form</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Dosage Form *</label>
                       <select
                         value={drugForm.dosageForm}
                         onChange={(e) => setDrugForm({...drugForm, dosageForm: e.target.value})}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
                       >
                         <option value="">Select Form</option>
                         {dosageForms.map(form => (
-                          <option key={form} value={form}>{form}</option>
+                          <option key={form.value} value={form.value}>{form.label}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Category *</label>
                       <select
                         value={drugForm.category}
                         onChange={(e) => setDrugForm({...drugForm, category: e.target.value})}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
                       >
                         <option value="">Select Category</option>
                         {drugCategories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
                         ))}
                       </select>
                     </div>
@@ -1403,6 +1523,8 @@ const Pharmacy = () => {
                         value={drugForm.unitPrice}
                         onChange={(e) => setDrugForm({...drugForm, unitPrice: e.target.value})}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
+                        step="0.01"
                       />
                     </div>
                     <div>
@@ -1412,6 +1534,8 @@ const Pharmacy = () => {
                         value={drugForm.sellingPrice}
                         onChange={(e) => setDrugForm({...drugForm, sellingPrice: e.target.value})}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
+                        step="0.01"
                       />
                     </div>
                     <div>
@@ -1421,6 +1545,7 @@ const Pharmacy = () => {
                         value={drugForm.quantityInStock}
                         onChange={(e) => setDrugForm({...drugForm, quantityInStock: e.target.value})}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
                       />
                     </div>
                     <div>
@@ -1430,6 +1555,7 @@ const Pharmacy = () => {
                         value={drugForm.reorderLevel}
                         onChange={(e) => setDrugForm({...drugForm, reorderLevel: e.target.value})}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
                       />
                     </div>
                     <div>
@@ -1544,6 +1670,8 @@ const Pharmacy = () => {
                             value={drugForm.nhisPrice}
                             onChange={(e) => setDrugForm({...drugForm, nhisPrice: e.target.value})}
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            min="0"
+                            step="0.01"
                           />
                         </div>
                       </div>
@@ -1644,6 +1772,14 @@ const Pharmacy = () => {
         onConfirm={handleModalConfirm}
         type={modalConfig.type}
         drugData={modalConfig.drugData}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
+        title={errorModal.title}
+        message={errorModal.message}
       />
     </div>
   );

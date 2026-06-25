@@ -160,5 +160,39 @@ export const apiRequest = async (path, options = {}) => {
   return makeRequest();
 };
 
+export const parseListResponse = (data) => {
+  if (Array.isArray(data)) return data;
+  return data?.results || data || [];
+};
+
 export { API_BASE_URL };
 export default API_BASE_URL;
+
+export const pharmacyApi = {
+  getDrugs: async (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/pharmacy/drugs/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getDrug: (id) => apiRequest(`/api/v1/pharmacy/drugs/${id}/`),
+  createDrug: (data) => apiRequest('/api/v1/pharmacy/drugs/', { method: 'POST', body: JSON.stringify(data) }),
+  updateDrug: (id, data) => apiRequest(`/api/v1/pharmacy/drugs/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteDrug: (id) => apiRequest(`/api/v1/pharmacy/drugs/${id}/`, { method: 'DELETE' }),
+  getReorderAlerts: () => apiRequest('/api/v1/pharmacy/drugs/reorder_alerts/'),
+  reorderDrug: (id) => apiRequest(`/api/v1/pharmacy/drugs/${id}/reorder/`, { method: 'POST' }),
+  getDispenses: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/pharmacy/dispenses/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createDispense: (data) => apiRequest('/api/v1/pharmacy/dispenses/', { method: 'POST', body: JSON.stringify(data) }),
+  getPrescriptions: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/clinical/prescriptions/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getTenant: () => apiRequest('/api/v1/tenants/active-tenants/'),
+};
