@@ -181,6 +181,7 @@ export const pharmacyApi = {
   deleteDrug: (id) => apiRequest(`/api/v1/pharmacy/drugs/${id}/`, { method: 'DELETE' }),
   getReorderAlerts: () => apiRequest('/api/v1/pharmacy/drugs/reorder_alerts/'),
   reorderDrug: (id) => apiRequest(`/api/v1/pharmacy/drugs/${id}/reorder/`, { method: 'POST' }),
+  restockDrug: (id, data) => apiRequest(`/api/v1/pharmacy/drugs/${id}/restock/`, { method: 'POST', body: JSON.stringify(data) }),
   getDispenses: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
@@ -194,5 +195,21 @@ export const pharmacyApi = {
     const qsStr = qs.toString();
     return apiRequest(`/api/v1/clinical/prescriptions/${qsStr ? '?' + qsStr : ''}`);
   },
+  getSuppliers: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/pharmacy/suppliers/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createSupplier: (data) => apiRequest('/api/v1/pharmacy/suppliers/', { method: 'POST', body: JSON.stringify(data) }),
+  updateSupplier: (id, data) => apiRequest(`/api/v1/pharmacy/suppliers/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteSupplier: (id) => apiRequest(`/api/v1/pharmacy/suppliers/${id}/`, { method: 'DELETE' }),
+  getSales: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/pharmacy/sales/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createSale: (data) => apiRequest('/api/v1/pharmacy/sales/', { method: 'POST', body: JSON.stringify(data) }),
   getTenant: () => apiRequest('/api/v1/tenants/active-tenants/'),
 };

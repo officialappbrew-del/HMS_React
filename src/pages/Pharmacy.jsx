@@ -17,7 +17,9 @@ import {
   restockDrug, searchDrugs, filterDrugs, sortDrugs,
   setCurrentDrug, archiveDrug, exportPharmacyReport,
   checkDrugInteraction, generatePrescription,
-  addToCart, removeFromCart, clearCart, processSale
+  addToCart, removeFromCart, clearCart, processSale,
+  fetchDrugs, fetchSuppliers, fetchSales, fetchPrescriptions,
+  setSuppliers, setSales, setPrescriptions
 } from '../features/pharmacySlice';
 import ConfirmModal from '../components/ConfirmModal';
 import { 
@@ -26,44 +28,8 @@ import {
 } from '../pages/src/utils/pharmacyUtils';
 import { apiRequest } from '../utils/api';
 
-// Tooltip Component
-const Tooltip = ({ children, text, position = 'top' }) => {
-  const [show, setShow] = useState(false);
-  
-  const positionClasses = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2',
-  };
-
-  return (
-    <div 
-      className="relative inline-flex"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-      onTouchStart={() => setShow(!show)}
-    >
-      {children}
-      {show && (
-        <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
-          <div className="bg-gray-900 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-lg">
-            {text}
-            <div className={`absolute w-2 h-2 bg-gray-900 transform rotate-45 ${
-              position === 'top' ? 'bottom-[-4px] left-1/2 -translate-x-1/2' :
-              position === 'bottom' ? 'top-[-4px] left-1/2 -translate-x-1/2' :
-              position === 'left' ? 'right-[-4px] top-1/2 -translate-y-1/2' :
-              'left-[-4px] top-1/2 -translate-y-1/2'
-            }`} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Icon Button with Tooltip
-const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
+// Icon Button without Tooltip
+const IconButton = ({ icon: Icon, onClick, variant = 'default', className = '', disabled = false }) => {
   const variantClasses = {
     default: 'text-gray-400 hover:text-gray-600',
     primary: 'text-blue-600 hover:text-blue-700',
@@ -74,17 +40,15 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
   };
 
   return (
-    <Tooltip text={tooltip}>
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
-        }`}
-      >
-        <Icon className="w-4 h-4" />
-      </button>
-    </Tooltip>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
   );
 };
 
@@ -125,8 +89,8 @@ const ErrorModal = ({ isOpen, onClose, title, message }) => {
   );
 };
 
-// Button with Tooltip
-const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '' }) => {
+// Button without Tooltip
+const ButtonWithTooltip = ({ children, onClick, variant = 'primary', className = '' }) => {
   const variantClasses = {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white',
     secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
@@ -136,14 +100,12 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   };
 
   return (
-    <Tooltip text={tooltip}>
-      <button
-        onClick={onClick}
-        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
-      >
-        {children}
-      </button>
-    </Tooltip>
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
+    >
+      {children}
+    </button>
   );
 };
 
@@ -155,24 +117,8 @@ const Pharmacy = () => {
     filterBy, sortBy, cart,
     salesHistory, lowStockItems,
     expiredDrugs, prescriptions,
-    inventoryValue
+    inventoryValue, suppliers
   } = useSelector(state => state.pharmacy);
-  const [tenantId, setTenantId] = useState(null);
-
-  useEffect(() => {
-    const fetchTenant = async () => {
-      try {
-        const data = await apiRequest('/api/v1/tenants/active-tenants/');
-        const tenantList = Array.isArray(data) ? data : (data.results || []);
-        if (tenantList.length > 0) {
-          setTenantId(tenantList[0].id || tenantList[0].public_id || tenantList[0]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch tenant:', err);
-      }
-    };
-    fetchTenant();
-  }, []);
 
   // State
   const [activeTab, setActiveTab] = useState('inventory');
@@ -185,9 +131,31 @@ const Pharmacy = () => {
   const [showReports, setShowReports] = useState(false);
   const [showDispenseForm, setShowDispenseForm] = useState(false);
   const [showRestockForm, setShowRestockForm] = useState(false);
+  const [restockDrugId, setRestockDrugId] = useState(null);
+  const [restockForm, setRestockForm] = useState({
+    quantity: '',
+    batchNumber: '',
+    expiryDate: '',
+  });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [editingSupplierId, setEditingSupplierId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    dispatch(fetchDrugs());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (activeTab === 'prescriptions') {
+      dispatch(fetchPrescriptions());
+    } else if (activeTab === 'sales') {
+      dispatch(fetchSales());
+    } else if (activeTab === 'suppliers') {
+      dispatch(fetchSuppliers());
+    }
+  }, [activeTab, dispatch]);
 
   // Modal state
   const [modalConfig, setModalConfig] = useState({
@@ -242,6 +210,17 @@ const Pharmacy = () => {
     dosageInstructions: '',
     barcode: '',
     lastRestocked: new Date().toISOString().split('T')[0],
+  });
+
+  const [supplierForm, setSupplierForm] = useState({
+    name: '',
+    contactPerson: '',
+    phone: '',
+    email: '',
+    address: '',
+    licenseNumber: '',
+    rating: 0,
+    notes: '',
   });
 
   // Constants - MATCHING DJANGO MODEL CHOICES EXACTLY
@@ -299,25 +278,6 @@ const Pharmacy = () => {
     'Other'
   ];
 
-  // Mock data for different tabs
-  const mockPrescriptions = [
-    { id: 1, patient: 'John Doe', drug: 'Artemether/Lumefantrine', date: '2024-01-15', status: 'dispensed', doctor: 'Dr. Adebayo' },
-    { id: 2, patient: 'Jane Smith', drug: 'Amoxicillin', date: '2024-01-14', status: 'pending', doctor: 'Dr. Ogunlesi' },
-    { id: 3, patient: 'Samuel Johnson', drug: 'Morphine Injection', date: '2024-01-13', status: 'approved', doctor: 'Dr. Okonkwo' },
-  ];
-
-  const mockSales = [
-    { id: 1, patient: 'Mary Williams', amount: 2500, date: '2024-01-15', paymentMethod: 'cash' },
-    { id: 2, patient: 'Peter Obi', amount: 1800, date: '2024-01-14', paymentMethod: 'nhis' },
-    { id: 3, patient: 'Grace Adeyemi', amount: 3200, date: '2024-01-13', paymentMethod: 'hmo' },
-  ];
-
-  const mockSuppliers = [
-    { id: 1, name: 'Emzor Pharmaceuticals', contact: '080-1234-5678', products: 45, status: 'active' },
-    { id: 2, name: 'Fidson Healthcare', contact: '080-2345-6789', products: 38, status: 'active' },
-    { id: 3, name: 'May & Baker Nigeria', contact: '080-3456-7890', products: 52, status: 'active' },
-  ];
-
   // Stats
   const stats = useMemo(() => {
     const totalDrugs = drugs.length;
@@ -350,7 +310,7 @@ const Pharmacy = () => {
   const displayedDrugs = filteredDrugs.slice(startIndex, endIndex);
 
   // Handlers
-  const handleDrugFormSubmit = async (e) => {
+const handleDrugFormSubmit = async (e) => {
     e.preventDefault();
     const validation = validateDrug(drugForm);
     if (!validation.isValid) {
@@ -362,30 +322,16 @@ const Pharmacy = () => {
       return;
     }
 
-    // Ensure tenant ID is available
-    if (!tenantId) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'Tenant information is required. Please refresh the page and try again.',
-      });
-      return;
-    }
-
     try {
-      const toSnakeCase = (str) => str ? str.toLowerCase().replace(/[\s&]+/g, '_') : '';
-      
-      // Build payload matching Django model exactly
       const payload = {
-        tenant: tenantId, // CRITICAL: Include tenant field
         name: drugForm.name.trim(),
-        generic_name: drugForm.genericName.trim(),
-        brand_name: drugForm.brandName.trim(),
-        drug_code: drugForm.drugCode.trim(),
-        nafdac_number: formatNafdacNumber(drugForm.nafdacNumber),
-        strength: drugForm.strength.trim(),
-        form: toSnakeCase(drugForm.dosageForm), // Must match model choices
-        category: toSnakeCase(drugForm.category), // Must match model choices
+        generic_name: drugForm.genericName.trim() || null,
+        brand_name: drugForm.brandName.trim() || null,
+        drug_code: drugForm.drugCode.trim() || null,
+        nafdac_number: formatNafdacNumber(drugForm.nafdacNumber) || null,
+        strength: drugForm.strength.trim() || null,
+        form: drugForm.dosageForm,
+        category: drugForm.category,
         stock_quantity: parseInt(drugForm.quantityInStock) || 0,
         reorder_level: parseInt(drugForm.reorderLevel) || 10,
         unit_price: parseFloat(drugForm.unitPrice) || 0,
@@ -474,17 +420,95 @@ const Pharmacy = () => {
     setEditingDrugId(null);
   };
 
-  const handleEditDrug = (drug) => {
-    setDrugForm({
-      ...drug,
-      dosageForm: drug.form, // Map form to dosageForm for display
-      category: drug.category,
-      quantityInStock: drug.stock_quantity,
-      unitPrice: drug.unit_price,
-      reorderLevel: drug.reorder_level,
+  const handleRestockClick = (drug) => {
+    setRestockDrugId(drug.id);
+    setRestockForm({
+      quantity: '',
+      batchNumber: '',
+      expiryDate: '',
     });
-    setEditingDrugId(drug.id);
-    setShowDrugForm(true);
+    setShowRestockForm(true);
+  };
+
+  const handleRestockSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await apiRequest(`/api/v1/pharmacy/drugs/${restockDrugId}/restock/`, {
+        method: 'POST',
+        body: JSON.stringify({
+          quantity: parseInt(restockForm.quantity),
+          batch_number: restockForm.batchNumber,
+          expiry_date: restockForm.expiryDate,
+        }),
+      });
+      dispatch(fetchDrugs());
+      setShowRestockForm(false);
+      setErrorModal({ isOpen: true, title: 'Success', message: 'Drug restocked successfully' });
+    } catch (err) {
+      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to restock drug' });
+    }
+  };
+
+  const resetSupplierForm = () => {
+    setSupplierForm({
+      name: '',
+      contactPerson: '',
+      phone: '',
+      email: '',
+      address: '',
+      licenseNumber: '',
+      rating: 0,
+      notes: '',
+    });
+    setEditingSupplierId(null);
+  };
+
+  const handleEditDrug = async (drug) => {
+    try {
+      const freshDrug = await apiRequest(`/api/v1/pharmacy/drugs/${drug.id}/`);
+      setDrugForm({
+        name: freshDrug.name || '',
+        genericName: freshDrug.generic_name || '',
+        brandName: freshDrug.brand_name || '',
+        drugCode: freshDrug.drug_code || '',
+        nafdacNumber: freshDrug.nafdac_number || '',
+        pcnApprovalNumber: freshDrug.pcn_approval_number || '',
+        strength: freshDrug.strength || '',
+        dosageForm: freshDrug.form || '',
+        unitOfMeasure: freshDrug.unit_of_measure || '',
+        category: freshDrug.category || '',
+        therapeuticClass: freshDrug.therapeutic_class || '',
+        manufacturer: freshDrug.manufacturer || '',
+        supplier: freshDrug.supplier || '',
+        countryOfOrigin: freshDrug.country_of_origin || 'Nigeria',
+        unitPrice: freshDrug.unit_price ? String(freshDrug.unit_price) : '',
+        sellingPrice: freshDrug.selling_price ? String(freshDrug.selling_price) : '',
+        quantityInStock: freshDrug.stock_quantity ? String(freshDrug.stock_quantity) : '',
+        reorderLevel: freshDrug.reorder_level ? String(freshDrug.reorder_level) : '',
+        reorderQuantity: freshDrug.reorder_quantity ? String(freshDrug.reorder_quantity) : '',
+        expiryDate: freshDrug.expiry_date || '',
+        batchNumber: freshDrug.batch_number || '',
+        storageConditions: freshDrug.storage_conditions || '',
+        prescriptionRequired: freshDrug.prescription_required || false,
+        controlledSubstance: freshDrug.is_controlled || false,
+        narcotic: freshDrug.narcotic || false,
+        schedule: freshDrug.schedule || '',
+        nhisCovered: freshDrug.nhis_covered || false,
+        nhisCode: freshDrug.nhis_code || '',
+        nhisPrice: freshDrug.nhis_price ? String(freshDrug.nhis_price) : '',
+        nemlCategory: freshDrug.neml_category || '',
+        sideEffects: freshDrug.side_effects || '',
+        contraindications: freshDrug.contraindications || '',
+        interactions: freshDrug.interactions || '',
+        dosageInstructions: freshDrug.dosage_instructions || '',
+        barcode: freshDrug.barcode || '',
+        lastRestocked: freshDrug.last_restocked || new Date().toISOString().split('T')[0],
+      });
+      setEditingDrugId(drug.id);
+      setShowDrugForm(true);
+    } catch (err) {
+      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to load drug details' });
+    }
   };
 
   const handleDeleteClick = (drug) => {
@@ -492,7 +516,15 @@ const Pharmacy = () => {
       isOpen: true,
       type: 'delete',
       drugData: drug,
-      action: () => dispatch(deleteDrug(drug.id)),
+      action: async () => {
+        try {
+          await apiRequest(`/api/v1/pharmacy/drugs/${drug.id}/`, { method: 'DELETE' });
+          dispatch(fetchDrugs());
+          setErrorModal({ isOpen: true, title: 'Success', message: 'Drug deleted successfully' });
+        } catch (err) {
+          setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to delete drug' });
+        }
+      },
     });
   };
 
@@ -537,7 +569,7 @@ const Pharmacy = () => {
     }));
   };
 
-  const handleProcessSale = () => {
+  const handleProcessSale = async () => {
     if (cart.length === 0) {
       setErrorModal({
         isOpen: true,
@@ -546,9 +578,41 @@ const Pharmacy = () => {
       });
       return;
     }
-    dispatch(processSale(cart));
-    setShowCart(false);
-    dispatch(clearCart());
+
+    try {
+      const tenantPublicId = localStorage.getItem('tenantId');
+      const payload = {
+        payment_method: 'cash',
+        payment_status: 'paid',
+        status: 'completed',
+        items: cart.map(item => ({
+          drug: item.id,
+          quantity: item.quantity,
+          unit_price: item.sellingPrice || item.unitPrice,
+        })),
+      };
+
+      await apiRequest('/api/v1/pharmacy/sales/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      dispatch(clearCart());
+      dispatch(fetchDrugs());
+      dispatch(fetchSales());
+      setShowCart(false);
+      setErrorModal({
+        isOpen: true,
+        title: 'Success',
+        message: 'Sale processed successfully',
+      });
+    } catch (err) {
+      setErrorModal({
+        isOpen: true,
+        title: 'Error',
+        message: err.message || 'Failed to process sale',
+      });
+    }
   };
 
   const getStatusBadge = (drug) => {
@@ -612,23 +676,22 @@ const Pharmacy = () => {
         {/* Drug List */}
         <div className="p-3 sm:p-4">
           {filteredDrugs.length === 0 ? (
-            <div className="text-center py-8 sm:py-12">
-              <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-              <p className="text-gray-600 font-medium text-sm sm:text-base">No drugs found</p>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                {searchQuery ? 'Try adjusting your search or filters' : 'Start by adding your first drug'}
-              </p>
+            <div className="flex flex-col items-center justify-center text-center py-8 sm:py-12">
               {!searchQuery && (
                 <ButtonWithTooltip
                   onClick={() => setShowDrugForm(true)}
-                  tooltip="Add a new drug to inventory"
                   variant="primary"
-                  className="mt-3 sm:mt-4"
+                  className="mb-3 sm:mb-4"
                 >
                   <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   Add Drug
                 </ButtonWithTooltip>
               )}
+              <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+              <p className="text-gray-600 font-medium text-sm sm:text-base">No drugs found</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                {searchQuery ? 'Try adjusting your search or filters' : 'Start by adding your first drug'}
+              </p>
             </div>
           ) : (
             <>
@@ -637,19 +700,17 @@ const Pharmacy = () => {
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <Tooltip text="Select all drugs">
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedDrugs(displayedDrugs.map(d => d.id));
-                              } else {
-                                setSelectedDrugs([]);
-                              }
-                            }}
-                          />
-                        </Tooltip>
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDrugs(displayedDrugs.map(d => d.id));
+                            } else {
+                              setSelectedDrugs([]);
+                            }
+                          }}
+                        />
                       </th>
                       <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
                       <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Stock</th>
@@ -730,19 +791,16 @@ const Pharmacy = () => {
                               <IconButton
                                 icon={Edit}
                                 onClick={() => handleEditDrug(drug)}
-                                tooltip="Edit drug details"
                                 variant="primary"
                               />
                               <IconButton
                                 icon={ShoppingCart}
                                 onClick={() => handleAddToCart(drug)}
-                                tooltip="Add to dispensing cart"
                                 variant="success"
                               />
                               <IconButton
                                 icon={Trash2}
                                 onClick={() => handleDeleteClick(drug)}
-                                tooltip="Delete drug from inventory"
                                 variant="danger"
                               />
                             </div>
@@ -763,7 +821,6 @@ const Pharmacy = () => {
                   <IconButton
                     icon={ChevronLeft}
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    tooltip="Previous page"
                     variant="default"
                     disabled={currentPage === 1}
                   />
@@ -773,7 +830,6 @@ const Pharmacy = () => {
                   <IconButton
                     icon={ChevronRight}
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    tooltip="Next page"
                     variant="default"
                     disabled={currentPage === totalPages}
                   />
@@ -793,57 +849,62 @@ const Pharmacy = () => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-gray-900">Prescriptions</h3>
           <ButtonWithTooltip
-            tooltip="Create new prescription"
             variant="primary"
           >
             <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             New Prescription
           </ButtonWithTooltip>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {mockPrescriptions.map((prescription) => (
-                <tr key={prescription.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{prescription.patient}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 text-sm">{prescription.drug}</td>
-                  <td className="py-3 text-sm">{prescription.doctor}</td>
-                  <td className="py-3 text-sm">{prescription.date}</td>
-                  <td className="py-3">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      prescription.status === 'dispensed' ? 'bg-green-100 text-green-800' :
-                      prescription.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {prescription.status.charAt(0).toUpperCase() + prescription.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-1">
-                      <IconButton icon={Eye} tooltip="View prescription" variant="primary" />
-                      <IconButton icon={Printer} tooltip="Print prescription" variant="default" />
-                    </div>
-                  </td>
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading prescriptions...</div>
+        ) : prescriptions.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No prescriptions found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {prescriptions.map((prescription) => (
+                  <tr key={prescription.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm">{prescription.patient_name || prescription.patient?.get_full_name || 'Unknown'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-sm">{prescription.drug_name || prescription.drug?.name || 'Unknown'}</td>
+                    <td className="py-3 text-sm">{prescription.prescribed_by?.get_full_name || 'Unknown'}</td>
+                    <td className="py-3 text-sm">{prescription.prescribed_date ? new Date(prescription.prescribed_date).toLocaleDateString() : '-'}</td>
+                    <td className="py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        prescription.status === 'dispensed' || prescription.status === 'Dispensed' ? 'bg-green-100 text-green-800' :
+                        prescription.status === 'pending' || prescription.status === 'Prescribed' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {(prescription.status || 'Unknown').charAt(0).toUpperCase() + (prescription.status || 'Unknown').slice(1)}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-1">
+                        <IconButton icon={Eye} variant="primary" />
+                        <IconButton icon={Printer} variant="default" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
   };
@@ -856,14 +917,12 @@ const Pharmacy = () => {
           <h3 className="text-sm font-medium text-gray-900">Sales History</h3>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
-              tooltip="Export sales report"
               variant="secondary"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               Export
             </ButtonWithTooltip>
             <ButtonWithTooltip
-              tooltip="View sales analytics"
               variant="primary"
             >
               <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -871,50 +930,140 @@ const Pharmacy = () => {
             </ButtonWithTooltip>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {mockSales.map((sale) => (
-                <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{sale.patient}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 text-sm font-medium">₦{sale.amount.toLocaleString()}</td>
-                  <td className="py-3 text-sm">{sale.date}</td>
-                  <td className="py-3">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      sale.paymentMethod === 'cash' ? 'bg-green-100 text-green-800' :
-                      sale.paymentMethod === 'nhis' ? 'bg-blue-100 text-blue-800' :
-                      'bg-purple-100 text-purple-800'
-                    }`}>
-                      {sale.paymentMethod.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-1">
-                      <IconButton icon={Receipt} tooltip="View receipt" variant="primary" />
-                      <IconButton icon={Printer} tooltip="Print receipt" variant="default" />
-                    </div>
-                  </td>
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading sales...</div>
+        ) : salesHistory.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No sales found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {salesHistory.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm">{sale.patient_name || sale.patient?.get_full_name || 'Walk-in Customer'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-sm font-medium">₦{parseFloat(sale.total_amount || 0).toLocaleString()}</td>
+                    <td className="py-3 text-sm">{sale.sold_at ? new Date(sale.sold_at).toLocaleDateString() : '-'}</td>
+                    <td className="py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        sale.payment_method === 'cash' ? 'bg-green-100 text-green-800' :
+                        sale.payment_method === 'nhis' ? 'bg-blue-100 text-blue-800' :
+                        sale.payment_method === 'hmo' ? 'bg-purple-100 text-purple-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {(sale.payment_method || 'N/A').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-1">
+                        <IconButton icon={Receipt} variant="primary" />
+                        <IconButton icon={Printer} variant="default" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
+  };
+
+  const handleAddSupplier = () => {
+    setEditingSupplierId(null);
+    setSupplierForm({
+      name: '',
+      contactPerson: '',
+      phone: '',
+      email: '',
+      address: '',
+      licenseNumber: '',
+      rating: 0,
+      notes: '',
+    });
+    setShowSupplierForm(true);
+  };
+
+  const handleEditSupplier = (supplier) => {
+    setEditingSupplierId(supplier.id);
+    setSupplierForm({
+      name: supplier.name || '',
+      contactPerson: supplier.contact_person || '',
+      phone: supplier.phone || '',
+      email: supplier.email || '',
+      address: supplier.address || '',
+      licenseNumber: supplier.license_number || '',
+      rating: supplier.rating || 0,
+      notes: supplier.notes || '',
+    });
+    setShowSupplierForm(true);
+  };
+
+  const handleDeleteSupplier = (supplier) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'delete',
+      drugData: supplier,
+      action: async () => {
+        try {
+          await apiRequest(`/api/v1/pharmacy/suppliers/${supplier.id}/`, { method: 'DELETE' });
+          dispatch(setSuppliers(suppliers.filter(s => s.id !== supplier.id)));
+          setErrorModal({ isOpen: true, title: 'Success', message: 'Supplier deleted successfully' });
+        } catch (err) {
+          setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to delete supplier' });
+        }
+      },
+    });
+  };
+
+  const handleSupplierSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const tenantPublicId = localStorage.getItem('tenantId');
+      const payload = {
+        name: supplierForm.name.trim(),
+        contact_person: supplierForm.contactPerson.trim() || null,
+        phone: supplierForm.phone.trim() || null,
+        email: supplierForm.email.trim() || null,
+        address: supplierForm.address.trim() || null,
+        license_number: supplierForm.licenseNumber.trim() || null,
+        rating: parseInt(supplierForm.rating) || 0,
+        notes: supplierForm.notes.trim() || null,
+      };
+
+      if (editingSupplierId) {
+        await apiRequest(`/api/v1/pharmacy/suppliers/${editingSupplierId}/`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        dispatch(setSuppliers(suppliers.map(s => s.id === editingSupplierId ? { ...s, ...payload } : s)));
+        setErrorModal({ isOpen: true, title: 'Success', message: 'Supplier updated successfully' });
+      } else {
+        const response = await apiRequest('/api/v1/pharmacy/suppliers/', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        dispatch(setSuppliers([...suppliers, response]));
+        setErrorModal({ isOpen: true, title: 'Success', message: 'Supplier added successfully' });
+      }
+      setShowSupplierForm(false);
+    } catch (err) {
+      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to save supplier' });
+    }
   };
 
   // Suppliers Tab Content
@@ -924,52 +1073,60 @@ const Pharmacy = () => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-gray-900">Suppliers</h3>
           <ButtonWithTooltip
-            tooltip="Add new supplier"
+            onClick={handleAddSupplier}
             variant="primary"
           >
             <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Add Supplier
           </ButtonWithTooltip>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {mockSuppliers.map((supplier) => (
-                <tr key={supplier.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-medium">{supplier.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 text-sm">{supplier.contact}</td>
-                  <td className="py-3 text-sm">{supplier.products}</td>
-                  <td className="py-3">
-                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                      {supplier.status.charAt(0).toUpperCase() + supplier.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-1">
-                      <IconButton icon={Edit} tooltip="Edit supplier" variant="primary" />
-                      <IconButton icon={Eye} tooltip="View products" variant="default" />
-                      <IconButton icon={Truck} tooltip="View orders" variant="info" />
-                    </div>
-                  </td>
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading suppliers...</div>
+        ) : suppliers.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No suppliers found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {suppliers.map((supplier) => (
+                  <tr key={supplier.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-medium">{supplier.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-sm">{supplier.contact_person || '-'}</td>
+                    <td className="py-3 text-sm">{supplier.phone || '-'}</td>
+                    <td className="py-3 text-sm">{supplier.email || '-'}</td>
+                    <td className="py-3">
+                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                        {supplier.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-1">
+                        <IconButton icon={Edit} variant="primary" onClick={() => handleEditSupplier(supplier)} />
+                        <IconButton icon={Eye} variant="default" />
+                        <IconButton icon={Trash2} variant="danger" onClick={() => handleDeleteSupplier(supplier)} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
   };
@@ -991,7 +1148,6 @@ const Pharmacy = () => {
           <div className="flex flex-wrap items-center gap-2">
             <ButtonWithTooltip
               onClick={() => setShowReports(true)}
-              tooltip="View pharmacy reports and analytics"
               variant="secondary"
             >
               <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1000,7 +1156,6 @@ const Pharmacy = () => {
             
             <ButtonWithTooltip
               onClick={() => setShowCart(true)}
-              tooltip={`View cart (${cart.length} items)`}
               variant="secondary"
               className="relative"
             >
@@ -1013,174 +1168,155 @@ const Pharmacy = () => {
               )}
             </ButtonWithTooltip>
             
-            <ButtonWithTooltip
-              onClick={() => setShowDrugForm(true)}
-              tooltip="Add a new drug to inventory"
-              variant="primary"
-            >
-              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Add Drug</span>
-            </ButtonWithTooltip>
+            <div className="flex-1 flex justify-center">
+              <ButtonWithTooltip
+                onClick={() => setShowDrugForm(true)}
+                variant="primary"
+              >
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Add Drug</span>
+              </ButtonWithTooltip>
+            </div>
           </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
-          <Tooltip text="Total number of drugs in inventory">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.totalDrugs}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.totalDrugs}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Total value of all inventory">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Value</p>
-                  <p className="text-sm sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">₦{stats.totalValue.toLocaleString()}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Value</p>
+                <p className="text-sm sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">₦{stats.totalValue.toLocaleString()}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Drugs below reorder level - needs restocking">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Low Stock</p>
-                  <p className="text-lg sm:text-2xl font-bold text-yellow-600 mt-0.5 sm:mt-1">{stats.lowStockCount}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Low Stock</p>
+                <p className="text-lg sm:text-2xl font-bold text-yellow-600 mt-0.5 sm:mt-1">{stats.lowStockCount}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Drugs that have passed expiry date">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Expired</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-600 mt-0.5 sm:mt-1">{stats.expiredCount}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-50 rounded-lg flex items-center justify-center">
-                  <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Expired</p>
+                <p className="text-lg sm:text-2xl font-bold text-red-600 mt-0.5 sm:mt-1">{stats.expiredCount}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-50 rounded-lg flex items-center justify-center">
+                <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Controlled substances requiring special handling">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Controlled</p>
-                  <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{stats.controlledCount}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Controlled</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{stats.controlledCount}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
           
-          <Tooltip text="Currently active drugs in inventory">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.activeCount}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
-                </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.activeCount}</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
         </div>
 
         {/* Tabs */}
         <div className="border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
           <nav className="flex gap-4 sm:gap-6 min-w-max" aria-label="Tabs">
-            <Tooltip text="View and manage drug inventory">
-              <button
-                onClick={() => {
-                  setActiveTab('inventory');
-                  setCurrentPage(1);
-                }}
-                className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'inventory'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                Inventory
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => {
+                setActiveTab('inventory');
+                setCurrentPage(1);
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'inventory'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Inventory
+            </button>
             
-            <Tooltip text="View and manage prescriptions">
-              <button
-                onClick={() => {
-                  setActiveTab('prescriptions');
-                  setCurrentPage(1);
-                }}
-                className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'prescriptions'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Clipboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                Prescriptions
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => {
+                setActiveTab('prescriptions');
+                setCurrentPage(1);
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'prescriptions'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Clipboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Prescriptions
+            </button>
             
-            <Tooltip text="View sales history and analytics">
-              <button
-                onClick={() => {
-                  setActiveTab('sales');
-                  setCurrentPage(1);
-                }}
-                className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'sales'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                Sales
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => {
+                setActiveTab('sales');
+                setCurrentPage(1);
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'sales'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Sales
+            </button>
             
-            <Tooltip text="Manage suppliers and vendor relationships">
-              <button
-                onClick={() => {
-                  setActiveTab('suppliers');
-                  setCurrentPage(1);
-                }}
-                className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'suppliers'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                Suppliers
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => {
+                setActiveTab('suppliers');
+                setCurrentPage(1);
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'suppliers'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Suppliers
+            </button>
           </nav>
         </div>
 
@@ -1253,7 +1389,6 @@ const Pharmacy = () => {
                     <div className="space-y-1.5 sm:space-y-2">
                       <ButtonWithTooltip
                         onClick={() => setShowDispenseForm(true)}
-                        tooltip="Dispense medication to patient"
                         variant="secondary"
                         className="w-full justify-start"
                       >
@@ -1262,7 +1397,6 @@ const Pharmacy = () => {
                       </ButtonWithTooltip>
                       <ButtonWithTooltip
                         onClick={() => setShowRestockForm(true)}
-                        tooltip="Restock inventory items"
                         variant="secondary"
                         className="w-full justify-start"
                       >
@@ -1270,7 +1404,6 @@ const Pharmacy = () => {
                         Restock Inventory
                       </ButtonWithTooltip>
                       <ButtonWithTooltip
-                        tooltip="Import data from spreadsheet"
                         variant="secondary"
                         className="w-full justify-start"
                       >
@@ -1305,26 +1438,22 @@ const Pharmacy = () => {
                       <IconButton
                         icon={Filter}
                         onClick={() => setShowMobileFilters(!showMobileFilters)}
-                        tooltip={showMobileFilters ? "Hide filters" : "Show filters"}
                         variant="default"
                         className="lg:hidden"
                       />
                       <IconButton
                         icon={viewMode === 'table' ? Grid : List}
                         onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
-                        tooltip={viewMode === 'table' ? "Switch to grid view" : "Switch to table view"}
                         variant="default"
                       />
                       <IconButton
                         icon={Printer}
                         onClick={() => window.print()}
-                        tooltip="Print inventory list"
                         variant="default"
                       />
                       <IconButton
                         icon={Download}
                         onClick={handleExportReport}
-                        tooltip="Export report to file"
                         variant="default"
                       />
                     </div>
@@ -1355,7 +1484,6 @@ const Pharmacy = () => {
                     setShowDrugForm(false);
                     resetDrugForm();
                   }}
-                  tooltip="Close form"
                   variant="default"
                 />
               </div>
@@ -1754,6 +1882,196 @@ const Pharmacy = () => {
                       setShowDrugForm(false);
                       resetDrugForm();
                     }}
+                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supplier Form Modal */}
+      {showSupplierForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-4 sm:py-8">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowSupplierForm(false)} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                  {editingSupplierId ? 'Edit Supplier' : 'Add New Supplier'}
+                </h2>
+                <IconButton
+                  icon={X}
+                  onClick={() => {
+                    setShowSupplierForm(false);
+                    resetSupplierForm();
+                  }}
+                  variant="default"
+                />
+              </div>
+
+              <form onSubmit={handleSupplierSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Supplier Name *</label>
+                    <input
+                      type="text"
+                      value={supplierForm.name}
+                      onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person</label>
+                    <input
+                      type="text"
+                      value={supplierForm.contactPerson}
+                      onChange={(e) => setSupplierForm({...supplierForm, contactPerson: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="text"
+                      value={supplierForm.phone}
+                      onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={supplierForm.email}
+                      onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
+                    <textarea
+                      value={supplierForm.address}
+                      onChange={(e) => setSupplierForm({...supplierForm, address: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows="2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
+                    <input
+                      type="text"
+                      value={supplierForm.licenseNumber}
+                      onChange={(e) => setSupplierForm({...supplierForm, licenseNumber: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Rating</label>
+                    <input
+                      type="number"
+                      value={supplierForm.rating}
+                      onChange={(e) => setSupplierForm({...supplierForm, rating: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      max="5"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea
+                      value={supplierForm.notes}
+                      onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows="2"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                  >
+                    {editingSupplierId ? 'Update Supplier' : 'Add Supplier'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSupplierForm(false);
+                      resetSupplierForm();
+                    }}
+                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restock Modal */}
+      {showRestockForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-4 sm:py-8">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowRestockForm(false)} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Restock Inventory</h2>
+                <IconButton
+                  icon={X}
+                  onClick={() => setShowRestockForm(false)}
+                  variant="default"
+                />
+              </div>
+
+              <form onSubmit={handleRestockSubmit} className="p-4 sm:p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Quantity to Add *</label>
+                  <input
+                    type="number"
+                    value={restockForm.quantity}
+                    onChange={(e) => setRestockForm({...restockForm, quantity: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="1"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Batch Number</label>
+                  <input
+                    type="text"
+                    value={restockForm.batchNumber}
+                    onChange={(e) => setRestockForm({...restockForm, batchNumber: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">New Expiry Date</label>
+                  <input
+                    type="date"
+                    value={restockForm.expiryDate}
+                    onChange={(e) => setRestockForm({...restockForm, expiryDate: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                  >
+                    Restock
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRestockForm(false)}
                     className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
                   >
                     Cancel

@@ -21,6 +21,26 @@ const initialState = {
   filterBy: 'all',
   loading: false,
   error: null,
+  staffCategories: {
+    DOCTOR: 'Doctor',
+    NURSE: 'Nurse',
+    PHARMACIST: 'Pharmacist',
+    LAB_TECH: 'Laboratory Technician',
+    RADIOGRAPHER: 'Radiographer',
+    ADMIN: 'Administrative',
+    SUPPORT: 'Support Staff'
+  },
+  designations: {
+    CONSULTANT: 'Consultant',
+    SENIOR_REG: 'Senior Registrar',
+    REGISTRAR: 'Registrar',
+    SENIOR_RESIDENT: 'Senior Resident',
+    RESIDENT: 'Resident',
+    INTERN: 'Intern',
+    SENIOR_NURSE: 'Senior Nurse',
+    NURSE: 'Nurse',
+    AUXILIARY: 'Auxiliary Nurse'
+  },
 };
 
 const staffSlice = createSlice({

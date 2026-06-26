@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   Package,
@@ -6,71 +6,30 @@ import {
   Edit2,
   Trash2,
   Search,
-  AlertCircle,
   TrendingDown,
   Barcode,
   Box
 } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
+import { apiRequest } from '../utils/api';
+import { fetchDrugs } from '../features/pharmacySlice';
 
 const Inventory = () => {
   const dispatch = useDispatch();
-  const { drugs } = useSelector(state => state.pharmacy || { drugs: [] });
-
-  const [inventory, setInventory] = useState([
-    {
-      id: 1,
-      name: 'Paracetamol',
-      batchNumber: 'BTH-2025-001',
-      quantity: 500,
-      reorderLevel: 100,
-      unit: 'tablets',
-      supplier: 'Pharma Plus',
-      expiryDate: '2027-12-31',
-      unitCost: 50,
-      status: 'in-stock'
-    },
-    {
-      id: 2,
-      name: 'Amoxicillin',
-      batchNumber: 'BTH-2025-002',
-      quantity: 45,
-      reorderLevel: 100,
-      unit: 'capsules',
-      supplier: 'MediCare Ltd',
-      expiryDate: '2027-08-15',
-      unitCost: 500,
-      status: 'low-stock'
-    },
-    {
-      id: 3,
-      name: 'Lisinopril',
-      batchNumber: 'BTH-2025-003',
-      quantity: 0,
-      reorderLevel: 50,
-      unit: 'tablets',
-      supplier: 'Health Plus',
-      expiryDate: '2027-06-30',
-      unitCost: 1200,
-      status: 'out-of-stock'
-    },
-    {
-      id: 4,
-      name: 'Ibuprofen',
-      batchNumber: 'BTH-2025-004',
-      quantity: 200,
-      reorderLevel: 100,
-      unit: 'tablets',
-      supplier: 'Pharma Plus',
-      expiryDate: '2027-11-20',
-      unitCost: 75,
-      status: 'in-stock'
-    }
-  ]);
+  const { drugs, loading } = useSelector(state => state.pharmacy || { drugs: [], loading: false });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'delete',
+    title: '',
+    message: '',
+    onConfirm: null,
+  });
+
   const [formData, setFormData] = useState({
     name: '',
     batchNumber: '',
@@ -82,7 +41,30 @@ const Inventory = () => {
     unitCost: ''
   });
 
-  const filteredInventory = inventory.filter(item => {
+  useEffect(() => {
+    dispatch(fetchDrugs());
+  }, [dispatch]);
+
+  const getStatus = (drug) => {
+    const qty = parseInt(drug.stock_quantity) || 0;
+    const reorder = parseInt(drug.reorder_level) || 0;
+    if (qty === 0) return 'out-of-stock';
+    if (qty <= reorder) return 'low-stock';
+    return 'in-stock';
+  };
+
+  const filteredInventory = drugs.map(drug => ({
+    id: drug.id,
+    name: drug.name,
+    batchNumber: drug.batch_number || '-',
+    quantity: drug.stock_quantity,
+    reorderLevel: drug.reorder_level,
+    unit: drug.unit_of_measure || drug.form || 'tablets',
+    supplier: drug.supplier || '-',
+    expiryDate: drug.expiry_date || '',
+    unitCost: drug.unit_price,
+    status: getStatus(drug),
+  })).filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
@@ -90,30 +72,46 @@ const Inventory = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddInventory = (e) => {
+  const handleAddInventory = async (e) => {
     e.preventDefault();
-    if (formData.name && formData.quantity && formData.reorderLevel) {
-      const status = formData.quantity === 0 ? 'out-of-stock' : 
-                    formData.quantity <= formData.reorderLevel ? 'low-stock' : 'in-stock';
-      
+    if (!formData.name || !formData.quantity || !formData.reorderLevel) return;
+
+    try {
+      const tenantPublicId = localStorage.getItem('tenantId');
+      const status = parseInt(formData.quantity) === 0 ? 'out-of-stock' :
+                     parseInt(formData.quantity) <= parseInt(formData.reorderLevel) ? 'low-stock' : 'in-stock';
+
+      const payload = {
+        name: formData.name.trim(),
+        drug_code: `INV-${Date.now()}`,
+        category: 'other',
+        form: formData.unit,
+        stock_quantity: parseInt(formData.quantity),
+        reorder_level: parseInt(formData.reorderLevel),
+        unit_price: parseFloat(formData.unitCost) || 0,
+        selling_price: parseFloat(formData.unitCost) || 0,
+        batch_number: formData.batchNumber.trim(),
+        expiry_date: formData.expiryDate || null,
+        supplier: formData.supplier.trim(),
+        unit_of_measure: formData.unit,
+        tenant: tenantPublicId,
+      };
+
       if (editingId) {
-        setInventory(inventory.map(item =>
-          item.id === editingId
-            ? { ...item, ...formData, quantity: parseInt(formData.quantity), reorderLevel: parseInt(formData.reorderLevel), unitCost: parseFloat(formData.unitCost), status }
-            : item
-        ));
-        setEditingId(null);
+        await apiRequest(`/api/v1/pharmacy/drugs/${editingId}/`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
       } else {
-        const newItem = {
-          id: Math.max(...inventory.map(i => i.id), 0) + 1,
-          ...formData,
-          quantity: parseInt(formData.quantity),
-          reorderLevel: parseInt(formData.reorderLevel),
-          unitCost: parseFloat(formData.unitCost),
-          status
-        };
-        setInventory([...inventory, newItem]);
+        await apiRequest('/api/v1/pharmacy/drugs/', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
       }
+
+      dispatch(fetchDrugs());
+      setShowForm(false);
+      setEditingId(null);
       setFormData({
         name: '',
         batchNumber: '',
@@ -124,18 +122,61 @@ const Inventory = () => {
         expiryDate: '',
         unitCost: ''
       });
-      setShowForm(false);
+    } catch (err) {
+      setModalConfig({
+        isOpen: true,
+        type: 'default',
+        title: 'Error',
+        message: err.message || 'Failed to save inventory item',
+      });
     }
   };
 
-  const handleDeleteInventory = (id) => {
-    setInventory(inventory.filter(item => item.id !== id));
+  const handleDeleteClick = (item) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'delete',
+      title: 'Delete Inventory Item',
+      message: `Are you sure you want to delete "${item.name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await apiRequest(`/api/v1/pharmacy/drugs/${item.id}/`, { method: 'DELETE' });
+          dispatch(fetchDrugs());
+        } catch (err) {
+          setModalConfig({
+            isOpen: true,
+            type: 'default',
+            title: 'Error',
+            message: err.message || 'Failed to delete item',
+          });
+          return;
+        }
+        setModalConfig({ ...modalConfig, isOpen: false });
+      },
+    });
   };
 
   const handleEditInventory = (item) => {
-    setFormData(item);
+    setFormData({
+      name: item.name,
+      batchNumber: item.batchNumber === '-' ? '' : item.batchNumber,
+      quantity: String(item.quantity),
+      reorderLevel: String(item.reorderLevel),
+      unit: item.unit,
+      supplier: item.supplier === '-' ? '' : item.supplier,
+      expiryDate: item.expiryDate || '',
+      unitCost: String(item.unitCost || 0)
+    });
     setEditingId(item.id);
     setShowForm(true);
+  };
+
+  const handleModalClose = () => {
+    setModalConfig({ ...modalConfig, isOpen: false });
+  };
+
+  const handleModalConfirm = () => {
+    if (modalConfig.onConfirm) modalConfig.onConfirm();
   };
 
   const getStatusBadge = (status) => {
@@ -143,7 +184,7 @@ const Inventory = () => {
       case 'in-stock':
         return <span className="px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">In Stock</span>;
       case 'low-stock':
-        return <span className="px-3 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Low Stock</span>;
+        return <span className="px-3 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 flex items-center gap-1">Low Stock</span>;
       case 'out-of-stock':
         return <span className="px-3 py-1 rounded-full text-xs bg-red-100 text-red-800">Out of Stock</span>;
       default:
@@ -151,8 +192,8 @@ const Inventory = () => {
     }
   };
 
-  const totalValue = inventory.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0);
-  const lowStockCount = inventory.filter(item => item.status === 'low-stock' || item.status === 'out-of-stock').length;
+  const totalValue = filteredInventory.reduce((sum, item) => sum + (item.quantity * (parseFloat(item.unitCost) || 0)), 0);
+  const lowStockCount = filteredInventory.filter(item => item.status === 'low-stock' || item.status === 'out-of-stock').length;
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -168,7 +209,7 @@ const Inventory = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium">Total Items</p>
-              <p className="text-3xl font-bold mt-2">{inventory.length}</p>
+              <p className="text-3xl font-bold mt-2">{drugs.length}</p>
             </div>
             <Box className="w-12 h-12 text-blue-500 opacity-70" />
           </div>
@@ -178,7 +219,7 @@ const Inventory = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium">In Stock</p>
-              <p className="text-3xl font-bold mt-2">{inventory.filter(i => i.status === 'in-stock').length}</p>
+              <p className="text-3xl font-bold mt-2">{filteredInventory.filter(i => i.status === 'in-stock').length}</p>
             </div>
             <Package className="w-12 h-12 text-green-500 opacity-70" />
           </div>
@@ -190,7 +231,7 @@ const Inventory = () => {
               <p className="text-gray-500 text-sm font-medium">Low Stock</p>
               <p className="text-3xl font-bold mt-2">{lowStockCount}</p>
             </div>
-            <AlertCircle className="w-12 h-12 text-yellow-500 opacity-70" />
+            <TrendingDown className="w-12 h-12 text-yellow-500 opacity-70" />
           </div>
         </div>
 
@@ -215,13 +256,13 @@ const Inventory = () => {
               placeholder="Search inventory..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Status</option>
             <option value="in-stock">In Stock</option>
@@ -243,7 +284,7 @@ const Inventory = () => {
                 unitCost: ''
               });
             }}
-            className="flex items-center gap-2 bg-nigerian-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all font-medium"
+            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-all font-medium"
           >
             <Plus className="w-5 h-5" />
             Add Item
@@ -263,7 +304,7 @@ const Inventory = () => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Paracetamol"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
@@ -274,7 +315,7 @@ const Inventory = () => {
                 value={formData.batchNumber}
                 onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
                 placeholder="BTH-2025-001"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -284,7 +325,7 @@ const Inventory = () => {
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                 placeholder="0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
@@ -295,7 +336,7 @@ const Inventory = () => {
                 value={formData.reorderLevel}
                 onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
                 placeholder="100"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
@@ -304,7 +345,7 @@ const Inventory = () => {
               <select
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="tablets">Tablets</option>
                 <option value="capsules">Capsules</option>
@@ -321,7 +362,7 @@ const Inventory = () => {
                 value={formData.unitCost}
                 onChange={(e) => setFormData({ ...formData, unitCost: e.target.value })}
                 placeholder="0.00"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -331,7 +372,7 @@ const Inventory = () => {
                 value={formData.supplier}
                 onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                 placeholder="Supplier name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -340,13 +381,13 @@ const Inventory = () => {
                 type="date"
                 value={formData.expiryDate}
                 onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="md:col-span-2 flex gap-4">
               <button
                 type="submit"
-                className="flex-1 bg-nigerian-green text-white py-2 rounded-lg hover:bg-opacity-90 transition-all font-medium"
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-all font-medium"
               >
                 {editingId ? 'Update Item' : 'Add Item'}
               </button>
@@ -377,7 +418,9 @@ const Inventory = () => {
 
       {/* Inventory List */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        {filteredInventory.length > 0 ? (
+        {loading ? (
+          <div className="p-8 text-center text-gray-500">Loading inventory...</div>
+        ) : filteredInventory.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-100 border-b">
@@ -406,7 +449,7 @@ const Inventory = () => {
                     <td className="px-6 py-4 text-sm text-gray-600">{item.reorderLevel}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{item.supplier}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(item.expiryDate).toLocaleDateString('en-NG')}
+                      {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-NG') : '-'}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {getStatusBadge(item.status)}
@@ -420,7 +463,7 @@ const Inventory = () => {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteInventory(item.id)}
+                        onClick={() => handleDeleteClick(item)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete"
                       >
@@ -434,11 +477,22 @@ const Inventory = () => {
           </div>
         ) : (
           <div className="p-8 text-center">
-            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No inventory items found</p>
           </div>
         )}
       </div>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={modalConfig.isOpen}
+        onClose={handleModalClose}
+        onConfirm={handleModalConfirm}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.type === 'delete' ? 'Delete' : 'OK'}
+      />
     </div>
   );
 };

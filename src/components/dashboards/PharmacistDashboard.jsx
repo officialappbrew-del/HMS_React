@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
+import ConfirmModal from '../../components/ConfirmModal';
 import {
   Pill,
   FileText,
@@ -472,6 +473,43 @@ const PharmacistDashboard = () => {
     details: '',
   });
 
+  const drugCategories = [
+    { value: 'antibiotic', label: 'Antibiotic' },
+    { value: 'analgesic', label: 'Analgesic' },
+    { value: 'antihypertensive', label: 'Antihypertensive' },
+    { value: 'antidiabetic', label: 'Antidiabetic' },
+    { value: 'antimalarial', label: 'Antimalarial' },
+    { value: 'vaccine', label: 'Vaccine' },
+    { value: 'supplement', label: 'Supplement' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const dosageForms = [
+    { value: 'tablet', label: 'Tablet' },
+    { value: 'capsule', label: 'Capsule' },
+    { value: 'syrup', label: 'Syrup' },
+    { value: 'injection', label: 'Injection' },
+    { value: 'ointment', label: 'Ointment' },
+    { value: 'cream', label: 'Cream' },
+    { value: 'drops', label: 'Drops' },
+    { value: 'inhaler', label: 'Inhaler' },
+    { value: 'suppository', label: 'Suppository' }
+  ];
+
+  const nemlCategories = [
+    'Essential-Core', 'Essential-Complementary', 'Specialist', 'Supplementary', 'Not-in-NEML'
+  ];
+
+  const controlledSchedules = [
+    'C1 - Most Restricted', 'C2 - Restricted', 'C3 - Less Restricted', 'C4 - Least Restricted', 'Non-controlled'
+  ];
+
+  const nigerianManufacturers = [
+    'Emzor Pharmaceuticals', 'Fidson Healthcare', 'May & Baker Nigeria', 'Swiss Pharma Nigeria',
+    'Chi Pharmaceuticals', 'Greenlife Pharmaceuticals', 'Mopson Pharmaceuticals', 'Biotech Pharmaceuticals',
+    'GSK Nigeria', 'Sanofi Nigeria', 'Pfizer Nigeria', 'Other'
+  ];
+
   const displayTenantName = authTenant?.name || 'Hospital';
   const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
   const displayRole = authUser?.role || 'pharmacist';
@@ -538,18 +576,35 @@ const PharmacistDashboard = () => {
     { id: 3, patient: 'Grace Adeyemi', medication: 'Insulin', date: '2024-01-13', status: 'dispensed' }
   ]);
 
-  const [inventoryItems] = useState([
-    { id: 1, name: 'Paracetamol', stock: 45, price: 50, category: 'Analgesic', status: 'low' },
-    { id: 2, name: 'Amoxicillin', stock: 12, price: 80, category: 'Antibiotic', status: 'critical' },
-    { id: 3, name: 'Insulin', stock: 8, price: 1200, category: 'Hormone', status: 'critical' },
-    { id: 4, name: 'Metformin', stock: 18, price: 150, category: 'Antidiabetic', status: 'low' }
-  ]);
+  const [apiSuppliers, setApiSuppliers] = useState([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    supplierId: null,
+    supplierName: '',
+  });
+  const [deleting, setDeleting] = useState(false);
 
-  const [suppliers] = useState([
-    { id: 1, name: 'MediCorp', contact: '080-1234-5678', products: 45, status: 'active' },
-    { id: 2, name: 'PharmaPlus', contact: '080-2345-6789', products: 38, status: 'active' },
-    { id: 3, name: 'HealthCare Ltd', contact: '080-3456-7890', products: 52, status: 'active' }
-  ]);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [editingInventoryId, setEditingInventoryId] = useState(null);
+  const [editingSupplierId, setEditingSupplierId] = useState(null);
+  const [inventoryForm, setInventoryForm] = useState({
+    name: '', genericName: '', brandName: '', drugCode: '',
+    nafdacNumber: '', pcnApprovalNumber: '', strength: '', dosageForm: '',
+    unitOfMeasure: '', category: '', therapeuticClass: '', manufacturer: '',
+    supplier: '', countryOfOrigin: 'Nigeria', unitPrice: '', sellingPrice: '',
+    quantity: '', reorderLevel: '', reorderQuantity: '', expiryDate: '',
+    batchNumber: '', storageConditions: '', prescriptionRequired: false,
+    controlledSubstance: false, narcotic: false, schedule: '', nhisCovered: false,
+    nhisCode: '', nhisPrice: '', nemlCategory: '', sideEffects: '',
+    contraindications: '', interactions: '', dosageInstructions: '', barcode: '',
+    lastRestocked: new Date().toISOString().split('T')[0],
+  });
+  const [supplierForm, setSupplierForm] = useState({
+    name: '', contactPerson: '', phone: '', email: '', address: '',
+    licenseNumber: '', rating: 0, notes: ''
+  });
 
   const [alerts, setAlerts] = useState([
     { id: 1, type: 'critical', message: 'Amoxicillin stock critically low - 12 units remaining', time: '30 min ago', read: false },
@@ -564,6 +619,23 @@ const PharmacistDashboard = () => {
   ]);
 
   useEffect(() => {
+    const fetchSuppliers = async () => {
+      setLoadingSuppliers(true);
+      try {
+        const data = await apiRequest('/api/v1/pharmacy/suppliers/');
+        const list = Array.isArray(data) ? data : (data.results || []);
+        setApiSuppliers(list);
+      } catch (err) {
+        console.error('Failed to load suppliers:', err);
+      } finally {
+        setLoadingSuppliers(false);
+      }
+    };
+
+    fetchSuppliers();
+  }, []);
+
+  useEffect(() => {
     const allDrugs = apiDrugs.length > 0 ? apiDrugs : [];
     const lowStockItems = allDrugs.filter(drug => drug.quantityInStock <= drug.reorderLevel).length;
     const totalValue = allDrugs.reduce((sum, drug) => sum + (drug.quantityInStock * parseFloat(drug.unitPrice || drug.unit_price || 0)), 0);
@@ -571,14 +643,14 @@ const PharmacistDashboard = () => {
 
     setStats({
       prescriptionsPending: pendingRx > 0 ? pendingRx : pendingPrescriptions.length,
-      lowStockItems: lowStockItems > 0 ? lowStockItems : 4,
-      expiringSoon: 5,
-      dispensedToday: 23,
-      totalInventory: allDrugs.length > 0 ? allDrugs.length : 45,
-      inventoryValue: totalValue > 0 ? totalValue : 125000,
-      totalSuppliers: suppliers.length,
+      lowStockItems: lowStockItems > 0 ? lowStockItems : 0,
+      expiringSoon: 0,
+      dispensedToday: 0,
+      totalInventory: allDrugs.length,
+      inventoryValue: totalValue,
+      totalSuppliers: apiSuppliers.length,
     });
-  }, [apiDrugs, apiPrescriptions, pendingPrescriptions, suppliers]);
+  }, [apiDrugs, apiPrescriptions, pendingPrescriptions, apiSuppliers]);
 
   // Profile Handlers
   const handleOpenProfile = async () => {
@@ -946,16 +1018,47 @@ const PharmacistDashboard = () => {
     ...prescriptionHistory,
   ];
 
-  const displayInventoryItems = apiDrugs.length > 0
-    ? apiDrugs.map(d => ({
-        id: d.id,
-        name: d.name,
-        stock: d.quantityInStock,
-        price: parseFloat(d.unitPrice || d.unit_price || 0),
-        category: d.category,
-        status: d.quantityInStock <= d.reorderLevel ? (d.quantityInStock === 0 ? 'critical' : 'low') : 'ok'
-      }))
-    : inventoryItems;
+  const displayInventoryItems = apiDrugs.map(d => ({
+    id: d.id,
+    name: d.name,
+    genericName: d.genericName || '',
+    brandName: d.brandName || '',
+    drugCode: d.drugCode || '',
+    nafdacNumber: d.nafdacNumber || '',
+    pcnApprovalNumber: d.pcnApprovalNumber || '',
+    strength: d.strength || '',
+    dosageForm: d.dosageForm || d.form || '',
+    unitOfMeasure: d.unitOfMeasure || d.unit_of_measure || '',
+    category: d.category,
+    therapeuticClass: d.therapeuticClass || '',
+    manufacturer: d.manufacturer || '',
+    supplier: d.supplier || '',
+    countryOfOrigin: d.countryOfOrigin || 'Nigeria',
+    unitPrice: d.unitPrice || d.unit_price || 0,
+    sellingPrice: d.sellingPrice || d.selling_price || 0,
+    stock: d.quantityInStock || d.stock_quantity || 0,
+    reorderLevel: d.reorderLevel || d.reorder_level || 10,
+    reorderQuantity: d.reorderQuantity || d.reorder_quantity || 0,
+    expiryDate: d.expiryDate || d.expiry_date || '',
+    batchNumber: d.batchNumber || d.batch_number || '',
+    storageConditions: d.storageConditions || '',
+    prescriptionRequired: d.prescriptionRequired || false,
+    controlledSubstance: d.controlledSubstance || d.is_controlled || false,
+    narcotic: d.narcotic || false,
+    schedule: d.schedule || '',
+    nhisCovered: d.nhisCovered || false,
+    nhisCode: d.nhisCode || '',
+    nhisPrice: d.nhisPrice || '',
+    nemlCategory: d.nemlCategory || '',
+    sideEffects: d.sideEffects || '',
+    contraindications: d.contraindications || '',
+    interactions: d.interactions || '',
+    dosageInstructions: d.dosageInstructions || '',
+    barcode: d.barcode || '',
+    lastRestocked: d.lastRestocked || '',
+    status: d.quantityInStock <= d.reorderLevel ? (d.quantityInStock === 0 ? 'critical' : 'low') : 'ok',
+    price: parseFloat(d.unitPrice || d.unit_price || 0),
+  }));
 
   const quickActions = [
     { icon: Pill, label: 'Inventory', action: '/inventory', color: 'bg-blue-500' },
@@ -1318,6 +1421,11 @@ const PharmacistDashboard = () => {
           <h2 className="text-sm font-semibold text-gray-900">Inventory</h2>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
+              onClick={() => {
+                setEditingInventoryId(null);
+                setInventoryForm({ name: '', batchNumber: '', quantity: '', reorderLevel: '', unit: 'tablets', supplier: '', expiryDate: '', unitCost: '' });
+                setShowInventoryModal(true);
+              }}
               tooltip="Add new item"
               variant="primary"
             >
@@ -1361,6 +1469,7 @@ const PharmacistDashboard = () => {
                           icon={Edit}
                           tooltip="Edit item"
                           variant="primary"
+                          onClick={() => handleEditInventory(item)}
                         />
                         <IconButton
                           icon={Eye}
@@ -1386,6 +1495,11 @@ const PharmacistDashboard = () => {
           <h2 className="text-sm font-semibold text-gray-900">Suppliers</h2>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
+              onClick={() => {
+                setEditingSupplierId(null);
+                setSupplierForm({ name: '', contactPerson: '', phone: '', email: '', address: '', licenseNumber: '', rating: 0, notes: '' });
+                setShowSupplierModal(true);
+              }}
               tooltip="Add new supplier"
               variant="primary"
             >
@@ -1395,21 +1509,28 @@ const PharmacistDashboard = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {suppliers.map((supplier) => {
-                const status = getStatusBadge(supplier.status);
-                return (
+        {loadingSuppliers ? (
+          <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+            <Loader2 className="w-8 h-8 animate-spin mb-2" />
+            <span>Loading suppliers...</span>
+          </div>
+        ) : apiSuppliers.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No suppliers found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {apiSuppliers.map((supplier) => (
                   <tr key={supplier.id} className="hover:bg-gray-50 transition-colors">
                     <td className="py-3">
                       <div className="flex items-center gap-2">
@@ -1417,11 +1538,12 @@ const PharmacistDashboard = () => {
                         <span className="text-sm font-medium text-gray-900">{supplier.name}</span>
                       </div>
                     </td>
-                    <td className="py-3 text-sm text-gray-600">{supplier.contact}</td>
-                    <td className="py-3 text-sm text-gray-600">{supplier.products}</td>
+                    <td className="py-3 text-sm text-gray-600">{supplier.contact_person || '-'}</td>
+                    <td className="py-3 text-sm text-gray-600">{supplier.phone || '-'}</td>
+                    <td className="py-3 text-sm text-gray-600">{supplier.email || '-'}</td>
                     <td className="py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
-                        {status.label}
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${supplier.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {supplier.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="py-3">
@@ -1430,6 +1552,7 @@ const PharmacistDashboard = () => {
                           icon={Edit}
                           tooltip="Edit supplier"
                           variant="primary"
+                          onClick={() => handleEditSupplier(supplier)}
                         />
                         <IconButton
                           icon={Eye}
@@ -1437,18 +1560,19 @@ const PharmacistDashboard = () => {
                           variant="default"
                         />
                         <IconButton
-                          icon={Truck}
-                          tooltip="View orders"
-                          variant="info"
+                          icon={Trash2}
+                          tooltip="Delete supplier"
+                          variant="danger"
+                          onClick={() => handleDeleteSupplier(supplier)}
                         />
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
   };
@@ -1608,6 +1732,184 @@ const PharmacistDashboard = () => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
 
+  const handleDeleteSupplier = (supplier) => {
+    setDeleteConfirm({
+      isOpen: true,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+    });
+  };
+
+  const confirmDeleteSupplier = async () => {
+    if (!deleteConfirm.supplierId) return;
+    setDeleting(true);
+    try {
+      await apiRequest(`/api/v1/pharmacy/suppliers/${deleteConfirm.supplierId}/`, { method: 'DELETE' });
+      setApiSuppliers(prev => prev.filter(s => s.id !== deleteConfirm.supplierId));
+      setStats(prev => ({ ...prev, totalSuppliers: Math.max(0, prev.totalSuppliers - 1) }));
+    } catch (err) {
+      setErrorModal({
+        isOpen: true,
+        title: 'Delete Failed',
+        message: err.message || 'Failed to delete supplier',
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm({ isOpen: false, supplierId: null, supplierName: '' });
+    }
+  };
+
+  const handleAddInventory = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: inventoryForm.name.trim(),
+        generic_name: inventoryForm.genericName.trim() || null,
+        brand_name: inventoryForm.brandName.trim() || null,
+        drug_code: inventoryForm.drugCode.trim() || null,
+        nafdac_number: inventoryForm.nafdacNumber.trim() || null,
+        pcn_approval_number: inventoryForm.pcnApprovalNumber.trim() || null,
+        strength: inventoryForm.strength.trim() || null,
+        form: inventoryForm.dosageForm,
+        category: inventoryForm.category,
+        therapeutic_class: inventoryForm.therapeuticClass.trim() || null,
+        stock_quantity: parseInt(inventoryForm.quantity) || 0,
+        reorder_level: parseInt(inventoryForm.reorderLevel) || 10,
+        reorder_quantity: parseInt(inventoryForm.reorderQuantity) || 0,
+        unit_price: parseFloat(inventoryForm.unitPrice) || 0,
+        selling_price: parseFloat(inventoryForm.sellingPrice) || 0,
+        unit_of_measure: inventoryForm.unitOfMeasure.trim() || null,
+        batch_number: inventoryForm.batchNumber.trim() || null,
+        expiry_date: inventoryForm.expiryDate || null,
+        storage_conditions: inventoryForm.storageConditions.trim() || null,
+        last_restocked: inventoryForm.lastRestocked || null,
+        manufacturer: inventoryForm.manufacturer || null,
+        supplier: inventoryForm.supplier.trim() || null,
+        country_of_origin: inventoryForm.countryOfOrigin || 'Nigeria',
+        is_controlled: inventoryForm.controlledSubstance,
+        narcotic: inventoryForm.narcotic,
+        schedule: inventoryForm.schedule.trim() || null,
+        nhis_covered: inventoryForm.nhisCovered,
+        nhis_code: inventoryForm.nhisCode.trim() || null,
+        nhis_price: inventoryForm.nhisPrice ? parseFloat(inventoryForm.nhisPrice) : null,
+        neml_category: inventoryForm.nemlCategory || null,
+        side_effects: inventoryForm.sideEffects.trim() || null,
+        contraindications: inventoryForm.contraindications.trim() || null,
+        interactions: inventoryForm.interactions.trim() || null,
+        dosage_instructions: inventoryForm.dosageInstructions.trim() || null,
+        prescription_required: inventoryForm.prescriptionRequired,
+        barcode: inventoryForm.barcode.trim() || null,
+      };
+      if (editingInventoryId) {
+        await apiRequest(`/api/v1/pharmacy/drugs/${editingInventoryId}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+      } else {
+        await apiRequest('/api/v1/pharmacy/drugs/', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      setShowInventoryModal(false);
+      setEditingInventoryId(null);
+      setInventoryForm({
+        name: '', genericName: '', brandName: '', drugCode: '',
+        nafdacNumber: '', pcnApprovalNumber: '', strength: '', dosageForm: '',
+        unitOfMeasure: '', category: '', therapeuticClass: '', manufacturer: '',
+        supplier: '', countryOfOrigin: 'Nigeria', unitPrice: '', sellingPrice: '',
+        quantity: '', reorderLevel: '', reorderQuantity: '', expiryDate: '',
+        batchNumber: '', storageConditions: '', prescriptionRequired: false,
+        controlledSubstance: false, narcotic: false, schedule: '', nhisCovered: false,
+        nhisCode: '', nhisPrice: '', nemlCategory: '', sideEffects: '',
+        contraindications: '', interactions: '', dosageInstructions: '', barcode: '',
+        lastRestocked: new Date().toISOString().split('T')[0],
+      });
+    } catch (err) {
+      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to save inventory' });
+    }
+  };
+
+  const handleEditInventory = (item) => {
+    setEditingInventoryId(item.id);
+    setInventoryForm({
+      name: item.name,
+      genericName: item.genericName || '',
+      brandName: item.brandName || '',
+      drugCode: item.drugCode || '',
+      nafdacNumber: item.nafdacNumber || '',
+      pcnApprovalNumber: item.pcnApprovalNumber || '',
+      strength: item.strength || '',
+      dosageForm: item.dosageForm || '',
+      unitOfMeasure: item.unitOfMeasure || item.unit || '',
+      category: item.category || '',
+      therapeuticClass: item.therapeuticClass || '',
+      manufacturer: item.manufacturer || '',
+      supplier: item.supplier || '',
+      countryOfOrigin: item.countryOfOrigin || 'Nigeria',
+      unitPrice: item.unitPrice ? String(item.unitPrice) : '',
+      sellingPrice: item.sellingPrice ? String(item.sellingPrice) : '',
+      quantity: String(item.stock || 0),
+      reorderLevel: String(item.reorderLevel || 10),
+      reorderQuantity: String(item.reorderQuantity || 0),
+      expiryDate: item.expiryDate || '',
+      batchNumber: item.batchNumber || '',
+      storageConditions: item.storageConditions || '',
+      prescriptionRequired: item.prescriptionRequired || false,
+      controlledSubstance: item.controlledSubstance || false,
+      narcotic: item.narcotic || false,
+      schedule: item.schedule || '',
+      nhisCovered: item.nhisCovered || false,
+      nhisCode: item.nhisCode || '',
+      nhisPrice: item.nhisPrice ? String(item.nhisPrice) : '',
+      nemlCategory: item.nemlCategory || '',
+      sideEffects: item.sideEffects || '',
+      contraindications: item.contraindications || '',
+      interactions: item.interactions || '',
+      dosageInstructions: item.dosageInstructions || '',
+      barcode: item.barcode || '',
+      lastRestocked: item.lastRestocked || new Date().toISOString().split('T')[0],
+    });
+    setShowInventoryModal(true);
+  };
+
+  const handleAddSupplier = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: supplierForm.name.trim(),
+        contact_person: supplierForm.contactPerson.trim() || null,
+        phone: supplierForm.phone.trim() || null,
+        email: supplierForm.email.trim() || null,
+        address: supplierForm.address.trim() || null,
+        license_number: supplierForm.licenseNumber.trim() || null,
+        rating: parseInt(supplierForm.rating) || 0,
+        notes: supplierForm.notes.trim() || null,
+      };
+      if (editingSupplierId) {
+        await apiRequest(`/api/v1/pharmacy/suppliers/${editingSupplierId}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+        setApiSuppliers(prev => prev.map(s => s.id === editingSupplierId ? { ...s, ...payload } : s));
+      } else {
+        const res = await apiRequest('/api/v1/pharmacy/suppliers/', { method: 'POST', body: JSON.stringify(payload) });
+        setApiSuppliers(prev => [...prev, res]);
+      }
+      setShowSupplierModal(false);
+      setEditingSupplierId(null);
+      setSupplierForm({ name: '', contactPerson: '', phone: '', email: '', address: '', licenseNumber: '', rating: 0, notes: '' });
+    } catch (err) {
+      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to save supplier' });
+    }
+  };
+
+  const handleEditSupplier = (supplier) => {
+    setEditingSupplierId(supplier.id);
+    setSupplierForm({
+      name: supplier.name || '',
+      contactPerson: supplier.contact_person || '',
+      phone: supplier.phone || '',
+      email: supplier.email || '',
+      address: supplier.address || '',
+      licenseNumber: supplier.license_number || '',
+      rating: supplier.rating || 0,
+      notes: supplier.notes || '',
+    });
+    setShowSupplierModal(true);
+  };
+
   return (
     <div className="dashboard min-h-screen bg-gray-50 p-4 sm:p-6">
       {/* Header */}
@@ -1745,6 +2047,321 @@ const PharmacistDashboard = () => {
         message={errorModal.message}
         details={errorModal.details}
       />
+
+      {/* Delete Supplier Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, supplierId: null, supplierName: '' })}
+        onConfirm={confirmDeleteSupplier}
+        type="delete"
+        title="Delete Supplier"
+        message={`Are you sure you want to delete "${deleteConfirm.supplierName}"? This action cannot be undone.`}
+        confirmText={deleting ? 'Deleting...' : 'Delete'}
+      />
+
+      {/* Inventory Modal */}
+      {showInventoryModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-4 sm:py-8">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowInventoryModal(false)} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                  {editingInventoryId ? 'Edit Drug / Inventory Item' : 'Add Drug / Inventory Item'}
+                </h2>
+                <button onClick={() => setShowInventoryModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleAddInventory} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                {/* Basic Information */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Basic Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Drug Name *</label>
+                      <input type="text" value={inventoryForm.name} onChange={(e) => setInventoryForm({...inventoryForm, name: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Generic Name</label>
+                      <input type="text" value={inventoryForm.genericName} onChange={(e) => setInventoryForm({...inventoryForm, genericName: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Brand Name</label>
+                      <input type="text" value={inventoryForm.brandName} onChange={(e) => setInventoryForm({...inventoryForm, brandName: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Drug Code</label>
+                      <input type="text" value={inventoryForm.drugCode} onChange={(e) => setInventoryForm({...inventoryForm, drugCode: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., ANT-MAL-001" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Regulatory Information */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Regulatory Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">NAFDAC Number</label>
+                      <input type="text" value={inventoryForm.nafdacNumber} onChange={(e) => setInventoryForm({...inventoryForm, nafdacNumber: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="NAFDAC-04-1234" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">PCN Approval Number</label>
+                      <input type="text" value={inventoryForm.pcnApprovalNumber} onChange={(e) => setInventoryForm({...inventoryForm, pcnApprovalNumber: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">NEML Category</label>
+                      <select value={inventoryForm.nemlCategory} onChange={(e) => setInventoryForm({...inventoryForm, nemlCategory: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select Category</option>
+                        {nemlCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Manufacturer</label>
+                      <select value={inventoryForm.manufacturer} onChange={(e) => setInventoryForm({...inventoryForm, manufacturer: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select Manufacturer</option>
+                        {nigerianManufacturers.map(man => <option key={man} value={man}>{man}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Specifications */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Specifications</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Strength</label>
+                      <input type="text" value={inventoryForm.strength} onChange={(e) => setInventoryForm({...inventoryForm, strength: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 500mg" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Dosage Form *</label>
+                      <select value={inventoryForm.dosageForm} onChange={(e) => setInventoryForm({...inventoryForm, dosageForm: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                        <option value="">Select Form</option>
+                        {dosageForms.map(form => <option key={form.value} value={form.value}>{form.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Category *</label>
+                      <select value={inventoryForm.category} onChange={(e) => setInventoryForm({...inventoryForm, category: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                        <option value="">Select Category</option>
+                        {drugCategories.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Therapeutic Class</label>
+                      <input type="text" value={inventoryForm.therapeuticClass} onChange={(e) => setInventoryForm({...inventoryForm, therapeuticClass: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Inventory Information */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Inventory</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price (₦)</label>
+                      <input type="number" value={inventoryForm.unitPrice} onChange={(e) => setInventoryForm({...inventoryForm, unitPrice: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" step="0.01" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price (₦)</label>
+                      <input type="number" value={inventoryForm.sellingPrice} onChange={(e) => setInventoryForm({...inventoryForm, sellingPrice: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" step="0.01" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Quantity in Stock</label>
+                      <input type="number" value={inventoryForm.quantity} onChange={(e) => setInventoryForm({...inventoryForm, quantity: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Reorder Level</label>
+                      <input type="number" value={inventoryForm.reorderLevel} onChange={(e) => setInventoryForm({...inventoryForm, reorderLevel: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Reorder Quantity</label>
+                      <input type="number" value={inventoryForm.reorderQuantity} onChange={(e) => setInventoryForm({...inventoryForm, reorderQuantity: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Batch Number</label>
+                      <input type="text" value={inventoryForm.batchNumber} onChange={(e) => setInventoryForm({...inventoryForm, batchNumber: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Date</label>
+                      <input type="date" value={inventoryForm.expiryDate} onChange={(e) => setInventoryForm({...inventoryForm, expiryDate: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Storage Conditions</label>
+                      <input type="text" value={inventoryForm.storageConditions} onChange={(e) => setInventoryForm({...inventoryForm, storageConditions: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Room temperature, Refrigerated" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Unit of Measure</label>
+                      <input type="text" value={inventoryForm.unitOfMeasure} onChange={(e) => setInventoryForm({...inventoryForm, unitOfMeasure: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="tablet, capsule, ml, etc." />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Supplier</label>
+                      <input type="text" value={inventoryForm.supplier} onChange={(e) => setInventoryForm({...inventoryForm, supplier: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Country of Origin</label>
+                      <input type="text" value={inventoryForm.countryOfOrigin} onChange={(e) => setInventoryForm({...inventoryForm, countryOfOrigin: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Controlled Substance */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Controlled Substance</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" checked={inventoryForm.controlledSubstance} onChange={(e) => setInventoryForm({...inventoryForm, controlledSubstance: e.target.checked})} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                      <label className="text-sm text-gray-700">Controlled Substance</label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" checked={inventoryForm.narcotic} onChange={(e) => setInventoryForm({...inventoryForm, narcotic: e.target.checked})} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                      <label className="text-sm text-gray-700">Narcotic</label>
+                    </div>
+                    {inventoryForm.controlledSubstance && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Schedule</label>
+                        <select value={inventoryForm.schedule} onChange={(e) => setInventoryForm({...inventoryForm, schedule: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="">Select Schedule</option>
+                          {controlledSchedules.map(schedule => <option key={schedule} value={schedule}>{schedule}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* NHIS Information */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">NHIS Information</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" checked={inventoryForm.nhisCovered} onChange={(e) => setInventoryForm({...inventoryForm, nhisCovered: e.target.checked})} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                      <label className="text-sm text-gray-700">NHIS Covered</label>
+                    </div>
+                    {inventoryForm.nhisCovered && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">NHIS Code</label>
+                          <input type="text" value={inventoryForm.nhisCode} onChange={(e) => setInventoryForm({...inventoryForm, nhisCode: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">NHIS Price (₦)</label>
+                          <input type="number" value={inventoryForm.nhisPrice} onChange={(e) => setInventoryForm({...inventoryForm, nhisPrice: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" step="0.01" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Clinical Information */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Clinical Information</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Dosage Instructions</label>
+                      <textarea value={inventoryForm.dosageInstructions} onChange={(e) => setInventoryForm({...inventoryForm, dosageInstructions: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder="e.g., Take 1 tablet twice daily after meals" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Side Effects</label>
+                      <textarea value={inventoryForm.sideEffects} onChange={(e) => setInventoryForm({...inventoryForm, sideEffects: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder="List common side effects" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Contraindications</label>
+                      <textarea value={inventoryForm.contraindications} onChange={(e) => setInventoryForm({...inventoryForm, contraindications: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder="List contraindications" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Interactions</label>
+                      <textarea value={inventoryForm.interactions} onChange={(e) => setInventoryForm({...inventoryForm, interactions: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder="List drug interactions" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prescription Requirement */}
+                <div className="border-b border-gray-200 pb-3 sm:pb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Prescription Settings</h4>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={inventoryForm.prescriptionRequired} onChange={(e) => setInventoryForm({...inventoryForm, prescriptionRequired: e.target.checked})} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                    <label className="text-sm text-gray-700">Prescription Required</label>
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+                  <button type="submit" className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+                    {editingInventoryId ? 'Update Drug' : 'Add Drug'}
+                  </button>
+                  <button type="button" onClick={() => setShowInventoryModal(false)} className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supplier Modal */}
+      {showSupplierModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-4 sm:py-8">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowSupplierModal(false)} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                  {editingSupplierId ? 'Edit Supplier' : 'Add New Supplier'}
+                </h2>
+                <button onClick={() => setShowSupplierModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleAddSupplier} className="p-4 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Supplier Name *</label>
+                    <input type="text" value={supplierForm.name} onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person</label>
+                    <input type="text" value={supplierForm.contactPerson} onChange={(e) => setSupplierForm({...supplierForm, contactPerson: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="text" value={supplierForm.phone} onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" value={supplierForm.email} onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
+                    <textarea value={supplierForm.address} onChange={(e) => setSupplierForm({...supplierForm, address: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
+                    <input type="text" value={supplierForm.licenseNumber} onChange={(e) => setSupplierForm({...supplierForm, licenseNumber: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Rating</label>
+                    <input type="number" value={supplierForm.rating} onChange={(e) => setSupplierForm({...supplierForm, rating: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" max="5" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea value={supplierForm.notes} onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+                  <button type="submit" className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+                    {editingSupplierId ? 'Update Supplier' : 'Add Supplier'}
+                  </button>
+                  <button type="button" onClick={() => setShowSupplierModal(false)} className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
