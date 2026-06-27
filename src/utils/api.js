@@ -213,3 +213,81 @@ export const pharmacyApi = {
   createSale: (data) => apiRequest('/api/v1/pharmacy/sales/', { method: 'POST', body: JSON.stringify(data) }),
   getTenant: () => apiRequest('/api/v1/tenants/active-tenants/'),
 };
+
+export const consultationApi = {
+  getVisit: (visitId) => apiRequest(`/api/v1/patients/visits/${visitId}/`),
+  getVisits: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/patients/visits/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getPatientVisits: (patientId, params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/patients/patients/${patientId}/visits/${qsStr ? '?' + qsStr : ''}`);
+  },
+  checkIn: (patientId, data) => apiRequest(`/api/v1/patients/patients/${patientId}/check_in/`, { method: 'POST', body: JSON.stringify(data) }),
+  endConsultation: (visitId, data) => apiRequest(`/api/v1/patients/visits/${visitId}/end_consultation/`, { method: 'POST', body: JSON.stringify(data) }),
+  getConsultationNote: (noteId) => apiRequest(`/api/v1/clinical/consultation-notes/${noteId}/`),
+  getConsultationNotes: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/clinical/consultation-notes/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createConsultationNote: (data) => apiRequest('/api/v1/clinical/consultation-notes/', { method: 'POST', body: JSON.stringify(data) }),
+  updateConsultationNote: (noteId, data) => apiRequest(`/api/v1/clinical/consultation-notes/${noteId}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getPrescriptions: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/clinical/prescriptions/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createPrescription: (data) => apiRequest('/api/v1/clinical/prescriptions/', { method: 'POST', body: JSON.stringify(data) }),
+  updatePrescription: (id, data) => apiRequest(`/api/v1/clinical/prescriptions/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deletePrescription: (id) => apiRequest(`/api/v1/clinical/prescriptions/${id}/`, { method: 'DELETE' }),
+  getLabOrders: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/laboratory/orders/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createLabOrder: (data) => apiRequest('/api/v1/laboratory/orders/', { method: 'POST', body: JSON.stringify(data) }),
+  getRadiologyOrders: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/radiology/orders/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createRadiologyOrder: (data) => apiRequest('/api/v1/radiology/orders/', { method: 'POST', body: JSON.stringify(data) }),
+  getProcedures: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/procedures/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createProcedure: (data) => apiRequest('/api/v1/procedures/', { method: 'POST', body: JSON.stringify(data) }),
+  getReferrals: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/referrals/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createReferral: (data) => apiRequest('/api/v1/referrals/', { method: 'POST', body: JSON.stringify(data) }),
+  getICD10Codes: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/clinical/icd10-codes/${qsStr ? '?' + qsStr : ''}`);
+  },
+  searchICD10: (query) => apiRequest(`/api/v1/clinical/icd10-codes/?search=${encodeURIComponent(query)}`),
+  getBillingItems: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/billing/items/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createBillingItem: (data) => apiRequest('/api/v1/billing/items/', { method: 'POST', body: JSON.stringify(data) }),
+};

@@ -791,7 +791,7 @@ const DoctorDashboard = () => {
   const { admissions } = useSelector(state => state.admission || { admissions: [] });
 
   const displayTenantName = authTenant?.name || 'Hospital';
-  const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
+  const displayUserName = authUser?.full_name || [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
   const displayRole = authUser?.role || 'doctor';
 
   const [activeTab, setActiveTab] = useState('overview');

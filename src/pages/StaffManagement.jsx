@@ -1,4 +1,4 @@
-import { useSelector, useDispatch } from 'react-redux';
+ import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import {
   addStaff,
@@ -15,11 +15,11 @@ import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { apiRequest } from '../utils/api';
-import { 
-  UserPlus, 
-  Search, 
-  Filter, 
-  ArrowUpDown, 
+import {
+  UserPlus,
+  Search,
+  Filter,
+  ArrowUpDown,
   MoreVertical,
   Edit2,
   Archive,
@@ -40,7 +40,11 @@ import {
   Plus,
   X,
   Save,
-  AlertCircle
+  AlertCircle,
+  Clipboard,
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 const StaffManagement = () => {
@@ -56,6 +60,8 @@ const StaffManagement = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
   const [totalCount, setTotalCount] = useState(0);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const itemsPerPage = 10;
@@ -69,6 +75,7 @@ const StaffManagement = () => {
     hireDate: '',
     designation: '',
     salary: '',
+    password: '',
   });
 
   // Modal states
@@ -78,6 +85,23 @@ const StaffManagement = () => {
     staffData: null,
     action: null,
   });
+
+  const [credentialsModal, setCredentialsModal] = useState({
+    isOpen: false,
+    employeeId: '',
+    email: '',
+    password: '',
+    showPassword: false,
+  });
+
+  const generatePasswordSuggestion = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
 
   const roles = [
     { value: 'admin', label: 'Administrator' },
@@ -274,7 +298,7 @@ const StaffManagement = () => {
       department: formData.departmentId ? Number(formData.departmentId) : undefined,
       designation: formData.designation || '',
       employment_date: formData.hireDate || undefined,
-      password: 'TempPass123!',
+      password: formData.password || 'TempPass123!',
       is_staff: true,
       employment_status: 'active',
     };
@@ -358,6 +382,13 @@ const StaffManagement = () => {
           body: JSON.stringify(createPayload),
         });
         dispatch(addStaff(normalizeStaff(created)));
+        setCredentialsModal({
+          isOpen: true,
+          employeeId: created.employee_id || `STAFF-${created.id}`,
+          email: created.email,
+          password: formData.password,
+          showPassword: false,
+        });
       }
 
       resetForm();
@@ -365,7 +396,17 @@ const StaffManagement = () => {
       await loadStaff();
     } catch (error) {
       console.error('Failed to save staff user:', error);
-      alert(error.message || 'Unable to save staff user');
+      const errorDetails = error.details || error;
+      const hasPasswordError = errorDetails?.password;
+      
+      if (hasPasswordError) {
+        const suggestion = generatePasswordSuggestion();
+        setFormData(prev => ({ ...prev, password: suggestion }));
+        setShowForm(true);
+        alert(`Password Error: ${Array.isArray(errorDetails.password) ? errorDetails.password.join(', ') : errorDetails.password || error.message}\n\nSuggested password has been filled in the password field. Please update and try again.`);
+      } else {
+        alert(error.message || 'Unable to save staff user');
+      }
     } finally {
       setIsSubmitting(false);
       setIsLoading(false);
@@ -383,6 +424,7 @@ const StaffManagement = () => {
       hireDate: '',
       designation: '',
       salary: '',
+      password: '',
     });
     setEditingId(null);
     setOriginalStaff(null);
@@ -637,21 +679,35 @@ const StaffManagement = () => {
                         </select>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1.5">Designation</label>
-                        <input
-                          type="text"
-                          name="designation"
-                          value={formData.designation}
-                          onChange={handleChange}
-                          placeholder="Senior Consultant"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
-                          disabled={isLoading}
-                        />
-                      </div>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1.5">Designation</label>
+                         <input
+                           type="text"
+                           name="designation"
+                           value={formData.designation}
+                           onChange={handleChange}
+                           placeholder="Senior Consultant"
+                           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                           disabled={isLoading}
+                         />
+                       </div>
 
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1.5">Hire Date</label>
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1.5">Login Password *</label>
+                         <input
+                           type="text"
+                           name="password"
+                           value={formData.password}
+                           onChange={handleChange}
+                           placeholder="Enter password for login"
+                           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                           required={!editingId}
+                           disabled={isLoading}
+                         />
+                       </div>
+
+                       <div>
+                         <label className="block text-xs font-medium text-slate-700 mb-1.5">Hire Date</label>
                         <div className="relative">
                           <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <input
@@ -1048,7 +1104,7 @@ const StaffManagement = () => {
                     </select>
                   </div>
 
-                  <div>
+<div>
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">Department</label>
                     <select
                       name="departmentId"
@@ -1064,9 +1120,9 @@ const StaffManagement = () => {
                     </select>
                   </div>
 
-                  <div>
+<div>
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">Designation</label>
-                    <input
+<input
                       type="text"
                       name="designation"
                       value={formData.designation}
@@ -1075,6 +1131,42 @@ const StaffManagement = () => {
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
                       disabled={isSubmitting}
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Login Password *</label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          placeholder="Enter password for login"
+                          className="w-full px-3.5 py-2.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                          required={!editingId}
+                          disabled={isSubmitting}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const suggestion = generatePasswordSuggestion();
+                          setFormData(prev => ({ ...prev, password: suggestion }));
+                        }}
+                        className="px-3 py-2 text-xs bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors"
+                        title="Generate secure password"
+                      >
+                        Suggest
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -1284,6 +1376,85 @@ const StaffManagement = () => {
         config={getModalConfig()}
         data={modalConfig.staffData}
       />
+
+{/* Credentials Modal */}
+      {credentialsModal.isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setCredentialsModal({ ...credentialsModal, isOpen: false })} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200">
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Login Credentials Created</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Staff member has been created successfully. Please save these login credentials:
+                </p>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">User ID / Employee ID</label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-white px-3 py-2 rounded border border-gray-200 text-sm font-mono">{credentialsModal.employeeId}</code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(credentialsModal.employeeId);
+                          setCopyStatus('Employee ID copied!');
+                          setTimeout(() => setCopyStatus(''), 2000);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Copy"
+                      >
+                        <Clipboard className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-white px-3 py-2 rounded border border-gray-200 text-sm font-mono">
+                        {credentialsModal.showPassword ? credentialsModal.password : '••••••••••••'}
+                      </code>
+                      <button
+                        onClick={() => setCredentialsModal(prev => ({ ...prev, showPassword: !prev.showPassword }))}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title={credentialsModal.showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {credentialsModal.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(credentialsModal.password);
+                          setCopyStatus('Password copied!');
+                          setTimeout(() => setCopyStatus(''), 2000);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Copy"
+                      >
+                        <Clipboard className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+{copyStatus && (
+                    <p className="text-xs text-green-600 font-medium">{copyStatus}</p>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mb-4">
+                  The user can login with their User ID and the password above.
+                </p>
+                <button
+                  onClick={() => setCredentialsModal({ ...credentialsModal, isOpen: false })}
+                  className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

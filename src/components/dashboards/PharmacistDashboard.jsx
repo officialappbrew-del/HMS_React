@@ -510,9 +510,9 @@ const PharmacistDashboard = () => {
     'GSK Nigeria', 'Sanofi Nigeria', 'Pfizer Nigeria', 'Other'
   ];
 
-  const displayTenantName = authTenant?.name || 'Hospital';
-  const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
-  const displayRole = authUser?.role || 'pharmacist';
+const displayTenantName = authTenant?.name || 'Hospital';
+   const displayUserName = authUser?.full_name || [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
+   const displayRole = authUser?.role || 'pharmacist';
 
   // Profile Modal State
   const [showProfileModal, setShowProfileModal] = useState(false);

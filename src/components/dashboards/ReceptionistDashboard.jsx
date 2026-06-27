@@ -774,9 +774,9 @@ const ReceptionistDashboard = () => {
   const { patients } = useSelector(state => state.patient || { patients: [] });
   const { appointments } = useSelector(state => state.appointment || { appointments: [] });
 
-  const displayTenantName = authTenant?.name || 'Hospital';
-  const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
-  const displayRole = authUser?.role || 'receptionist';
+const displayTenantName = authTenant?.name || 'Hospital';
+   const displayUserName = authUser?.full_name || [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
+   const displayRole = authUser?.role || 'receptionist';
 
   // Profile Modal State
   const [showProfileModal, setShowProfileModal] = useState(false);

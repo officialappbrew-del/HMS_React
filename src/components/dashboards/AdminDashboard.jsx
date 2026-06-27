@@ -852,9 +852,9 @@ const AdminDashboard = () => {
   const { wards, stats: wardStats } = useSelector(state => state.ward || { wards: [], stats: {} });
   const { admissions } = useSelector(state => state.admission || { admissions: [] });
 
-  const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hospital';
-  const displayUserName = [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
-  const displayRole = authUser?.role || 'admin';
+const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hospital';
+   const displayUserName = authUser?.full_name || [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
+   const displayRole = authUser?.role || 'admin';
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showMobileFilters, setShowMobileFilters] = useState(false);

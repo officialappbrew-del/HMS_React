@@ -9,17 +9,18 @@ export const useAuth = () => {
   });
 
   useEffect(() => {
-    const storedUser = {
-      id: localStorage.getItem('userId'),
-      user_id: localStorage.getItem('userId'),
-      username: localStorage.getItem('userName'),
-      first_name: localStorage.getItem('userFirstName'),
-      last_name: localStorage.getItem('userLastName'),
-      email: localStorage.getItem('userEmail'),
-      role: localStorage.getItem('userRole'),
-      profile_picture: localStorage.getItem('userProfilePicture') || null,
-      is_active: true,
-    };
+const storedUser = {
+       id: localStorage.getItem('userId'),
+       user_id: localStorage.getItem('userId'),
+       username: localStorage.getItem('userName'),
+       first_name: localStorage.getItem('userFirstName'),
+       last_name: localStorage.getItem('userLastName'),
+       full_name: localStorage.getItem('userFullName'),
+       email: localStorage.getItem('userEmail'),
+       role: localStorage.getItem('userRole'),
+       profile_picture: localStorage.getItem('userProfilePicture') || null,
+       is_active: true,
+     };
     const storedTenant = {
       public_id: localStorage.getItem('tenantId'),
       name: localStorage.getItem('tenantName'),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   Plus,
@@ -13,47 +13,29 @@ import {
   Phone,
   MapPin,
   Loader2,
-  User,
+  Clipboard,
   CheckCircle,
-  UserX,
-  Filter,
-  Printer,
-  Download,
+  UserPlus,
+  User,
   X,
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  UserPlus,
-  Shield,
-  Clock,
-  Calendar,
-  Building2,
-  Globe,
-  Map,
   Heart,
-  Briefcase,
-  IdCard,
-  CalendarDays,
-  Stethoscope,
-  GraduationCap,
-  CreditCard,
-  Home,
-  Linkedin,
-  Twitter,
-  Facebook,
-  Instagram,
-  Globe2,
-  MailCheck,
-  Smartphone,
-  Hash,
+  Building2,
   BadgeCheck,
-  Star,
-  Activity,
-  Clock as ClockIcon,
-  Users as UsersIcon,
+  Hash,
+  Calendar,
+  GraduationCap,
+  UsersIcon,
+  Shield,
+  CreditCard,
+  CalendarDays,
+  Briefcase,
+  Filter,
+  Printer,
+  Eye,
+  EyeOff,
   Camera,
-  Image
+  Download,
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { apiRequest, API_BASE_URL } from '../utils/api';
@@ -145,9 +127,29 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
-// Error Modal Component
-const ErrorModal = ({ isOpen, onClose, title, message, details = null }) => {
+const ErrorModal = ({ isOpen, onClose, title, message, details = null, onUsePassword = null }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordSuggestion, setPasswordSuggestion] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
+
+  const generatePasswordSuggestion = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  useEffect(() => {
+    if (isOpen && details?.password) {
+      setPasswordSuggestion(generatePasswordSuggestion());
+    }
+  }, [isOpen, details]);
+
   if (!isOpen) return null;
+
+  const hasPasswordErrors = details?.password;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -175,7 +177,52 @@ const ErrorModal = ({ isOpen, onClose, title, message, details = null }) => {
 
             <div className="bg-red-50 rounded-lg border border-red-200 p-3 mb-4">
               <p className="text-sm text-red-800 whitespace-pre-line">{message}</p>
-              {details && (
+              {hasPasswordErrors && (
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <p className="text-xs font-medium text-red-700 mb-2">Suggested password:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-white px-2 py-1.5 rounded border border-gray-200 text-sm font-mono">
+                      {showPassword ? passwordSuggestion : '••••••••••••'}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(passwordSuggestion);
+                        setCopyStatus('Password suggestion copied!');
+                        setTimeout(() => setCopyStatus(''), 2000);
+                      }}
+                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Copy suggestion"
+                    >
+                      <Clipboard className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {copyStatus && (
+                    <p className="text-xs text-green-600 font-medium">{copyStatus}</p>
+                  )}
+                  {onUsePassword && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onUsePassword(passwordSuggestion);
+                        onClose();
+                      }}
+                      className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Use this password
+                    </button>
+                  )}
+                </div>
+              )}
+              {details && !hasPasswordErrors && (
                 <details className="mt-2">
                   <summary className="text-xs text-red-600 cursor-pointer font-medium">View details</summary>
                   <pre className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded overflow-x-auto">
@@ -571,6 +618,28 @@ const StaffDirectory = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [profilePictureFile, setProfilePictureFile] = useState(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
+
+  // File input ref
+  const fileInputRef = useRef(null);
+
+  const generatePasswordSuggestion = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+const [credentialsModal, setCredentialsModal] = useState({
+    isOpen: false,
+    employeeId: '',
+    email: '',
+    password: '',
+    showPassword: false,
+  });
 
   // Error modal state
   const [errorModal, setErrorModal] = useState({
@@ -602,7 +671,7 @@ const StaffDirectory = () => {
     license_expiry: '',
     department: '',
     address: '',
-    profile_picture: null,
+    password: '',
   });
 
   // Stats
@@ -675,11 +744,11 @@ const StaffDirectory = () => {
       nurse: 'Nurse',
       pharmacist: 'Pharmacist',
       lab_tech: 'Laboratory Technician',
-      radiographer: 'Radiographer',
       admin: 'Administrative',
       receptionist: 'Administrative',
       accountant: 'Administrative',
       hr_manager: 'Administrative',
+      inventory_manager: 'Administrative',
       support: 'Support Staff',
     };
     return roleMap[role] || 'Support Staff';
@@ -727,6 +796,7 @@ const StaffDirectory = () => {
       }
       formDataToSend.append('department', formData.department.trim());
       formDataToSend.append('address', formData.address.trim());
+      formDataToSend.append('password', formData.password);
       
       if (profilePictureFile) {
         formDataToSend.append('profile_picture', profilePictureFile);
@@ -770,15 +840,37 @@ const StaffDirectory = () => {
         is_active: user.is_active,
         profile_picture: user.profile_picture || null,
       }]);
-      
+
+      setCredentialsModal({
+        isOpen: true,
+        employeeId: user.employee_id || `STAFF-${user.id}`,
+        email: user.email,
+        password: formData.password,
+        showPassword: false,
+      });
+
       setShowAddStaffForm(false);
       resetForm();
-    } catch (err) {
-      showErrorModal(
-        'Failed to Add Staff',
-        err.message || 'Unable to add staff member. Please check the form and try again.',
-        err.details || err
-      );
+} catch (err) {
+      const errorDetails = err.details || err;
+      const hasPasswordError = errorDetails?.password;
+      
+      if (hasPasswordError) {
+        const suggestion = generatePasswordSuggestion();
+        setFormData(prev => ({ ...prev, password: suggestion }));
+        showErrorModal(
+          'Password Error',
+          Array.isArray(errorDetails.password) ? errorDetails.password.join(', ') : errorDetails.password,
+          errorDetails,
+          (pwd) => setFormData(prev => ({ ...prev, password: pwd }))
+        );
+      } else {
+        showErrorModal(
+          'Failed to Add Staff',
+          err.message || 'Unable to add staff member. Please check the form and try again.',
+          errorDetails
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -797,10 +889,12 @@ const StaffDirectory = () => {
       license_expiry: '',
       department: '',
       address: '',
-      profile_picture: null,
+      password: '',
     });
+    setSelectedStaff(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setProfilePictureFile(null);
-    setProfilePicturePreview(null);
+    setProfilePicturePreview('');
   };
 
   const handleDeleteClick = (staffMember) => {
@@ -1355,8 +1449,7 @@ const StaffDirectory = () => {
                         <option value="doctor">Doctor</option>
                         <option value="nurse">Nurse</option>
                         <option value="pharmacist">Pharmacist</option>
-                        <option value="lab_tech">Laboratory Technician</option>
-                        <option value="radiographer">Radiographer</option>
+                        <option value="lab_tech">Lab Technician</option>
                         <option value="receptionist">Receptionist</option>
                         <option value="accountant">Accountant</option>
                         <option value="hr_manager">HR Manager</option>
@@ -1430,6 +1523,41 @@ const StaffDirectory = () => {
                     </div>
                   </div>
                 </div>
+
+<div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter password for login"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className="w-full px-3 py-2 pr-10 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                          disabled={submitting}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const suggestion = generatePasswordSuggestion();
+                          setFormData(prev => ({ ...prev, password: suggestion }));
+                        }}
+                        className="px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                        title="Generate secure password"
+                      >
+                        Suggest
+                      </button>
+                    </div>
+                  </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
@@ -1510,6 +1638,68 @@ const StaffDirectory = () => {
         message={errorModal.message}
         details={errorModal.details}
       />
+
+{/* Credentials Modal */}
+      {credentialsModal.isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setCredentialsModal({ ...credentialsModal, isOpen: false })} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200">
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Login Credentials Created</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Staff member has been created successfully. Please save the login credentials:
+                </p>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-white px-3 py-2 rounded border border-gray-200 text-sm font-mono">
+                        {credentialsModal.showPassword ? credentialsModal.password : '••••••••••••'}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => setCredentialsModal(prev => ({ ...prev, showPassword: !prev.showPassword }))}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title={credentialsModal.showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {credentialsModal.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(credentialsModal.password);
+                          setCopyStatus('Password copied!');
+                          setTimeout(() => setCopyStatus(''), 2000);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Copy"
+                      >
+                        <Clipboard className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {copyStatus && (
+                    <p className="text-xs text-green-600 font-medium">{copyStatus}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCredentialsModal({ ...credentialsModal, isOpen: false })}
+                  className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -133,27 +133,34 @@ const Login = () => {
         throw new Error('Authentication token was not returned by the server.');
       }
 
-      if (response?.requires_2fa || authData.requires_2fa) {
-        throw new Error('Two-factor verification is required before you can continue.');
-      }
+if (response?.requires_2fa || authData.requires_2fa) {
+         throw new Error('Two-factor verification is required before you can continue.');
+       }
 
-      localStorage.setItem('accessToken', token);
-      localStorage.setItem('refreshToken', refreshToken || '');
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('userRole', user.role || selectedRole);
-      localStorage.setItem('userEmail', user.email || formData.email);
-      localStorage.setItem('userName', user.username || user.user_id || formData.email);
-      localStorage.setItem('userId', user.id || user.user_id || loginIdentifier);
-      if (tenantPublicId) {
-        localStorage.setItem('tenantId', tenantPublicId);
-      }
-      if (tenant.domain) {
-        localStorage.setItem('tenantDomain', tenant.domain);
-      }
-      if (tenant.name) {
-        localStorage.setItem('tenantName', tenant.name);
-      }
-      localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+       localStorage.setItem('accessToken', token);
+       localStorage.setItem('refreshToken', refreshToken || '');
+       localStorage.setItem('authToken', token);
+       localStorage.setItem('userRole', user.role || selectedRole);
+       localStorage.setItem('userEmail', user.email || formData.email);
+       localStorage.setItem('userName', user.username || user.user_id || formData.email);
+       localStorage.setItem('userFirstName', user.first_name || '');
+       localStorage.setItem('userLastName', user.last_name || '');
+       const fullName = user.first_name && user.last_name
+         ? `${user.first_name} ${user.last_name}`
+         : user.full_name || user.username || user.user_id || formData.email;
+       localStorage.setItem('userFullName', fullName);
+       localStorage.setItem('licenseNumber', user.license_number || user.mdcn_number || '');
+       localStorage.setItem('userId', user.id || user.user_id || loginIdentifier);
+       if (tenantPublicId) {
+         localStorage.setItem('tenantId', tenantPublicId);
+       }
+       if (tenant.domain) {
+         localStorage.setItem('tenantDomain', tenant.domain);
+       }
+       if (tenant.name) {
+         localStorage.setItem('tenantName', tenant.name);
+       }
+       localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
 
       window.dispatchEvent(new Event('authChanged'));
       setMessage(response?.message || 'Login successful!');

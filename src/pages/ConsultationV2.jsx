@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiRequest } from '../utils/api';
+import { apiRequest, consultationApi } from '../utils/api';
 import {
   loadConsultation,
   selectConsultation,
@@ -92,6 +92,9 @@ const ConsultationV2 = () => {
     billing: false,
     audit: false
   });
+  const [icd10SearchLoading, setIcd10SearchLoading] = useState(false);
+  const [icd10SearchError, setIcd10SearchError] = useState('');
+  const [icd10Database, setIcd10Database] = useState(ICD10_DATABASE);
   const [newMedication, setNewMedication] = useState({
     name: '',
     dosage: '',
@@ -206,8 +209,7 @@ const ConsultationV2 = () => {
     setPatientVisits([]);
 
     try {
-      const response = await apiRequest(`/api/v1/patients/patients/${patientId}/visits/?page_size=20`);
-      const visits = parseList(response);
+      const visits = await consultationApi.getPatientVisits(patientId);
       setPatientVisits(visits);
       if (!visits.length) {
         setPatientVisitsError('No visits found for this patient.');
@@ -232,13 +234,10 @@ const ConsultationV2 = () => {
     setIsCheckingIn(true);
 
     try {
-      const visit = await apiRequest(`/api/v1/patients/patients/${selectedPatient.id}/check_in/`, {
-        method: 'POST',
-        body: JSON.stringify({
-          visit_type: 'opd',
-          chief_complaint: `New consultation for ${selectedPatient.full_name || selectedPatient.hospital_number || 'patient'}`,
-          triage_category: 'green'
-        })
+      const visit = await consultationApi.checkIn(selectedPatient.id, {
+        visit_type: 'opd',
+        chief_complaint: `New consultation for ${selectedPatient.full_name || selectedPatient.hospital_number || 'patient'}`,
+        triage_category: 'green'
       });
 
       if (visit && visit.id) {
@@ -270,10 +269,10 @@ const ConsultationV2 = () => {
       setIsLoadingVisits(true);
       setVisitLoadError('');
       try {
-        const response = await apiRequest('/api/v1/patients/visits/?status=triaged&page_size=20');
+        const response = await consultationApi.getVisits({ status: 'triaged', page_size: 20 });
         const visits = parseList(response);
         if (!visits.length) {
-          const fallbackResponse = await apiRequest('/api/v1/patients/visits/?page_size=20');
+          const fallbackResponse = await consultationApi.getVisits({ page_size: 20 });
           setAvailableVisits(parseList(fallbackResponse));
         } else {
           setAvailableVisits(visits);
@@ -286,7 +285,7 @@ const ConsultationV2 = () => {
     };
 
     loadRecentVisits();
-  }, [visitId, availableVisits.length]);
+  }, [visitId]);
 
   // Effect for loading consultation data - MOVED BEFORE CONDITIONAL RETURN
   useEffect(() => {
@@ -296,9 +295,9 @@ const ConsultationV2 = () => {
       setIsLoading(true);
       try {
         const [visit, noteResponse, prescriptionResponse] = await Promise.all([
-          apiRequest(`/api/v1/patients/visits/${visitId}/`),
-          apiRequest(`/api/v1/clinical/consultation-notes/?visit=${visitId}`),
-          apiRequest(`/api/v1/clinical/prescriptions/?visit=${visitId}`)
+          consultationApi.getVisit(visitId),
+          consultationApi.getConsultationNotes({ visit: visitId }),
+          consultationApi.getPrescriptions({ visit: visitId })
         ]);
 
         const notes = parseList(noteResponse);
@@ -388,7 +387,6 @@ const ConsultationV2 = () => {
     };
 
     loadVisit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitId, dispatch]);
 
   const clinicalAlerts = useMemo(() => {
@@ -446,18 +444,167 @@ const ConsultationV2 = () => {
     dispatch(addAuditLog({ action: `Updated ROS ${section} ${field}` }));
   };
 
-  const handleAddMedication = () => {
+  const handleAddMedication = async () => {
     if (!newMedication.name || !newMedication.dosage) return;
     dispatch(addMedication({ ...newMedication, current: true, previous: false, stopped: false }));
     dispatch(addAuditLog({ action: `Added medication ${newMedication.name}` }));
     setNewMedication({ name: '', dosage: '', frequency: '', duration: '', quantity: '', route: 'Oral', reason: '' });
+    if (visitId) {
+      try {
+        await consultationApi.createPrescription({
+          visit: visitId,
+          drug_name: newMedication.name,
+          dosage: newMedication.dosage,
+          frequency: newMedication.frequency,
+          duration: newMedication.duration,
+          quantity: newMedication.quantity,
+          route: newMedication.route,
+          instructions: newMedication.reason
+        });
+      } catch (error) {
+        setApiError(error.message || 'Failed to save medication to server.');
+      }
+    }
   };
 
-  const handleAddAllergy = () => {
+  const handleAddAllergy = async () => {
     if (!newAllergy.substance) return;
     dispatch(addAllergy(newAllergy));
     dispatch(addAuditLog({ action: `Added allergy ${newAllergy.substance}` }));
     setNewAllergy({ type: 'Drug', substance: '', severity: 'Moderate', reactionType: '', notes: '' });
+    if (visitId) {
+      try {
+        await consultationApi.createPrescription({
+          visit: visitId,
+          allergy_data: {
+            type: newAllergy.type,
+            substance: newAllergy.substance,
+            severity: newAllergy.severity,
+            reaction_type: newAllergy.reactionType,
+            notes: newAllergy.notes
+          }
+        });
+      } catch (error) {
+        setApiError(error.message || 'Failed to save allergy to server.');
+      }
+    }
+  };
+
+  const handleSearchICD10 = async (query) => {
+    if (!query.trim()) {
+      setIcd10Database(ICD10_DATABASE);
+      setIcd10SearchError('');
+      return;
+    }
+    setIcd10SearchLoading(true);
+    setIcd10SearchError('');
+    try {
+      const results = await consultationApi.searchICD10(query);
+      setIcd10Database(results);
+    } catch (error) {
+      setIcd10SearchError(error.message || 'Unable to search ICD-10 codes.');
+      setIcd10Database(ICD10_DATABASE.filter(item => 
+        item.code.toLowerCase().includes(query.toLowerCase()) || 
+        item.description.toLowerCase().includes(query.toLowerCase())
+      ));
+    } finally {
+      setIcd10SearchLoading(false);
+    }
+  };
+
+  const handleSaveHPI = async () => {
+    if (!visitId) return;
+    try {
+      const response = await consultationApi.createConsultationNote({
+        visit: visitId,
+        chief_complaint: consultation.hpi.chiefComplaint,
+        subjective: consultation.hpi.freeNotes,
+        hpi_data: consultation.hpi
+      });
+      dispatch(addAuditLog({ action: 'Saved HPI section' }));
+      setApiMessage('HPI saved.');
+      setTimeout(() => setApiMessage(''), 3000);
+    } catch (error) {
+      setApiError(error.message || 'Failed to save HPI.');
+    }
+  };
+
+  const handleSaveROS = async () => {
+    if (!visitId) return;
+    try {
+      const response = await consultationApi.createConsultationNote({
+        visit: visitId,
+        ros_data: consultation.ros
+      });
+      dispatch(addAuditLog({ action: 'Saved ROS section' }));
+      setApiMessage('ROS saved.');
+      setTimeout(() => setApiMessage(''), 3000);
+    } catch (error) {
+      setApiError(error.message || 'Failed to save ROS.');
+    }
+  };
+
+  const handleSaveICD10 = async () => {
+    if (!visitId) return;
+    try {
+      const response = await consultationApi.createConsultationNote({
+        visit: visitId,
+        diagnosis_codes: consultation.icd10.selectedCodes.map(c => c.code)
+      });
+      dispatch(addAuditLog({ action: 'Saved ICD-10 codes' }));
+      setApiMessage('ICD-10 codes saved.');
+      setTimeout(() => setApiMessage(''), 3000);
+    } catch (error) {
+      setApiError(error.message || 'Failed to save ICD-10 codes.');
+    }
+  };
+
+  const handleSaveTreatmentPlan = async () => {
+    if (!visitId) return;
+    try {
+      const response = await consultationApi.createConsultationNote({
+        visit: visitId,
+        plan: `${consultation.treatmentPlan.managementPlan}\n${consultation.treatmentPlan.medications}\n${consultation.treatmentPlan.lifestyleAdvice}\n${consultation.treatmentPlan.dietaryAdvice}\n${consultation.treatmentPlan.monitoringPlan}\n${consultation.treatmentPlan.safetyNetAdvice}`
+      });
+      dispatch(addAuditLog({ action: 'Saved Treatment Plan section' }));
+      setApiMessage('Treatment plan saved.');
+      setTimeout(() => setApiMessage(''), 3000);
+    } catch (error) {
+      setApiError(error.message || 'Failed to save treatment plan.');
+    }
+  };
+
+  const handleSaveOrders = async (orderType, orderData) => {
+    if (!visitId) return;
+    try {
+      const createMap = {
+        laboratory: consultationApi.createLabOrder,
+        radiology: consultationApi.createRadiologyOrder,
+        procedures: consultationApi.createProcedure,
+        referralOrders: consultationApi.createReferral
+      };
+      await createMap[orderType]({ ...orderData, visit: visitId });
+      dispatch(addAuditLog({ action: `Saved ${ORDER_TYPES.find(o => o.key === orderType)?.label} order` }));
+      setApiMessage('Order saved.');
+      setTimeout(() => setApiMessage(''), 3000);
+    } catch (error) {
+      setApiError(error.message || 'Failed to save order.');
+    }
+  };
+
+  const handleSaveBilling = async () => {
+    if (!visitId) return;
+    try {
+      const response = await consultationApi.createBillingItem({
+        visit: visitId,
+        items: consultation.billing.charges
+      });
+      dispatch(addAuditLog({ action: 'Saved Billing charges' }));
+      setApiMessage('Billing charges saved.');
+      setTimeout(() => setApiMessage(''), 3000);
+    } catch (error) {
+      setApiError(error.message || 'Failed to save billing.');
+    }
   };
 
   const handleAddICD10 = (code) => {
@@ -485,7 +632,14 @@ const ConsultationV2 = () => {
   };
 
   const handleSignOff = async () => {
-    dispatch(signConsultation({ digitalSignature: 'signed-by-app', ipAddress: window.location.hostname }));
+    const userFullName = localStorage.getItem('userFullName') || localStorage.getItem('userName');
+    const tenantId = localStorage.getItem('tenantId');
+    dispatch(signConsultation({ 
+      doctorName: userFullName || consultation.signature.doctorName,
+      licenseNumber: tenantId || consultation.signature.licenseNumber,
+      digitalSignature: 'signed-by-app', 
+      ipAddress: window.location.hostname 
+    }));
     dispatch(addAuditLog({ action: 'Signed consultation' }));
     dispatch(generateBillingCharge({ item: 'Consultation fee', amount: 5000 }));
     await handleSaveConsultation({ markFinal: true });
@@ -563,10 +717,7 @@ const ConsultationV2 = () => {
         throw new Error('No visit selected for consultation save.');
       }
 
-      await apiRequest(`/api/v1/patients/visits/${visitId}/end_consultation/`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      await consultationApi.endConsultation(visitId, payload);
 
       setApiMessage('Consultation saved successfully.');
     } catch (error) {
@@ -588,8 +739,12 @@ const ConsultationV2 = () => {
 
   const icd10Results = useMemo(() => {
     const search = consultation.icd10.searchTerm.trim().toLowerCase();
-    if (!search) return ICD10_DATABASE;
-    return ICD10_DATABASE.filter(item => item.code.toLowerCase().includes(search) || item.description.toLowerCase().includes(search));
+    if (!search) return icd10Database;
+    return icd10Database.filter(item => item.code.toLowerCase().includes(search) || item.description.toLowerCase().includes(search));
+  }, [consultation.icd10.searchTerm, icd10Database]);
+
+  useEffect(() => {
+    handleSearchICD10(consultation.icd10.searchTerm);
   }, [consultation.icd10.searchTerm]);
 
   // NOW WE CAN HAVE THE CONDITIONAL RETURN AFTER ALL HOOKS
@@ -899,9 +1054,12 @@ const ConsultationV2 = () => {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">History of Present Illness</p>
             <h2 className="mt-2 text-lg font-semibold text-slate-900">Structured HPI</h2>
           </div>
-          <button onClick={() => toggleSection('hpi')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-            {expandedSections.hpi ? 'Collapse' : 'Expand'} {expandedSections.hpi ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveHPI} className="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">Save HPI</button>
+            <button onClick={() => toggleSection('hpi')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+              {expandedSections.hpi ? 'Collapse' : 'Expand'} {expandedSections.hpi ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
         {expandedSections.hpi && (
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -933,9 +1091,12 @@ const ConsultationV2 = () => {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Review of Systems</p>
             <h2 className="mt-2 text-lg font-semibold text-slate-900">Organ System Screening</h2>
           </div>
-          <button onClick={() => toggleSection('ros')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-            {expandedSections.ros ? 'Collapse' : 'Expand'} {expandedSections.ros ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveROS} className="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">Save ROS</button>
+            <button onClick={() => toggleSection('ros')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+              {expandedSections.ros ? 'Collapse' : 'Expand'} {expandedSections.ros ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
         {expandedSections.ros && (
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1072,9 +1233,12 @@ const ConsultationV2 = () => {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Diagnosis & Coding</p>
             <h2 className="mt-2 text-lg font-semibold text-slate-900">ICD-10 Selection</h2>
           </div>
-          <button onClick={() => toggleSection('icd10')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-            {expandedSections.icd10 ? 'Collapse' : 'Expand'} {expandedSections.icd10 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveICD10} className="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">Save ICD-10</button>
+            <button onClick={() => toggleSection('icd10')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+              {expandedSections.icd10 ? 'Collapse' : 'Expand'} {expandedSections.icd10 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
         {expandedSections.icd10 && (
           <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_0.7fr]">
@@ -1129,9 +1293,12 @@ const ConsultationV2 = () => {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Orders</p>
             <h2 className="mt-2 text-lg font-semibold text-slate-900">Diagnostics & Referrals</h2>
           </div>
-          <button onClick={() => toggleSection('orders')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-            {expandedSections.orders ? 'Collapse' : 'Expand'} {expandedSections.orders ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => handleSaveOrders('laboratory', consultation.orders.laboratory[0])} disabled={!visitId} className="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50">Save Orders</button>
+            <button onClick={() => toggleSection('orders')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+              {expandedSections.orders ? 'Collapse' : 'Expand'} {expandedSections.orders ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
         {expandedSections.orders && (
           <div className="mt-6 space-y-6">
@@ -1186,9 +1353,12 @@ const ConsultationV2 = () => {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Treatment Plan</p>
               <h2 className="mt-2 text-lg font-semibold text-slate-900">Care Plan</h2>
             </div>
-            <button onClick={() => toggleSection('plan')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-              {expandedSections.plan ? 'Collapse' : 'Expand'} {expandedSections.plan ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={handleSaveTreatmentPlan} className="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">Save Plan</button>
+              <button onClick={() => toggleSection('plan')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                {expandedSections.plan ? 'Collapse' : 'Expand'} {expandedSections.plan ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {expandedSections.plan && (
             <div className="mt-6 grid gap-4">
@@ -1254,9 +1424,12 @@ const ConsultationV2 = () => {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Billing</p>
               <h2 className="mt-2 text-lg font-semibold text-slate-900">Charges</h2>
             </div>
-            <button onClick={() => toggleSection('billing')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-              {expandedSections.billing ? 'Collapse' : 'Expand'} {expandedSections.billing ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={handleSaveBilling} disabled={!visitId} className="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50">Save Billing</button>
+              <button onClick={() => toggleSection('billing')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                {expandedSections.billing ? 'Collapse' : 'Expand'} {expandedSections.billing ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {expandedSections.billing && (
             <div className="mt-6 space-y-4">
@@ -1293,11 +1466,11 @@ const ConsultationV2 = () => {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Sign-off</p>
               <h2 className="mt-2 text-lg font-semibold text-slate-900">Electronic Signature</h2>
             </div>
-            <button onClick={handleSignOff} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700">Sign Now</button>
+            <button onClick={handleSignOff} disabled={isSaving || !visitId} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">Sign Now</button>
           </div>
           <div className="mt-6 space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm text-slate-700">Doctor: <span className="font-semibold text-slate-900">{consultation.signature.doctorName}</span></p>
-            <p className="text-sm text-slate-700">License: <span className="font-semibold text-slate-900">{consultation.signature.licenseNumber}</span></p>
+            <p className="text-sm text-slate-700">Doctor: <span className="font-semibold text-slate-900">{localStorage.getItem('userFullName') || localStorage.getItem('userName') || consultation.signature.doctorName}</span></p>
+            <p className="text-sm text-slate-700">License: <span className="font-semibold text-slate-900">{localStorage.getItem('licenseNumber') || consultation.signature.licenseNumber}</span></p>
             <p className="text-sm text-slate-700">Signed: <span className="font-semibold text-slate-900">{consultation.signature.signed ? 'Yes' : 'No'}</span></p>
             {consultation.signature.signed && <p className="text-sm text-slate-600">Signed at {new Date(consultation.signature.signedAt).toLocaleString()}</p>}
           </div>
