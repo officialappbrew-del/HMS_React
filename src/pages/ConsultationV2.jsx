@@ -53,16 +53,11 @@ import {
   ChevronDown,
   ChevronUp,
   Edit,
-  Save
+  Save,
+  FileUser,
+  IdCard
 } from 'lucide-react';
 
-const ICD10_DATABASE = [
-  { code: 'G51.0', description: 'Bell palsy' },
-  { code: 'I10', description: 'Essential (primary) hypertension' },
-  { code: 'R51', description: 'Headache' },
-  { code: 'I67.4', description: 'Hypertensive encephalopathy' },
-  { code: 'G44.1', description: 'Vascular headache, not elsewhere classified' }
-];
 
 const ORDER_TYPES = [
   { key: 'laboratory', label: 'Laboratory' },
@@ -94,7 +89,7 @@ const ConsultationV2 = () => {
   });
   const [icd10SearchLoading, setIcd10SearchLoading] = useState(false);
   const [icd10SearchError, setIcd10SearchError] = useState('');
-  const [icd10Database, setIcd10Database] = useState(ICD10_DATABASE);
+  const [icd10Database, setIcd10Database] = useState([]);
   const [newMedication, setNewMedication] = useState({
     name: '',
     dosage: '',
@@ -130,28 +125,10 @@ const ConsultationV2 = () => {
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [checkInError, setCheckInError] = useState('');
 
-  const allPatients = useSelector((state) => state.patient?.patients || []);
-
   const visitId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('visit') || location.state?.visitId || null;
   }, [location.search, location.state]);
-
-  const localPatientMatches = useMemo(() => {
-    const term = patientSearchTerm.trim().toLowerCase();
-    if (!term) return [];
-    return allPatients.filter((patient) => {
-      const fullName = `${patient.full_name || ''}`.toLowerCase();
-      return (
-        fullName.includes(term) ||
-        (patient.hospital_number && patient.hospital_number.toLowerCase().includes(term)) ||
-        (patient.nin && patient.nin.toLowerCase().includes(term)) ||
-        (patient.phone && patient.phone.toLowerCase().includes(term)) ||
-        (patient.email && patient.email.toLowerCase().includes(term)) ||
-        (patient.address && patient.address.toLowerCase().includes(term))
-      );
-    });
-  }, [allPatients, patientSearchTerm]);
 
   const parseList = (response) => {
     if (!response) return [];
@@ -176,11 +153,6 @@ const ConsultationV2 = () => {
       const response = await apiRequest(`/api/v1/patients/patients/?search=${encodeURIComponent(trimmedTerm)}&page_size=20`);
       const patients = parseList(response);
       setPatientResults(patients);
-      if (!patients.length && localPatientMatches.length === 0) {
-        setPatientSearchError('No patients found. Try a different name, MRN, or contact detail.');
-      } else {
-        setPatientSearchError('');
-      }
     } catch (error) {
       setPatientSearchError(error.message || 'Unable to search patients.');
     } finally {
@@ -271,12 +243,7 @@ const ConsultationV2 = () => {
       try {
         const response = await consultationApi.getVisits({ status: 'triaged', page_size: 20 });
         const visits = parseList(response);
-        if (!visits.length) {
-          const fallbackResponse = await consultationApi.getVisits({ page_size: 20 });
-          setAvailableVisits(parseList(fallbackResponse));
-        } else {
-          setAvailableVisits(visits);
-        }
+        setAvailableVisits(visits);
       } catch (error) {
         setVisitLoadError(error.message || 'Unable to load patient visits.');
       } finally {
@@ -492,7 +459,7 @@ const ConsultationV2 = () => {
 
   const handleSearchICD10 = async (query) => {
     if (!query.trim()) {
-      setIcd10Database(ICD10_DATABASE);
+      setIcd10Database([]);
       setIcd10SearchError('');
       return;
     }
@@ -503,10 +470,7 @@ const ConsultationV2 = () => {
       setIcd10Database(results);
     } catch (error) {
       setIcd10SearchError(error.message || 'Unable to search ICD-10 codes.');
-      setIcd10Database(ICD10_DATABASE.filter(item => 
-        item.code.toLowerCase().includes(query.toLowerCase()) || 
-        item.description.toLowerCase().includes(query.toLowerCase())
-      ));
+      setIcd10Database([]);
     } finally {
       setIcd10SearchLoading(false);
     }
@@ -800,9 +764,9 @@ const ConsultationV2 = () => {
 
               {isSearchingPatients ? (
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">Searching patients...</div>
-              ) : patientResults.length > 0 || localPatientMatches.length > 0 ? (
+              ) : patientResults.length > 0 ? (
                 <div className="space-y-3">
-                  {(patientResults.length > 0 ? patientResults : localPatientMatches).map((patient) => (
+                  {patientResults.map((patient) => (
                     <button
                       key={patient.id}
                       type="button"
@@ -953,6 +917,39 @@ const ConsultationV2 = () => {
             <div className="flex flex-col gap-2 sm:items-end">
               <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">Encounter #{consultation.encounter.encounterNumber}</div>
               <div className="flex flex-wrap gap-2">
+                <button onClick={() => {
+                  const printWindow = window.open('', '_blank');
+                  const patientData = `
+                    <html>
+                      <head><title>Patient Summary - ${consultation.patient.name}</title>
+                      <style>
+                        body { font-family: Inter, sans-serif; padding: 20px; }
+                        .header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
+                        .section { margin-bottom: 15px; }
+                        .label { font-weight: 600; color: #475569; }
+                        .value { color: #0f172a; }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="header">
+                        <h1>Patient Summary</h1>
+                        <p>Generated: ${new Date().toLocaleString()}</p>
+                      </div>
+                      <div class="section"><span class="label">Name:</span> <span class="value">${consultation.patient.name}</span></div>
+                      <div class="section"><span class="label">MRN:</span> <span class="value">${consultation.patient.mrn}</span></div>
+                      <div class="section"><span class="label">Gender/Age:</span> <span class="value">${consultation.patient.gender} / ${consultation.patient.age}</span></div>
+                      <div class="section"><span class="label">Insurance:</span> <span class="value">${consultation.patient.insurancePlan}</span></div>
+                      <div class="section"><span class="label">Consultant:</span> <span class="value">${consultation.patient.primaryConsultant}</span></div>
+                      <div class="section"><span class="label">Latest Vitals:</span> <span class="value">${consultation.patient.latestVitals}</span></div>
+                      <div class="section"><span class="label">Risk Flags:</span> <span class="value">${consultation.patient.riskFlags.join(', ')}</span></div>
+                    </body>
+                    </html>`;
+                  printWindow.document.write(patientData);
+                  printWindow.document.close();
+                  printWindow.print();
+                }} className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50">
+                  <FileUser className="h-4 w-4" /> Print Patient Summary
+                </button>
                 <button onClick={handleSignOff} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
                   <CheckCircle className="h-4 w-4" /> Sign & Close
                 </button>
@@ -1032,7 +1029,6 @@ const ConsultationV2 = () => {
                   <p className="mt-1 text-sm text-slate-700">Recent consultation activity.</p>
                 </div>
               </div>
-              <button onClick={() => dispatch(addAuditLog({ action: 'Viewed audit trail' }))} className="rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">Log View</button>
             </div>
             <div className="mt-4 space-y-3">
               {consultation.auditTrail.length === 0 ? (

@@ -82,16 +82,20 @@ const isAuthenticated = () => {
 };
 
 const ProtectedRoute = ({ children }) => {
-  const location = useLocation();
+   const location = useLocation();
 
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
+   if (!isAuthenticated()) {
+     return <Navigate to="/login" replace state={{ from: location }} />;
+   }
 
-  return children;
-};
+   return children;
+ };
 
-const PublicRoute = ({ children }) => {
+const NotFoundLayout = ({ children }) => {
+    return <>{children}</>;
+  };
+
+  const PublicRoute = ({ children }) => {
   if (isAuthenticated()) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -100,11 +104,11 @@ const PublicRoute = ({ children }) => {
 };
 
 function AppLayout() {
-  const location = useLocation();
-  const isLandingPage = location.pathname === '/';
-  const isLoginPage = location.pathname === '/login';
-  const isSignupPage = location.pathname === '/signup';
-  const isPublicPage = isLandingPage || isLoginPage || isSignupPage;
+   const location = useLocation();
+   const isLandingPage = location.pathname === '/';
+   const isLoginPage = location.pathname === '/login';
+   const isSignupPage = location.pathname === '/signup';
+   const isPublicPage = isLandingPage || isLoginPage || isSignupPage;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
@@ -230,10 +234,10 @@ function AppLayout() {
               <Route path="/patient-feedback" element={<ProtectedRoute><PatientFeedback /></ProtectedRoute>} />
               <Route path="/credit-management" element={<ProtectedRoute><CreditManagement /></ProtectedRoute>} />
               <Route path="/ndpr-compliance" element={<ProtectedRoute><NDPRCompliance /></ProtectedRoute>} />
-              <Route path="/budgeting-forecasting" element={<ProtectedRoute><BudgetingForecasting /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+<Route path="/budgeting-forecasting" element={<ProtectedRoute><BudgetingForecasting /></ProtectedRoute>} />
+<Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+               <Route path="/404" element={<NotFoundLayout><NotFound /></NotFoundLayout>} />
+              </Routes>
           </PageErrorBoundary>
         </main>
         {!isPublicPage && (
@@ -247,15 +251,18 @@ function AppLayout() {
 }
 
 function App() {
-  return (
-    <Provider store={store}>
-      <ErrorBoundary>
-        <Router>
-          <AppLayout />
-        </Router>
-      </ErrorBoundary>
-    </Provider>
-  );
-}
+   return (
+     <Provider store={store}>
+       <ErrorBoundary>
+         <Router>
+           <Routes>
+             <Route path="/404" element={<NotFoundLayout><NotFound /></NotFoundLayout>} />
+             <Route path="*" element={<AppLayout />} />
+           </Routes>
+         </Router>
+       </ErrorBoundary>
+     </Provider>
+   );
+  }
 
 export default App;

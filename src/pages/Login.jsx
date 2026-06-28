@@ -56,21 +56,25 @@ const Login = () => {
         }
         window.dispatchEvent(new Event('authChanged'));
         navigate('/dashboard');
-      } catch {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('tenantId');
-        localStorage.removeItem('tenantDomain');
-        localStorage.removeItem('tenantName');
-        setRememberMe(false);
-        localStorage.removeItem('rememberMe');
-        setLoading(false);
-      }
+} catch {
+         localStorage.removeItem('accessToken');
+         localStorage.removeItem('authToken');
+         localStorage.removeItem('refreshToken');
+         localStorage.removeItem('userId');
+         localStorage.removeItem('userRole');
+         localStorage.removeItem('userEmail');
+         localStorage.removeItem('userName');
+         localStorage.removeItem('userFirstName');
+         localStorage.removeItem('userLastName');
+         localStorage.removeItem('userFullName');
+         localStorage.removeItem('licenseNumber');
+         localStorage.removeItem('tenantId');
+         localStorage.removeItem('tenantDomain');
+         localStorage.removeItem('tenantName');
+         setRememberMe(false);
+         localStorage.removeItem('rememberMe');
+         setLoading(false);
+       }
     };
 
     restoreSession();

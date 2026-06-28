@@ -158,9 +158,21 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   };
 
   const confirmLogout = () => {
+    localStorage.removeItem('accessToken');
     localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userFirstName');
+    localStorage.removeItem('userLastName');
+    localStorage.removeItem('userFullName');
+    localStorage.removeItem('licenseNumber');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('tenantId');
+    localStorage.removeItem('tenantDomain');
+    localStorage.removeItem('tenantName');
+    localStorage.removeItem('rememberMe');
     window.dispatchEvent(new Event('authChanged'));
     navigate('/login');
     setShowLogoutConfirm(false);

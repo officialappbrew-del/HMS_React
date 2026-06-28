@@ -49,6 +49,10 @@ const clearAuthData = () => {
   localStorage.removeItem('userRole');
   localStorage.removeItem('userEmail');
   localStorage.removeItem('userName');
+  localStorage.removeItem('userFirstName');
+  localStorage.removeItem('userLastName');
+  localStorage.removeItem('userFullName');
+  localStorage.removeItem('licenseNumber');
   localStorage.removeItem('userId');
   window.dispatchEvent(new Event('authChanged'));
 };
