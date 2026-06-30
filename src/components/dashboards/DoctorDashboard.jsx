@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
 import ConsultationV2 from '../../pages/ConsultationV2';
-import { setPatients } from '../../features/patientSlice';  // Fixed import path
+import { setPatients } from '../../features/patientSlice';
 import {
   Users,
   Stethoscope,
@@ -88,7 +88,7 @@ import {
   Loader2,
 } from 'lucide-react';
 
-// Tooltip Component
+// Tooltip Component (keep for other items)
 const Tooltip = ({ children, text, position = 'top' }) => {
   const [show, setShow] = useState(false);
   
@@ -124,8 +124,8 @@ const Tooltip = ({ children, text, position = 'top' }) => {
   );
 };
 
-// Icon Button with Tooltip
-const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
+// Icon Button with Tooltip (for items that should have tooltips)
+const IconButtonWithTooltip = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
   const variantClasses = {
     default: 'text-gray-400 hover:text-gray-600',
     primary: 'text-blue-600 hover:text-blue-700',
@@ -150,7 +150,31 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
   );
 };
 
-// Button with Tooltip
+// Icon Button WITHOUT Tooltip (for items that should NOT have tooltips)
+const IconButton = ({ icon: Icon, onClick, variant = 'default', className = '', disabled = false }) => {
+  const variantClasses = {
+    default: 'text-gray-400 hover:text-gray-600',
+    primary: 'text-blue-600 hover:text-blue-700',
+    success: 'text-green-600 hover:text-green-700',
+    danger: 'text-red-600 hover:text-red-700',
+    warning: 'text-yellow-600 hover:text-yellow-700',
+    info: 'text-blue-600 hover:text-blue-700',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+};
+
+// Button with Tooltip (for items that should have tooltips)
 const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '' }) => {
   const variantClasses = {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white',
@@ -169,6 +193,26 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
         {children}
       </button>
     </Tooltip>
+  );
+};
+
+// Button WITHOUT Tooltip (for items that should NOT have tooltips)
+const Button = ({ children, onClick, variant = 'primary', className = '' }) => {
+  const variantClasses = {
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+    secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
+    success: 'bg-green-600 hover:bg-green-700 text-white',
+    danger: 'bg-red-600 hover:bg-red-700 text-white',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
+    >
+      {children}
+    </button>
   );
 };
 
@@ -500,14 +544,13 @@ const PatientDetailModal = ({ patient, onClose }) => {
           </div>
 
           <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
-            <ButtonWithTooltip
+            <Button
               onClick={onClose}
-              tooltip="Close patient details"
               variant="secondary"
             >
               <X className="w-3.5 h-3.5" />
               Close
-            </ButtonWithTooltip>
+            </Button>
             <ButtonWithTooltip
               onClick={() => window.open(`/patients/${patient.id}/consult`, '_blank')}
               tooltip="Start consultation"
@@ -759,14 +802,13 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
           </div>
 
           <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
-            <ButtonWithTooltip
+            <Button
               onClick={onClose}
-              tooltip="Close profile editor"
               variant="secondary"
             >
               <X className="w-3.5 h-3.5" />
               Close
-            </ButtonWithTooltip>
+            </Button>
             <ButtonWithTooltip
               onClick={onSave}
               tooltip="Save profile changes"
@@ -1600,89 +1642,80 @@ const DoctorDashboard = () => {
                   </p>
                 </div>
               </div>
-              <ButtonWithTooltip
+              <Button
                 onClick={() => alerts.filter(a => a.type === 'critical').forEach(a => handleMarkAlertRead(a.id))}
-                tooltip="Mark all alerts as read"
                 variant="secondary"
               >
                 Mark All Read
-              </ButtonWithTooltip>
+              </Button>
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Tooltip text="Total patients under your care">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">My Patients</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{stats.myPatients}</p>
-                  <div className="mt-1 flex items-center text-xs text-blue-600">
-                    <Users className="mr-1 h-3 w-3" />
-                    <span>Active cases</span>
-                  </div>
-                </div>
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-600" />
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">My Patients</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.myPatients}</p>
+                <div className="mt-1 flex items-center text-xs text-blue-600">
+                  <Users className="mr-1 h-3 w-3" />
+                  <span>Active cases</span>
                 </div>
               </div>
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
             </div>
-          </Tooltip>
+          </div>
 
-          <Tooltip text="Today's scheduled ward rounds">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Today's Rounds</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{stats.todaysRounds}</p>
-                  <div className="mt-1 flex items-center text-xs text-green-600">
-                    <Stethoscope className="mr-1 h-3 w-3" />
-                    <span>Scheduled</span>
-                  </div>
-                </div>
-                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <Stethoscope className="w-5 h-5 text-green-600" />
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Today's Rounds</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.todaysRounds}</p>
+                <div className="mt-1 flex items-center text-xs text-green-600">
+                  <Stethoscope className="mr-1 h-3 w-3" />
+                  <span>Scheduled</span>
                 </div>
               </div>
+              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <Stethoscope className="w-5 h-5 text-green-600" />
+              </div>
             </div>
-          </Tooltip>
+          </div>
 
-          <Tooltip text="Consultations awaiting your review">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Pending Reviews</p>
-                  <p className="mt-1 text-2xl font-bold text-orange-600">{stats.pendingReviews}</p>
-                  <div className="mt-1 flex items-center text-xs text-orange-600">
-                    <FileText className="mr-1 h-3 w-3" />
-                    <span>Requires attention</span>
-                  </div>
-                </div>
-                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-orange-600" />
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Pending Reviews</p>
+                <p className="mt-1 text-2xl font-bold text-orange-600">{stats.pendingReviews}</p>
+                <div className="mt-1 flex items-center text-xs text-orange-600">
+                  <FileText className="mr-1 h-3 w-3" />
+                  <span>Requires attention</span>
                 </div>
               </div>
+              <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-orange-600" />
+              </div>
             </div>
-          </Tooltip>
+          </div>
 
-          <Tooltip text="Patients in critical condition">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Critical Patients</p>
-                  <p className="mt-1 text-2xl font-bold text-red-600">{stats.criticalPatients}</p>
-                  <div className="mt-1 flex items-center text-xs text-red-600">
-                    <AlertCircle className="mr-1 h-3 w-3" />
-                    <span>Monitor closely</span>
-                  </div>
-                </div>
-                <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Critical Patients</p>
+                <p className="mt-1 text-2xl font-bold text-red-600">{stats.criticalPatients}</p>
+                <div className="mt-1 flex items-center text-xs text-red-600">
+                  <AlertCircle className="mr-1 h-3 w-3" />
+                  <span>Monitor closely</span>
                 </div>
               </div>
+              <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
             </div>
-          </Tooltip>
+          </div>
         </div>
 
         <div className="mb-6">
@@ -1691,15 +1724,14 @@ const DoctorDashboard = () => {
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
-                <Tooltip key={index} text={`Go to ${action.label}`}>
-                  <button
-                    onClick={() => navigate(action.action)}
-                    className={`${action.color} text-white p-3 rounded-lg hover:opacity-90 transition-opacity flex flex-col items-center justify-center h-16 sm:h-20`}
-                  >
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
-                    <span className="text-[10px] sm:text-xs font-medium text-center">{action.label}</span>
-                  </button>
-                </Tooltip>
+                <button
+                  key={index}
+                  onClick={() => navigate(action.action)}
+                  className={`${action.color} text-white p-3 rounded-lg hover:opacity-90 transition-opacity flex flex-col items-center justify-center h-16 sm:h-20`}
+                >
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
+                  <span className="text-[10px] sm:text-xs font-medium text-center">{action.label}</span>
+                </button>
               );
             })}
           </div>
@@ -1709,15 +1741,14 @@ const DoctorDashboard = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-900">Clinical Alerts</h2>
             <div className="flex items-center gap-2">
-              <ButtonWithTooltip
+              <Button
                 onClick={() => setAlerts(prev => prev.map(a => ({ ...a, read: true })))}
-                tooltip="Mark all alerts as read"
                 variant="secondary"
                 className="text-xs"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 Mark All Read
-              </ButtonWithTooltip>
+              </Button>
             </div>
           </div>
           <div className="space-y-2">
@@ -1749,14 +1780,12 @@ const DoctorDashboard = () => {
                       <IconButton
                         icon={CheckCircle}
                         onClick={() => handleMarkAlertRead(alert.id)}
-                        tooltip="Mark as read"
                         variant="success"
                       />
                     )}
                     <IconButton
                       icon={X}
                       onClick={() => handleDismissAlert(alert.id)}
-                      tooltip="Dismiss alert"
                       variant="default"
                     />
                   </div>
@@ -1843,14 +1872,13 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 e.target.value = '';
               }}
             />
-            <ButtonWithTooltip
-              tooltip="View all patients"
+            <Button
               variant="secondary"
               onClick={() => navigate('/patients')}
             >
               <Users className="w-3.5 h-3.5" />
               View All
-            </ButtonWithTooltip>
+            </Button>
           </div>
         </div>
 
@@ -1965,7 +1993,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                           <IconButton
                             icon={Eye}
                             onClick={() => handleViewPatient(patient)}
-                            tooltip="View patient details"
                             variant="primary"
                           />
                           <IconButton
@@ -1975,13 +2002,11 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                               setActiveTab('consultations');
                               setShowConsultationForm(true);
                             }}
-                            tooltip="Consult patient"
                             variant="success"
                           />
                           <IconButton
                             icon={FileText}
                             onClick={() => navigate(`/patients/${patient.id}/emr`)}
-                            tooltip="View EMR"
                             variant="info"
                           />
                         </div>
@@ -2000,7 +2025,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 <IconButton
                   icon={ChevronLeft}
                   onClick={() => patientsPreviousPage && loadDashboardPatients(patientsPreviousPage)}
-                  tooltip="Previous page"
                   variant="default"
                   disabled={!patientsPreviousPage || patientsLoading}
                 />
@@ -2010,7 +2034,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 <IconButton
                   icon={ChevronRight}
                   onClick={() => patientsNextPage && loadDashboardPatients(patientsNextPage)}
-                  tooltip="Next page"
                   variant="default"
                   disabled={!patientsNextPage || patientsLoading}
                 />
@@ -2028,14 +2051,13 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-gray-900">Appointments</h2>
           <div className="flex items-center gap-2">
-            <ButtonWithTooltip
-              tooltip="View full schedule"
+            <Button
               variant="secondary"
               onClick={() => navigate('/appointments')}
             >
               <Calendar className="w-3.5 h-3.5" />
               Full Schedule
-            </ButtonWithTooltip>
+            </Button>
           </div>
         </div>
 
@@ -2143,20 +2165,17 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                         <IconButton
                           icon={Eye}
                           onClick={() => navigate('/appointments')}
-                          tooltip="View appointment"
                           variant="primary"
                         />
                         <IconButton
                           icon={Edit}
                           onClick={() => navigate('/appointments')}
-                          tooltip="Edit appointment"
                           variant="primary"
                         />
                         <div className="relative">
                           <IconButton
                             icon={MoreVertical}
                             onClick={() => setShowStatusMenu(showStatusMenu === appointment.id ? null : appointment.id)}
-                            tooltip="Change status"
                             variant="default"
                           />
                           {showStatusMenu === appointment.id && (
@@ -2188,7 +2207,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                         <IconButton
                           icon={Trash2}
                           onClick={() => navigate('/appointments')}
-                          tooltip="Delete appointment"
                           variant="danger"
                         />
                       </div>
@@ -2264,22 +2282,21 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <Tooltip key={tab.id} text={`View ${tab.label}`}>
-                <button
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setCurrentPage(1);
-                  }}
-                  className={`flex items-center gap-1.5 px-1 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              </Tooltip>
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setCurrentPage(1);
+                }}
+                className={`flex items-center gap-1.5 px-1 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
             );
           })}
         </nav>

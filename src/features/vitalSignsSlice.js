@@ -1,128 +1,139 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { apiRequest, vitalsApi } from '../utils/api';
 
 const initialState = {
   vitalSigns: [],
   alerts: [],
   earlyWarningScores: [],
-  searchTerm: '',
-  sortBy: 'date',
-  filterBy: 'all',
   loading: false,
   error: null,
 };
+
+export const fetchVitalSigns = createAsyncThunk(
+  'vitalSigns/fetchVitalSigns',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const data = await vitalsApi.getVitalSigns(params);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load vital signs.');
+    }
+  }
+);
+
+export const createVitalSign = createAsyncThunk(
+  'vitalSigns/createVitalSign',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await vitalsApi.createVitalSign(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to record vital signs.');
+    }
+  }
+);
+
+export const fetchActiveAlerts = createAsyncThunk(
+  'vitalSigns/fetchActiveAlerts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await vitalsApi.getActiveAlerts();
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load alerts.');
+    }
+  }
+);
+
+export const acknowledgeAlertApi = createAsyncThunk(
+  'vitalSigns/acknowledgeAlert',
+  async (alertId, { rejectWithValue }) => {
+    try {
+      await vitalsApi.acknowledgeAlert(alertId);
+      return alertId;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to acknowledge alert.');
+    }
+  }
+);
+
+export const calculateEWS = createAsyncThunk(
+  'vitalSigns/calculateEWS',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await vitalsApi.calculateEWS(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to calculate early warning score.');
+    }
+  }
+);
 
 const vitalSignsSlice = createSlice({
   name: 'vitalSigns',
   initialState,
   reducers: {
-    addVitalSigns: (state, action) => {
-      state.vitalSigns.push({
-        id: Date.now().toString(),
-        ...action.payload,
-        timestamp: new Date().toISOString(),
-      });
+    clearError: (state) => {
+      state.error = null;
     },
-    updateVitalSigns: (state, action) => {
-      const index = state.vitalSigns.findIndex(vs => vs.id === action.payload.id);
-      if (index !== -1) {
-        state.vitalSigns[index] = { ...state.vitalSigns[index], ...action.payload };
-      }
-    },
-    deleteVitalSigns: (state, action) => {
-      state.vitalSigns = state.vitalSigns.filter(vs => vs.id !== action.payload);
-    },
-    calculateEarlyWarningScore: (state, action) => {
-      const { patientId, vitals } = action.payload;
-      // NEWS2 calculation logic
-      let score = 0;
-      const { respirationRate, oxygenSaturation, temperature, systolicBP, heartRate, consciousness } = vitals;
-
-      // Respiration Rate
-      if (respirationRate <= 8 || respirationRate >= 25) score += 3;
-      else if (respirationRate >= 21 && respirationRate <= 24) score += 2;
-      else if (respirationRate >= 9 && respirationRate <= 11) score += 1;
-
-      // Oxygen Saturation
-      if (oxygenSaturation <= 91) score += 3;
-      else if (oxygenSaturation >= 92 && oxygenSaturation <= 93) score += 2;
-      else if (oxygenSaturation >= 94 && oxygenSaturation <= 95) score += 1;
-
-      // Temperature
-      if (temperature <= 35.0) score += 3;
-      else if (temperature >= 39.1) score += 2;
-      else if (temperature >= 38.1 && temperature <= 39.0) score += 1;
-
-      // Systolic BP
-      if (systolicBP <= 90 || systolicBP >= 220) score += 3;
-      else if (systolicBP >= 101 && systolicBP <= 110) score += 2;
-      else if (systolicBP >= 111 && systolicBP <= 219) score += 1;
-
-      // Heart Rate
-      if (heartRate <= 40 || heartRate >= 131) score += 3;
-      else if (heartRate >= 111 && heartRate <= 130) score += 2;
-      else if (heartRate >= 41 && heartRate <= 50 || heartRate >= 91 && heartRate <= 110) score += 1;
-
-      // Consciousness
-      if (consciousness !== 'Alert') score += 3;
-
-      const severity = score >= 7 ? 'High' : score >= 5 ? 'Medium' : 'Low';
-
-      state.earlyWarningScores.push({
-        id: Date.now().toString(),
-        patientId,
-        score,
-        severity,
-        timestamp: new Date().toISOString(),
-      });
-
-      // Generate alerts if needed
-      if (score >= 5) {
-        state.alerts.push({
-          id: Date.now().toString(),
-          patientId,
-          type: 'Early Warning Score',
-          message: `Patient ${patientId} has NEWS2 score of ${score} (${severity} risk)`,
-          severity,
-          timestamp: new Date().toISOString(),
-          acknowledged: false,
-        });
-      }
-    },
-    acknowledgeAlert: (state, action) => {
-      const alert = state.alerts.find(a => a.id === action.payload);
-      if (alert) {
-        alert.acknowledged = true;
-      }
-    },
-    searchVitalSigns: (state, action) => {
+    setSearchTerm: (state, action) => {
       state.searchTerm = action.payload;
     },
-    sortVitalSigns: (state, action) => {
+    setSortBy: (state, action) => {
       state.sortBy = action.payload;
     },
-    filterVitalSigns: (state, action) => {
+    setFilterBy: (state, action) => {
       state.filterBy = action.payload;
     },
-    setLoading: (state, action) => {
-      state.loading = action.payload;
-    },
-    setError: (state, action) => {
-      state.error = action.payload;
-    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchVitalSigns.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchVitalSigns.fulfilled, (state, action) => {
+        state.loading = false;
+        state.vitalSigns = action.payload;
+      })
+      .addCase(fetchVitalSigns.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(createVitalSign.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createVitalSign.fulfilled, (state, action) => {
+        state.loading = false;
+        state.vitalSigns.unshift(action.payload);
+      })
+      .addCase(createVitalSign.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(fetchActiveAlerts.fulfilled, (state, action) => {
+        state.alerts = action.payload;
+      })
+      .addCase(acknowledgeAlertApi.fulfilled, (state, action) => {
+        const alert = state.alerts.find(a => a.id === action.payload);
+        if (alert) {
+          alert.acknowledged = true;
+        }
+      })
+      .addCase(calculateEWS.fulfilled, (state, action) => {
+        state.earlyWarningScores.unshift(action.payload);
+      });
   },
 });
 
 export const {
-  addVitalSigns,
-  updateVitalSigns,
-  deleteVitalSigns,
-  calculateEarlyWarningScore,
-  acknowledgeAlert,
-  searchVitalSigns,
-  sortVitalSigns,
-  filterVitalSigns,
-  setLoading,
-  setError,
+  clearError,
+  setSearchTerm,
+  setSortBy,
+  setFilterBy,
 } = vitalSignsSlice.actions;
 
 export default vitalSignsSlice.reducer;

@@ -1,4 +1,5 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { auditApi } from '../utils/api';
 
 const initialState = {
   audits: [],
@@ -6,376 +7,275 @@ const initialState = {
   peerReviews: [],
   mortalityReviews: [],
   complianceScores: {
-    overall: 89.5,
+    overall: 0,
     protocols: {},
-    departments: {}
+    departments: {},
   },
   auditReports: [],
   searchTerm: '',
   filterBy: 'all',
   loading: false,
-  error: null
+  error: null,
 };
+
+export const fetchAudits = createAsyncThunk(
+  'audit/fetchAudits',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.getAudits(params);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load audits.');
+    }
+  }
+);
+
+export const createAudit = createAsyncThunk(
+  'audit/createAudit',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.createAudit(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create audit.');
+    }
+  }
+);
+
+export const updateAudit = createAsyncThunk(
+  'audit/updateAudit',
+  async ({ auditId, updates }, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.updateAudit(auditId, updates);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update audit.');
+    }
+  }
+);
+
+export const completeAudit = createAsyncThunk(
+  'audit/completeAudit',
+  async (auditId, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.completeAudit(auditId);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to complete audit.');
+    }
+  }
+);
+
+export const schedulePeerReview = createAsyncThunk(
+  'audit/schedulePeerReview',
+  async (auditId, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.schedulePeerReview(auditId);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to schedule peer review.');
+    }
+  }
+);
+
+export const fetchQualityIndicators = createAsyncThunk(
+  'audit/fetchQualityIndicators',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.getQualityIndicators(params);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load quality indicators.');
+    }
+  }
+);
+
+export const createQualityIndicator = createAsyncThunk(
+  'audit/createQualityIndicator',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.createQualityIndicator(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create quality indicator.');
+    }
+  }
+);
+
+export const updateQualityIndicator = createAsyncThunk(
+  'audit/updateQualityIndicator',
+  async ({ indicatorId, updates }, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.updateQualityIndicator(indicatorId, updates);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update quality indicator.');
+    }
+  }
+);
+
+export const fetchPeerReviews = createAsyncThunk(
+  'audit/fetchPeerReviews',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.getPeerReviews(params);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load peer reviews.');
+    }
+  }
+);
+
+export const fetchMortalityReviews = createAsyncThunk(
+  'audit/fetchMortalityReviews',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.getMortalityReviews(params);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load mortality reviews.');
+    }
+  }
+);
+
+export const createMortalityReview = createAsyncThunk(
+  'audit/createMortalityReview',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.createMortalityReview(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create mortality review.');
+    }
+  }
+);
+
+export const fetchComplianceScores = createAsyncThunk(
+  'audit/fetchComplianceScores',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.getComplianceScores(params);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load compliance scores.');
+    }
+  }
+);
+
+export const updateComplianceScore = createAsyncThunk(
+  'audit/updateComplianceScore',
+  async ({ scoreId, updates }, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.updateComplianceScore(scoreId, updates);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update compliance score.');
+    }
+  }
+);
+
+export const scheduleAudit = createAsyncThunk(
+  'audit/scheduleAudit',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.scheduleAudit(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to schedule audit.');
+    }
+  }
+);
+
+export const generateAuditReport = createAsyncThunk(
+  'audit/generateAuditReport',
+  async (auditId, { rejectWithValue }) => {
+    try {
+      const data = await auditApi.generateAuditReport(auditId);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to generate audit report.');
+    }
+  }
+);
 
 const auditSlice = createSlice({
   name: 'audit',
   initialState,
   reducers: {
-    createAudit: (state, action) => {
-      const audit = {
-        id: `audit-${Date.now()}`,
-        ...action.payload,
-        status: 'scheduled',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        findings: [],
-        recommendations: [],
-        completionDate: null
-      };
-      state.audits.push(audit);
-    },
-
-    updateAudit: (state, action) => {
-      const { auditId, updates } = action.payload;
-      const auditIndex = state.audits.findIndex(a => a.id === auditId);
-      if (auditIndex !== -1) {
-        state.audits[auditIndex] = {
-          ...state.audits[auditIndex],
-          ...updates,
-          updatedAt: new Date().toISOString()
-        };
-      }
-    },
-
-    completeAudit: (state, action) => {
-      const { auditId } = action.payload;
-      const auditIndex = state.audits.findIndex(a => a.id === auditId);
-      if (auditIndex !== -1) {
-        state.audits[auditIndex].status = 'completed';
-        state.audits[auditIndex].completionDate = new Date().toISOString();
-        state.audits[auditIndex].updatedAt = new Date().toISOString();
-
-        // Generate sample findings and recommendations
-        state.audits[auditIndex].findings = [
-          'Good compliance with hand hygiene protocols',
-          'Some delays in medication administration',
-          'Excellent patient documentation standards'
-        ];
-        state.audits[auditIndex].recommendations = [
-          'Implement electronic medication administration system',
-          'Additional training on time management',
-          'Continue excellent documentation practices'
-        ];
-      }
-    },
-
-    scheduleAudit: (state, action) => {
-      const { auditId, scheduledDate } = action.payload;
-      const auditIndex = state.audits.findIndex(a => a.id === auditId);
-      if (auditIndex !== -1) {
-        state.audits[auditIndex].scheduledDate = scheduledDate;
-        state.audits[auditIndex].updatedAt = new Date().toISOString();
-      }
-    },
-
-    createQualityIndicator: (state, action) => {
-      const indicator = {
-        id: `indicator-${Date.now()}`,
-        ...action.payload,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        history: []
-      };
-      state.qualityIndicators.push(indicator);
-    },
-
-    updateQualityIndicator: (state, action) => {
-      const { indicatorId, updates } = action.payload;
-      const indicatorIndex = state.qualityIndicators.findIndex(i => i.id === indicatorId);
-      if (indicatorIndex !== -1) {
-        const currentValue = state.qualityIndicators[indicatorIndex].current;
-        state.qualityIndicators[indicatorIndex] = {
-          ...state.qualityIndicators[indicatorIndex],
-          ...updates,
-          updatedAt: new Date().toISOString()
-        };
-
-        // Add to history if value changed
-        if (updates.current && updates.current !== currentValue) {
-          state.qualityIndicators[indicatorIndex].history.push({
-            date: new Date().toISOString(),
-            value: updates.current,
-            previousValue: currentValue
-          });
-        }
-      }
-    },
-
-    generateAuditReport: (state, action) => {
-      const { auditId, reportData } = action.payload;
-      const report = {
-        id: `report-${Date.now()}`,
-        auditId,
-        ...reportData,
-        generatedAt: new Date().toISOString(),
-        generatedBy: 'System'
-      };
-      state.auditReports.push(report);
-    },
-
-    schedulePeerReview: (state, action) => {
-      const { auditId } = action.payload;
-      const audit = state.audits.find(a => a.id === auditId);
-      if (audit) {
-        const peerReview = {
-          id: `peer-review-${Date.now()}`,
-          auditId,
-          title: `Peer Review: ${audit.title}`,
-          auditTitle: audit.title,
-          scheduledDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now
-          status: 'scheduled',
-          reviewers: ['Dr. Johnson', 'Dr. Williams', 'Dr. Brown'],
-          casesCount: 5,
-          recommendationsCount: 0,
-          createdAt: new Date().toISOString()
-        };
-        state.peerReviews.push(peerReview);
-      }
-    },
-
-    createMortalityReview: (state, action) => {
-      const mortalityReview = {
-        id: `mm-review-${Date.now()}`,
-        ...action.payload,
-        status: 'scheduled',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        attendees: [],
-        lessonsLearned: [],
-        recommendations: []
-      };
-      state.mortalityReviews.push(mortalityReview);
-    },
-
-    updateComplianceScore: (state, action) => {
-      const { protocol, score, department } = action.payload;
-      if (department) {
-        if (!state.complianceScores.departments[department]) {
-          state.complianceScores.departments[department] = {};
-        }
-        state.complianceScores.departments[department][protocol] = score;
-      } else {
-        state.complianceScores.protocols[protocol] = score;
-
-        // Recalculate overall compliance
-        const protocolScores = Object.values(state.complianceScores.protocols);
-        state.complianceScores.overall = protocolScores.length > 0
-          ? protocolScores.reduce((sum, score) => sum + score, 0) / protocolScores.length
-          : 0;
-      }
-    },
-
     searchAudits: (state, action) => {
       state.searchTerm = action.payload;
     },
-
     filterAudits: (state, action) => {
       state.filterBy = action.payload;
     },
-
-    setLoading: (state, action) => {
-      state.loading = action.payload;
-    },
-
-    setError: (state, action) => {
-      state.error = action.payload;
-    },
-
     clearError: (state) => {
       state.error = null;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchAudits.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchAudits.fulfilled, (state, action) => { state.loading = false; state.audits = action.payload; })
+      .addCase(fetchAudits.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-    // Initialize with sample data
-    initializeSampleData: (state) => {
-      // Sample audits
-      const sampleAudits = [
-        {
-          id: 'audit-1',
-          title: 'Emergency Department Clinical Audit',
-          type: 'clinical',
-          department: 'Emergency',
-          auditor: 'Dr. Sarah Johnson',
-          scheduledDate: '2024-01-20T10:00:00Z',
-          status: 'completed',
-          description: 'Comprehensive audit of emergency department clinical practices and patient care standards',
-          createdAt: '2024-01-15T09:00:00Z',
-          completionDate: '2024-01-20T15:30:00Z',
-          findings: [
-            'Excellent triage system implementation',
-            'Good documentation standards maintained',
-            'Some delays in laboratory result turnaround times'
-          ],
-          recommendations: [
-            'Implement electronic tracking for lab results',
-            'Additional training on time management',
-            'Continue excellent triage practices'
-          ]
-        },
-        {
-          id: 'audit-2',
-          title: 'Surgical Safety Checklist Compliance',
-          type: 'quality',
-          department: 'Surgery',
-          auditor: 'Dr. Michael Brown',
-          scheduledDate: '2024-01-25T14:00:00Z',
-          status: 'scheduled',
-          description: 'Audit of WHO surgical safety checklist compliance across all surgical procedures',
-          createdAt: '2024-01-18T11:00:00Z',
-          findings: [],
-          recommendations: []
-        },
-        {
-          id: 'audit-3',
-          title: 'Pharmacy Medication Management',
-          type: 'administrative',
-          department: 'Pharmacy',
-          auditor: 'Dr. Emily Davis',
-          scheduledDate: '2024-01-22T09:00:00Z',
-          status: 'in_progress',
-          description: 'Review of medication management processes, storage, and dispensing procedures',
-          createdAt: '2024-01-19T08:00:00Z',
-          findings: [],
-          recommendations: []
-        }
-      ];
+      .addCase(createAudit.fulfilled, (state, action) => { state.audits.unshift(action.payload); })
+      .addCase(updateAudit.fulfilled, (state, action) => {
+        const idx = state.audits.findIndex(a => a.id === action.payload.id);
+        if (idx !== -1) state.audits[idx] = action.payload;
+      })
+      .addCase(completeAudit.fulfilled, (state, action) => {
+        const idx = state.audits.findIndex(a => a.id === action.payload.id);
+        if (idx !== -1) state.audits[idx] = action.payload;
+      })
 
-      // Sample quality indicators
-      const sampleIndicators = [
-        {
-          id: 'indicator-1',
-          name: 'Hand Hygiene Compliance',
-          category: 'safety',
-          target: '95%',
-          current: '92%',
-          unit: '%',
-          department: 'Hospital-wide',
-          frequency: 'monthly',
-          description: 'Percentage of healthcare workers complying with hand hygiene protocols',
-          status: 'active',
-          createdAt: '2024-01-01T00:00:00Z',
-          history: [
-            { date: '2024-01-01T00:00:00Z', value: '88%', previousValue: '85%' },
-            { date: '2024-01-15T00:00:00Z', value: '92%', previousValue: '88%' }
-          ]
-        },
-        {
-          id: 'indicator-2',
-          name: 'Patient Wait Time',
-          category: 'efficiency',
-          target: '<30',
-          current: '23',
-          unit: 'minutes',
-          department: 'Emergency',
-          frequency: 'daily',
-          description: 'Average time from patient arrival to physician assessment',
-          status: 'active',
-          createdAt: '2024-01-01T00:00:00Z',
-          history: []
-        }
-      ];
+      .addCase(fetchQualityIndicators.fulfilled, (state, action) => { state.qualityIndicators = action.payload; })
+      .addCase(createQualityIndicator.fulfilled, (state, action) => { state.qualityIndicators.unshift(action.payload); })
+      .addCase(updateQualityIndicator.fulfilled, (state, action) => {
+        const idx = state.qualityIndicators.findIndex(i => i.id === action.payload.id);
+        if (idx !== -1) state.qualityIndicators[idx] = action.payload;
+      })
 
-      // Sample peer reviews
-      const samplePeerReviews = [
-        {
-          id: 'peer-review-1',
-          auditId: 'audit-1',
-          title: 'Peer Review: Emergency Department Clinical Audit',
-          auditTitle: 'Emergency Department Clinical Audit',
-          scheduledDate: '2024-01-27T10:00:00Z',
-          status: 'scheduled',
-          reviewers: ['Dr. Johnson', 'Dr. Williams', 'Dr. Brown', 'Dr. Davis'],
-          casesCount: 8,
-          recommendationsCount: 0,
-          createdAt: '2024-01-20T16:00:00Z'
-        }
-      ];
+      .addCase(fetchPeerReviews.fulfilled, (state, action) => { state.peerReviews = action.payload; })
+      .addCase(schedulePeerReview.fulfilled, (state, action) => { state.peerReviews.unshift(action.payload); })
 
-      // Sample mortality reviews
-      const sampleMortalityReviews = [
-        {
-          id: 'mm-review-1',
-          patientName: 'John Adebayo',
-          caseType: 'Post-operative mortality',
-          incidentDate: '2024-01-18T14:30:00Z',
-          department: 'Surgery',
-          reviewDate: '2024-01-25T11:00:00Z',
-          status: 'completed',
-          summary: 'Patient developed complications following emergency laparotomy. Review identified delays in antibiotic administration as contributing factor.',
-          attendees: ['Dr. Johnson', 'Dr. Williams', 'Dr. Brown', 'Nurse Manager'],
-          lessonsLearned: [
-            'Importance of timely antibiotic administration in emergency cases',
-            'Need for better communication between surgical and pharmacy teams',
-            'Review of emergency protocol adherence'
-          ],
-          recommendations: [
-            'Implement electronic antibiotic administration tracking',
-            'Cross-training for pharmacy staff on emergency protocols',
-            'Monthly review of emergency medication availability'
-          ],
-          createdAt: '2024-01-19T09:00:00Z'
-        }
-      ];
+      .addCase(fetchMortalityReviews.fulfilled, (state, action) => { state.mortalityReviews = action.payload; })
+      .addCase(createMortalityReview.fulfilled, (state, action) => { state.mortalityReviews.unshift(action.payload); })
 
-      // Sample compliance scores
-      const sampleComplianceScores = {
-        overall: 89.5,
-        protocols: {
-          'Antibiotic Stewardship': 94,
-          'Surgical Safety Checklist': 98,
-          'Blood Transfusion Protocol': 96,
-          'Infection Control Measures': 92,
-          'Medication Reconciliation': 89,
-          'Pain Management Protocol': 91
-        },
-        departments: {
-          'Emergency': {
-            'Triage Protocol': 95,
-            'Pain Management': 88
-          },
-          'Surgery': {
-            'Safety Checklist': 98,
-            'Antibiotic Prophylaxis': 96
+      .addCase(fetchComplianceScores.fulfilled, (state, action) => {
+        state.complianceScores.overall = action.payload.overall || 0;
+        state.complianceScores.protocols = action.payload.protocols || {};
+        state.complianceScores.departments = action.payload.departments || {};
+      })
+      .addCase(updateComplianceScore.fulfilled, (state, action) => {
+        const score = action.payload;
+        if (score.department) {
+          if (!state.complianceScores.departments[score.department]) {
+            state.complianceScores.departments[score.department] = {};
           }
+          state.complianceScores.departments[score.department][score.protocol] = score.score;
+        } else {
+          state.complianceScores.protocols[score.protocol] = score.score;
         }
-      };
-
-      state.audits = sampleAudits;
-      state.qualityIndicators = sampleIndicators;
-      state.peerReviews = samplePeerReviews;
-      state.mortalityReviews = sampleMortalityReviews;
-      state.complianceScores = sampleComplianceScores;
-    }
-  }
+      })
+      .addCase(scheduleAudit.fulfilled, (state, action) => { state.audits.unshift(action.payload); })
+      .addCase(generateAuditReport.fulfilled, (state, action) => {
+        const report = action.payload;
+        if (!state.auditReports.some(r => r.id === report.id)) {
+          state.auditReports.unshift(report);
+        }
+      });
+  },
 });
 
 export const {
-  createAudit,
-  updateAudit,
-  completeAudit,
-  scheduleAudit,
-  createQualityIndicator,
-  updateQualityIndicator,
-  generateAuditReport,
-  schedulePeerReview,
-  createMortalityReview,
-  updateComplianceScore,
   searchAudits,
   filterAudits,
-  setLoading,
-  setError,
   clearError,
-  initializeSampleData
 } = auditSlice.actions;
 
 export default auditSlice.reducer;

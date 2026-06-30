@@ -1,84 +1,106 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { cdsApi } from '../utils/api';
 
-// Async thunks for API calls
+const initialState = {
+  drugInteractions: [],
+  allergyAlerts: [],
+  dosingRecommendations: null,
+  clinicalGuidelines: [],
+  riskCalculations: null,
+  patientAlerts: [],
+  searchResults: [],
+  loading: false,
+  error: null,
+};
+
 export const checkDrugInteractions = createAsyncThunk(
   'cds/checkDrugInteractions',
-  async (interactions, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      // In a real app, this would call a drug interaction API
-      // const response = await api.post('/drug-interactions', { drugs: drugList });
-      // return response.data;
-
-      // Mock implementation
-      return interactions;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      if (payload.drugs && payload.drugs.length > 0) {
+        const data = await cdsApi.checkDrugInteractions(payload);
+        return data;
+      }
+      return [];
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to check drug interactions.');
     }
   }
 );
 
 export const checkAllergies = createAsyncThunk(
   'cds/checkAllergies',
-  async (allergyData, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return allergyData;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const data = await cdsApi.getAllergyChecks(payload);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to check allergies.');
     }
   }
 );
 
 export const calculateDose = createAsyncThunk(
   'cds/calculateDose',
-  async (dosingData, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      // Mock implementation - in real app would use pharmacokinetic database
-      return dosingData;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const data = await cdsApi.getDosingGuidelines({ drug: payload.drug });
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return { guideline: list[0] || null, payload };
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to calculate dose.');
     }
   }
 );
 
 export const getClinicalGuidelines = createAsyncThunk(
   'cds/getClinicalGuidelines',
-  async (filters, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return [];
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const data = await cdsApi.getClinicalGuidelines(params);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load clinical guidelines.');
     }
   }
 );
 
 export const calculateRisk = createAsyncThunk(
   'cds/calculateRisk',
-  async (riskData, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return riskData;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const mappedPayload = {
+        score: Math.round((payload.riskPercentage || 0) * 10) / 10,
+        risk_type: payload.calculator || 'general',
+        risk_percentage: payload.riskPercentage || 0,
+        risk_category: (payload.riskCategory || 'low').toLowerCase(),
+        input_data: payload,
+        tenant: payload.tenant,
+        patient: payload.patient,
+      };
+
+      await cdsApi.createRiskAssessment(mappedPayload);
+      return payload;
+    } catch (err) {
+      const apiError = err?.data || err?.response?.data || null;
+      return rejectWithValue({
+        message: err.message || 'Failed to calculate risk.',
+        data: apiError,
+      });
     }
   }
 );
 
 export const addPatientAlert = createAsyncThunk(
   'cds/addPatientAlert',
-  async (alertData, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      const newAlert = {
-        id: Date.now(),
-        ...alertData,
-        timestamp: new Date().toISOString(),
-        status: 'active'
-      };
-      return newAlert;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const data = await cdsApi.createPatientAlert(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to add patient alert.');
     }
   }
 );
@@ -87,10 +109,10 @@ export const dismissAlert = createAsyncThunk(
   'cds/dismissAlert',
   async (alertId, { rejectWithValue }) => {
     try {
-      // Mock implementation
+      await cdsApi.dismissAlert(alertId);
       return alertId;
-    } catch (error) {
-      return rejectWithValue(error.message);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to dismiss alert.');
     }
   }
 );
@@ -99,10 +121,11 @@ export const searchGuidelines = createAsyncThunk(
   'cds/searchGuidelines',
   async (searchTerm, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return { searchTerm, results: [] };
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const data = await cdsApi.getClinicalGuidelines({ search: searchTerm });
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return { searchTerm, results: list };
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to search guidelines.');
     }
   }
 );
@@ -111,89 +134,14 @@ export const updatePatientProfile = createAsyncThunk(
   'cds/updatePatientProfile',
   async (profileData, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return profileData;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const data = await cdsApi.createAllergyCheck(profileData);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update patient profile.');
     }
   }
 );
 
-// Initial state
-const initialState = {
-  drugInteractions: [],
-  allergyAlerts: [],
-  dosingRecommendations: null,
-  clinicalGuidelines: [],
-  riskCalculations: null,
-  patientAlerts: [
-    {
-      id: 1,
-      title: 'Drug Interaction Alert',
-      message: 'Patient prescribed both Artemether-Lumefantrine and Metoclopramide. Risk of reduced antimalarial efficacy.',
-      patientName: 'John Doe',
-      priority: 'high',
-      timestamp: '2024-01-27T10:30:00Z',
-      type: 'drug_interaction'
-    },
-    {
-      id: 2,
-      title: 'Allergy Warning',
-      message: 'Patient has penicillin allergy. Current prescription contains amoxicillin.',
-      patientName: 'Jane Smith',
-      priority: 'high',
-      timestamp: '2024-01-27T09:15:00Z',
-      type: 'allergy'
-    },
-    {
-      id: 3,
-      title: 'Dose Adjustment Required',
-      message: 'Patient has renal impairment. Consider dose reduction for metformin.',
-      patientName: 'Mike Johnson',
-      priority: 'medium',
-      timestamp: '2024-01-27T08:45:00Z',
-      type: 'dosing'
-    },
-    {
-      id: 4,
-      title: 'High Cardiovascular Risk',
-      message: 'Patient has 25% 10-year CVD risk. Lifestyle counseling recommended.',
-      patientName: 'Sarah Williams',
-      priority: 'medium',
-      timestamp: '2024-01-27T11:00:00Z',
-      type: 'risk_assessment'
-    }
-  ],
-  searchResults: [],
-  patientProfiles: [
-    {
-      id: 1,
-      name: 'John Doe',
-      allergies: ['penicillin', 'sulfa'],
-      comorbidities: ['hypertension'],
-      medications: ['amlodipine', 'metformin'],
-      renalFunction: 'normal',
-      hepaticFunction: 'normal',
-      weight: 75,
-      age: 45
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      allergies: ['penicillin'],
-      comorbidities: ['asthma'],
-      medications: ['salbutamol', 'fluticasone'],
-      renalFunction: 'mild',
-      hepaticFunction: 'normal',
-      weight: 65,
-      age: 32
-    }
-  ],
-  loading: false,
-  error: null
-};
-
-// CDS slice
 const cdsSlice = createSlice({
   name: 'cds',
   initialState,
@@ -215,147 +163,57 @@ const cdsSlice = createSlice({
       }
     },
     addGuidelineToFavorites: (state, action) => {
-      // Mock implementation for guideline favorites
       console.log('Added guideline to favorites:', action.payload);
     },
     setSearchTerm: (state, action) => {
       state.searchTerm = action.payload;
-    }
+    },
+    setRiskCalculations: (state, action) => {
+      state.riskCalculations = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Check Drug Interactions
-      .addCase(checkDrugInteractions.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(checkDrugInteractions.fulfilled, (state, action) => {
-        state.loading = false;
-        state.drugInteractions = action.payload;
-      })
-      .addCase(checkDrugInteractions.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(checkDrugInteractions.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(checkDrugInteractions.fulfilled, (state, action) => { state.loading = false; state.drugInteractions = action.payload; })
+      .addCase(checkDrugInteractions.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Check Allergies
-      .addCase(checkAllergies.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(checkAllergies.fulfilled, (state, action) => {
-        state.loading = false;
-        state.allergyAlerts = action.payload;
-      })
-      .addCase(checkAllergies.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(checkAllergies.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(checkAllergies.fulfilled, (state, action) => { state.loading = false; state.allergyAlerts = action.payload; })
+      .addCase(checkAllergies.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Calculate Dose
-      .addCase(calculateDose.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(calculateDose.fulfilled, (state, action) => {
-        state.loading = false;
-        state.dosingRecommendations = action.payload;
-      })
-      .addCase(calculateDose.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(calculateDose.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(calculateDose.fulfilled, (state, action) => { state.loading = false; state.dosingRecommendations = action.payload; })
+      .addCase(calculateDose.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Get Clinical Guidelines
-      .addCase(getClinicalGuidelines.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getClinicalGuidelines.fulfilled, (state, action) => {
-        state.loading = false;
-        state.clinicalGuidelines = action.payload;
-      })
-      .addCase(getClinicalGuidelines.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(getClinicalGuidelines.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(getClinicalGuidelines.fulfilled, (state, action) => { state.loading = false; state.clinicalGuidelines = action.payload; })
+      .addCase(getClinicalGuidelines.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Calculate Risk
-      .addCase(calculateRisk.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(calculateRisk.fulfilled, (state, action) => {
-        state.loading = false;
-        state.riskCalculations = action.payload;
-      })
-      .addCase(calculateRisk.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(calculateRisk.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(calculateRisk.fulfilled, (state, action) => { state.loading = false; state.riskCalculations = action.payload; })
+      .addCase(calculateRisk.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Add Patient Alert
-      .addCase(addPatientAlert.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(addPatientAlert.fulfilled, (state, action) => {
-        state.loading = false;
-        state.patientAlerts.push(action.payload);
-      })
-      .addCase(addPatientAlert.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(addPatientAlert.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(addPatientAlert.fulfilled, (state, action) => { state.loading = false; state.patientAlerts.unshift(action.payload); })
+      .addCase(addPatientAlert.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Dismiss Alert
-      .addCase(dismissAlert.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      .addCase(dismissAlert.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(dismissAlert.fulfilled, (state, action) => {
         state.loading = false;
         const index = state.patientAlerts.findIndex(a => a.id === action.payload);
-        if (index !== -1) {
-          state.patientAlerts.splice(index, 1);
-        }
+        if (index !== -1) state.patientAlerts.splice(index, 1);
       })
-      .addCase(dismissAlert.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(dismissAlert.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Search Guidelines
-      .addCase(searchGuidelines.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(searchGuidelines.fulfilled, (state, action) => {
-        state.loading = false;
-        state.searchResults = action.payload.results;
-      })
-      .addCase(searchGuidelines.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(searchGuidelines.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(searchGuidelines.fulfilled, (state, action) => { state.loading = false; state.searchResults = action.payload.results; })
+      .addCase(searchGuidelines.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Update Patient Profile
-      .addCase(updatePatientProfile.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updatePatientProfile.fulfilled, (state, action) => {
-        state.loading = false;
-        const index = state.patientProfiles.findIndex(p => p.id === action.payload.id);
-        if (index !== -1) {
-          state.patientProfiles[index] = { ...state.patientProfiles[index], ...action.payload };
-        }
-      })
-      .addCase(updatePatientProfile.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      });
-  }
+      .addCase(updatePatientProfile.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(updatePatientProfile.fulfilled, (state, action) => { state.loading = false; })
+      .addCase(updatePatientProfile.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
+  },
 });
 
 export const {
@@ -363,7 +221,8 @@ export const {
   clearError,
   updatePatientAlert,
   addGuidelineToFavorites,
-  setSearchTerm
+  setSearchTerm,
+  setRiskCalculations,
 } = cdsSlice.actions;
 
 export default cdsSlice.reducer;

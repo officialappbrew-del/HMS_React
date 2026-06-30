@@ -1,5 +1,6 @@
-import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   Heart,
   Thermometer,
@@ -14,27 +15,33 @@ import {
   Bell,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Loader2,
+  X
 } from 'lucide-react';
 import {
-  addVitalSigns,
-  calculateEarlyWarningScore,
-  acknowledgeAlert,
-  searchVitalSigns,
-  sortVitalSigns,
-  filterVitalSigns
+  fetchVitalSigns,
+  createVitalSign,
+  fetchActiveAlerts,
+  acknowledgeAlertApi,
+  calculateEWS,
+  clearError,
 } from '../features/vitalSignsSlice';
+import { apiRequest, vitalsApi } from '../utils/api';
 import Pagination from '../components/Pagination';
 
 const VitalSignsMonitoring = () => {
   const dispatch = useDispatch();
-  const { vitalSigns, alerts, searchTerm, sortBy, filterBy } = useSelector(state => state.vitalSigns);
-  const { patients } = useSelector(state => state.patient);
+  const navigate = useNavigate();
+  const { vitalSigns, alerts, loading, error } = useSelector(state => state.vitalSigns);
+  const { patients } = useSelector(state => state.patient || { patients: [] });
 
   const [showForm, setShowForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [selectedPatient, setSelectedPatient] = useState('');
+  const [filterBy, setFilterBy] = useState('all');
+  const [sortBy, setSortBy] = useState('date');
   const [formData, setFormData] = useState({
     patientId: '',
     bloodPressureSystolic: '',
@@ -46,62 +53,191 @@ const VitalSignsMonitoring = () => {
     bloodGlucose: '',
     painScore: '',
     consciousness: 'Alert',
-    notes: ''
+    notes: '',
+    visitId: '',
   });
+  const [ewsResult, setEwsResult] = useState(null);
+  const [alertError, setAlertError] = useState('');
 
-  // Filter and search logic
-  const filteredVitalSigns = vitalSigns
-    .filter(vs => {
-      const matchesSearch = !searchTerm ||
-        patients.find(p => p.id === vs.patientId)?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vs.patientId.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = filterBy === 'all' || vs.patientId === filterBy;
-      return matchesSearch && matchesFilter;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date') return new Date(b.timestamp) - new Date(a.timestamp);
-      if (sortBy === 'patient') return a.patientId.localeCompare(b.patientId);
-      return 0;
-    });
+  const [patientOptions, setPatientOptions] = useState(patients || []);
+  const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+  const [allPatientsCache, setAllPatientsCache] = useState([]);
+  const [globalPatientSearch, setGlobalPatientSearch] = useState('');
 
-  const paginatedVitalSigns = filteredVitalSigns.slice(
+  const loadAllPatients = async () => {
+    try {
+      const data = await apiRequest('/api/v1/patients/patients/?page_size=100');
+      const list = Array.isArray(data) ? data : (data.results || []);
+      setAllPatientsCache(list);
+      setPatientOptions(list);
+    } catch {
+      setAllPatientsCache(patients || []);
+      setPatientOptions(patients || []);
+    }
+  };
+
+  useEffect(() => {
+    dispatch(fetchVitalSigns());
+    dispatch(fetchActiveAlerts());
+    loadAllPatients();
+  }, [dispatch]);
+
+  useEffect(() => {
+    setPatientOptions(patients);
+  }, [patients]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      dispatch(fetchActiveAlerts());
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [dispatch]);
+
+  // --- FIX: Safely get vital sign for a patient ---
+  const getVitalSignForPatient = (patientId) => {
+    if (!vitalSigns || !Array.isArray(vitalSigns)) return null;
+    return vitalSigns.find(v => String(v.patient) === String(patientId)) || null;
+  };
+
+  // --- FIX: Safely get value from vital sign with fallback ---
+  const getVitalValue = (vs, key, fallback = '-') => {
+    if (!vs) return fallback;
+    const value = vs[key];
+    return value !== undefined && value !== null ? value : fallback;
+  };
+
+  // --- FIX: Safely get display value with unit ---
+  const getVitalDisplay = (vs, key, unit = '', fallback = '-') => {
+    const value = getVitalValue(vs, key, fallback);
+    if (value === fallback) return fallback;
+    return `${value}${unit}`;
+  };
+
+  const displayRows = useMemo(() => {
+    try {
+      const searchLower = typeof globalPatientSearch === 'string' ? globalPatientSearch.toLowerCase().trim() : '';
+      const filterByVal = typeof filterBy === 'string' ? filterBy : 'all';
+
+      let baseList = Array.isArray(allPatientsCache) ? allPatientsCache : [];
+      if (filterByVal !== 'all') {
+        baseList = baseList.filter(p => String(p?.id) === String(filterByVal));
+      }
+      if (searchLower) {
+        baseList = baseList.filter(p => {
+          const name = (p?.name || `${p?.first_name || ''} ${p?.last_name || ''}`).toLowerCase();
+          return (
+            name.includes(searchLower) ||
+            String(p?.id).includes(searchLower) ||
+            (p?.hospital_number && p.hospital_number.toLowerCase().includes(searchLower)) ||
+            (p?.phone && p.phone.toLowerCase().includes(searchLower))
+          );
+        });
+      }
+
+      return baseList.map(patient => {
+        const vs = getVitalSignForPatient(patient?.id);
+        return {
+          patient,
+          vitalSign: vs,
+          patientId: patient?.id,
+          patientName: patient?.name || `${patient?.first_name || ''} ${patient?.last_name || ''}`.trim() || `Patient ${patient?.id || '?'}`,
+          recorded_at: vs?.recorded_at || patient?.created_at,
+        };
+      }).sort((a, b) => {
+        if (sortBy === 'date') return new Date(b.recorded_at || 0) - new Date(a.recorded_at || 0);
+        if (sortBy === 'patient') return String(a.patientId || '').localeCompare(String(b.patientId || ''));
+        return 0;
+      });
+    } catch (err) {
+      console.error('Error computing displayRows:', err);
+      return [];
+    }
+  }, [globalPatientSearch, filterBy, sortBy, allPatientsCache, vitalSigns]);
+
+  const paginatedVitalSigns = displayRows.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  const activeAlerts = alerts.filter(alert => !alert.acknowledged);
+  const activeAlerts = Array.isArray(alerts) ? alerts.filter(alert => !alert.acknowledged) : [];
 
-  const handleSubmit = (e) => {
+  const handleSearchPatients = async (term) => {
+    setGlobalPatientSearch(term);
+    if (!term.trim()) {
+      setPatientOptions(allPatientsCache.length > 0 ? allPatientsCache : (patients || []));
+      return;
+    }
+    setPatientSearchLoading(true);
+    try {
+      const data = await apiRequest(`/api/v1/patients/patients/?search=${encodeURIComponent(term)}&page_size=50`);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      setPatientOptions(list);
+    } catch {
+      setPatientOptions(allPatientsCache.length > 0 ? allPatientsCache : (patients || []));
+    } finally {
+      setPatientSearchLoading(false);
+    }
+  };
+
+  const handleSelectPatient = (patient) => {
+    const name = patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
+    setSelectedPatient(name);
+    setGlobalPatientSearch(name);
+    setFormData(prev => ({
+      ...prev,
+      patientId: patient.id,
+      visitId: patient.current_visit_id || '',
+    }));
+    setShowForm(true);
+    setPatientOptions([]);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const vitalsData = {
-      patientId: selectedPatient,
-      bloodPressure: `${formData.bloodPressureSystolic}/${formData.bloodPressureDiastolic}`,
-      heartRate: parseInt(formData.heartRate),
-      temperature: parseFloat(formData.temperature),
-      respirationRate: parseInt(formData.respirationRate),
-      oxygenSaturation: parseInt(formData.oxygenSaturation),
-      bloodGlucose: formData.bloodGlucose ? parseInt(formData.bloodGlucose) : null,
-      painScore: parseInt(formData.painScore),
+    setAlertError('');
+    setEwsResult(null);
+
+    const payload = {
+      patient: formData.patientId,
+      visit: formData.visitId || undefined,
+      blood_pressure_systolic: formData.bloodPressureSystolic ? parseInt(formData.bloodPressureSystolic) : null,
+      blood_pressure_diastolic: formData.bloodPressureDiastolic ? parseInt(formData.bloodPressureDiastolic) : null,
+      pulse: formData.heartRate ? parseInt(formData.heartRate) : null,
+      temperature: formData.temperature ? parseFloat(formData.temperature) : null,
+      respiratory_rate: formData.respirationRate ? parseInt(formData.respirationRate) : null,
+      oxygen_saturation: formData.oxygenSaturation ? parseInt(formData.oxygenSaturation) : null,
+      blood_glucose: formData.bloodGlucose ? parseFloat(formData.bloodGlucose) : null,
+      pain_score: formData.painScore ? parseInt(formData.painScore) : null,
       consciousness: formData.consciousness,
-      notes: formData.notes
+      notes: formData.notes,
     };
 
-    dispatch(addVitalSigns(vitalsData));
+    const result = await dispatch(createVitalSign(payload));
+    if (createVitalSign.rejected.match(result)) {
+      setAlertError(result.payload || 'Failed to save vital signs.');
+      return;
+    }
 
-    // Calculate early warning score
-    dispatch(calculateEarlyWarningScore({
-      patientId: selectedPatient,
-      vitals: {
-        respirationRate: vitalsData.respirationRate,
-        oxygenSaturation: vitalsData.oxygenSaturation,
-        temperature: vitalsData.temperature,
-        systolicBP: parseInt(formData.bloodPressureSystolic),
-        heartRate: vitalsData.heartRate,
-        consciousness: vitalsData.consciousness
+    const vs = result.payload;
+    if (vs && vs.temperature && vs.oxygen_saturation && vs.blood_pressure_systolic &&
+      vs.pulse && vs.respiratory_rate) {
+      const ewsPayload = {
+        vital_sign: vs.id,
+        patient: vs.patient,
+        visit: vs.visit || undefined,
+        respiration_rate: vs.respiratory_rate,
+        oxygen_saturation: parseFloat(vs.oxygen_saturation),
+        temperature: parseFloat(vs.temperature),
+        systolic_bp: vs.blood_pressure_systolic,
+        heart_rate: vs.pulse,
+        consciousness: vs.consciousness || 'Alert',
+      };
+      const ewsResultAction = await dispatch(calculateEWS(ewsPayload));
+      if (calculateEWS.fulfilled.match(ewsResultAction)) {
+        setEwsResult(ewsResultAction.payload);
       }
-    }));
+    }
 
-    // Reset form
     setFormData({
       patientId: '',
       bloodPressureSystolic: '',
@@ -113,26 +249,65 @@ const VitalSignsMonitoring = () => {
       bloodGlucose: '',
       painScore: '',
       consciousness: 'Alert',
-      notes: ''
+      notes: '',
+      visitId: '',
     });
     setSelectedPatient('');
     setShowForm(false);
   };
 
-  const getVitalSignStatus = (value, normalRange) => {
-    if (!value) return 'normal';
-    const [min, max] = normalRange;
-    if (value < min || value > max) return 'abnormal';
-    return 'normal';
+  const handleAcknowledge = async (alertId) => {
+    const result = await dispatch(acknowledgeAlertApi(alertId));
+    if (!acknowledgeAlertApi.fulfilled.match(result)) {
+      setAlertError(result.payload || 'Failed to acknowledge alert.');
+    }
   };
 
-  const acknowledgeAlertHandler = (alertId) => {
-    dispatch(acknowledgeAlert(alertId));
+  const handleRefresh = () => {
+    dispatch(fetchVitalSigns());
+    dispatch(fetchActiveAlerts());
+  };
+
+  // --- FIX: Safely check if vital sign is abnormal ---
+  const isAbnormal = (vs, key, normalRange) => {
+    if (!vs) return false;
+    const value = vs[key];
+    if (value === undefined || value === null) return false;
+    const [min, max] = normalRange;
+    return value < min || value > max;
+  };
+
+  // --- FIX: Safely get status class ---
+  const getStatusClass = (vs, key, normalRange) => {
+    return isAbnormal(vs, key, normalRange) ? 'text-red-600 font-medium' : 'text-gray-900';
+  };
+
+  const getEwsRiskColor = (level) => {
+    if (!level) return 'text-gray-600 bg-gray-50 border-gray-200';
+    if (level === 'high') return 'text-red-600 bg-red-50 border-red-200';
+    if (level === 'medium') return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    return 'text-green-600 bg-green-50 border-green-200';
+  };
+
+  // --- FIX: Safely get EWS from vital sign ---
+  const getEws = (vs) => {
+    if (!vs) return null;
+    if (vs.early_warning_scores && Array.isArray(vs.early_warning_scores) && vs.early_warning_scores.length > 0) {
+      return vs.early_warning_scores[0];
+    }
+    return null;
+  };
+
+  // --- FIX: Safely format pain score ---
+  const getPainDisplay = (vs) => {
+    if (!vs) return '-';
+    const pain = vs.pain_score;
+    if (pain === undefined || pain === null) return '-';
+    return `${pain}/10`;
   };
 
   return (
     <div className="vital-signs-monitoring p-4 sm:p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center">
           <Heart className="w-6 h-6 sm:w-8 sm:h-8 mr-3 text-red-500" />
@@ -141,7 +316,41 @@ const VitalSignsMonitoring = () => {
         <p className="text-gray-600 mt-2">Real-time monitoring with early warning systems</p>
       </div>
 
-      {/* Active Alerts */}
+      {alertError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {alertError}
+          <button onClick={() => setAlertError('')} className="float-right text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+          {error}
+          <button onClick={() => dispatch(clearError())} className="float-right text-orange-500 hover:text-orange-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {ewsResult && (
+        <div className={`mb-6 rounded-xl border p-4 ${getEwsRiskColor(ewsResult.risk_level)}`}>
+          <div className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            <span className="font-semibold">Latest Early Warning Score: {ewsResult.total} ({ewsResult.risk_level?.toUpperCase() || 'UNKNOWN'} Risk)</span>
+          </div>
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div>Respiration: {ewsResult.respiration_score ?? '-'}</div>
+            <div>SpO₂: {ewsResult.oxygen_score ?? '-'}</div>
+            <div>Temp: {ewsResult.temperature_score ?? '-'}</div>
+            <div>BP: {ewsResult.systolic_bp_score ?? '-'}</div>
+            <div>HR: {ewsResult.heart_rate_score ?? '-'}</div>
+            <div>Consciousness: {ewsResult.consciousness_score ?? '-'}</div>
+          </div>
+        </div>
+      )}
+
       {activeAlerts.length > 0 && (
         <div className="mb-8 bg-red-50 border border-red-200 rounded-xl p-4 sm:p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center text-red-800">
@@ -152,15 +361,17 @@ const VitalSignsMonitoring = () => {
             {activeAlerts.map(alert => (
               <div key={alert.id} className="flex items-center justify-between bg-white p-4 rounded-lg border border-red-200">
                 <div className="flex items-center">
-                  <AlertTriangle className={`w-5 h-5 mr-3 ${alert.severity === 'High' ? 'text-red-500' : alert.severity === 'Medium' ? 'text-yellow-500' : 'text-blue-500'}`} />
+                  <AlertTriangle className={`w-5 h-5 mr-3 ${alert.severity === 'critical' ? 'text-red-500' : alert.severity === 'high' ? 'text-orange-500' : 'text-yellow-500'}`} />
                   <div>
-                    <p className="font-medium text-gray-800">{alert.message}</p>
-                    <p className="text-sm text-gray-600">{new Date(alert.timestamp).toLocaleString('en-NG')}</p>
+                    <p className="font-medium text-gray-800">{alert.title}</p>
+                    <p className="text-sm text-gray-600">{alert.message}</p>
+                    <p className="text-xs text-gray-500">{new Date(alert.created_at).toLocaleString('en-NG')}</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => acknowledgeAlertHandler(alert.id)}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
+                  onClick={() => handleAcknowledge(alert.id)}
+                  disabled={loading}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium disabled:opacity-50"
                 >
                   Acknowledge
                 </button>
@@ -170,7 +381,6 @@ const VitalSignsMonitoring = () => {
         </div>
       )}
 
-      {/* Controls */}
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
@@ -180,8 +390,8 @@ const VitalSignsMonitoring = () => {
               <input
                 type="text"
                 placeholder="Search by name or ID..."
-                value={searchTerm}
-                onChange={(e) => dispatch(searchVitalSigns(e.target.value))}
+                value={globalPatientSearch}
+                onChange={(e) => handleSearchPatients(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
               />
             </div>
@@ -191,12 +401,14 @@ const VitalSignsMonitoring = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Patient</label>
             <select
               value={filterBy}
-              onChange={(e) => dispatch(filterVitalSigns(e.target.value))}
+              onChange={(e) => setFilterBy(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
             >
               <option value="all">All Patients</option>
-              {patients.map(patient => (
-                <option key={patient.id} value={patient.id}>{patient.name}</option>
+              {allPatientsCache.map(patient => (
+                <option key={patient.id} value={patient.id}>
+                  {patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim() || patient.id}
+                </option>
               ))}
             </select>
           </div>
@@ -205,7 +417,7 @@ const VitalSignsMonitoring = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
             <select
               value={sortBy}
-              onChange={(e) => dispatch(sortVitalSigns(e.target.value))}
+              onChange={(e) => setSortBy(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
             >
               <option value="date">Date (Newest First)</option>
@@ -213,101 +425,133 @@ const VitalSignsMonitoring = () => {
             </select>
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 font-medium flex items-center justify-center disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Refresh
+            </button>
             <button
               onClick={() => setShowForm(true)}
-              className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-medium flex items-center justify-center"
+              className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-medium flex items-center justify-center"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Vital Signs
+              Add Vitals
             </button>
           </div>
         </div>
       </div>
 
-      {/* Vital Signs Table */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blood Pressure</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Heart Rate</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temperature</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BP</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HR</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temp</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SpO2</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RR</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pain Score</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pain</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EWS</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {paginatedVitalSigns.map(vs => {
-                const patient = patients.find(p => p.id === vs.patientId);
-                return (
-                  <tr key={vs.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{patient?.name || vs.patientId}</div>
-                        <div className="text-sm text-gray-500">{vs.patientId}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${getVitalSignStatus(parseInt(vs.bloodPressure.split('/')[0]), [90, 140]) === 'abnormal' ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
-                        {vs.bloodPressure}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${getVitalSignStatus(vs.heartRate, [60, 100]) === 'abnormal' ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
-                        {vs.heartRate} bpm
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${getVitalSignStatus(vs.temperature, [36.1, 37.5]) === 'abnormal' ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
-                        {vs.temperature}°C
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${getVitalSignStatus(vs.oxygenSaturation, [95, 100]) === 'abnormal' ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
-                        {vs.oxygenSaturation}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${getVitalSignStatus(vs.respirationRate, [12, 20]) === 'abnormal' ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
-                        {vs.respirationRate}/min
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${getVitalSignStatus(vs.painScore, [0, 3]) === 'abnormal' ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
-                        {vs.painScore}/10
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(vs.timestamp).toLocaleString('en-NG')}
-                    </td>
-                  </tr>
-                );
-              })}
+              {loading && paginatedVitalSigns.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-red-500" />
+                    Loading vital signs...
+                  </td>
+                </tr>
+              ) : paginatedVitalSigns.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                    No patients found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedVitalSigns.map((row) => {
+                  const vs = row.vitalSign;
+                  const patient = row.patient;
+                  const ews = getEws(vs);
+                  
+                  return (
+                    <tr key={row.patientId} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{row.patientName}</div>
+                          <div className="text-sm text-gray-500">{row.patientId}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-sm ${getStatusClass(vs, 'blood_pressure_systolic', [90, 140])}`}>
+                          {vs ? `${vs.blood_pressure_systolic || '-'}/${vs.blood_pressure_diastolic || '-'}` : '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-sm ${getStatusClass(vs, 'pulse', [60, 100])}`}>
+                          {getVitalDisplay(vs, 'pulse', ' bpm')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-sm ${getStatusClass(vs, 'temperature', [36.1, 37.5])}`}>
+                          {getVitalDisplay(vs, 'temperature', '°C')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-sm ${getStatusClass(vs, 'oxygen_saturation', [95, 100])}`}>
+                          {getVitalDisplay(vs, 'oxygen_saturation', '%')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-sm ${getStatusClass(vs, 'respiratory_rate', [12, 20])}`}>
+                          {getVitalDisplay(vs, 'respiratory_rate', '/min')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-sm ${isAbnormal(vs, 'pain_score', [0, 3]) ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
+                          {getPainDisplay(vs)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {ews ? (
+                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getEwsRiskColor(ews.risk_level)}`}>
+                            {ews.total_score ?? '?'} ({ews.risk_level || 'UNKNOWN'})
+                          </span>
+                        ) : vs ? (
+                          <span className="text-sm text-gray-400">No EWS</span>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {vs ? new Date(vs.recorded_at).toLocaleString('en-NG') : (row.recorded_at ? new Date(row.recorded_at).toLocaleString('en-NG') : '-')}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        {paginatedVitalSigns.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No vital signs recorded yet.
-          </div>
-        )}
       </div>
 
-      {/* Pagination */}
-      {filteredVitalSigns.length > itemsPerPage && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredVitalSigns.length / itemsPerPage)}
-          onPageChange={setCurrentPage}
-        />
+      {displayRows.length > itemsPerPage && (
+        <div className="mb-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(displayRows.length / itemsPerPage)}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       )}
 
-      {/* Add Vital Signs Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -319,118 +563,78 @@ const VitalSignsMonitoring = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Select Patient</label>
-                  <select
-                    value={selectedPatient}
-                    onChange={(e) => setSelectedPatient(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    required
-                  >
-                    <option value="">Choose a patient...</option>
-                    {patients.map(patient => (
-                      <option key={patient.id} value={patient.id}>{patient.name} ({patient.id})</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder={patientSearchLoading ? 'Searching...' : 'Search by name or ID...'}
+                      value={globalPatientSearch}
+                      onChange={(e) => handleSearchPatients(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                    />
+                  </div>
+                  {patientOptions.length > 0 && (
+                    <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+                      {patientOptions.map(patient => (
+                        <button
+                          key={patient.id}
+                          type="button"
+                          onClick={() => handleSelectPatient(patient)}
+                          className={`w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100 last:border-0 ${formData.patientId === patient.id ? 'bg-red-50' : ''}`}
+                        >
+                          <div>
+                            <span className="text-sm font-medium text-gray-900">
+                              {patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim()}
+                            </span>
+                            <div className="text-xs text-gray-500">{patient.hospital_number || patient.phone || patient.id}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {formData.patientId && (
+                    <div className="mt-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      Selected: {selectedPatient}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Blood Pressure (mmHg)</label>
                     <div className="flex gap-2">
-                      <input
-                        type="number"
-                        placeholder="Systolic"
-                        value={formData.bloodPressureSystolic}
-                        onChange={(e) => setFormData({...formData, bloodPressureSystolic: e.target.value})}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                        required
-                      />
+                      <input type="number" placeholder="Systolic" value={formData.bloodPressureSystolic} onChange={(e) => setFormData({...formData, bloodPressureSystolic: e.target.value})} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required />
                       <span className="flex items-center">/</span>
-                      <input
-                        type="number"
-                        placeholder="Diastolic"
-                        value={formData.bloodPressureDiastolic}
-                        onChange={(e) => setFormData({...formData, bloodPressureDiastolic: e.target.value})}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                        required
-                      />
+                      <input type="number" placeholder="Diastolic" value={formData.bloodPressureDiastolic} onChange={(e) => setFormData({...formData, bloodPressureDiastolic: e.target.value})} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required />
                     </div>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Heart Rate (bpm)</label>
-                    <input
-                      type="number"
-                      value={formData.heartRate}
-                      onChange={(e) => setFormData({...formData, heartRate: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                      required
-                    />
+                    <input type="number" value={formData.heartRate} onChange={(e) => setFormData({...formData, heartRate: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Temperature (°C)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={formData.temperature}
-                      onChange={(e) => setFormData({...formData, temperature: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                      required
-                    />
+                    <input type="number" step="0.1" value={formData.temperature} onChange={(e) => setFormData({...formData, temperature: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Respiration Rate (/min)</label>
-                    <input
-                      type="number"
-                      value={formData.respirationRate}
-                      onChange={(e) => setFormData({...formData, respirationRate: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                      required
-                    />
+                    <input type="number" value={formData.respirationRate} onChange={(e) => setFormData({...formData, respirationRate: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Oxygen Saturation (%)</label>
-                    <input
-                      type="number"
-                      value={formData.oxygenSaturation}
-                      onChange={(e) => setFormData({...formData, oxygenSaturation: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                      required
-                    />
+                    <input type="number" value={formData.oxygenSaturation} onChange={(e) => setFormData({...formData, oxygenSaturation: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Pain Score (0-10)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={formData.painScore}
-                      onChange={(e) => setFormData({...formData, painScore: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                      required
-                    />
+                    <input type="number" min="0" max="10" value={formData.painScore} onChange={(e) => setFormData({...formData, painScore: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" required />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Blood Glucose (mg/dL)</label>
-                    <input
-                      type="number"
-                      value={formData.bloodGlucose}
-                      onChange={(e) => setFormData({...formData, bloodGlucose: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    />
+                    <input type="number" value={formData.bloodGlucose} onChange={(e) => setFormData({...formData, bloodGlucose: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Level of Consciousness</label>
-                    <select
-                      value={formData.consciousness}
-                      onChange={(e) => setFormData({...formData, consciousness: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    >
+                    <select value={formData.consciousness} onChange={(e) => setFormData({...formData, consciousness: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
                       <option value="Alert">Alert</option>
                       <option value="Voice">Responds to Voice</option>
                       <option value="Pain">Responds to Pain</option>
@@ -441,27 +645,15 @@ const VitalSignsMonitoring = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    rows="3"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    placeholder="Additional observations..."
-                  />
+                  <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} rows="3" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" placeholder="Additional observations..." />
                 </div>
 
                 <div className="flex gap-2 pt-4">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-medium"
-                  >
+                  <button type="submit" disabled={loading || !formData.patientId} className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Record Vital Signs
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
-                  >
+                  <button type="button" onClick={() => { setShowForm(false); setEwsResult(null); setAlertError(''); }} className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium">
                     Cancel
                   </button>
                 </div>

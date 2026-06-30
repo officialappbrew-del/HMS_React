@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus,
   Clock,
@@ -12,23 +12,30 @@ import {
   Play,
   X,
   Calendar,
-  MapPin
+  MapPin,
+  Loader2
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
+import { ErrorModal } from '../components/ErrorModal';
 import {
+  fetchWardRounds,
   scheduleWardRound,
   startWardRound,
   completeWardRound,
   cancelWardRound,
   createHandoverNote,
+  updateHandoverNote,
   scheduleGrandRound,
   addPatientToRound,
-  recordRoundDocumentation
+  recordRoundDocumentation,
+  fetchHandoverNotes,
+  fetchGrandRounds,
+  clearError
 } from '../features/wardRoundSlice';
 
 const WardRoundManagement = () => {
   const dispatch = useDispatch();
-  const { wardRounds, handoverNotes, grandRounds, roundStatuses, roundTypes } = useSelector(
+  const { wardRounds, handoverNotes, grandRounds, roundStatuses, roundTypes, loading, error } = useSelector(
     state => state.wardRound
   );
   const { wards } = useSelector(state => state.ward);
@@ -45,6 +52,32 @@ const WardRoundManagement = () => {
   const [cancellationReason, setCancellationReason] = useState('');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsData, setDetailsData] = useState(null);
+  const [showEditHandoverModal, setShowEditHandoverModal] = useState(false);
+  const [editingHandover, setEditingHandover] = useState(null);
+  const [editedHandoverData, setEditedHandoverData] = useState({
+    criticallySevere: '',
+    recentAdmissions: '',
+    notes: ''
+  });
+  const [errorModal, setErrorModal] = useState({ isOpen: false, title: '', message: '', details: null });
+
+  useEffect(() => {
+    dispatch(fetchWardRounds());
+    dispatch(fetchHandoverNotes());
+    dispatch(fetchGrandRounds());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (error) {
+      setErrorModal({
+        isOpen: true,
+        title: 'Error',
+        message: error,
+        details: null,
+      });
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
 
   const [roundFormData, setRoundFormData] = useState({
     wardId: '',
@@ -83,15 +116,15 @@ const WardRoundManagement = () => {
   const dailyRounds = wardRounds.filter(r => r.type === roundTypes.DAILY);
   const teachingRounds = wardRounds.filter(r => r.type === roundTypes.TEACHING);
 
-  const handleScheduleRound = () => {
+  const handleScheduleRound = async () => {
     if (roundFormData.wardId && roundFormData.date && roundFormData.consultant) {
-      dispatch(
-        scheduleWardRound({
+      try {
+        await dispatch(scheduleWardRound({
           wardId: roundFormData.wardId,
           wardName: wards.find(w => w.wardId === roundFormData.wardId)?.wardName || '',
           date: roundFormData.date,
           time: roundFormData.time,
-          type: roundFormData.type,
+          roundType: roundFormData.type,
           consultant: roundFormData.consultant,
           consultantSpecialty: roundFormData.consultantSpecialty,
           teamMembers: [],
@@ -99,38 +132,63 @@ const WardRoundManagement = () => {
           notes: roundFormData.notes,
           expectedDuration: roundFormData.expectedDuration,
           status: roundStatuses.SCHEDULED
-        })
-      );
-      setRoundFormData({
-        wardId: '',
-        date: '',
-        time: '',
-        type: roundTypes.DAILY,
-        consultant: '',
-        consultantSpecialty: '',
-        notes: '',
-        expectedDuration: 120
-      });
-      setShowScheduleForm(false);
-      setNotificationModal({ show: true, message: 'Ward round scheduled successfully!', type: 'success' });
+        })).unwrap();
+        setRoundFormData({
+          wardId: '',
+          date: '',
+          time: '',
+          type: roundTypes.DAILY,
+          consultant: '',
+          consultantSpecialty: '',
+          notes: '',
+          expectedDuration: 120
+        });
+        setShowScheduleForm(false);
+        setNotificationModal({ show: true, message: 'Ward round scheduled successfully!', type: 'success' });
+      } catch (err) {
+        setErrorModal({
+          isOpen: true,
+          title: 'Schedule Error',
+          message: err?.message || 'Failed to schedule ward round.',
+          details: err?.data || null,
+        });
+      }
     }
   };
 
-  const handleStartRound = (roundId) => {
-    dispatch(startWardRound(roundId));
-    setNotificationModal({ show: true, message: 'Ward round started!', type: 'success' });
+  const handleStartRound = async (roundId) => {
+    try {
+      await dispatch(startWardRound(roundId)).unwrap();
+      setNotificationModal({ show: true, message: 'Ward round started!', type: 'success' });
+    } catch (err) {
+      setErrorModal({
+        isOpen: true,
+        title: 'Start Error',
+        message: err?.message || 'Failed to start ward round.',
+        details: err?.data || null,
+      });
+    }
   };
 
   const handleCompleteRound = (roundId) => {
     setCompletionNotesModal({ show: true, roundId });
   };
 
-  const submitCompletionNotes = () => {
+  const submitCompletionNotes = async () => {
     if (completionNotesModal.roundId) {
-      dispatch(completeWardRound({ roundId: completionNotesModal.roundId, notes: completionNotes, actualDuration: 120 }));
-      setCompletionNotesModal({ show: false, roundId: null });
-      setCompletionNotes('');
-      setNotificationModal({ show: true, message: 'Ward round completed!', type: 'success' });
+      try {
+        await dispatch(completeWardRound({ roundId: completionNotesModal.roundId, notes: completionNotes, actualDuration: 120 })).unwrap();
+        setCompletionNotesModal({ show: false, roundId: null });
+        setCompletionNotes('');
+        setNotificationModal({ show: true, message: 'Ward round completed!', type: 'success' });
+      } catch (err) {
+        setErrorModal({
+          isOpen: true,
+          title: 'Completion Error',
+          message: err?.message || 'Failed to complete ward round.',
+          details: err?.data || null,
+        });
+      }
     }
   };
 
@@ -138,19 +196,29 @@ const WardRoundManagement = () => {
     setCancellationModal({ show: true, roundId });
   };
 
-  const submitCancellationReason = () => {
+  const submitCancellationReason = async () => {
     if (cancellationReason.trim()) {
-      dispatch(cancelWardRound({ roundId: cancellationModal.roundId, reason: cancellationReason }));
-      setCancellationModal({ show: false, roundId: null });
-      setCancellationReason('');
-      setNotificationModal({ show: true, message: 'Ward round cancelled!', type: 'success' });
+      try {
+        await dispatch(cancelWardRound({ roundId: cancellationModal.roundId, reason: cancellationReason })).unwrap();
+        setCancellationModal({ show: false, roundId: null });
+        setCancellationReason('');
+        setNotificationModal({ show: true, message: 'Ward round cancelled!', type: 'success' });
+      } catch (err) {
+        setErrorModal({
+          isOpen: true,
+          title: 'Cancellation Error',
+          message: err?.message || 'Failed to cancel ward round.',
+          details: err?.data || null,
+        });
+      }
     }
   };
 
-  const handleCreateHandover = () => {
+  const handleCreateHandover = async () => {
     if (handoverFormData.wardId && handoverFormData.handoverOfficer && handoverFormData.receivingOfficer) {
-      dispatch(
-        createHandoverNote({
+      try {
+        await dispatch(createHandoverNote({
+          date: new Date().toISOString(),
           wardId: handoverFormData.wardId,
           wardName: wards.find(w => w.wardId === handoverFormData.wardId)?.wardName || '',
           shiftFrom: handoverFormData.shiftFrom,
@@ -160,27 +228,34 @@ const WardRoundManagement = () => {
           criticallySevere: handoverFormData.criticallySevere.split(',').filter(s => s.trim()),
           recentAdmissions: handoverFormData.recentAdmissions.split(',').filter(a => a.trim()),
           notes: handoverFormData.notes
-        })
-      );
-      setHandoverFormData({
-        wardId: '',
-        shiftFrom: 'Morning',
-        shiftTo: 'Afternoon',
-        handoverOfficer: '',
-        receivingOfficer: '',
-        criticallySevere: '',
-        recentAdmissions: '',
-        notes: ''
-      });
-      setShowHandoverForm(false);
-      setNotificationModal({ show: true, message: 'Handover note created successfully!', type: 'success' });
+        })).unwrap();
+        setHandoverFormData({
+          wardId: '',
+          shiftFrom: 'Morning',
+          shiftTo: 'Afternoon',
+          handoverOfficer: '',
+          receivingOfficer: '',
+          criticallySevere: '',
+          recentAdmissions: '',
+          notes: ''
+        });
+        setShowHandoverForm(false);
+        setNotificationModal({ show: true, message: 'Handover note created successfully!', type: 'success' });
+      } catch (err) {
+        setErrorModal({
+          isOpen: true,
+          title: 'Handover Error',
+          message: err?.message || 'Failed to create handover note.',
+          details: err?.data || null,
+        });
+      }
     }
   };
 
-  const handleScheduleGrandRound = () => {
+  const handleScheduleGrandRound = async () => {
     if (grandRoundFormData.date && grandRoundFormData.topic && grandRoundFormData.presenter) {
-      dispatch(
-        scheduleGrandRound({
+      try {
+        await dispatch(scheduleGrandRound({
           date: grandRoundFormData.date,
           time: grandRoundFormData.time,
           topic: grandRoundFormData.topic,
@@ -189,18 +264,60 @@ const WardRoundManagement = () => {
           targetAudience: grandRoundFormData.targetAudience,
           caseStudies: [],
           expectedAttendees: 0
-        })
-      );
-      setGrandRoundFormData({
-        date: '',
-        time: '',
-        topic: '',
-        presenter: '',
-        location: '',
-        targetAudience: ''
+        })).unwrap();
+        setGrandRoundFormData({
+          date: '',
+          time: '',
+          topic: '',
+          presenter: '',
+          location: '',
+          targetAudience: ''
+        });
+        setShowGrandRoundForm(false);
+        setNotificationModal({ show: true, message: 'Grand round scheduled successfully!', type: 'success' });
+      } catch (err) {
+        setErrorModal({
+          isOpen: true,
+          title: 'Schedule Error',
+          message: err?.message || 'Failed to schedule grand round.',
+          details: err?.data || null,
+        });
+      }
+    }
+  };
+
+  const handleEditHandover = (note) => {
+    setEditingHandover(note);
+    setEditedHandoverData({
+      criticallySevere: (note.criticallySevere || []).join(', '),
+      recentAdmissions: (note.recentAdmissions || []).join(', '),
+      notes: note.notes || ''
+    });
+    setShowEditHandoverModal(true);
+  };
+
+  const submitEditHandover = async () => {
+    if (!editingHandover?.id) return;
+    try {
+      await dispatch(updateHandoverNote({
+        handoverId: editingHandover.id,
+        updates: {
+          criticallySevere: editedHandoverData.criticallySevere.split(',').filter(s => s.trim()),
+          recentAdmissions: editedHandoverData.recentAdmissions.split(',').filter(a => a.trim()),
+          notes: editedHandoverData.notes
+        }
+      })).unwrap();
+      setShowEditHandoverModal(false);
+      setEditingHandover(null);
+      setEditedHandoverData({ criticallySevere: '', recentAdmissions: '', notes: '' });
+      setNotificationModal({ show: true, message: 'Handover note updated successfully!', type: 'success' });
+    } catch (err) {
+      setErrorModal({
+        isOpen: true,
+        title: 'Update Error',
+        message: err?.message || 'Failed to update handover note.',
+        details: err?.data || null,
       });
-      setShowGrandRoundForm(false);
-      setNotificationModal({ show: true, message: 'Grand round scheduled successfully!', type: 'success' });
     }
   };
 
@@ -208,6 +325,17 @@ const WardRoundManagement = () => {
     setDetailsData({ ...data, type });
     setShowDetailsModal(true);
   };
+
+  if (loading && wardRounds.length === 0 && handoverNotes.length === 0 && grandRounds.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-nigerian-green mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading ward rounds...</p>
+        </div>
+      </div>
+    );
+  }
 
   const getRoundStatusColor = (status) => {
     switch (status) {
@@ -422,14 +550,14 @@ const WardRoundManagement = () => {
                   {round.status === roundStatuses.SCHEDULED && (
                     <>
                       <button
-                        onClick={() => handleStartRound(round.roundId)}
+                         onClick={() => handleStartRound(round.id)}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium flex items-center"
                       >
                         <Play className="w-4 h-4 mr-2" />
                         Start Round
                       </button>
                       <button
-                        onClick={() => handleCancelRound(round.roundId)}
+                         onClick={() => handleCancelRound(round.id)}
                         className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium flex items-center"
                       >
                         <X className="w-4 h-4 mr-2" />
@@ -440,7 +568,7 @@ const WardRoundManagement = () => {
 
                   {round.status === roundStatuses.IN_PROGRESS && (
                     <button
-                      onClick={() => handleCompleteRound(round.roundId)}
+                      onClick={() => handleCompleteRound(round.id)}
                       className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium flex items-center"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
@@ -520,7 +648,7 @@ const WardRoundManagement = () => {
                 <div className="flex flex-wrap gap-2">
                   {round.status === roundStatuses.SCHEDULED && (
                     <button
-                      onClick={() => handleStartRound(round.roundId)}
+                       onClick={() => handleStartRound(round.id)}
                       className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium flex items-center"
                     >
                       <Play className="w-4 h-4 mr-2" />
@@ -530,7 +658,7 @@ const WardRoundManagement = () => {
 
                   {round.status === roundStatuses.IN_PROGRESS && (
                     <button
-                      onClick={() => handleCompleteRound(round.roundId)}
+                      onClick={() => handleCompleteRound(round.id)}
                       className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium flex items-center"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
@@ -627,7 +755,10 @@ const WardRoundManagement = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium flex items-center">
+                  <button
+                    onClick={() => handleEditHandover(note)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium flex items-center"
+                  >
                     <Edit className="w-4 h-4 mr-2" />
                     Edit
                   </button>
@@ -808,6 +939,68 @@ const WardRoundManagement = () => {
               className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
             >
               Keep Round
+            </button>
+          </div>
+        </div>
+      </GenericModal>
+
+      {/* Edit Handover Modal */}
+      <GenericModal
+        isOpen={showEditHandoverModal}
+        onClose={() => {
+          setShowEditHandoverModal(false);
+          setEditingHandover(null);
+          setEditedHandoverData({ criticallySevere: '', recentAdmissions: '', notes: '' });
+        }}
+        title="Edit Handover Note"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Critically Severe Patients (comma separated)</label>
+            <input
+              type="text"
+              value={editedHandoverData.criticallySevere}
+              onChange={(e) => setEditedHandoverData({ ...editedHandoverData, criticallySevere: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+              placeholder="e.g. PAT00001, PAT00003"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Recent Admissions (comma separated)</label>
+            <input
+              type="text"
+              value={editedHandoverData.recentAdmissions}
+              onChange={(e) => setEditedHandoverData({ ...editedHandoverData, recentAdmissions: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+              placeholder="e.g. PAT00005, PAT00006"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea
+              value={editedHandoverData.notes}
+              onChange={(e) => setEditedHandoverData({ ...editedHandoverData, notes: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green"
+              rows="4"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={submitEditHandover}
+              className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium"
+            >
+              Save Changes
+            </button>
+            <button
+              onClick={() => {
+                setShowEditHandoverModal(false);
+                setEditingHandover(null);
+                setEditedHandoverData({ criticallySevere: '', recentAdmissions: '', notes: '' });
+              }}
+              className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+            >
+              Cancel
             </button>
           </div>
         </div>
@@ -1131,6 +1324,13 @@ const WardRoundManagement = () => {
           </div>
         </div>
       </GenericModal>
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
+        title={errorModal.title}
+        message={errorModal.message}
+        details={errorModal.details}
+      />
     </div>
   );
 };

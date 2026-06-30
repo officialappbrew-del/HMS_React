@@ -36,12 +36,16 @@ import {
   addPatientAlert,
   dismissAlert,
   searchGuidelines,
-  updatePatientProfile
+  updatePatientProfile,
+  setRiskCalculations
 } from '../features/cdsSlice';
+import { selectCurrentPatient } from '../features/patientSlice';
 import Pagination from '../components/Pagination';
+import { ErrorModal } from '../components/ErrorModal';
 
 const ClinicalDecisionSupport = () => {
   const dispatch = useDispatch();
+  const currentPatient = useSelector(selectCurrentPatient);
   const {
     drugInteractions,
     allergyAlerts,
@@ -52,6 +56,7 @@ const ClinicalDecisionSupport = () => {
     searchResults,
     loading
   } = useSelector(state => state.cds);
+  const currentTenantId = useSelector(state => state.tenant?.currentTenant?.id);
 
   const [activeTab, setActiveTab] = useState('interactions');
   const [currentPage, setCurrentPage] = useState(1);
@@ -90,8 +95,7 @@ const ClinicalDecisionSupport = () => {
     pregnancyCategory: '',
     dosingFrequency: 'daily'
   });
-
-  // Risk Calculator State
+   // Risk Calculator State
   const [riskForm, setRiskForm] = useState({
     calculator: 'cardiovascular',
     patientData: {
@@ -107,6 +111,9 @@ const ClinicalDecisionSupport = () => {
 
   // Clinical Guidelines Search
   const [guidelineSearch, setGuidelineSearch] = useState('');
+  const [isCalculatingRisk, setIsCalculatingRisk] = useState(false);
+
+  const [errorModal, setErrorModal] = useState({ isOpen: false, title: '', message: '', details: null });
 
   // Nigerian-specific drug interactions database
   const nigerianDrugInteractions = {
@@ -406,21 +413,52 @@ const ClinicalDecisionSupport = () => {
     }));
   };
 
-  const handleRiskCalculation = () => {
+  const handleRiskCalculation = async () => {
     let result;
 
-    switch (riskForm.calculator) {
-      case 'cardiovascular':
-        result = calculateCardiovascularRisk(riskForm.patientData);
-        break;
-      case 'diabetes':
-        result = calculateDiabetesRisk(riskForm.patientData);
-        break;
-      default:
-        result = { score: 0, riskPercentage: 0, riskCategory: 'Unknown', recommendations: [] };
+    try {
+      switch (riskForm.calculator) {
+        case 'cardiovascular':
+          result = calculateCardiovascularRisk(riskForm.patientData);
+          break;
+        case 'diabetes':
+          result = calculateDiabetesRisk(riskForm.patientData);
+          break;
+        default:
+          result = { score: 0, riskPercentage: 0, riskCategory: 'Unknown', recommendations: [] };
+      }
+    } catch (calcError) {
+      setErrorModal({
+        isOpen: true,
+        title: 'Calculation Error',
+        message: calcError.message || 'Failed to calculate risk. Please check your input values.',
+        details: null,
+      });
+      return;
     }
 
-    dispatch(calculateRisk(result));
+    dispatch(setRiskCalculations(result));
+    setIsCalculatingRisk(true);
+
+    try {
+      await dispatch(calculateRisk({
+        ...result,
+        calculator: riskForm.calculator,
+        patient: currentPatient?.id,
+        tenant: currentTenantId,
+      })).unwrap();
+    } catch (err) {
+      const details = err?.data && typeof err.data === 'object' ? err.data : null;
+      const message = err?.message || 'Failed to save calculation. Your result is still displayed locally.';
+      setErrorModal({
+        isOpen: true,
+        title: 'Save Error',
+        message,
+        details,
+      });
+    } finally {
+      setIsCalculatingRisk(false);
+    }
   };
 
   const getSeverityColor = (severity) => {
@@ -441,7 +479,7 @@ const ClinicalDecisionSupport = () => {
     }
   };
 
-  const filteredGuidelines = nigerianGuidelines.filter(guideline =>
+  const filteredGuidelines = (clinicalGuidelines || []).filter(guideline =>
     guideline.title.toLowerCase().includes(guidelineSearch.toLowerCase()) ||
     guideline.category.toLowerCase().includes(guidelineSearch.toLowerCase())
   );
@@ -450,6 +488,18 @@ const ClinicalDecisionSupport = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  useEffect(() => {
+    if (activeTab === 'guidelines') {
+      dispatch(getClinicalGuidelines());
+    }
+  }, [activeTab, dispatch]);
+
+  useEffect(() => {
+    if (activeTab === 'alerts') {
+      dispatch(getClinicalGuidelines({}));
+    }
+  }, [activeTab, dispatch]);
 
   return (
     <div className="clinical-decision-support p-4 sm:p-6 bg-gray-50 min-h-screen">
@@ -741,7 +791,7 @@ const ClinicalDecisionSupport = () => {
                   <div>
                     <h5 className="font-medium mb-2">Adjustments Made</h5>
                     <ul className="text-sm space-y-1">
-                      {dosingRecommendations.adjustments.map((adjustment, index) => (
+                       {(dosingRecommendations.adjustments || []).map((adjustment, index) => (
                         <li key={index} className="flex items-center">
                           <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
                           {adjustment}
@@ -754,7 +804,7 @@ const ClinicalDecisionSupport = () => {
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
                   <p className="text-sm text-blue-800">
                     <Info className="w-4 h-4 inline mr-1" />
-                    {dosingRecommendations.monitoring}
+                     {dosingRecommendations.monitoring || ''}
                   </p>
                 </div>
               </div>
@@ -797,7 +847,7 @@ const ClinicalDecisionSupport = () => {
                   <div>
                     <h5 className="font-medium mb-2">Key Recommendations:</h5>
                     <ul className="space-y-2">
-                      {guideline.recommendations.map((rec, index) => (
+                       {(guideline.recommendations || []).map((rec, index) => (
                         <li key={index} className="flex items-start">
                           <CheckCircle className="w-4 h-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
                           <span className="text-sm">{rec}</span>
@@ -965,9 +1015,20 @@ const ClinicalDecisionSupport = () => {
 
                 <button
                   onClick={handleRiskCalculation}
-                  className="mt-6 w-full bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-medium"
+                  disabled={isCalculatingRisk}
+                  className="mt-6 w-full bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Calculate Risk
+                  {isCalculatingRisk ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Calculating...
+                    </>
+                  ) : (
+                    'Calculate Risk'
+                  )}
                 </button>
               </div>
             </div>
@@ -998,7 +1059,7 @@ const ClinicalDecisionSupport = () => {
                 <div>
                   <h5 className="font-medium mb-3">Recommendations:</h5>
                   <ul className="space-y-2">
-                    {riskCalculations.recommendations.map((rec, index) => (
+                     {(riskCalculations.recommendations || []).map((rec, index) => (
                       <li key={index} className="flex items-center">
                         <Shield className="w-4 h-4 text-blue-600 mr-2" />
                         <span className="text-sm">{rec}</span>
@@ -1053,6 +1114,13 @@ const ClinicalDecisionSupport = () => {
           </div>
         )}
       </div>
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
+        title={errorModal.title}
+        message={errorModal.message}
+        details={errorModal.details}
+      />
     </div>
   );
 };

@@ -1,33 +1,39 @@
-import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useState, useEffect, useMemo } from 'react';
 import {
   FileText,
   Plus,
   Search,
   Filter,
-  Stethoscope,
   Clipboard,
-  User,
-  Calendar,
-  Clock,
+  Stethoscope,
+  Activity,
   Edit,
   Eye,
-  Activity
+  X,
+  Loader2,
+  AlertTriangle,
+  CheckCircle,
+  Shield,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import {
-  addEncounter,
-  addClinicalNote,
-  searchEMR,
-  sortEMR,
-  filterEMR
+  fetchMedicalRecords,
+  createMedicalRecord,
+  createProgressNote,
+  fetchProgressNotes,
+  createProblem,
+  createAllergy,
+  createDocument,
+  clearError,
+  setCurrentRecord,
 } from '../features/emrSlice';
+import { setPatients } from '../features/patientSlice';
+import { apiRequest, emrApi } from '../utils/api';
 import Pagination from '../components/Pagination';
 
-// Import Disease Specific Templates
-// Assuming these components are located at the project root based on your file structure
-
-// C:\Users\Ekene-onwon\Desktop\Codes\HMS\src\pages\Order\MalariaCaseDocumentation.jsx
-
+// Disease-specific template components
 import MalariaCaseDocumentation from './../pages/Order/MalariaCaseDocumentation';
 import TyphoidFeverManagement from './../pages/Order/TyphoidFeverManagement';
 import SickleCellDiseaseTracking from './../pages/Order/SickleCellDiseaseTracking';
@@ -38,114 +44,271 @@ import MaternalHealthRecords from './../pages/Order/MaternalHealthRecords';
 
 const ElectronicMedicalRecords = () => {
   const dispatch = useDispatch();
-  const { encounters, clinicalNotes, searchTerm, sortBy, filterBy } = useSelector(state => state.emr);
-  const { patients } = useSelector(state => state.patient);
+  const { medicalRecords, progressNotes, currentRecord, loading, error } = useSelector(state => state.emr);
+  const { patients } = useSelector(state => state.patient || { patients: [] });
+
+  useEffect(() => {
+    const loadPatients = async () => {
+      try {
+        const data = await apiRequest('/api/v1/patients/patients/?page_size=100');
+        const list = Array.isArray(data) ? data : (data.results || []);
+        dispatch(setPatients(list));
+      } catch (err) {
+        console.error('Failed to load patients for EMR:', err);
+      }
+    };
+    loadPatients();
+  }, [dispatch]);
 
   const [activeTab, setActiveTab] = useState('encounters');
   const [showEncounterForm, setShowEncounterForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState('');
+  const [showProblemForm, setShowProblemForm] = useState(false);
+  const [showAllergyForm, setShowAllergyForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterBy, setFilterBy] = useState('all');
+  const [sortBy, setSortBy] = useState('date');
+  const [formError, setFormError] = useState('');
   const itemsPerPage = 10;
+
+  const allCache = useMemo(() => {
+    const list = Array.isArray(patients) ? patients : [];
+    if (filterBy !== 'all') {
+      return list.filter(p => String(p.id) === String(filterBy));
+    }
+    if (!searchTerm.trim()) return list;
+    const term = searchTerm.trim().toLowerCase();
+    return list.filter(p => {
+      const name = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+      return (
+        name.includes(term) ||
+        String(p.id).includes(term) ||
+        (p.hospital_number && p.hospital_number.toLowerCase().includes(term)) ||
+        (p.phone && p.phone.toLowerCase().includes(term))
+      );
+    });
+  }, [patients, filterBy, searchTerm]);
 
   const [encounterForm, setEncounterForm] = useState({
     patientId: '',
-    type: 'Outpatient',
+    recordType: 'outpatient',
     chiefComplaint: '',
-    historyOfPresentIllness: '',
-    pastMedicalHistory: '',
-    drugHistory: '',
-    familyHistory: '',
-    socialHistory: '',
-    reviewOfSystems: '',
-    physicalExamination: '',
-    assessment: '',
-    plan: '',
-    diagnosis: '',
-    prescriptions: '',
-    investigations: '',
-    followUp: ''
+    history_of_present_illness: '',
+    past_medical_history: '',
+    family_history: '',
+    social_history: '',
   });
 
   const [noteForm, setNoteForm] = useState({
     patientId: '',
-    type: 'Progress Note',
-    content: '',
-    author: ''
+    medical_record: '',
+    note_type: 'progress',
+    subjective: '',
+    objective: '',
+    assessment: '',
+    plan: '',
   });
 
-  // Filter and search logic
-  const filteredEncounters = encounters
-    .filter(enc => {
-      const matchesSearch = !searchTerm ||
-        patients.find(p => p.id === enc.patientId)?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        enc.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        enc.chiefComplaint.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = filterBy === 'all' || enc.patientId === filterBy;
-      return matchesSearch && matchesFilter;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date') return new Date(b.timestamp) - new Date(a.timestamp);
-      if (sortBy === 'patient') return a.patientId.localeCompare(b.patientId);
-      return 0;
-    });
+  const [problemForm, setProblemForm] = useState({
+    patientId: '',
+    problem: '',
+    icd10_code: '',
+    onset_date: '',
+    status: 'active',
+    notes: '',
+  });
 
-  const filteredNotes = clinicalNotes
-    .filter(note => {
-      const matchesSearch = !searchTerm ||
-        patients.find(p => p.id === note.patientId)?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.content.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = filterBy === 'all' || note.patientId === filterBy;
-      return matchesSearch && matchesFilter;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date') return new Date(b.timestamp) - new Date(a.timestamp);
-      if (sortBy === 'patient') return a.patientId.localeCompare(b.patientId);
-      return 0;
-    });
+  const [allergyForm, setAllergyForm] = useState({
+    patientId: '',
+    allergen: '',
+    allergy_type: 'drug',
+    reaction: '',
+    severity: 'moderate',
+  });
 
-  const currentData = activeTab === 'encounters' ? filteredEncounters : filteredNotes;
-  const paginatedData = currentData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  useEffect(() => {
+    dispatch(fetchMedicalRecords());
+    dispatch(fetchProgressNotes());
+  }, [dispatch]);
 
-  const handleEncounterSubmit = (e) => {
-    e.preventDefault();
-    dispatch(addEncounter(encounterForm));
-    setEncounterForm({
-      patientId: '',
-      type: 'Outpatient',
-      chiefComplaint: '',
-      historyOfPresentIllness: '',
-      pastMedicalHistory: '',
-      drugHistory: '',
-      familyHistory: '',
-      socialHistory: '',
-      reviewOfSystems: '',
-      physicalExamination: '',
-      assessment: '',
-      plan: '',
-      diagnosis: '',
-      prescriptions: '',
-      investigations: '',
-      followUp: ''
-    });
-    setShowEncounterForm(false);
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
 
-  const handleNoteSubmit = (e) => {
-    e.preventDefault();
-    dispatch(addClinicalNote(noteForm));
+  const handleFilter = (value) => {
+    setFilterBy(value);
+    setCurrentPage(1);
+  };
+
+  const filteredEncounters = medicalRecords
+    .filter(record => {
+      const patient = allCache.find(p => String(p.id) === String(record.patient));
+      const matchesSearch = !searchTerm.trim() ||
+        (patient && `${patient.first_name || ''} ${patient.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        String(record.patient).includes(searchTerm);
+      const matchesFilter = filterBy === 'all' || String(record.patient) === String(filterBy);
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      return 0;
+    });
+
+  const filteredNotes = progressNotes
+    .filter(note => {
+      const patient = allCache.find(p => String(p.id) === String(note.patient));
+      const matchesSearch = !searchTerm.trim() ||
+        (patient && `${patient.first_name || ''} ${patient.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        String(note.patient).includes(searchTerm);
+      const matchesFilter = filterBy === 'all' || String(note.patient) === String(filterBy);
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      return 0;
+    });
+
+  const paginatedEncounters = filteredEncounters.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedNotes = filteredNotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const currentData = activeTab === 'encounters' ? paginatedEncounters : activeTab === 'notes' ? paginatedNotes : [];
+  const totalPages = Math.ceil((activeTab === 'encounters' ? filteredEncounters.length : filteredNotes.length) / itemsPerPage);
+
+  const getPatientName = (patientId) => {
+    const patient = patients.find(p => String(p.id) === String(patientId));
+    if (!patient) return `Patient ${patientId}`;
+    return patient.full_name || patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim() || `Patient ${patientId}`;
+  };
+
+  const resetEncounterForm = () => {
+    setEncounterForm({
+      patientId: '',
+      recordType: 'outpatient',
+      chiefComplaint: '',
+      history_of_present_illness: '',
+      past_medical_history: '',
+      family_history: '',
+      social_history: '',
+    });
+    setFormError('');
+  };
+
+  const resetNoteForm = () => {
     setNoteForm({
       patientId: '',
-      type: 'Progress Note',
-      content: '',
-      author: ''
+      medical_record: '',
+      note_type: 'progress',
+      subjective: '',
+      objective: '',
+      assessment: '',
+      plan: '',
     });
-    setShowNoteForm(false);
+    setFormError('');
+  };
+
+  const handleEncounterSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    if (!encounterForm.patientId) {
+      setFormError('Please select a patient.');
+      return;
+    }
+    const payload = {
+      patient: encounterForm.patientId,
+      record_type: encounterForm.recordType,
+      chief_complaint: encounterForm.chiefComplaint,
+      history_of_present_illness: encounterForm.history_of_present_illness,
+      past_medical_history: encounterForm.past_medical_history,
+      family_history: encounterForm.family_history,
+      social_history: encounterForm.social_history,
+    };
+    const result = await dispatch(createMedicalRecord(payload));
+    if (createMedicalRecord.fulfilled.match(result)) {
+      setShowEncounterForm(false);
+      resetEncounterForm();
+    } else {
+      setFormError(result.payload || 'Failed to create encounter note.');
+    }
+  };
+
+  const handleNoteSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    if (!noteForm.patientId) {
+      setFormError('Please select a patient.');
+      return;
+    }
+    const payload = {
+      patient: noteForm.patientId,
+      medical_record: noteForm.medical_record || undefined,
+      note_type: noteForm.note_type,
+      subjective: noteForm.subjective,
+      objective: noteForm.objective,
+      assessment: noteForm.assessment,
+      plan: noteForm.plan,
+    };
+    const result = await dispatch(createProgressNote(payload));
+    if (createProgressNote.fulfilled.match(result)) {
+      setShowNoteForm(false);
+      resetNoteForm();
+    } else {
+      setFormError(result.payload || 'Failed to save clinical note.');
+    }
+  };
+
+  const handleProblemSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    if (!problemForm.patientId || !problemForm.problem) {
+      setFormError('Patient and problem description are required.');
+      return;
+    }
+    const payload = {
+      patient: problemForm.patientId,
+      medical_record: currentRecord?.id || undefined,
+      problem: problemForm.problem,
+      icd10_code: problemForm.icd10_code,
+      onset_date: problemForm.onset_date || undefined,
+      status: problemForm.status,
+      notes: problemForm.notes,
+    };
+    const result = await dispatch(createProblem(payload));
+    if (createProblem.fulfilled.match(result)) {
+      setShowProblemForm(false);
+      setProblemForm({ patientId: '', problem: '', icd10_code: '', onset_date: '', status: 'active', notes: '' });
+    } else {
+      setFormError(result.payload || 'Failed to add problem.');
+    }
+  };
+
+  const handleAllergySubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    if (!allergyForm.patientId || !allergyForm.allergen || !allergyForm.reaction) {
+      setFormError('Patient, allergen, and reaction are required.');
+      return;
+    }
+    const payload = {
+      patient: allergyForm.patientId,
+      medical_record: currentRecord?.id || undefined,
+      allergen: allergyForm.allergen,
+      allergy_type: allergyForm.allergy_type,
+      reaction: allergyForm.reaction,
+      severity: allergyForm.severity,
+    };
+    const result = await dispatch(createAllergy(payload));
+    if (createAllergy.fulfilled.match(result)) {
+      setShowAllergyForm(false);
+      setAllergyForm({ patientId: '', allergen: '', allergy_type: 'drug', reaction: '', severity: 'moderate' });
+    } else {
+      setFormError(result.payload || 'Failed to add allergy.');
+    }
   };
 
   return (
@@ -159,96 +322,98 @@ const ElectronicMedicalRecords = () => {
         <p className="text-gray-600 mt-2">Comprehensive patient clinical documentation</p>
       </div>
 
+      {formError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {formError}
+          <button onClick={() => setFormError('')} className="float-right text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+          {error}
+          <button onClick={() => dispatch(clearError())} className="float-right text-orange-500 hover:text-orange-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-8">
         <div className="flex flex-wrap gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('encounters')}
-            className={`px-4 py-2 rounded-lg font-medium flex items-center ${
-              activeTab === 'encounters'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <Clipboard className="w-4 h-4 mr-2" />
-            Encounter Notes
-          </button>
-          <button
-            onClick={() => setActiveTab('notes')}
-            className={`px-4 py-2 rounded-lg font-medium flex items-center ${
-              activeTab === 'notes'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Clinical Notes
-          </button>
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`px-4 py-2 rounded-lg font-medium flex items-center ${
-              activeTab === 'templates'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <Activity className="w-4 h-4 mr-2" />
-            Disease Templates
-          </button>
+          {[
+            { id: 'encounters', label: 'Encounter Notes', icon: Clipboard },
+            { id: 'notes', label: 'Clinical Notes', icon: FileText },
+            { id: 'templates', label: 'Disease Templates', icon: Activity },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-lg font-medium flex items-center ${
+                activeTab === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <tab.icon className="w-4 h-4 mr-2" />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search records..."
-                value={searchTerm}
-                onChange={(e) => dispatch(searchEMR(e.target.value))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+        {activeTab !== 'templates' && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search records..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Patient</label>
+              <select
+                value={filterBy}
+                onChange={(e) => handleFilter(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Patients</option>
+                {allCache.map(patient => (
+                  <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="date">Date (Newest First)</option>
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={() => activeTab === 'encounters' ? setShowEncounterForm(true) : setShowNoteForm(true)}
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium flex items-center justify-center"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add {activeTab === 'encounters' ? 'Encounter' : 'Note'}
+              </button>
             </div>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Patient</label>
-            <select
-              value={filterBy}
-              onChange={(e) => dispatch(filterEMR(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Patients</option>
-              {patients.map(patient => (
-                <option key={patient.id} value={patient.id}>{patient.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
-            <select
-              value={sortBy}
-              onChange={(e) => dispatch(sortEMR(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="date">Date (Newest First)</option>
-              <option value="patient">Patient ID</option>
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={() => activeTab === 'encounters' ? setShowEncounterForm(true) : setShowNoteForm(true)}
-              className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium flex items-center justify-center"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add {activeTab === 'encounters' ? 'Encounter' : 'Note'}
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Records Table */}
@@ -268,52 +433,67 @@ const ElectronicMedicalRecords = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedData.map(item => {
-                  const patient = patients.find(p => p.id === item.patientId);
-                  return (
+                {loading && currentData.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-500" />
+                      Loading records...
+                    </td>
+                  </tr>
+                ) : currentData.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      No {activeTab === 'encounters' ? 'encounters' : 'clinical notes'} found.
+                    </td>
+                  </tr>
+                ) : (
+                  currentData.map(item => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{patient?.name || item.patientId}</div>
-                          <div className="text-sm text-gray-500">{item.patientId}</div>
+                          <div className="text-sm font-medium text-gray-900">{getPatientName(item.patient)}</div>
+                          <div className="text-sm text-gray-500">{item.patient}</div>
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-900">
-                          {activeTab === 'encounters' ? item.type : item.type}
+                          {activeTab === 'encounters' ? item.record_type : item.note_type}
                         </span>
                       </td>
                       <td className="px-4 py-4">
                         <div className="text-sm text-gray-900 max-w-xs truncate">
-                          {activeTab === 'encounters' ? item.chiefComplaint : item.content}
+                          {activeTab === 'encounters'
+                            ? item.chief_complaint || item.history_of_present_illness || 'No details'
+                            : item.subjective || item.objective || item.assessment || 'No content'}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(item.timestamp).toLocaleDateString('en-NG')}
+                        {new Date(item.created_at).toLocaleDateString('en-NG')}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-3">
+                        <button
+                          onClick={() => { dispatch(setCurrentRecord(item)); setShowViewModal(true); }}
+                          className="text-blue-600 hover:text-blue-900 mr-3"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-gray-900">
+                        <button
+                          onClick={() => { setEditingItem(item); setShowEditModal(true); }}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-          {paginatedData.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No {activeTab} found.
-            </div>
-          )}
         </div>
       )}
 
-      {/* Disease Templates Tab Content */}
+      {/* Disease Templates Tab */}
       {activeTab === 'templates' && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           {!selectedTemplate ? (
@@ -327,7 +507,7 @@ const ElectronicMedicalRecords = () => {
                 { id: 'ncd', title: 'Hypertension & Diabetes', desc: 'Chronic Disease Management' },
                 { id: 'maternal', title: 'Maternal Health', desc: 'Antenatal Care Records' },
               ].map(template => (
-                <div 
+                <div
                   key={template.id}
                   onClick={() => setSelectedTemplate(template.id)}
                   className="border rounded-lg p-6 hover:shadow-lg cursor-pointer transition-all hover:border-blue-500 group"
@@ -339,7 +519,7 @@ const ElectronicMedicalRecords = () => {
             </div>
           ) : (
             <div>
-              <button 
+              <button
                 onClick={() => setSelectedTemplate(null)}
                 className="mb-6 text-blue-600 hover:text-blue-800 font-medium flex items-center"
               >
@@ -358,12 +538,14 @@ const ElectronicMedicalRecords = () => {
       )}
 
       {/* Pagination */}
-      {activeTab !== 'templates' && currentData.length > itemsPerPage && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(currentData.length / itemsPerPage)}
-          onPageChange={setCurrentPage}
-        />
+      {activeTab !== 'templates' && totalPages > 1 && (
+        <div className="mb-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       )}
 
       {/* Encounter Form Modal */}
@@ -386,23 +568,23 @@ const ElectronicMedicalRecords = () => {
                       required
                     >
                       <option value="">Select patient...</option>
-                      {patients.map(patient => (
-                        <option key={patient.id} value={patient.id}>{patient.name} ({patient.id})</option>
-                      ))}
-                    </select>
-                  </div>
+                       {allCache.map(patient => (
+                         <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                       ))}
+                     </select>
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Encounter Type</label>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">Encounter Type</label>
                     <select
-                      value={encounterForm.type}
-                      onChange={(e) => setEncounterForm({...encounterForm, type: e.target.value})}
+                      value={encounterForm.recordType}
+                      onChange={(e) => setEncounterForm({...encounterForm, recordType: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option>Outpatient</option>
-                      <option>Emergency</option>
-                      <option>Inpatient Admission</option>
-                      <option>Follow-up</option>
+                      <option value="outpatient">Outpatient</option>
+                      <option value="emergency">Emergency</option>
+                      <option value="inpatient">Inpatient Admission</option>
+                      <option value="day_care">Day Care</option>
                     </select>
                   </div>
                 </div>
@@ -422,8 +604,8 @@ const ElectronicMedicalRecords = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">History of Present Illness</label>
                     <textarea
-                      value={encounterForm.historyOfPresentIllness}
-                      onChange={(e) => setEncounterForm({...encounterForm, historyOfPresentIllness: e.target.value})}
+                      value={encounterForm.history_of_present_illness}
+                      onChange={(e) => setEncounterForm({...encounterForm, history_of_present_illness: e.target.value})}
                       rows="3"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -432,30 +614,20 @@ const ElectronicMedicalRecords = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Past Medical History</label>
                     <textarea
-                      value={encounterForm.pastMedicalHistory}
-                      onChange={(e) => setEncounterForm({...encounterForm, pastMedicalHistory: e.target.value})}
+                      value={encounterForm.past_medical_history}
+                      onChange={(e) => setEncounterForm({...encounterForm, past_medical_history: e.target.value})}
                       rows="3"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Drug History</label>
-                    <textarea
-                      value={encounterForm.drugHistory}
-                      onChange={(e) => setEncounterForm({...encounterForm, drugHistory: e.target.value})}
-                      rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Family History</label>
                     <textarea
-                      value={encounterForm.familyHistory}
-                      onChange={(e) => setEncounterForm({...encounterForm, familyHistory: e.target.value})}
+                      value={encounterForm.family_history}
+                      onChange={(e) => setEncounterForm({...encounterForm, family_history: e.target.value})}
                       rows="2"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -464,82 +636,8 @@ const ElectronicMedicalRecords = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Social History</label>
                     <textarea
-                      value={encounterForm.socialHistory}
-                      onChange={(e) => setEncounterForm({...encounterForm, socialHistory: e.target.value})}
-                      rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Review of Systems</label>
-                  <textarea
-                    value={encounterForm.reviewOfSystems}
-                    onChange={(e) => setEncounterForm({...encounterForm, reviewOfSystems: e.target.value})}
-                    rows="2"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Physical Examination</label>
-                  <textarea
-                    value={encounterForm.physicalExamination}
-                    onChange={(e) => setEncounterForm({...encounterForm, physicalExamination: e.target.value})}
-                    rows="3"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assessment/Diagnosis</label>
-                    <textarea
-                      value={encounterForm.assessment}
-                      onChange={(e) => setEncounterForm({...encounterForm, assessment: e.target.value})}
-                      rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Plan</label>
-                    <textarea
-                      value={encounterForm.plan}
-                      onChange={(e) => setEncounterForm({...encounterForm, plan: e.target.value})}
-                      rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Prescriptions</label>
-                    <textarea
-                      value={encounterForm.prescriptions}
-                      onChange={(e) => setEncounterForm({...encounterForm, prescriptions: e.target.value})}
-                      rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Investigations</label>
-                    <textarea
-                      value={encounterForm.investigations}
-                      onChange={(e) => setEncounterForm({...encounterForm, investigations: e.target.value})}
-                      rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Follow-up</label>
-                    <textarea
-                      value={encounterForm.followUp}
-                      onChange={(e) => setEncounterForm({...encounterForm, followUp: e.target.value})}
+                      value={encounterForm.social_history}
+                      onChange={(e) => setEncounterForm({...encounterForm, social_history: e.target.value})}
                       rows="2"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -549,13 +647,15 @@ const ElectronicMedicalRecords = () => {
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium"
+                    disabled={loading}
+                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
                   >
+                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                     Save Encounter Note
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowEncounterForm(false)}
+                    onClick={() => { setShowEncounterForm(false); resetEncounterForm(); }}
                     className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
                   >
                     Cancel
@@ -587,61 +687,552 @@ const ElectronicMedicalRecords = () => {
                       required
                     >
                       <option value="">Select patient...</option>
-                      {patients.map(patient => (
-                        <option key={patient.id} value={patient.id}>{patient.name} ({patient.id})</option>
-                      ))}
-                    </select>
-                  </div>
+                       {allCache.map(patient => (
+                         <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                       ))}
+                     </select>
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Note Type</label>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">Note Type</label>
                     <select
-                      value={noteForm.type}
-                      onChange={(e) => setNoteForm({...noteForm, type: e.target.value})}
+                      value={noteForm.note_type}
+                      onChange={(e) => setNoteForm({...noteForm, note_type: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option>Progress Note</option>
-                      <option>Consultation Note</option>
-                      <option>Procedure Note</option>
-                      <option>Discharge Note</option>
-                      <option>Teaching Note</option>
+                      <option value="progress">Progress Note</option>
+                      <option value="consultation">Consultation Note</option>
+                      <option value="procedure">Procedure Note</option>
+                      <option value="discharge">Discharge Summary</option>
+                      <option value="admission">Admission Note</option>
+                      <option value="nursing">Nursing Note</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Author</label>
-                  <input
-                    type="text"
-                    value={noteForm.author}
-                    onChange={(e) => setNoteForm({...noteForm, author: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subjective</label>
+                  <textarea
+                    value={noteForm.subjective}
+                    onChange={(e) => setNoteForm({...noteForm, subjective: e.target.value})}
+                    rows="2"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Doctor/Nurse name"
+                    placeholder="Chief complaint, HPI, ROS..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Note Content</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Objective</label>
                   <textarea
-                    value={noteForm.content}
-                    onChange={(e) => setNoteForm({...noteForm, content: e.target.value})}
-                    rows="6"
+                    value={noteForm.objective}
+                    onChange={(e) => setNoteForm({...noteForm, objective: e.target.value})}
+                    rows="2"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Physical exam, vital signs, observations..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Assessment</label>
+                    <textarea
+                      value={noteForm.assessment}
+                      onChange={(e) => setNoteForm({...noteForm, assessment: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Diagnosis, impression..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Plan</label>
+                    <textarea
+                      value={noteForm.plan}
+                      onChange={(e) => setNoteForm({...noteForm, plan: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Treatment plan, meds, follow-up..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    Save Clinical Note
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowNoteForm(false); resetNoteForm(); }}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Problem List Form Modal */}
+      {showProblemForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center">
+                <Stethoscope className="w-5 h-5 mr-2" />
+                Add Problem to List
+              </h3>
+              <form onSubmit={handleProblemSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
+                  <select
+                    value={problemForm.patientId}
+                    onChange={(e) => setProblemForm({...problemForm, patientId: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     required
-                    placeholder="Enter clinical note details..."
+                  >
+                    <option value="">Select patient...</option>
+                    {allCache.map(patient => (
+                      <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Problem</label>
+                  <input
+                    type="text"
+                    value={problemForm.problem}
+                    onChange={(e) => setProblemForm({...problemForm, problem: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Type 2 Diabetes Mellitus"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">ICD-10 Code</label>
+                    <input
+                      type="text"
+                      value={problemForm.icd10_code}
+                      onChange={(e) => setProblemForm({...problemForm, icd10_code: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., E11.9"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Onset Date</label>
+                    <input
+                      type="date"
+                      value={problemForm.onset_date}
+                      onChange={(e) => setProblemForm({...problemForm, onset_date: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                  <textarea
+                    value={problemForm.notes}
+                    onChange={(e) => setProblemForm({...problemForm, notes: e.target.value})}
+                    rows="2"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium"
+                    disabled={loading}
+                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
                   >
-                    Save Clinical Note
+                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    Add Problem
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowNoteForm(false)}
+                    onClick={() => setShowProblemForm(false)}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Allergy Form Modal */}
+      {showAllergyForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center">
+                <AlertTriangle className="w-5 h-5 mr-2" />
+                Add Allergy Record
+              </h3>
+              <form onSubmit={handleAllergySubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
+                  <select
+                    value={allergyForm.patientId}
+                    onChange={(e) => setAllergyForm({...allergyForm, patientId: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">Select patient...</option>
+                    {allCache.map(patient => (
+                      <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Allergen</label>
+                  <input
+                    type="text"
+                    value={allergyForm.allergen}
+                    onChange={(e) => setAllergyForm({...allergyForm, allergen: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Penicillin, Peanuts"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                    <select
+                      value={allergyForm.allergy_type}
+                      onChange={(e) => setAllergyForm({...allergyForm, allergy_type: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="drug">Drug</option>
+                      <option value="food">Food</option>
+                      <option value="environmental">Environmental</option>
+                      <option value="latex">Latex</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
+                    <select
+                      value={allergyForm.severity}
+                      onChange={(e) => setAllergyForm({...allergyForm, severity: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="mild">Mild</option>
+                      <option value="moderate">Moderate</option>
+                      <option value="severe">Severe</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Reaction</label>
+                  <textarea
+                    value={allergyForm.reaction}
+                    onChange={(e) => setAllergyForm({...allergyForm, reaction: e.target.value})}
+                    rows="2"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Rash, Anaphylaxis"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    Add Allergy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllergyForm(false)}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Record Modal */}
+      {showViewModal && currentRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center">
+                <Eye className="w-5 h-5 mr-2" />
+                View {currentRecord.note_type ? 'Clinical Note' : 'Encounter Note'}
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Patient</span>
+                    <p className="text-sm text-gray-900">{getPatientName(currentRecord.patient)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Date</span>
+                    <p className="text-sm text-gray-900">{new Date(currentRecord.created_at).toLocaleString('en-NG')}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Type</span>
+                    <p className="text-sm text-gray-900">{currentRecord.record_type || currentRecord.note_type || 'N/A'}</p>
+                  </div>
+                </div>
+                {currentRecord.chief_complaint && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Chief Complaint</span>
+                    <p className="text-sm text-gray-900 mt-1">{currentRecord.chief_complaint}</p>
+                  </div>
+                )}
+                {currentRecord.history_of_present_illness && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">History of Present Illness</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.history_of_present_illness}</p>
+                  </div>
+                )}
+                {currentRecord.past_medical_history && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Past Medical History</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.past_medical_history}</p>
+                  </div>
+                )}
+                {currentRecord.family_history && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Family History</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.family_history}</p>
+                  </div>
+                )}
+                {currentRecord.social_history && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Social History</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.social_history}</p>
+                  </div>
+                )}
+                {currentRecord.subjective && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Subjective</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.subjective}</p>
+                  </div>
+                )}
+                {currentRecord.objective && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Objective</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.objective}</p>
+                  </div>
+                )}
+                {currentRecord.assessment && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Assessment</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.assessment}</p>
+                  </div>
+                )}
+                {currentRecord.plan && (
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 uppercase">Plan</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.plan}</p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Record Modal */}
+      {showEditModal && editingItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center">
+                <Edit className="w-5 h-5 mr-2" />
+                Edit {editingItem.note_type ? 'Clinical Note' : 'Encounter Note'}
+              </h3>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const isNote = !!editingItem.note_type;
+                const payload = isNote
+                  ? { note_type: editingItem.note_type, subjective: editingItem.subjective || '', objective: editingItem.objective || '', assessment: editingItem.assessment || '', plan: editingItem.plan || '' }
+                  : { recordType: editingItem.record_type || 'outpatient', chiefComplaint: editingItem.chief_complaint || '', history_of_present_illness: editingItem.history_of_present_illness || '', past_medical_history: editingItem.past_medical_history || '', family_history: editingItem.family_history || '', social_history: editingItem.social_history || '' };
+                const endpoint = isNote ? `/api/v1/emr/progress-notes/${editingItem.id}/` : `/api/v1/emr/medical-records/${editingItem.id}/`;
+                const result = await apiRequest(endpoint, { method: 'PATCH', body: JSON.stringify(payload) });
+                if (result) {
+                  setShowEditModal(false);
+                  setEditingItem(null);
+                  dispatch(fetchMedicalRecords());
+                  dispatch(fetchProgressNotes());
+                }
+              }} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
+                    <input
+                      type="text"
+                      value={getPatientName(editingItem.patient)}
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                    <select
+                      value={editingItem.record_type || editingItem.note_type || 'outpatient'}
+                      onChange={(e) => setEditingItem({...editingItem, record_type: e.target.value, note_type: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="outpatient">Outpatient</option>
+                      <option value="emergency">Emergency</option>
+                      <option value="inpatient">Inpatient</option>
+                      <option value="day_care">Day Care</option>
+                    </select>
+                  </div>
+                </div>
+
+                {editingItem.chief_complaint !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Chief Complaint</label>
+                    <textarea
+                      value={editingItem.chief_complaint || ''}
+                      onChange={(e) => setEditingItem({...editingItem, chief_complaint: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.history_of_present_illness !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">History of Present Illness</label>
+                    <textarea
+                      value={editingItem.history_of_present_illness || ''}
+                      onChange={(e) => setEditingItem({...editingItem, history_of_present_illness: e.target.value})}
+                      rows="3"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.past_medical_history !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Past Medical History</label>
+                    <textarea
+                      value={editingItem.past_medical_history || ''}
+                      onChange={(e) => setEditingItem({...editingItem, past_medical_history: e.target.value})}
+                      rows="3"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.family_history !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Family History</label>
+                    <textarea
+                      value={editingItem.family_history || ''}
+                      onChange={(e) => setEditingItem({...editingItem, family_history: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.social_history !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Social History</label>
+                    <textarea
+                      value={editingItem.social_history || ''}
+                      onChange={(e) => setEditingItem({...editingItem, social_history: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.subjective !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Subjective</label>
+                    <textarea
+                      value={editingItem.subjective || ''}
+                      onChange={(e) => setEditingItem({...editingItem, subjective: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.objective !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Objective</label>
+                    <textarea
+                      value={editingItem.objective || ''}
+                      onChange={(e) => setEditingItem({...editingItem, objective: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.assessment !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Assessment</label>
+                    <textarea
+                      value={editingItem.assessment || ''}
+                      onChange={(e) => setEditingItem({...editingItem, assessment: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {editingItem.plan !== undefined && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Plan</label>
+                    <textarea
+                      value={editingItem.plan || ''}
+                      onChange={(e) => setEditingItem({...editingItem, plan: e.target.value})}
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowEditModal(false); setEditingItem(null); }}
                     className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
                   >
                     Cancel

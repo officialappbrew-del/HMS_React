@@ -36,7 +36,12 @@ import {
   createMortalityReview,
   updateComplianceScore,
   searchAudits,
-  filterAudits
+  filterAudits,
+  fetchAudits,
+  fetchQualityIndicators,
+  fetchPeerReviews,
+  fetchMortalityReviews,
+  fetchComplianceScores,
 } from '../features/auditSlice';
 import Pagination from '../components/Pagination';
 
@@ -209,10 +214,30 @@ const ClinicalAudit = () => {
     return 'text-red-600';
   };
 
-  const overallCompliance = complianceScores.overall || 89.5;
+  const overallCompliance = complianceScores.overall || 0;
   const pendingAudits = audits.filter(a => a.status === 'scheduled').length;
   const completedAudits = audits.filter(a => a.status === 'completed').length;
   const criticalIndicators = qualityIndicators.filter(i => i.status === 'critical').length;
+
+  useEffect(() => {
+    dispatch(fetchAudits());
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchQualityIndicators());
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchPeerReviews());
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchMortalityReviews());
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchComplianceScores());
+  }, [dispatch]);
 
   return (
     <div className="clinical-audit p-4 sm:p-6 bg-gray-50 min-h-screen">

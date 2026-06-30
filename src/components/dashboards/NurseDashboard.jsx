@@ -864,11 +864,28 @@ const displayTenantName = authTenant?.name || 'Hospital';
     priority: 'medium'
   });
 
-  const [vitalSigns, setVitalSigns] = useState([
-    { id: 1, patient: 'John Doe', room: '203', bp: '120/80', hr: '72', temp: '36.8', spO2: '98', recorded: '2024-01-15 10:30' },
-    { id: 2, patient: 'Jane Smith', room: '105', bp: '140/90', hr: '95', temp: '38.2', spO2: '92', recorded: '2024-01-15 09:45' },
-    { id: 3, patient: 'Bob Johnson', room: '301', bp: '110/70', hr: '68', temp: '36.5', spO2: '99', recorded: '2024-01-15 08:15' }
-  ]);
+  const [vitalsLoading, setVitalsLoading] = useState(false);
+  const [vitalsError, setVitalsError] = useState('');
+  const [dashboardVitals, setDashboardVitals] = useState([]);
+  const [vitalsCurrentPage, setVitalsCurrentPage] = useState(1);
+  const vitalsPerPage = 10;
+
+  useEffect(() => {
+    const loadVitals = async () => {
+      setVitalsLoading(true);
+      setVitalsError('');
+      try {
+        const data = await apiRequest('/api/v1/clinical/vital-signs/?page_size=50');
+        const list = Array.isArray(data) ? data : (data.results || []);
+        setDashboardVitals(list);
+      } catch (err) {
+        setVitalsError(err.message || 'Failed to load vital signs.');
+      } finally {
+        setVitalsLoading(false);
+      }
+    };
+    loadVitals();
+  }, []);
 
   // Format time helper
   const formatTime = (timeStr) => {
@@ -1941,19 +1958,39 @@ const displayTenantName = authTenant?.name || 'Hospital';
   };
 
   const renderVitalsContent = () => {
+    const totalPages = Math.ceil(dashboardVitals.length / vitalsPerPage);
+    const start = (vitalsCurrentPage - 1) * vitalsPerPage;
+    const pageVitals = dashboardVitals.slice(start, start + vitalsPerPage);
+
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-gray-900">Vital Signs Records</h2>
-          <ButtonWithTooltip
-            tooltip="Record new vitals"
-            variant="primary"
-            onClick={() => navigate('/vital-signs/new')}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Record Vitals
-          </ButtonWithTooltip>
+          <div className="flex items-center gap-2">
+            <ButtonWithTooltip
+              tooltip="Go to full vital signs monitoring"
+              variant="secondary"
+              onClick={() => navigate('/vital-signs')}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Full Monitor
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              tooltip="Record new vitals"
+              variant="primary"
+              onClick={() => navigate('/vital-signs')}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Record Vitals
+            </ButtonWithTooltip>
+          </div>
         </div>
+
+        {vitalsError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {vitalsError}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -1969,38 +2006,73 @@ const displayTenantName = authTenant?.name || 'Hospital';
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {vitalSigns.map((vital) => (
-                <tr key={vital.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-3">
-                    <span className="text-sm font-medium text-gray-900">{vital.patient}</span>
-                    <span className="text-xs text-gray-500 ml-2">Room {vital.room}</span>
-                  </td>
-                  <td className="py-3 text-sm text-gray-600">{vital.bp}</td>
-                  <td className="py-3 text-sm text-gray-600">{vital.hr}</td>
-                  <td className="py-3 text-sm text-gray-600">{vital.temp}°C</td>
-                  <td className="py-3 text-sm text-gray-600">{vital.spO2}%</td>
-                  <td className="py-3 text-sm text-gray-600">{vital.recorded}</td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-1">
-                      <IconButton
-                        icon={Eye}
-                        onClick={() => navigate(`/vital-signs/${vital.id}`)}
-                        tooltip="View details"
-                        variant="primary"
-                      />
-                      <IconButton
-                        icon={Edit}
-                        onClick={() => navigate(`/vital-signs/${vital.id}/edit`)}
-                        tooltip="Edit vitals"
-                        variant="primary"
-                      />
-                    </div>
+              {vitalsLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    Loading vital signs...
                   </td>
                 </tr>
-              ))}
+              ) : pageVitals.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
+                    No vital signs recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                pageVitals.map((vital) => (
+                  <tr key={vital.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-3">
+                      <span className="text-sm font-medium text-gray-900">{vital.patient_name || `Patient ${vital.patient}`}</span>
+                    </td>
+                    <td className="py-3 text-sm text-gray-600">{vital.blood_pressure_display || `${vital.blood_pressure_systolic || '-'}/${vital.blood_pressure_diastolic || '-'}`}</td>
+                    <td className="py-3 text-sm text-gray-600">{vital.pulse || '-'} bpm</td>
+                    <td className="py-3 text-sm text-gray-600">{vital.temperature || '-'}°C</td>
+                    <td className="py-3 text-sm text-gray-600">{vital.oxygen_saturation || '-'}%</td>
+                    <td className="py-3 text-sm text-gray-600">
+                      {vital.recorded_at ? new Date(vital.recorded_at).toLocaleString('en-NG') : '-'}
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-1">
+                        <IconButton
+                          icon={Eye}
+                          onClick={() => navigate(`/vital-signs?highlight=${vital.id}`)}
+                          tooltip="View in monitor"
+                          variant="primary"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+            <div className="text-xs text-gray-500">
+              Showing {start + 1} to {Math.min(start + vitalsPerPage, dashboardVitals.length)} of {dashboardVitals.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <IconButton
+                icon={ChevronLeft}
+                onClick={() => setVitalsCurrentPage(p => Math.max(1, p - 1))}
+                tooltip="Previous page"
+                variant="default"
+                disabled={vitalsCurrentPage === 1}
+              />
+              <span className="text-xs text-gray-600">Page {vitalsCurrentPage} of {totalPages}</span>
+              <IconButton
+                icon={ChevronRight}
+                onClick={() => setVitalsCurrentPage(p => Math.min(totalPages, p + 1))}
+                tooltip="Next page"
+                variant="default"
+                disabled={vitalsCurrentPage === totalPages}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   };
