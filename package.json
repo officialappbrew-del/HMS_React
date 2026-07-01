@@ -13,6 +13,7 @@
     "@heroicons/react": "^2.2.0",
     "@reduxjs/toolkit": "^1.9.5",
     "autoprefixer": "^10.4.14",
+    "framer-motion": "^12.42.2",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.563.0",
     "postcss": "^8.4.24",

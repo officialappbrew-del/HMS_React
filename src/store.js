@@ -5,6 +5,7 @@ import billingReducer from './features/billingSlice';
 import pharmacyReducer from './features/pharmacySlice';
 import staffReducer from './features/staffSlice.jsx';
 import wardReducer from './features/wardSlice';
+import bedReducer from './features/bedSlice.jsx';
 import admissionReducer from './features/admissionSlice';
 import wardRoundReducer from './features/wardRoundSlice';
 import rosterReducer from './features/rosterSlice';
@@ -57,6 +58,7 @@ export default configureStore({
     pharmacy: pharmacyReducer,
     staff: staffReducer,
     ward: wardReducer,
+    bed: bedReducer,
     admission: admissionReducer,
     wardRound: wardRoundReducer,
     roster: rosterReducer,

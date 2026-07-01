@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Bed,
   Filter,
@@ -63,7 +63,8 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon
 } from 'lucide-react';
-import { selectWard, occupyBed, releaseBed, reserveBed, markBedAvailable } from '../features/wardSlice';
+import { fetchWards, fetchBeds, seedDemoBeds, selectWard, occupyBed, releaseBed, reserveBed, markBedAvailable } from '../features/bedSlice.jsx';
+import { wardRoundApi } from '../utils/api';
 
 // Tooltip Component
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -151,10 +152,11 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
 
 const BedAllocation = () => {
   const dispatch = useDispatch();
-  const { wards, selectedWard, stats, bedStatus } = useSelector(state => state.ward);
+  const { wards, selectedWard, stats, bedStatus, beds, loading, error } = useSelector(state => state.bed);
   const [filterStatus, setFilterStatus] = useState('All');
   const [selectedBed, setSelectedBed] = useState(null);
   const [showReservationForm, setShowReservationForm] = useState(false);
+  const [actionMode, setActionMode] = useState('reserve');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showMobileStats, setShowMobileStats] = useState(false);
   const [reservationData, setReservationData] = useState({
@@ -165,6 +167,24 @@ const BedAllocation = () => {
   const [expandedWardInfo, setExpandedWardInfo] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createMode, setCreateMode] = useState('ward');
+  const [wardForm, setWardForm] = useState({
+    wardId: '',
+    wardName: '',
+    wardType: 'General Ward',
+    floor: '1',
+    supervisor: '',
+    staffCount: '4',
+    totalBeds: '4'
+  });
+  const [bedForm, setBedForm] = useState({
+    bedId: '',
+    bedNumber: '1',
+    bedType: 'Standard',
+    status: 'Available'
+  });
+  const [feedbackModal, setFeedbackModal] = useState({ open: false, title: '', message: '', type: 'info' });
 
   const getBedStatusColor = (status) => {
     switch (status) {
@@ -211,11 +231,25 @@ const BedAllocation = () => {
     return badges[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const filteredBeds = selectedWard
-    ? filterStatus === 'All'
-      ? selectedWard.beds
-      : selectedWard.beds.filter(bed => bed.status === filterStatus)
-    : [];
+  useEffect(() => {
+    dispatch(fetchWards());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (selectedWard?.wardId) {
+      dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
+    }
+  }, [dispatch, selectedWard?.wardId]);
+
+  useEffect(() => {
+    if (!selectedWard && wards.length) {
+      dispatch(selectWard(wards[0].wardId));
+    }
+  }, [dispatch, selectedWard, wards]);
+
+  const filteredBeds = filterStatus === 'All'
+    ? beds
+    : beds.filter(bed => bed.status === filterStatus);
 
   // Search beds
   const searchedBeds = filteredBeds.filter(bed => 
@@ -226,31 +260,107 @@ const BedAllocation = () => {
 
   const handleReserve = (bedId) => {
     setReservationData({ ...reservationData, bedId });
+    setActionMode('reserve');
     setShowReservationForm(true);
+  };
+
+  const handleAdmit = (bedId) => {
+    setReservationData({ ...reservationData, bedId });
+    setActionMode('occupy');
+    setShowReservationForm(true);
+  };
+
+  const showFeedback = (title, message, type = 'info', onConfirm = null) => {
+    setFeedbackModal({ open: true, title, message, type, onConfirm });
   };
 
   const submitReservation = () => {
     if (reservationData.bedId && reservationData.patientId) {
-      dispatch(reserveBed({
-        bedId: reservationData.bedId,
-        patientId: reservationData.patientId
-      }));
+      if (actionMode === 'occupy') {
+        dispatch(occupyBed({
+          bedId: reservationData.bedId,
+          patientId: reservationData.patientId
+        }));
+        showFeedback('Admission successful', 'Patient admitted and bed occupied successfully.');
+      } else {
+        dispatch(reserveBed({
+          bedId: reservationData.bedId,
+          patientId: reservationData.patientId
+        }));
+        showFeedback('Reservation successful', 'Bed reserved successfully.');
+      }
       setShowReservationForm(false);
       setReservationData({ bedId: '', patientId: '' });
-      alert('Bed reserved successfully!');
     }
   };
 
-  const handleReleaseBed = (bedId) => {
-    if (window.confirm('Are you sure you want to release this bed?')) {
-      dispatch(releaseBed(bedId));
-      alert('Bed released and marked for cleaning');
+  const handleReleaseBed = (bed) => {
+    showFeedback('Confirm release', `Release ${bed.bedId || `Bed ${bed.bedNumber}`} and mark it for cleaning?`, 'info', () => {
+      dispatch(releaseBed(bed.id));
+      showFeedback('Bed released', 'Bed released and marked for cleaning.');
+    });
+  };
+
+  const handleMarkAvailable = (bed) => {
+    dispatch(markBedAvailable(bed.id));
+    showFeedback('Bed updated', 'Bed marked as available.');
+  };
+
+  const handleCreateWard = async () => {
+    if (!wardForm.wardId || !wardForm.wardName) {
+      showFeedback('Validation required', 'Ward ID and ward name are required.');
+      return;
+    }
+
+    const payload = {
+      wardId: wardForm.wardId,
+      wardName: wardForm.wardName,
+      wardType: wardForm.wardType,
+      floor: wardForm.floor,
+      supervisor: wardForm.supervisor,
+      staffCount: Number(wardForm.staffCount) || 0,
+      totalBeds: Number(wardForm.totalBeds) || 0
+    };
+
+    try {
+      await wardRoundApi.createWard(payload);
+      showFeedback('Ward created', 'Ward created successfully.');
+      setShowCreateForm(false);
+      setWardForm({ wardId: '', wardName: '', wardType: 'General Ward', floor: '1', supervisor: '', staffCount: '4', totalBeds: '4' });
+      dispatch(fetchWards());
+    } catch (err) {
+      showFeedback('Unable to create ward', err.message || 'Failed to create ward', 'error');
     }
   };
 
-  const handleMarkAvailable = (bedId) => {
-    dispatch(markBedAvailable(bedId));
-    alert('Bed marked as available');
+  const handleCreateBed = async () => {
+    if (!selectedWard?.wardId) {
+      showFeedback('Select ward', 'Please select a ward first.', 'error');
+      return;
+    }
+
+    if (!bedForm.bedId || !bedForm.bedNumber) {
+      showFeedback('Validation required', 'Bed ID and bed number are required.', 'error');
+      return;
+    }
+
+    const payload = {
+      bedId: bedForm.bedId,
+      bedNumber: Number(bedForm.bedNumber),
+      bedType: bedForm.bedType,
+      status: bedForm.status,
+      wardId: selectedWard.wardId
+    };
+
+    try {
+      await wardRoundApi.createBed(payload);
+      showFeedback('Bed created', 'Bed created successfully.');
+      setShowCreateForm(false);
+      setBedForm({ bedId: '', bedNumber: '1', bedType: 'Standard', status: 'Available' });
+      dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
+    } catch (err) {
+      showFeedback('Unable to create bed', err.message || 'Failed to create bed', 'error');
+    }
   };
 
   // Stats cards with tooltips
@@ -289,6 +399,52 @@ const BedAllocation = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+        {feedbackModal.open && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-2xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">{feedbackModal.title}</h3>
+                  <p className="mt-2 text-sm text-gray-600">{feedbackModal.message}</p>
+                </div>
+                <button
+                  onClick={() => setFeedbackModal({ ...feedbackModal, open: false })}
+                  className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-5 flex justify-end">
+                {feedbackModal.onConfirm ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setFeedbackModal({ ...feedbackModal, open: false });
+                        feedbackModal.onConfirm();
+                      }}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setFeedbackModal({ ...feedbackModal, open: false })}
+                      className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setFeedbackModal({ ...feedbackModal, open: false })}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium ${feedbackModal.type === 'error' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
           <div>
@@ -310,7 +466,7 @@ const BedAllocation = () => {
               <span className="hidden xs:inline">Print</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
-              onClick={() => alert('Exporting report...')}
+              onClick={() => showFeedback('Export report', 'Exporting report is coming soon.', 'info')}
               tooltip="Export bed report to file"
               variant="secondary"
             >
@@ -318,12 +474,42 @@ const BedAllocation = () => {
               <span className="hidden xs:inline">Export</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
-              onClick={() => dispatch(selectWard(wards[0]?.wardId))}
+              onClick={() => {
+                dispatch(fetchWards());
+                if (selectedWard?.wardId) {
+                  dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
+                }
+              }}
               tooltip="Refresh bed data"
               variant="primary"
             >
               <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Refresh</span>
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => {
+                dispatch(seedDemoBeds()).unwrap().then(() => {
+                  dispatch(fetchWards());
+                  if (selectedWard?.wardId) {
+                    dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
+                  } else {
+                    dispatch(fetchBeds());
+                  }
+                });
+              }}
+              tooltip="Seed sample wards and beds"
+              variant="secondary"
+            >
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Seed Beds</span>
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              tooltip="Create a ward or bed"
+              variant="success"
+            >
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Create</span>
             </ButtonWithTooltip>
           </div>
         </div>
@@ -359,6 +545,92 @@ const BedAllocation = () => {
             );
           })}
         </div>
+
+        {showCreateForm && (
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <h2 className="text-sm sm:text-base font-semibold text-gray-900">Create Ward or Bed</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCreateMode('ward')}
+                  className={`px-3 py-1.5 text-sm rounded-lg ${createMode === 'ward' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  Create Ward
+                </button>
+                <button
+                  onClick={() => setCreateMode('bed')}
+                  className={`px-3 py-1.5 text-sm rounded-lg ${createMode === 'bed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  Create Bed
+                </button>
+              </div>
+            </div>
+
+            {createMode === 'ward' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Ward ID</label>
+                  <input value={wardForm.wardId} onChange={(e) => setWardForm({ ...wardForm, wardId: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="W-004" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Ward Name</label>
+                  <input value={wardForm.wardName} onChange={(e) => setWardForm({ ...wardForm, wardName: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="ICU Ward" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Ward Type</label>
+                  <input value={wardForm.wardType} onChange={(e) => setWardForm({ ...wardForm, wardType: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Floor</label>
+                  <input value={wardForm.floor} onChange={(e) => setWardForm({ ...wardForm, floor: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Supervisor</label>
+                  <input value={wardForm.supervisor} onChange={(e) => setWardForm({ ...wardForm, supervisor: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Staff Count</label>
+                  <input type="number" value={wardForm.staffCount} onChange={(e) => setWardForm({ ...wardForm, staffCount: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Total Beds</label>
+                  <input type="number" value={wardForm.totalBeds} onChange={(e) => setWardForm({ ...wardForm, totalBeds: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div className="flex items-end">
+                  <button onClick={handleCreateWard} className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg">Create Ward</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Bed ID</label>
+                  <input value={bedForm.bedId} onChange={(e) => setBedForm({ ...bedForm, bedId: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="W-004-B01" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Bed Number</label>
+                  <input type="number" value={bedForm.bedNumber} onChange={(e) => setBedForm({ ...bedForm, bedNumber: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Bed Type</label>
+                  <input value={bedForm.bedType} onChange={(e) => setBedForm({ ...bedForm, bedType: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="Standard" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                  <select value={bedForm.status} onChange={(e) => setBedForm({ ...bedForm, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-white">
+                    <option value="Available">Available</option>
+                    <option value="Reserved">Reserved</option>
+                    <option value="Occupied">Occupied</option>
+                    <option value="Under Cleaning">Under Cleaning</option>
+                    <option value="Maintenance">Maintenance</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2 flex items-end">
+                  <button onClick={handleCreateBed} className="w-full md:w-auto px-3 py-2 bg-green-600 text-white rounded-lg">Create Bed</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Ward Selection and Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
@@ -484,7 +756,10 @@ const BedAllocation = () => {
                 />
                 <IconButton
                   icon={RefreshCw}
-                  onClick={() => dispatch(selectWard(selectedWard.wardId))}
+                  onClick={() => {
+                    dispatch(fetchWards());
+                    dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
+                  }}
                   tooltip="Refresh bed data"
                   variant="default"
                 />
@@ -498,6 +773,10 @@ const BedAllocation = () => {
               <p className="text-base sm:text-lg font-medium text-gray-900">Select a Ward</p>
               <p className="text-sm text-gray-500 mt-1">Choose a ward from the dropdown above to view bed allocation</p>
             </div>
+          ) : loading ? (
+            <div className="text-center py-12 text-gray-500">Loading beds...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-red-500">{error}</div>
           ) : searchedBeds.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-gray-300" />
@@ -572,18 +851,26 @@ const BedAllocation = () => {
                             tooltip="View bed details"
                             variant="primary"
                           />
-                          {bed.status === bedStatus.AVAILABLE && (
-                            <IconButton
-                              icon={Clock}
-                              onClick={() => handleReserve(bed.bedId)}
-                              tooltip="Reserve this bed"
-                              variant="warning"
-                            />
+                          {(bed.status === bedStatus.AVAILABLE || bed.status === bedStatus.RESERVED) && (
+                            <>
+                              <IconButton
+                                icon={Clock}
+                                onClick={() => handleReserve(bed.bedId)}
+                                tooltip="Reserve this bed"
+                                variant="warning"
+                              />
+                              <IconButton
+                                icon={Check}
+                                onClick={() => handleAdmit(bed.bedId)}
+                                tooltip="Admit a patient to this bed"
+                                variant="success"
+                              />
+                            </>
                           )}
                           {bed.status === bedStatus.OCCUPIED && (
                             <IconButton
                               icon={Trash2}
-                              onClick={() => handleReleaseBed(bed.bedId)}
+                              onClick={() => handleReleaseBed(bed)}
                               tooltip="Release bed"
                               variant="danger"
                             />
@@ -591,7 +878,7 @@ const BedAllocation = () => {
                           {bed.status === bedStatus.UNDER_CLEANING && (
                             <IconButton
                               icon={Check}
-                              onClick={() => handleMarkAvailable(bed.bedId)}
+                              onClick={() => handleMarkAvailable(bed)}
                               tooltip="Mark as available"
                               variant="success"
                             />
@@ -691,21 +978,32 @@ const BedAllocation = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
-                  {selectedBed.status === bedStatus.AVAILABLE && (
-                    <ButtonWithTooltip
-                      onClick={() => handleReserve(selectedBed.bedId)}
-                      tooltip="Reserve this bed for a patient"
-                      variant="warning"
-                      className="flex-1 min-w-[120px]"
-                    >
-                      <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      Reserve Bed
-                    </ButtonWithTooltip>
+                  {(selectedBed.status === bedStatus.AVAILABLE || selectedBed.status === bedStatus.RESERVED) && (
+                    <>
+                      <ButtonWithTooltip
+                        onClick={() => handleReserve(selectedBed.bedId)}
+                        tooltip="Reserve this bed for a patient"
+                        variant="warning"
+                        className="flex-1 min-w-[120px]"
+                      >
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        Reserve Bed
+                      </ButtonWithTooltip>
+                      <ButtonWithTooltip
+                        onClick={() => handleAdmit(selectedBed.bedId)}
+                        tooltip="Admit a patient to this bed"
+                        variant="success"
+                        className="flex-1 min-w-[120px]"
+                      >
+                        <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        Admit Patient
+                      </ButtonWithTooltip>
+                    </>
                   )}
 
                   {selectedBed.status === bedStatus.OCCUPIED && (
                     <ButtonWithTooltip
-                      onClick={() => handleReleaseBed(selectedBed.bedId)}
+                      onClick={() => handleReleaseBed(selectedBed)}
                       tooltip="Release bed and mark for cleaning"
                       variant="danger"
                       className="flex-1 min-w-[120px]"
@@ -717,7 +1015,7 @@ const BedAllocation = () => {
 
                   {selectedBed.status === bedStatus.UNDER_CLEANING && (
                     <ButtonWithTooltip
-                      onClick={() => handleMarkAvailable(selectedBed.bedId)}
+                      onClick={() => handleMarkAvailable(selectedBed)}
                       tooltip="Mark bed as available for admission"
                       variant="success"
                       className="flex-1 min-w-[120px]"
@@ -729,7 +1027,7 @@ const BedAllocation = () => {
 
                   {selectedBed.status === bedStatus.RESERVED && (
                     <ButtonWithTooltip
-                      onClick={() => handleReleaseBed(selectedBed.bedId)}
+                      onClick={() => handleReleaseBed(selectedBed)}
                       tooltip="Cancel reservation"
                       variant="danger"
                       className="flex-1 min-w-[120px]"
@@ -773,6 +1071,17 @@ const BedAllocation = () => {
                     />
                   </div>
                   <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Action</label>
+                    <select
+                      value={actionMode}
+                      onChange={(e) => setActionMode(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    >
+                      <option value="reserve">Reserve</option>
+                      <option value="occupy">Admit</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Patient ID *</label>
                     <input
                       type="text"
@@ -792,7 +1101,7 @@ const BedAllocation = () => {
                       className="flex-1"
                     >
                       <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      Reserve
+                      {actionMode === 'occupy' ? 'Admit' : 'Reserve'}
                     </ButtonWithTooltip>
                     <ButtonWithTooltip
                       onClick={() => setShowReservationForm(false)}

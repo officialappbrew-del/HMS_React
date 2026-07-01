@@ -500,6 +500,28 @@ export const wardRoundApi = {
   addTeamMemberToRound: (roundId, member) => apiRequest(`/api/v1/ward-rounds/rounds/${roundId}/add-team-member/`, { method: 'POST', body: JSON.stringify(member) }),
   recordRoundDocumentation: (roundId, patientId, documentation) => apiRequest(`/api/v1/ward-rounds/rounds/${roundId}/record-documentation/`, { method: 'POST', body: JSON.stringify({ patientId, documentation }) }),
 
+  getWards: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/wards/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createWard: (data) => apiRequest('/api/v1/ward-rounds/wards/', { method: 'POST', body: JSON.stringify(data) }),
+  seedDemoWards: () => apiRequest('/api/v1/ward-rounds/wards/seed-demo/', { method: 'POST' }),
+  getWard: (id) => apiRequest(`/api/v1/ward-rounds/wards/${id}/`),
+  getBeds: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/beds/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createBed: (data) => apiRequest('/api/v1/ward-rounds/beds/', { method: 'POST', body: JSON.stringify(data) }),
+  getBed: (id) => apiRequest(`/api/v1/ward-rounds/beds/${id}/`),
+  reserveBed: (id, patientId) => apiRequest(`/api/v1/ward-rounds/beds/${id}/reserve/`, { method: 'POST', body: JSON.stringify({ patientId }) }),
+  occupyBed: (id, patientId) => apiRequest(`/api/v1/ward-rounds/beds/${id}/occupy/`, { method: 'POST', body: JSON.stringify({ patientId }) }),
+  releaseBed: (id) => apiRequest(`/api/v1/ward-rounds/beds/${id}/release/`, { method: 'POST' }),
+  markBedAvailable: (id) => apiRequest(`/api/v1/ward-rounds/beds/${id}/mark-available/`, { method: 'POST' }),
+
   getHandovers: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
@@ -518,6 +540,3 @@ export const wardRoundApi = {
   createGrandRound: (data) => apiRequest('/api/v1/ward-rounds/grand-rounds/', { method: 'POST', body: JSON.stringify(data) }),
   addCaseStudyToGrandRound: (grandRoundId, caseStudy) => apiRequest(`/api/v1/ward-rounds/grand-rounds/${grandRoundId}/add-case-study/`, { method: 'POST', body: JSON.stringify(caseStudy) }),
 };
-
-
-

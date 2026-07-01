@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Eye, EyeOff } from 'lucide-react';
-import { apiRequest } from '../utils/api';
-import { API_BASE_URL } from '../utils/api';
+import { apiRequest, API_BASE_URL } from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
