@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
+import ChangePasswordModal from '../ChangePasswordModal';
 import {
   Users,
   Activity,
@@ -805,6 +806,16 @@ const displayTenantName = authTenant?.name || 'Hospital';
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
   const [dashboardProfilePicture, setDashboardProfilePicture] = useState(authUser?.profile_picture || '');
 
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(null);
+  const [passwordData, setPasswordData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: '',
+  });
+
   // Appointment/Schedule State
   const [todaysSchedule, setTodaysSchedule] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -1232,6 +1243,63 @@ const displayTenantName = authTenant?.name || 'Hospital';
       }
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  // Password Change Handlers
+  const handleOpenChangePassword = () => {
+    setShowChangePasswordModal(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+  };
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordLoading(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!passwordData.old_password || !passwordData.new_password || !passwordData.confirm_password) {
+      setPasswordError('Please fill in all password fields.');
+      setPasswordLoading(false);
+      return;
+    }
+
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      setPasswordError('New password and confirm password do not match.');
+      setPasswordLoading(false);
+      return;
+    }
+
+    if (passwordData.new_password.length < 8) {
+      setPasswordError('New password must be at least 8 characters long.');
+      setPasswordLoading(false);
+      return;
+    }
+
+    try {
+      await apiRequest('/api/v1/tenants/users/change_password/', {
+        method: 'POST',
+        body: JSON.stringify({
+          old_password: passwordData.old_password,
+          new_password: passwordData.new_password,
+          confirm_password: passwordData.confirm_password,
+        }),
+      });
+      setPasswordSuccess('Password changed successfully');
+      setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+      setTimeout(() => {
+        setShowChangePasswordModal(false);
+        setPasswordSuccess(null);
+      }, 1500);
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to change password. Please try again.');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -2320,6 +2388,14 @@ const displayTenantName = authTenant?.name || 'Hospital';
               <UserIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Profile</span>
             </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={handleOpenChangePassword}
+              tooltip="Change Password"
+              variant="secondary"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Change Password</span>
+            </ButtonWithTooltip>
           </div>
         </div>
       </div>
@@ -2382,6 +2458,16 @@ const displayTenantName = authTenant?.name || 'Hospital';
           onClose={handleClosePatientModal} 
         />
       )}
+
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        saving={passwordLoading}
+        error={passwordError}
+        success={passwordSuccess}
+        onChange={handlePasswordChange}
+        onSave={handleChangePassword}
+      />
     </div>
   );
 };

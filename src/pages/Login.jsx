@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Stethoscope, Activity, Users, Pill, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 import { API_BASE_URL } from '../utils/api';
 
@@ -9,15 +9,19 @@ const Login = () => {
     email: '',
     password: ''
   });
-  const [selectedRole, setSelectedRole] = useState('doctor');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [showAccountRecovery, setShowAccountRecovery] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('rememberMe') === 'true');
+  const [tokenSent, setTokenSent] = useState(false);
 
   const navigate = useNavigate();
 
@@ -56,25 +60,25 @@ const Login = () => {
         }
         window.dispatchEvent(new Event('authChanged'));
         navigate('/dashboard');
-} catch {
-         localStorage.removeItem('accessToken');
-         localStorage.removeItem('authToken');
-         localStorage.removeItem('refreshToken');
-         localStorage.removeItem('userId');
-         localStorage.removeItem('userRole');
-         localStorage.removeItem('userEmail');
-         localStorage.removeItem('userName');
-         localStorage.removeItem('userFirstName');
-         localStorage.removeItem('userLastName');
-         localStorage.removeItem('userFullName');
-         localStorage.removeItem('licenseNumber');
-         localStorage.removeItem('tenantId');
-         localStorage.removeItem('tenantDomain');
-         localStorage.removeItem('tenantName');
-         setRememberMe(false);
-         localStorage.removeItem('rememberMe');
-         setLoading(false);
-       }
+      } catch {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userFirstName');
+        localStorage.removeItem('userLastName');
+        localStorage.removeItem('userFullName');
+        localStorage.removeItem('licenseNumber');
+        localStorage.removeItem('tenantId');
+        localStorage.removeItem('tenantDomain');
+        localStorage.removeItem('tenantName');
+        setRememberMe(false);
+        localStorage.removeItem('rememberMe');
+        setLoading(false);
+      }
     };
 
     restoreSession();
@@ -91,6 +95,7 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    setMessageType('');
 
     try {
       const loginIdentifier = formData.email.trim();
@@ -120,8 +125,8 @@ const Login = () => {
       const refreshToken =
         authData.refresh_token ||
         response?.refresh_token ||
-        authData.refreshToken ||
-        response?.refreshToken;
+        response?.refreshToken ||
+        authData.refreshToken;
       const user = response?.user || authData.user || {};
       const tenant = response?.tenant || authData.tenant || {};
       const tenantPublicId =
@@ -137,40 +142,42 @@ const Login = () => {
         throw new Error('Authentication token was not returned by the server.');
       }
 
-if (response?.requires_2fa || authData.requires_2fa) {
-         throw new Error('Two-factor verification is required before you can continue.');
-       }
+      if (response?.requires_2fa || authData.requires_2fa) {
+        throw new Error('Two-factor verification is required before you can continue.');
+      }
 
-       localStorage.setItem('accessToken', token);
-       localStorage.setItem('refreshToken', refreshToken || '');
-       localStorage.setItem('authToken', token);
-       localStorage.setItem('userRole', user.role || selectedRole);
-       localStorage.setItem('userEmail', user.email || formData.email);
-       localStorage.setItem('userName', user.username || user.user_id || formData.email);
-       localStorage.setItem('userFirstName', user.first_name || '');
-       localStorage.setItem('userLastName', user.last_name || '');
-       const fullName = user.first_name && user.last_name
-         ? `${user.first_name} ${user.last_name}`
-         : user.full_name || user.username || user.user_id || formData.email;
-       localStorage.setItem('userFullName', fullName);
-       localStorage.setItem('licenseNumber', user.license_number || user.mdcn_number || '');
-       localStorage.setItem('userId', user.id || user.user_id || loginIdentifier);
-       if (tenantPublicId) {
-         localStorage.setItem('tenantId', tenantPublicId);
-       }
-       if (tenant.domain) {
-         localStorage.setItem('tenantDomain', tenant.domain);
-       }
-       if (tenant.name) {
-         localStorage.setItem('tenantName', tenant.name);
-       }
-       localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+      localStorage.setItem('accessToken', token);
+      localStorage.setItem('refreshToken', refreshToken || '');
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userRole', user.role || '');
+      localStorage.setItem('userEmail', user.email || formData.email);
+      localStorage.setItem('userName', user.username || user.user_id || formData.email);
+      localStorage.setItem('userFirstName', user.first_name || '');
+      localStorage.setItem('userLastName', user.last_name || '');
+      const fullName = user.first_name && user.last_name
+        ? `${user.first_name} ${user.last_name}`
+        : user.full_name || user.username || user.user_id || formData.email;
+      localStorage.setItem('userFullName', fullName);
+      localStorage.setItem('licenseNumber', user.license_number || user.mdcn_number || '');
+      localStorage.setItem('userId', user.id || user.user_id || loginIdentifier);
+      if (tenantPublicId) {
+        localStorage.setItem('tenantId', tenantPublicId);
+      }
+      if (tenant.domain) {
+        localStorage.setItem('tenantDomain', tenant.domain);
+      }
+      if (tenant.name) {
+        localStorage.setItem('tenantName', tenant.name);
+      }
+      localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
 
       window.dispatchEvent(new Event('authChanged'));
-      setMessage(response?.message || 'Login successful!');
+      setMessage('Login successful!');
+      setMessageType('success');
       setTimeout(() => navigate('/dashboard'), 400);
     } catch (error) {
       setMessage(error.message || 'Login failed. Please try again.');
+      setMessageType('error');
     } finally {
       setLoading(false);
     }
@@ -180,33 +187,60 @@ if (response?.requires_2fa || authData.requires_2fa) {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    setMessageType('');
 
-    setTimeout(() => {
+    try {
+      const response = await apiRequest('/api/v1/auth/password-reset/', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier: forgotIdentifier.trim(),
+        }),
+      });
+
+      setMessage(response?.detail || 'If an account exists for this identifier, a password reset email has been sent.');
+      setMessageType('success');
+      setTokenSent(true);
+    } catch (error) {
+      setMessage(error.message || 'Failed to initiate password reset. Please try again.');
+      setMessageType('error');
+    } finally {
       setLoading(false);
-      setMessage('Password reset link sent to your email!');
-    }, 2000);
+    }
   };
 
-  const handleAccountRecovery = async (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    setMessageType('');
 
-    setTimeout(() => {
+    try {
+      const response = await apiRequest('/api/v1/auth/password-reset/confirm/', {
+        method: 'POST',
+        body: JSON.stringify({
+          token: resetToken,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
+      });
+
+      setMessage(response?.detail || 'Password reset successfully. You can now log in with your new password.');
+      setMessageType('success');
+      setTokenSent(false);
+      setForgotIdentifier('');
+      setResetToken('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowForgotPassword(false);
+    } catch (error) {
+      setMessage(error.message || 'Failed to reset password. Please try again.');
+      setMessageType('error');
+    } finally {
       setLoading(false);
-      setMessage('Account recovery link sent to your email!');
-    }, 2000);
+    }
   };
 
-  const roleCards = [
-    { value: 'doctor', label: 'Doctor', icon: Stethoscope },
-    { value: 'nurse', label: 'Nurse', icon: Activity },
-    { value: 'pharmacist', label: 'Pharmacist', icon: Pill },
-    { value: 'admin', label: 'Admin', icon: ShieldCheck },
-    { value: 'receptionist', label: 'Receptionist', icon: Users },
-  ];
-
-return (
+  return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 lg:grid-cols-2">
         <div className="hidden bg-gradient-to-br from-blue-900 via-sky-800 to-cyan-700 p-10 lg:flex lg:flex-col lg:justify-between">
@@ -231,12 +265,12 @@ return (
             <div className="text-center">
               <p className="text-sm font-medium text-blue-700">Welcome back</p>
               <h2 className="mt-2 text-3xl font-semibold text-slate-900">
-                {showForgotPassword ? (showAccountRecovery ? 'Account recovery' : 'Reset password') : 'Sign in to your workspace'}
+                {showForgotPassword ? 'Reset password' : 'Sign in to your workspace'}
               </h2>
             </div>
 
             {message && (
-              <div className={`mt-6 rounded-2xl p-4 ${message.includes('successful') || message.includes('sent') ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+              <div className={`mt-6 rounded-2xl p-4 ${messageType === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                 {message}
               </div>
             )}
@@ -250,15 +284,15 @@ return (
                 <div>
                   <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">Password</label>
                   <div className="relative">
-                    <input 
-                      id="password" 
-                      name="password" 
-                      type={showPassword ? 'text' : 'password'} 
-                      required 
-                      value={formData.password} 
-                      onChange={handleChange} 
-                      placeholder="••••••••" 
-                      className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 outline-none focus:border-blue-500" 
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 outline-none focus:border-blue-500"
                     />
                     <button
                       type="button"
@@ -267,26 +301,6 @@ return (
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Role</label>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {roleCards.map((role) => {
-                      const Icon = role.icon;
-                      const selected = selectedRole === role.value;
-                      return (
-                        <button
-                          type="button"
-                          key={role.value}
-                          onClick={() => setSelectedRole(role.value)}
-                          className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${selected ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
-                        >
-                          <Icon className="h-4 w-4" />
-                          {role.label}
-                        </button>
-                      );
-                    })}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -305,30 +319,46 @@ return (
                   {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </form>
-            ) : !showAccountRecovery ? (
-              <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
+            ) : tokenSent ? (
+              <form className="mt-8 space-y-5" onSubmit={handleResetPassword}>
                 <div>
-                  <label htmlFor="forgotEmail" className="mb-1 block text-sm font-medium text-slate-700">Email</label>
-                  <input id="forgotEmail" name="forgotEmail" type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="name@hospital.com" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
+                  <label htmlFor="resetToken" className="mb-1 block text-sm font-medium text-slate-700">Reset Token</label>
+                  <input id="resetToken" name="resetToken" type="text" required value={resetToken} onChange={(e) => setResetToken(e.target.value)} placeholder="Enter reset token" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
+                  <p className="mt-1 text-xs text-slate-500">Use the token sent to your email or phone.</p>
+                </div>
+                <div>
+                  <label htmlFor="newPassword" className="mb-1 block text-sm font-medium text-slate-700">New Password</label>
+                  <div className="relative">
+                    <input id="newPassword" name="newPassword" type={showNewPassword ? 'text' : 'password'} required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 outline-none focus:border-blue-500" />
+                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-slate-700">Confirm New Password</label>
+                  <div className="relative">
+                    <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 outline-none focus:border-blue-500" />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" disabled={loading} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                  {loading ? 'Sending...' : 'Send reset link'}
+                  {loading ? 'Resetting...' : 'Reset Password'}
                 </button>
-                <div className="flex flex-col gap-2">
-                  <button type="button" onClick={() => setShowAccountRecovery(true)} className="text-sm font-medium text-blue-600">Need account recovery?</button>
-                  <button type="button" onClick={() => setShowForgotPassword(false)} className="text-sm font-medium text-blue-600">Back to login</button>
-                </div>
+                <button type="button" onClick={() => { setShowForgotPassword(false); setTokenSent(false); setForgotIdentifier(''); setResetToken(''); setNewPassword(''); setConfirmPassword(''); }} className="w-full text-sm font-medium text-blue-600">Back to login</button>
               </form>
             ) : (
-              <form className="mt-8 space-y-5" onSubmit={handleAccountRecovery}>
+              <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
                 <div>
-                  <label htmlFor="recoveryEmail" className="mb-1 block text-sm font-medium text-slate-700">Email for recovery</label>
-                  <input id="recoveryEmail" name="recoveryEmail" type="email" required value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} placeholder="name@hospital.com" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
+                  <label htmlFor="forgotIdentifier" className="mb-1 block text-sm font-medium text-slate-700">User ID or Email</label>
+                  <input id="forgotIdentifier" name="forgotIdentifier" type="text" required value={forgotIdentifier} onChange={(e) => setForgotIdentifier(e.target.value)} placeholder="user ID or name@hospital.com" className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
                 </div>
                 <button type="submit" disabled={loading} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                  {loading ? 'Sending...' : 'Send recovery link'}
+                  {loading ? 'Sending...' : 'Send reset token'}
                 </button>
-                <button type="button" onClick={() => { setShowAccountRecovery(false); setShowForgotPassword(false); }} className="w-full text-sm font-medium text-blue-600">Back to login</button>
+                <button type="button" onClick={() => setShowForgotPassword(false)} className="w-full text-sm font-medium text-blue-600">Back to login</button>
               </form>
             )}
           </div>
