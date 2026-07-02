@@ -223,15 +223,30 @@ const updateFilteredPatients = (state) => {
   if (state.searchTerm) {
     const searchTerm = state.searchTerm.toLowerCase();
     filtered = filtered.filter(patient => {
+      const name = (patient.name || patient.full_name || '').toString().toLowerCase();
+      const hospitalNumber = (patient.hospital_number || patient.hospitalNumber || patient.patient_id || '').toString().toLowerCase();
+      const firstName = (patient.first_name || '').toString().toLowerCase();
+      const lastName = (patient.last_name || '').toString().toLowerCase();
+      const nin = (patient.nin || patient.nhis_number || '').toString().toLowerCase();
+      const phone = (patient.phone || patient.phone_number || '').toString().toLowerCase();
+      const email = (patient.email || '').toString().toLowerCase();
+      const address = (patient.address || '').toString().toLowerCase();
+      const tribe = (patient.tribe || '').toString().toLowerCase();
+      const lga = (patient.lga || '').toString().toLowerCase();
+      const state = (patient.state || '').toString().toLowerCase();
+
       return (
-        patient.name.toLowerCase().includes(searchTerm) ||
-        (patient.nin && patient.nin.toLowerCase().includes(searchTerm)) ||
-        (patient.phone && patient.phone.includes(searchTerm)) ||
-        (patient.email && patient.email.toLowerCase().includes(searchTerm)) ||
-        (patient.address && patient.address.toLowerCase().includes(searchTerm)) ||
-        (patient.tribe && patient.tribe.toLowerCase().includes(searchTerm)) ||
-        (patient.lga && patient.lga.toLowerCase().includes(searchTerm)) ||
-        (patient.state && patient.state.toLowerCase().includes(searchTerm))
+        name.includes(searchTerm) ||
+        hospitalNumber.includes(searchTerm) ||
+        firstName.includes(searchTerm) ||
+        lastName.includes(searchTerm) ||
+        nin.includes(searchTerm) ||
+        phone.includes(searchTerm) ||
+        email.includes(searchTerm) ||
+        address.includes(searchTerm) ||
+        tribe.includes(searchTerm) ||
+        lga.includes(searchTerm) ||
+        state.includes(searchTerm)
       );
     });
   }

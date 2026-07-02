@@ -6,6 +6,7 @@ import {
   updateMissionStatus,
   completeMission
 } from '../features/ambulanceSlice';
+import { createAdmissionRequest } from '../features/admissionSlice';
 import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
 import { MapPin, Clock, Users, TrendingUp, AlertCircle, Navigation, Car, Plus, Menu, X, Filter, Search } from 'lucide-react';
@@ -133,6 +134,18 @@ const AmbulanceTracking = () => {
       ambulanceId: dispatchData.ambulanceId,
       missionData
     }));
+
+    if (patient?.patientId || dispatchData.patientId) {
+      dispatch(createAdmissionRequest({
+        patientId: patient?.patientId || dispatchData.patientId,
+        patientName: patient?.name || 'Unknown',
+        source: 'Emergency Department',
+        diagnosis: dispatchData.incidentType || 'Emergency transport',
+        preferredWardType: 'General Ward',
+        priority: dispatchData.priority || 'Medium',
+        notes: `Auto-created from ambulance mission ${missionData.missionId}`
+      }));
+    }
 
     setShowDispatchForm(false);
     resetDispatchForm();

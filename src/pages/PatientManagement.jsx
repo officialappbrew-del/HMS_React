@@ -1,5 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   addPatient,
   updatePatient,
@@ -14,7 +15,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { apiRequest, API_BASE_URL } from '../utils/api';
 import { 
   User, Search, Filter, Plus, Edit, Trash2, 
-  UserPlus, Phone, Mail, MapPin, Calendar, 
+  UserPlus, Phone, Mail, MapPin, Calendar, Bed,
   Heart, Users, FileText, Eye, Download,
   ChevronLeft, ChevronRight, Grid, List, Printer,
   X, AlertTriangle, CheckCircle, Shield, Clock,
@@ -281,6 +282,7 @@ const CustomConfirmModal = ({
 
 const PatientManagement = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { patients, filteredPatients, searchTerm, sortBy, filterBy, error } = useSelector(
     state => state.patient
   );
@@ -1353,6 +1355,24 @@ const PatientManagement = () => {
                             onClick={() => handleViewPatient(patient)}
                             tooltip="View patient details"
                             variant="primary"
+                            disabled={isLoading}
+                          />
+                          <IconButton
+                            icon={Bed}
+                            onClick={() => navigate('/admissions', {
+                              state: {
+                                preselectedPatient: {
+                                  patientId: patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id,
+                                  patientName: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+                                  name: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+                                  phone: patient.phone || patient.phone_number,
+                                  email: patient.email,
+                                  id: patient.id,
+                                }
+                              }
+                            })}
+                            tooltip="Create admission for this patient"
+                            variant="success"
                             disabled={isLoading}
                           />
                           <IconButton

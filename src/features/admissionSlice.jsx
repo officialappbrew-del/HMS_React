@@ -181,6 +181,13 @@ const admissionSlice = createSlice({
   name: 'admission',
   initialState,
   reducers: {
+    syncAdmissions: (state, action) => {
+      const { admissions = [], admissionRequests = [], dischargeSummaries = [], wardTransfers = [] } = action.payload || {};
+      state.admissions = admissions;
+      state.admissionRequests = admissionRequests;
+      state.dischargeSummaries = dischargeSummaries;
+      state.wardTransfers = wardTransfers;
+    },
     createAdmissionRequest: (state, action) => {
       const newRequest = {
         requestId: `REQ${String(state.admissionRequests.length + 1).padStart(3, '0')}`,
@@ -294,6 +301,7 @@ const admissionSlice = createSlice({
 });
 
 export const {
+  syncAdmissions,
   createAdmissionRequest,
   approveAdmissionRequest,
   rejectAdmissionRequest,

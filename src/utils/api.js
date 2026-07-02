@@ -220,6 +220,17 @@ export const pharmacyApi = {
   getTenant: () => apiRequest('/api/v1/tenants/active-tenants/'),
 };
 
+export const admissionApi = {
+  getAdmissions: () => apiRequest('/api/v1/ward-rounds/admissions/'),
+  getSummary: () => apiRequest('/api/v1/ward-rounds/admissions/summary/'),
+  createRequest: (data) => apiRequest('/api/v1/ward-rounds/admissions/create-request/', { method: 'POST', body: JSON.stringify(data) }),
+  approve: (id) => apiRequest(`/api/v1/ward-rounds/admissions/${id}/approve/`, { method: 'POST' }),
+  reject: (id, data) => apiRequest(`/api/v1/ward-rounds/admissions/${id}/reject/`, { method: 'POST', body: JSON.stringify(data) }),
+  admit: (id, data) => apiRequest(`/api/v1/ward-rounds/admissions/${id}/admit/`, { method: 'POST', body: JSON.stringify(data) }),
+  transfer: (id, data) => apiRequest(`/api/v1/ward-rounds/admissions/${id}/transfer/`, { method: 'POST', body: JSON.stringify(data) }),
+  discharge: (id, data) => apiRequest(`/api/v1/ward-rounds/admissions/${id}/discharge/`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
 export const consultationApi = {
   getVisit: (visitId) => apiRequest(`/api/v1/patients/visits/${visitId}/`),
   getVisits: (params = {}) => {

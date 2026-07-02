@@ -1002,6 +1002,21 @@ const DoctorDashboard = () => {
     setShowPatientModal(true);
   };
 
+  const handleCreateAdmissionForPatient = (patient) => {
+    navigate('/admissions', {
+      state: {
+        preselectedPatient: {
+          patientId: patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id,
+          patientName: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+          name: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+          phone: patient.phone || patient.phone_number,
+          email: patient.email,
+          id: patient.id,
+        }
+      }
+    });
+  };
+
   const handleClosePatientModal = () => {
     setShowPatientModal(false);
     setSelectedPatient(null);
@@ -2057,12 +2072,20 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                         </span>
                       </td>
                       <td className="py-3">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <IconButton
                             icon={Eye}
                             onClick={() => handleViewPatient(patient)}
                             variant="primary"
                           />
+                          <button
+                            type="button"
+                            onClick={() => handleCreateAdmissionForPatient(patient)}
+                            className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[10px] font-semibold text-green-700 hover:bg-green-100"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Admit
+                          </button>
                           <IconButton
                             icon={Stethoscope}
                             onClick={() => {

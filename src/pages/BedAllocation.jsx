@@ -64,7 +64,8 @@ import {
   ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { fetchWards, fetchBeds, seedDemoBeds, selectWard, occupyBed, releaseBed, reserveBed, markBedAvailable } from '../features/bedSlice.jsx';
-import { wardRoundApi } from '../utils/api';
+import { setPatients, searchPatients } from '../features/patientSlice';
+import { apiRequest, wardRoundApi } from '../utils/api';
 
 // Tooltip Component
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -153,6 +154,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
 const BedAllocation = () => {
   const dispatch = useDispatch();
   const { wards, selectedWard, stats, bedStatus, beds, loading, error } = useSelector(state => state.bed);
+  const { patients, filteredPatients, loading: patientsLoading, error: patientError } = useSelector(state => state.patient || { patients: [], filteredPatients: [], loading: false, error: null });
   const [filterStatus, setFilterStatus] = useState('All');
   const [selectedBed, setSelectedBed] = useState(null);
   const [showReservationForm, setShowReservationForm] = useState(false);
@@ -161,6 +163,7 @@ const BedAllocation = () => {
   const [showMobileStats, setShowMobileStats] = useState(false);
   const [reservationData, setReservationData] = useState({
     bedId: '',
+    bedLabel: '',
     patientId: ''
   });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -185,6 +188,9 @@ const BedAllocation = () => {
     status: 'Available'
   });
   const [feedbackModal, setFeedbackModal] = useState({ open: false, title: '', message: '', type: 'info' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patientQuery, setPatientQuery] = useState('');
+  const [selectedPatientOption, setSelectedPatientOption] = useState(null);
 
   const getBedStatusColor = (status) => {
     switch (status) {
@@ -231,8 +237,36 @@ const BedAllocation = () => {
     return badges[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const normalizePatient = (patient) => {
+    const fullName = patient.full_name || patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(' ').trim() || 'Unknown Patient';
+    const hospitalNumber = patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id;
+
+    return {
+      ...patient,
+      id: patient.id,
+      name: fullName,
+      full_name: fullName,
+      hospital_number: hospitalNumber,
+      hospitalNumber,
+      nin: patient.nin || patient.nhis_number || '',
+      phone: patient.phone || patient.phone_number || '',
+      status: patient.patient_status || patient.status || 'active',
+    };
+  };
+
+  const loadPatients = async () => {
+    try {
+      const data = await apiRequest('/api/v1/patients/patients/');
+      const list = Array.isArray(data) ? data : data.results || [];
+      dispatch(setPatients(list.map(normalizePatient)));
+    } catch (err) {
+      console.error('Failed to load patients for bed assignment:', err);
+    }
+  };
+
   useEffect(() => {
     dispatch(fetchWards());
+    loadPatients();
   }, [dispatch]);
 
   useEffect(() => {
@@ -258,52 +292,86 @@ const BedAllocation = () => {
     (bed.patientId && bed.patientId.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleReserve = (bedId) => {
-    setReservationData({ ...reservationData, bedId });
-    setActionMode('reserve');
+  const openReservationModal = (bed, mode = 'reserve') => {
+    const bedId = bed?.id ?? bed?.bedId ?? '';
+    const bedLabel = bed?.bedId || `Bed ${bed?.bedNumber || ''}`;
+
+    setReservationData({ bedId, bedLabel, patientId: '' });
+    setPatientQuery('');
+    setSelectedPatientOption(null);
+    setActionMode(mode);
     setShowReservationForm(true);
+    if (!patients.length) {
+      loadPatients();
+    }
   };
 
-  const handleAdmit = (bedId) => {
-    setReservationData({ ...reservationData, bedId });
-    setActionMode('occupy');
-    setShowReservationForm(true);
+  const handleReserve = (bed) => {
+    openReservationModal(bed, 'reserve');
+  };
+
+  const handleAdmit = (bed) => {
+    openReservationModal(bed, 'occupy');
   };
 
   const showFeedback = (title, message, type = 'info', onConfirm = null) => {
     setFeedbackModal({ open: true, title, message, type, onConfirm });
   };
 
-  const submitReservation = () => {
-    if (reservationData.bedId && reservationData.patientId) {
+  const submitReservation = async () => {
+    if (!reservationData.bedId || !reservationData.patientId) return;
+
+    setIsSubmitting(true);
+    try {
       if (actionMode === 'occupy') {
-        dispatch(occupyBed({
+        await dispatch(occupyBed({
           bedId: reservationData.bedId,
           patientId: reservationData.patientId
-        }));
+        })).unwrap();
         showFeedback('Admission successful', 'Patient admitted and bed occupied successfully.');
       } else {
-        dispatch(reserveBed({
+        await dispatch(reserveBed({
           bedId: reservationData.bedId,
           patientId: reservationData.patientId
-        }));
+        })).unwrap();
         showFeedback('Reservation successful', 'Bed reserved successfully.');
       }
       setShowReservationForm(false);
-      setReservationData({ bedId: '', patientId: '' });
+      setReservationData({ bedId: '', bedLabel: '', patientId: '' });
+    } catch (err) {
+      showFeedback('Request failed', err?.message || 'Unable to complete the bed request.', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleReleaseBed = (bed) => {
-    showFeedback('Confirm release', `Release ${bed.bedId || `Bed ${bed.bedNumber}`} and mark it for cleaning?`, 'info', () => {
-      dispatch(releaseBed(bed.id));
-      showFeedback('Bed released', 'Bed released and marked for cleaning.');
+    showFeedback('Confirm release', `Release ${bed.bedId || `Bed ${bed.bedNumber}`} and mark it for cleaning?`, 'info', async () => {
+      setIsSubmitting(true);
+      try {
+        await dispatch(releaseBed(bed.id)).unwrap();
+        showFeedback('Bed released', 'Bed released and marked for cleaning.');
+      } catch (err) {
+        showFeedback('Release failed', err?.message || 'Unable to release this bed.', 'error');
+      } finally {
+        setIsSubmitting(false);
+      }
     });
   };
 
   const handleMarkAvailable = (bed) => {
-    dispatch(markBedAvailable(bed.id));
-    showFeedback('Bed updated', 'Bed marked as available.');
+    setIsSubmitting(true);
+    dispatch(markBedAvailable(bed.id))
+      .unwrap()
+      .then(() => {
+        showFeedback('Bed updated', 'Bed marked as available.');
+      })
+      .catch((err) => {
+        showFeedback('Update failed', err?.message || 'Unable to mark this bed available.', 'error');
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const handleCreateWard = async () => {
@@ -322,6 +390,7 @@ const BedAllocation = () => {
       totalBeds: Number(wardForm.totalBeds) || 0
     };
 
+    setIsSubmitting(true);
     try {
       await wardRoundApi.createWard(payload);
       showFeedback('Ward created', 'Ward created successfully.');
@@ -330,6 +399,8 @@ const BedAllocation = () => {
       dispatch(fetchWards());
     } catch (err) {
       showFeedback('Unable to create ward', err.message || 'Failed to create ward', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -349,9 +420,12 @@ const BedAllocation = () => {
       bedNumber: Number(bedForm.bedNumber),
       bedType: bedForm.bedType,
       status: bedForm.status,
+      isPrivate: false,
+      cleaningStatus: 'Clean',
       wardId: selectedWard.wardId
     };
 
+    setIsSubmitting(true);
     try {
       await wardRoundApi.createBed(payload);
       showFeedback('Bed created', 'Bed created successfully.');
@@ -360,45 +434,52 @@ const BedAllocation = () => {
       dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
     } catch (err) {
       showFeedback('Unable to create bed', err.message || 'Failed to create bed', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Stats cards with tooltips
+  // Stats cards WITHOUT tooltips
   const statCards = [
     { 
       label: 'Total Beds', 
       value: stats.totalBeds, 
       icon: Bed, 
-      color: 'blue',
-      tooltip: 'Total number of beds in the selected ward'
+      color: 'blue'
     },
     { 
       label: 'Occupied', 
       value: stats.occupiedBeds, 
       icon: Users, 
       color: 'red',
-      tooltip: 'Beds currently occupied by patients',
       subtext: `${Math.round((stats.occupiedBeds / stats.totalBeds) * 100)}% occupied`
     },
     { 
       label: 'Available', 
       value: stats.availableBeds, 
       icon: Check, 
-      color: 'green',
-      tooltip: 'Beds ready for patient admission'
+      color: 'green'
     },
     { 
       label: 'Reserved', 
       value: stats.reservedBeds, 
       icon: Clock, 
-      color: 'yellow',
-      tooltip: 'Beds reserved for scheduled admissions'
+      color: 'yellow'
     }
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+        {isSubmitting && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 backdrop-blur-sm">
+            <div className="flex flex-col items-center rounded-2xl border border-white/20 bg-white/95 px-6 py-5 shadow-2xl">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+              <p className="mt-3 text-sm font-medium text-gray-700">Processing request...</p>
+            </div>
+          </div>
+        )}
+
         {feedbackModal.open && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-2xl">
@@ -514,7 +595,7 @@ const BedAllocation = () => {
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - WITHOUT tooltips */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
           {statCards.map((stat, index) => {
             const Icon = stat.icon;
@@ -526,22 +607,20 @@ const BedAllocation = () => {
             };
             
             return (
-              <Tooltip key={index} text={stat.tooltip}>
-                <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow cursor-help">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">{stat.label}</p>
-                      <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stat.value}</p>
-                      {stat.subtext && (
-                        <p className="text-[10px] text-gray-500 mt-0.5">{stat.subtext}</p>
-                      )}
-                    </div>
-                    <div className={`w-8 h-8 sm:w-10 sm:h-10 ${colorClasses[stat.color]} rounded-lg flex items-center justify-center border`}>
-                      <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
+              <div key={index} className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">{stat.label}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stat.value}</p>
+                    {stat.subtext && (
+                      <p className="text-[10px] text-gray-500 mt-0.5">{stat.subtext}</p>
+                    )}
+                  </div>
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 ${colorClasses[stat.color]} rounded-lg flex items-center justify-center border`}>
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                 </div>
-              </Tooltip>
+              </div>
             );
           })}
         </div>
@@ -855,13 +934,13 @@ const BedAllocation = () => {
                             <>
                               <IconButton
                                 icon={Clock}
-                                onClick={() => handleReserve(bed.bedId)}
+                                onClick={() => handleReserve(bed)}
                                 tooltip="Reserve this bed"
                                 variant="warning"
                               />
                               <IconButton
                                 icon={Check}
-                                onClick={() => handleAdmit(bed.bedId)}
+                                onClick={() => handleAdmit(bed)}
                                 tooltip="Admit a patient to this bed"
                                 variant="success"
                               />
@@ -981,7 +1060,7 @@ const BedAllocation = () => {
                   {(selectedBed.status === bedStatus.AVAILABLE || selectedBed.status === bedStatus.RESERVED) && (
                     <>
                       <ButtonWithTooltip
-                        onClick={() => handleReserve(selectedBed.bedId)}
+                        onClick={() => handleReserve(selectedBed)}
                         tooltip="Reserve this bed for a patient"
                         variant="warning"
                         className="flex-1 min-w-[120px]"
@@ -990,7 +1069,7 @@ const BedAllocation = () => {
                         Reserve Bed
                       </ButtonWithTooltip>
                       <ButtonWithTooltip
-                        onClick={() => handleAdmit(selectedBed.bedId)}
+                        onClick={() => handleAdmit(selectedBed)}
                         tooltip="Admit a patient to this bed"
                         variant="success"
                         className="flex-1 min-w-[120px]"
@@ -1066,7 +1145,7 @@ const BedAllocation = () => {
                     <input
                       type="text"
                       disabled
-                      value={reservationData.bedId}
+                      value={reservationData.bedLabel || reservationData.bedId}
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600"
                     />
                   </div>
@@ -1082,15 +1161,67 @@ const BedAllocation = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Patient ID *</label>
-                    <input
-                      type="text"
-                      placeholder="Enter patient ID"
-                      value={reservationData.patientId}
-                      onChange={(e) => setReservationData({ ...reservationData, patientId: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Patient *</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search by patient name or hospital ID"
+                        value={patientQuery}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPatientQuery(value);
+                          dispatch(searchPatients(value));
+                          if (!value) {
+                            setSelectedPatientOption(null);
+                            setReservationData({ ...reservationData, patientId: '' });
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                      {!selectedPatientOption && patientQuery && (
+                        <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                          {patientsLoading ? (
+                            <div className="px-3 py-2 text-sm text-gray-500">Loading patients...</div>
+                          ) : filteredPatients.length > 0 ? (
+                            filteredPatients.slice(0, 8).map((patient) => {
+                              const patientLabel = patient.name || patient.full_name || 'Unknown patient';
+                              const patientId = patient.hospital_number || patient.hospitalNumber || patient.id;
+                              return (
+                                <button
+                                  key={patient.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setReservationData({ ...reservationData, patientId: patientId });
+                                    setSelectedPatientOption(patient);
+                                    setPatientQuery(`${patientLabel} (${patientId})`);
+                                    dispatch(searchPatients(''));
+                                  }}
+                                  className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-gray-50"
+                                >
+                                  <span className="font-medium text-gray-900">{patientLabel}</span>
+                                  <span className="text-xs text-gray-500">{patientId}</span>
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="px-3 py-2 text-sm text-gray-500">No patients found</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {patientError && (
+                      <p className="mt-1 text-xs text-red-500">{patientError}</p>
+                    )}
+                    {selectedPatientOption && (
+                      <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                        <div className="font-medium">{selectedPatientOption.name || selectedPatientOption.full_name}</div>
+                        <div className="text-xs text-blue-700">
+                          {(selectedPatientOption.hospital_number || selectedPatientOption.hospitalNumber || selectedPatientOption.id)}
+                          {selectedPatientOption.phone ? ` • ${selectedPatientOption.phone}` : ''}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex gap-2 pt-4">
