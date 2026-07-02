@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   MapPin,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { reportIncident, updateIncident, dispatchResponse } from '../features/emergencyResponseSlice';
+import { emergencyApi } from '../utils/api';
 
 const EmergencyResponse = () => {
   // Add safe defaults for all Redux state values
@@ -35,6 +36,15 @@ const EmergencyResponse = () => {
   const [selectedCall, setSelectedCall] = useState(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [formData, setFormData] = useState({
+    callerName: '',
+    callerPhone: '',
+    severity: 'Medium',
+    incidentDescription: '',
+    patientName: '',
+    ambulanceId: ''
+  });
+  const [statusForm, setStatusForm] = useState('Received');
 
   // Safely filter calls
   const activeCalls = emergencyCalls.filter(c => c && c.status && c.status !== 'Completed' && c.status !== 'Cancelled');
@@ -81,15 +91,86 @@ const EmergencyResponse = () => {
     }
   };
 
-  const handleCreateCall = () => {
-    console.log('Creating new emergency call');
-    setShowCallModal(false);
+  useEffect(() => {
+    const loadCalls = async () => {
+      try {
+        const calls = await emergencyApi.getCalls();
+        const normalized = Array.isArray(calls) ? calls : calls.results || [];
+        normalized.forEach((call) => dispatch(reportIncident({
+          callId: call.callId || call.id,
+          callerName: call.callerName,
+          callerPhone: call.callerPhone,
+          severity: call.severity,
+          status: call.status,
+          incidentLocation: call.incidentLocation || {},
+          patientDetails: call.patientDetails || { name: call.patientName },
+          incidentType: call.incidentType,
+          responseTime: call.responseTime || 0,
+          dispatchedAmbulance: call.dispatchedAmbulance,
+          callTime: call.created_at,
+          notes: call.notes,
+          communications: call.communications || []
+        })));
+      } catch (error) {
+        console.error('Failed to load emergency calls', error);
+      }
+    };
+
+    if (!emergencyCalls.length) {
+      loadCalls();
+    }
+  }, [dispatch, emergencyCalls.length]);
+
+  const handleCreateCall = async () => {
+    try {
+      const payload = {
+        callerName: formData.callerName,
+        callerPhone: formData.callerPhone,
+        severity: formData.severity,
+        incidentDescription: formData.incidentDescription,
+        patientName: formData.patientName,
+        incidentType: formData.incidentDescription || 'Medical Emergency',
+        incidentLocation: { address: 'On-site incident', coordinates: { lat: 6.5244, lng: 3.3792 } },
+        patientDetails: { name: formData.patientName || 'Unknown' },
+        status: 'Received',
+        dispatchedAmbulance: formData.ambulanceId || ''
+      };
+      const created = await emergencyApi.createCall(payload);
+      dispatch(reportIncident({
+        callId: created.callId || created.id,
+        callerName: created.callerName,
+        callerPhone: created.callerPhone,
+        severity: created.severity,
+        status: created.status,
+        incidentLocation: created.incidentLocation || {},
+        patientDetails: created.patientDetails || { name: created.patientName },
+        incidentType: created.incidentType,
+        responseTime: created.responseTime || 0,
+        dispatchedAmbulance: created.dispatchedAmbulance,
+        callTime: created.created_at,
+        notes: created.notes,
+        communications: created.communications || []
+      }));
+      setShowCallModal(false);
+      setFormData({ callerName: '', callerPhone: '', severity: 'Medium', incidentDescription: '', patientName: '', ambulanceId: '' });
+    } catch (error) {
+      alert(error.message || 'Unable to create emergency call');
+    }
   };
 
-  const handleUpdateCall = () => {
-    if (selectedCall) {
-      console.log('Updating call:', selectedCall.callId);
+  const handleUpdateCall = async () => {
+    if (!selectedCall) return;
+    try {
+      const updated = await emergencyApi.updateCallStatus(selectedCall.callId || selectedCall.id, { status: statusForm, responseTime: selectedCall.responseTime || 0 });
+      dispatch(updateIncident({
+        incidentId: selectedCall.callId || selectedCall.id,
+        status: updated.status,
+        responseTime: updated.responseTime || selectedCall.responseTime || 0,
+        dispatchedAmbulance: updated.dispatchedAmbulance || selectedCall.dispatchedAmbulance
+      }));
       setSelectedCall(null);
+    } catch (error) {
+      alert(error.message || 'Unable to update call');
     }
   };
 
@@ -553,24 +634,23 @@ const EmergencyResponse = () => {
       >
         <div className="space-y-3 md:space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-            <input type="text" placeholder="Caller Name" className="sm:col-span-2 px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-            <input type="tel" placeholder="Caller Phone" className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-            <select className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
-              <option value="">Select Severity</option>
+            <input type="text" placeholder="Caller Name" value={formData.callerName} onChange={(e) => setFormData({ ...formData, callerName: e.target.value })} className="sm:col-span-2 px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+            <input type="tel" placeholder="Caller Phone" value={formData.callerPhone} onChange={(e) => setFormData({ ...formData, callerPhone: e.target.value })} className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+            <select value={formData.severity} onChange={(e) => setFormData({ ...formData, severity: e.target.value })} className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
               <option value="Critical">Critical</option>
               <option value="High">High</option>
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
             </select>
           </div>
-          <textarea placeholder="Incident Description" rows="3" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-          <input type="text" placeholder="Patient Name" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-          <select className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
+          <textarea placeholder="Incident Description" rows="3" value={formData.incidentDescription} onChange={(e) => setFormData({ ...formData, incidentDescription: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+          <input type="text" placeholder="Patient Name" value={formData.patientName} onChange={(e) => setFormData({ ...formData, patientName: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+          <select value={formData.ambulanceId} onChange={(e) => setFormData({ ...formData, ambulanceId: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
             <option value="">Assign Ambulance</option>
             {ambulances
               .filter(a => a && a.status === 'Available')
               .map(a => (
-                <option key={a.ambulanceId} value={a.ambulanceId}>{a.registration || 'Unknown'}</option>
+                <option key={a.ambulanceId} value={a.ambulanceId}>{a.vehicleNumber || a.registration || 'Unknown'}</option>
               ))
             }
           </select>
@@ -604,7 +684,7 @@ const EmergencyResponse = () => {
                 <p className="font-bold text-sm md:text-base text-blue-600">{selectedCall.responseTime || 0} mins</p>
               </div>
             </div>
-            <select className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" defaultValue={selectedCall.status || 'Received'}>
+            <select value={statusForm} onChange={(e) => setStatusForm(e.target.value)} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
               <option value="Received">Received</option>
               <option value="Dispatched">Dispatched</option>
               <option value="En Route">En Route</option>

@@ -1,4 +1,7 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { apiRequest } from '../utils/api';
+
+const API_BASE = '/api/v1/ndpr';
 
 const initialState = {
   consentRecords: [],
@@ -6,357 +9,287 @@ const initialState = {
   dataBreaches: [],
   auditLogs: [],
   complianceMetrics: {
-    consentCompliance: 94.2,
-    dataRequestProcessing: 98.5,
-    breachResponseTime: 2.3,
-    auditCompliance: 96.8,
-    trainingCompletion: 89.3
+    consentCompliance: 0,
+    dataRequestProcessing: 0,
+    breachResponseTime: 0,
+    auditCompliance: 0,
+    trainingCompletion: 0,
+    totalConsents: 0,
+    activeConsents: 0,
+    expiredConsents: 0,
+    withdrawnConsents: 0,
+    totalRequests: 0,
+    pendingRequests: 0,
+    openBreaches: 0,
+    totalBreaches: 0,
   },
   searchTerm: '',
   filterBy: 'all',
   loading: false,
-  error: null
+  error: null,
+};
+
+export const fetchConsentRecords = createAsyncThunk(
+  'ndpr/fetchConsentRecords',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+      const data = await apiRequest(`${API_BASE}/consent-records/${qs.toString() ? '?' + qs.toString() : ''}`);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load consent records.');
+    }
+  }
+);
+
+export const createConsentRecord = createAsyncThunk(
+  'ndpr/createConsentRecord',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/consent-records/`, { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create consent record.');
+    }
+  }
+);
+
+export const updateConsentRecord = createAsyncThunk(
+  'ndpr/updateConsentRecord',
+  async ({ consentId, updates }, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/consent-records/${consentId}/`, { method: 'PATCH', body: JSON.stringify(updates) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update consent record.');
+    }
+  }
+);
+
+export const withdrawConsent = createAsyncThunk(
+  'ndpr/withdrawConsent',
+  async ({ consentId, reason }, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/consent-records/${consentId}/withdraw/`, { method: 'POST', body: JSON.stringify({ reason }) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to withdraw consent.');
+    }
+  }
+);
+
+export const fetchDataRequests = createAsyncThunk(
+  'ndpr/fetchDataRequests',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+      const data = await apiRequest(`${API_BASE}/data-requests/${qs.toString() ? '?' + qs.toString() : ''}`);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load data requests.');
+    }
+  }
+);
+
+export const submitDataRequest = createAsyncThunk(
+  'ndpr/submitDataRequest',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/data-requests/`, { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to submit data request.');
+    }
+  }
+);
+
+export const processDataRequest = createAsyncThunk(
+  'ndpr/processDataRequest',
+  async ({ requestId, action: requestAction }, { rejectWithValue }) => {
+    try {
+      const endpoint = requestAction === 'approve' ? 'approve' : 'reject';
+      const data = await apiRequest(`${API_BASE}/data-requests/${requestId}/${endpoint}/`, { method: 'POST' });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to process data request.');
+    }
+  }
+);
+
+export const fetchDataBreaches = createAsyncThunk(
+  'ndpr/fetchDataBreaches',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+      const data = await apiRequest(`${API_BASE}/data-breaches/${qs.toString() ? '?' + qs.toString() : ''}`);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load data breaches.');
+    }
+  }
+);
+
+export const reportDataBreach = createAsyncThunk(
+  'ndpr/reportDataBreach',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/data-breaches/`, { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to report data breach.');
+    }
+  }
+);
+
+export const updateBreachStatus = createAsyncThunk(
+  'ndpr/updateBreachStatus',
+  async ({ breachId, status, updates = {} }, { rejectWithValue }) => {
+    try {
+      const endpoint = status === 'notify' ? 'notify' : 'update-status';
+      const body = endpoint === 'notify' ? {} : { status, ...updates };
+      const data = await apiRequest(`${API_BASE}/data-breaches/${breachId}/${endpoint}/`, { method: 'POST', body: JSON.stringify(body) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update breach status.');
+    }
+  }
+);
+
+export const fetchAuditLogs = createAsyncThunk(
+  'ndpr/fetchAuditLogs',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+      const data = await apiRequest(`${API_BASE}/audit-logs/${qs.toString() ? '?' + qs.toString() : ''}`);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load audit logs.');
+    }
+  }
+);
+
+export const auditDataAccess = createAsyncThunk(
+  'ndpr/auditDataAccess',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/audit-logs/`, { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to record audit log.');
+    }
+  }
+);
+
+export const fetchComplianceMetrics = createAsyncThunk(
+  'ndpr/fetchComplianceMetrics',
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/compliance-reports/metrics/`);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load compliance metrics.');
+    }
+  }
+);
+
+export const generateComplianceReport = createAsyncThunk(
+  'ndpr/generateComplianceReport',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await apiRequest(`${API_BASE}/compliance-reports/`, { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to generate compliance report.');
+    }
+  }
+);
+
+export const searchComplianceData = (term) => (dispatch) => {
+  dispatch(setSearchTerm(term));
+};
+
+export const filterComplianceData = (filter) => (dispatch) => {
+  dispatch(setFilterBy(filter));
 };
 
 const ndprSlice = createSlice({
   name: 'ndpr',
   initialState,
   reducers: {
-    createConsentRecord: (state, action) => {
-      const consent = {
-        id: `consent-${Date.now()}`,
-        ...action.payload,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        expiryDate: action.payload.retentionPeriod
-          ? new Date(Date.now() + (parseInt(action.payload.retentionPeriod) * 365 * 24 * 60 * 60 * 1000)).toISOString()
-          : null
-      };
-      state.consentRecords.push(consent);
-    },
-
-    updateConsentRecord: (state, action) => {
-      const { consentId, updates } = action.payload;
-      const consentIndex = state.consentRecords.findIndex(c => c.id === consentId);
-      if (consentIndex !== -1) {
-        state.consentRecords[consentIndex] = {
-          ...state.consentRecords[consentIndex],
-          ...updates,
-          updatedAt: new Date().toISOString()
-        };
-      }
-    },
-
-    withdrawConsent: (state, action) => {
-      const { consentId, reason } = action.payload;
-      const consentIndex = state.consentRecords.findIndex(c => c.id === consentId);
-      if (consentIndex !== -1) {
-        state.consentRecords[consentIndex].status = 'withdrawn';
-        state.consentRecords[consentIndex].withdrawalReason = reason;
-        state.consentRecords[consentIndex].withdrawnAt = new Date().toISOString();
-        state.consentRecords[consentIndex].updatedAt = new Date().toISOString();
-      }
-    },
-
-    submitDataRequest: (state, action) => {
-      const request = {
-        id: `request-${Date.now()}`,
-        ...action.payload,
-        status: 'pending',
-        submittedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        processingTime: null,
-        response: null,
-        completedAt: null
-      };
-      state.dataRequests.push(request);
-    },
-
-    processDataRequest: (state, action) => {
-      const { requestId, action: requestAction } = action.payload;
-      const requestIndex = state.dataRequests.findIndex(r => r.id === requestId);
-      if (requestIndex !== -1) {
-        const request = state.dataRequests[requestIndex];
-        request.status = requestAction === 'approve' ? 'approved' : 'rejected';
-        request.processedAt = new Date().toISOString();
-        request.processingTime = `${Math.floor((new Date() - new Date(request.submittedAt)) / (1000 * 60 * 60 * 24))} days`;
-        request.updatedAt = new Date().toISOString();
-
-        if (requestAction === 'approve') {
-          // Set completion date based on urgency
-          const completionDays = request.urgency === 'critical' ? 3 : request.urgency === 'urgent' ? 15 : 30;
-          request.completedAt = new Date(Date.now() + completionDays * 24 * 60 * 60 * 1000).toISOString();
-        }
-      }
-    },
-
-    reportDataBreach: (state, action) => {
-      const breach = {
-        id: `breach-${Date.now()}`,
-        ...action.payload,
-        status: 'investigating',
-        reportedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        responseTime: Math.floor((new Date() - new Date(action.payload.discoveryDate)) / (1000 * 60 * 60)),
-        notificationsSent: 0,
-        investigationFindings: null,
-        preventiveActions: null
-      };
-      state.dataBreaches.push(breach);
-    },
-
-    updateBreachStatus: (state, action) => {
-      const { breachId, status, updates } = action.payload;
-      const breachIndex = state.dataBreaches.findIndex(b => b.id === breachId);
-      if (breachIndex !== -1) {
-        state.dataBreaches[breachIndex] = {
-          ...state.dataBreaches[breachIndex],
-          ...updates,
-          status,
-          updatedAt: new Date().toISOString()
-        };
-      }
-    },
-
-    generateComplianceReport: (state, action) => {
-      const { period, reportType } = action.payload;
-      // In a real app, this would generate and download a report
-      console.log(`Generating ${reportType} compliance report for ${period}`);
-    },
-
-    auditDataAccess: (state, action) => {
-      const auditLog = {
-        id: `audit-${Date.now()}`,
-        ...action.payload,
-        timestamp: new Date().toISOString()
-      };
-      state.auditLogs.push(auditLog);
-
-      // Keep only last 1000 audit logs
-      if (state.auditLogs.length > 1000) {
-        state.auditLogs = state.auditLogs.slice(-1000);
-      }
-    },
-
-    searchComplianceData: (state, action) => {
+    setSearchTerm: (state, action) => {
       state.searchTerm = action.payload;
     },
-
-    filterComplianceData: (state, action) => {
+    setFilterBy: (state, action) => {
       state.filterBy = action.payload;
     },
-
-    setLoading: (state, action) => {
-      state.loading = action.payload;
-    },
-
     setError: (state, action) => {
       state.error = action.payload;
     },
-
     clearError: (state) => {
       state.error = null;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchConsentRecords.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchConsentRecords.fulfilled, (state, action) => { state.loading = false; state.consentRecords = action.payload; })
+      .addCase(fetchConsentRecords.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-    // Initialize with sample data
-    initializeSampleData: (state) => {
-      // Sample consent records
-      const sampleConsents = [
-        {
-          id: 'consent-1',
-          patientId: 'PAT-001',
-          patientName: 'John Adebayo',
-          consentType: 'treatment',
-          purpose: 'Medical treatment and care services',
-          dataCategories: ['Medical Records', 'Personal Information', 'Contact Details'],
-          retentionPeriod: '10',
-          thirdParties: ['NHIS', 'Laboratory Partners'],
-          consentMethod: 'digital',
-          witnessName: '',
-          status: 'active',
-          createdAt: '2024-01-15T10:00:00Z',
-          expiryDate: '2034-01-15T10:00:00Z'
-        },
-        {
-          id: 'consent-2',
-          patientId: 'PAT-002',
-          patientName: 'Mary Johnson',
-          consentType: 'data_processing',
-          purpose: 'Processing of personal and medical data for healthcare services',
-          dataCategories: ['Medical Records', 'Personal Information', 'Financial Data'],
-          retentionPeriod: '5',
-          thirdParties: ['Insurance Providers', 'Government Agencies'],
-          consentMethod: 'paper',
-          witnessName: 'Dr. Smith',
-          status: 'active',
-          createdAt: '2024-01-20T14:30:00Z',
-          expiryDate: '2029-01-20T14:30:00Z'
-        },
-        {
-          id: 'consent-3',
-          patientId: 'PAT-003',
-          patientName: 'David Okon',
-          consentType: 'research',
-          purpose: 'Participation in medical research studies',
-          dataCategories: ['Medical Records', 'Research Data'],
-          retentionPeriod: 'indefinite',
-          thirdParties: ['Research Institutions', 'University Hospitals'],
-          consentMethod: 'digital',
-          witnessName: '',
-          status: 'withdrawn',
-          createdAt: '2024-01-10T09:15:00Z',
-          withdrawnAt: '2024-01-25T11:20:00Z',
-          withdrawalReason: 'Patient changed mind about research participation'
-        }
-      ];
+      .addCase(createConsentRecord.fulfilled, (state, action) => { state.consentRecords.unshift(action.payload); })
+      .addCase(updateConsentRecord.fulfilled, (state, action) => {
+        const idx = state.consentRecords.findIndex(c => c.id === action.payload.id);
+        if (idx !== -1) state.consentRecords[idx] = action.payload;
+      })
+      .addCase(withdrawConsent.fulfilled, (state, action) => {
+        const idx = state.consentRecords.findIndex(c => c.id === action.payload.id);
+        if (idx !== -1) state.consentRecords[idx] = action.payload;
+      })
 
-      // Sample data requests
-      const sampleRequests = [
-        {
-          id: 'request-1',
-          requesterType: 'data_subject',
-          requesterName: 'Sarah Williams',
-          requesterContact: 'sarah.williams@email.com',
-          requestType: 'access',
-          dataCategories: ['Medical Records', 'Personal Information'],
-          reason: 'Patient wants to review their complete medical history',
-          urgency: 'normal',
-          identityVerification: 'National ID verified',
-          status: 'completed',
-          submittedAt: '2024-01-15T10:30:00Z',
-          processedAt: '2024-01-18T14:20:00Z',
-          processingTime: '3 days',
-          completedAt: '2024-01-20T16:45:00Z'
-        },
-        {
-          id: 'request-2',
-          requesterType: 'legal_representative',
-          requesterName: 'Michael Brown',
-          requesterContact: '+2348012345678',
-          requestType: 'erasure',
-          dataCategories: ['All Data'],
-          reason: 'Legal representative requesting complete data deletion as per court order',
-          urgency: 'urgent',
-          identityVerification: 'Court order verified',
-          status: 'approved',
-          submittedAt: '2024-01-22T09:15:00Z',
-          processedAt: '2024-01-23T11:30:00Z',
-          processingTime: '1 day'
-        },
-        {
-          id: 'request-3',
-          requesterType: 'data_subject',
-          requesterName: 'Grace Okafor',
-          requesterContact: 'grace.okafor@email.com',
-          requestType: 'rectification',
-          dataCategories: ['Personal Information'],
-          reason: 'Patient found incorrect contact information in records',
-          urgency: 'normal',
-          identityVerification: 'Email verification completed',
-          status: 'pending',
-          submittedAt: '2024-01-25T13:45:00Z'
-        }
-      ];
+      .addCase(fetchDataRequests.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchDataRequests.fulfilled, (state, action) => { state.loading = false; state.dataRequests = action.payload; })
+      .addCase(fetchDataRequests.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      // Sample data breaches
-      const sampleBreaches = [
-        {
-          id: 'breach-1',
-          breachType: 'unauthorized_access',
-          affectedData: ['Medical Records', 'Personal Information'],
-          affectedIndividuals: 45,
-          breachDate: '2024-01-18T14:30:00Z',
-          discoveryDate: '2024-01-18T16:45:00Z',
-          description: 'Unauthorized access to patient database by former employee using stolen credentials',
-          containmentActions: 'Immediate password reset, account suspension, system access review',
-          impactAssessment: 'Potential identity theft risk, no financial data compromised',
-          reportedToNITDA: true,
-          notificationSent: true,
-          status: 'resolved',
-          reportedAt: '2024-01-18T17:00:00Z',
-          responseTime: 2.25,
-          notificationsSent: 45,
-          investigationFindings: 'Insider threat from terminated employee',
-          preventiveActions: 'Enhanced access controls, mandatory password changes, security training'
-        },
-        {
-          id: 'breach-2',
-          breachType: 'system_failure',
-          affectedData: ['Medical Records'],
-          affectedIndividuals: 12,
-          breachDate: '2024-01-20T08:15:00Z',
-          discoveryDate: '2024-01-20T08:30:00Z',
-          description: 'System backup failure resulted in temporary unavailability of patient records',
-          containmentActions: 'Switched to redundant systems, restored from secondary backup',
-          impactAssessment: 'Temporary service disruption, no data loss or unauthorized access',
-          reportedToNITDA: false,
-          notificationSent: false,
-          status: 'resolved',
-          reportedAt: '2024-01-20T09:00:00Z',
-          responseTime: 0.25,
-          notificationsSent: 0
-        }
-      ];
+      .addCase(submitDataRequest.fulfilled, (state, action) => { state.dataRequests.unshift(action.payload); })
+      .addCase(processDataRequest.fulfilled, (state, action) => {
+        const idx = state.dataRequests.findIndex(r => r.id === action.payload.id);
+        if (idx !== -1) state.dataRequests[idx] = action.payload;
+      })
 
-      // Sample audit logs
-      const sampleAuditLogs = [
-        {
-          id: 'audit-1',
-          user: 'Dr. Johnson',
-          action: 'Patient data accessed',
-          patientId: 'PAT-001',
-          dataAccessed: 'Medical Records',
-          timestamp: '2024-01-25T10:30:00Z',
-          ipAddress: '192.168.1.100',
-          purpose: 'Patient consultation'
-        },
-        {
-          id: 'audit-2',
-          user: 'Nurse Williams',
-          action: 'Data export requested',
-          patientId: 'PAT-002',
-          dataAccessed: 'Complete Medical History',
-          timestamp: '2024-01-25T11:15:00Z',
-          ipAddress: '192.168.1.101',
-          purpose: 'Data subject access request'
-        },
-        {
-          id: 'audit-3',
-          user: 'Admin User',
-          action: 'Bulk data query',
-          patientId: 'Multiple',
-          dataAccessed: 'Compliance Report Data',
-          timestamp: '2024-01-25T14:20:00Z',
-          ipAddress: '192.168.1.1',
-          purpose: 'Monthly compliance audit'
-        }
-      ];
+      .addCase(fetchDataBreaches.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchDataBreaches.fulfilled, (state, action) => { state.loading = false; state.dataBreaches = action.payload; })
+      .addCase(fetchDataBreaches.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
-      state.consentRecords = sampleConsents;
-      state.dataRequests = sampleRequests;
-      state.dataBreaches = sampleBreaches;
-      state.auditLogs = sampleAuditLogs;
-    }
-  }
+      .addCase(reportDataBreach.fulfilled, (state, action) => { state.dataBreaches.unshift(action.payload); })
+      .addCase(updateBreachStatus.fulfilled, (state, action) => {
+        const idx = state.dataBreaches.findIndex(b => b.id === action.payload.id);
+        if (idx !== -1) state.dataBreaches[idx] = action.payload;
+      })
+
+      .addCase(fetchAuditLogs.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchAuditLogs.fulfilled, (state, action) => { state.loading = false; state.auditLogs = action.payload; })
+      .addCase(fetchAuditLogs.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+
+      .addCase(auditDataAccess.fulfilled, (state, action) => { state.auditLogs.unshift(action.payload); })
+
+      .addCase(fetchComplianceMetrics.fulfilled, (state, action) => {
+        state.complianceMetrics = { ...state.complianceMetrics, ...action.payload };
+      });
+  },
 });
 
 export const {
-  createConsentRecord,
-  updateConsentRecord,
-  withdrawConsent,
-  submitDataRequest,
-  processDataRequest,
-  reportDataBreach,
-  updateBreachStatus,
-  generateComplianceReport,
-  auditDataAccess,
-  searchComplianceData,
-  filterComplianceData,
-  setLoading,
+  setSearchTerm,
+  setFilterBy,
   setError,
   clearError,
-  initializeSampleData
 } = ndprSlice.actions;
 
 export default ndprSlice.reducer;

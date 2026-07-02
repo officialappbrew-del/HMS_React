@@ -494,6 +494,87 @@ export const auditApi = {
   updateComplianceScore: (id, data) => apiRequest(`/api/v1/audit/compliance-scores/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
+export const emergencyApi = {
+  getCalls: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/emergency-calls/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createCall: (data) => apiRequest('/api/v1/ward-rounds/emergency-calls/', { method: 'POST', body: JSON.stringify(data) }),
+  updateCallStatus: (id, data) => apiRequest(`/api/v1/ward-rounds/emergency-calls/${id}/update-status/`, { method: 'POST', body: JSON.stringify(data) }),
+  dispatchCall: (id, data) => apiRequest(`/api/v1/ward-rounds/emergency-calls/${id}/dispatch/`, { method: 'POST', body: JSON.stringify(data) }),
+
+  getMissions: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/ambulance-missions/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createMission: (data) => apiRequest('/api/v1/ward-rounds/ambulance-missions/', { method: 'POST', body: JSON.stringify(data) }),
+  updateMissionStatus: (id, data) => apiRequest(`/api/v1/ward-rounds/ambulance-missions/${id}/update-status/`, { method: 'POST', body: JSON.stringify(data) }),
+
+  getReferrals: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/referrals/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createReferral: (data) => apiRequest('/api/v1/ward-rounds/referrals/', { method: 'POST', body: JSON.stringify(data) }),
+  approveReferral: (id, data = {}) => apiRequest(`/api/v1/ward-rounds/referrals/${id}/approve/`, { method: 'POST', body: JSON.stringify(data) }),
+  completeReferral: (id, data = {}) => apiRequest(`/api/v1/ward-rounds/referrals/${id}/complete/`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+export const ndprApi = {
+  getConsentRecords: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ndpr/consent-records/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createConsentRecord: (data) => apiRequest('/api/v1/ndpr/consent-records/', { method: 'POST', body: JSON.stringify(data) }),
+  updateConsentRecord: (id, data) => apiRequest(`/api/v1/ndpr/consent-records/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  withdrawConsent: (id, data = {}) => apiRequest(`/api/v1/ndpr/consent-records/${id}/withdraw/`, { method: 'POST', body: JSON.stringify(data) }),
+  renewConsent: (id, data = {}) => apiRequest(`/api/v1/ndpr/consent-records/${id}/renew/`, { method: 'POST', body: JSON.stringify(data) }),
+
+  getDataRequests: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ndpr/data-requests/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createDataRequest: (data) => apiRequest('/api/v1/ndpr/data-requests/', { method: 'POST', body: JSON.stringify(data) }),
+  approveDataRequest: (id) => apiRequest(`/api/v1/ndpr/data-requests/${id}/approve/`, { method: 'POST' }),
+  rejectDataRequest: (id, data = {}) => apiRequest(`/api/v1/ndpr/data-requests/${id}/reject/`, { method: 'POST', body: JSON.stringify(data) }),
+  completeDataRequest: (id) => apiRequest(`/api/v1/ndpr/data-requests/${id}/complete/`, { method: 'POST' }),
+
+  getDataBreaches: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ndpr/data-breaches/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createDataBreach: (data) => apiRequest('/api/v1/ndpr/data-breaches/', { method: 'POST', body: JSON.stringify(data) }),
+  updateBreachStatus: (id, status, data = {}) => apiRequest(`/api/v1/ndpr/data-breaches/${id}/${status === 'notify' ? 'notify' : 'update-status'}/`, { method: 'POST', body: JSON.stringify(data) }),
+
+  getAuditLogs: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ndpr/audit-logs/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createAuditLog: (data) => apiRequest('/api/v1/ndpr/audit-logs/', { method: 'POST', body: JSON.stringify(data) }),
+
+  getComplianceMetrics: () => apiRequest('/api/v1/ndpr/compliance-reports/metrics/'),
+  getComplianceReports: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ndpr/compliance-reports/${qsStr ? '?' + qsStr : ''}`);
+  },
+  generateComplianceReport: (data) => apiRequest('/api/v1/ndpr/compliance-reports/', { method: 'POST', body: JSON.stringify(data) }),
+};
+
 export const wardRoundApi = {
   getRounds: (params = {}) => {
     const qs = new URLSearchParams();

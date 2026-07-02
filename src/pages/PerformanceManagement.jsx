@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Plus,
   BarChart3,
@@ -10,6 +10,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
+import { apiRequest, parseListResponse } from '../utils/api';
+import { addAppraisal, addResearchOutput, addTeachingHours, addSatisfactionScore, addIncidentRecord } from '../features/performanceSlice';
 
 const PerformanceManagement = () => {
   const performanceState = useSelector(state => state.performance) || {};
@@ -19,10 +21,13 @@ const PerformanceManagement = () => {
   const teachingHours = performanceState.teachingHours || [];
   const satisfactionScores = performanceState.satisfactionScores || [];
   const incidentRecords = performanceState.incidentRecords || [];
+  const dispatch = useDispatch();
   const { staff } = useSelector(state => state.staff);
 
   const [activeTab, setActiveTab] = useState('appraisals');
   const [showAppraisalForm, setShowAppraisalForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const [appraisalData, setAppraisalData] = useState({
     staffId: '',
@@ -43,20 +48,96 @@ const PerformanceManagement = () => {
     { name: 'Continuous Learning', key: 'continuousLearning' }
   ];
 
-  const handleAddAppraisal = () => {
+  useEffect(() => {
+    const loadPerformanceData = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const [appraisalResponse, auditResponse, researchResponse, teachingResponse, satisfactionResponse, incidentResponse] = await Promise.all([
+          apiRequest('/api/v1/ward-rounds/performance-appraisals/'),
+          apiRequest('/api/v1/ward-rounds/performance-audits/'),
+          apiRequest('/api/v1/ward-rounds/research-outputs/'),
+          apiRequest('/api/v1/ward-rounds/teaching-activities/'),
+          apiRequest('/api/v1/ward-rounds/satisfaction-surveys/'),
+          apiRequest('/api/v1/ward-rounds/performance-incidents/')
+        ]);
+
+        parseListResponse(appraisalResponse).forEach(item => {
+          dispatch(addAppraisal({ ...item, appraisalId: item.appraisalId || item.id, comments: item.comments || item.overallComments }));
+        });
+
+        parseListResponse(researchResponse).forEach(item => {
+          dispatch(addResearchOutput({ ...item, researchId: item.researchId || item.id }));
+        });
+
+        parseListResponse(teachingResponse).forEach(item => {
+          dispatch(addTeachingHours({ ...item, teachingId: item.teachingId || item.id }));
+        });
+
+        parseListResponse(satisfactionResponse).forEach(item => {
+          dispatch(addSatisfactionScore({ ...item, satisfactionId: item.satisfactionId || item.id }));
+        });
+
+        parseListResponse(incidentResponse).forEach(item => {
+          dispatch(addIncidentRecord({ ...item, incidentId: item.incidentId || item.id, investigationStatus: item.investigationStatus || item.status || 'Open' }));
+        });
+      } catch (err) {
+        setError(err.message || 'Failed to load performance data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPerformanceData();
+  }, [dispatch]);
+
+  const handleAddAppraisal = async () => {
     if (appraisalData.staffId && appraisalData.appraisalPeriod) {
-      // In real app, dispatch to Redux
-      setShowAppraisalForm(false);
-      setAppraisalData({
-        staffId: '',
-        appraisalPeriod: '',
-        clinicalExcellence: '4',
-        patientCare: '4',
-        teamwork: '4',
-        leadership: '4',
-        continuousLearning: '4',
-        comments: ''
-      });
+      setError('');
+      try {
+        const payload = {
+          staffId: appraisalData.staffId,
+          staffName: staff.find(s => s.staffId === appraisalData.staffId)?.name || '',
+          appraisalYear: new Date().getFullYear(),
+          period: appraisalData.appraisalPeriod,
+          rater: 'Performance Manager',
+          rating: Math.max(...performanceDimensions.map(d => parseFloat(appraisalData[d.key] || 0))),
+          clinicalExcellence: parseFloat(appraisalData.clinicalExcellence),
+          patientCare: parseFloat(appraisalData.patientCare),
+          teamwork: parseFloat(appraisalData.teamwork),
+          leadership: parseFloat(appraisalData.leadership),
+          continuousLearning: parseFloat(appraisalData.continuousLearning),
+          overallComments: appraisalData.comments,
+          status: 'Completed',
+          date: new Date().toISOString().split('T')[0]
+        };
+
+        const response = await apiRequest('/api/v1/ward-rounds/performance-appraisals/', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        dispatch(addAppraisal({
+          ...response,
+          appraisalId: response.appraisalId || response.id,
+          comments: response.comments || response.overallComments,
+          overallRating: response.overallRating || response.rating
+        }));
+
+        setShowAppraisalForm(false);
+        setAppraisalData({
+          staffId: '',
+          appraisalPeriod: '',
+          clinicalExcellence: '4',
+          patientCare: '4',
+          teamwork: '4',
+          leadership: '4',
+          continuousLearning: '4',
+          comments: ''
+        });
+      } catch (err) {
+        setError(err.message || 'Unable to save appraisal.');
+      }
     }
   };
 
@@ -76,6 +157,14 @@ const PerformanceManagement = () => {
     if (num >= 2) return 'Fair';
     return 'Poor';
   };
+
+  if (isLoading) {
+    return (
+      <div className="performance-management p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">Loading performance data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="performance-management p-6 bg-gray-50 min-h-screen">
@@ -203,6 +292,12 @@ const PerformanceManagement = () => {
           Incidents ({incidentRecords.length})
         </button>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
 
       {/* Appraisals Tab */}
       {activeTab === 'appraisals' && (

@@ -480,7 +480,8 @@ const AdmissionManagement = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    const preselectedPatient = location.state?.preselectedPatient;
+    const sessionPrefill = sessionStorage.getItem('admissionPrefillPatient');
+    const preselectedPatient = location.state?.preselectedPatient || (sessionPrefill ? JSON.parse(sessionPrefill) : null);
     if (preselectedPatient) {
       setFormData((current) => ({
         ...current,
@@ -490,6 +491,7 @@ const AdmissionManagement = () => {
       }));
       setPatientSearchQuery(preselectedPatient.patientName || preselectedPatient.name || '');
       setShowAdmissionForm(true);
+      sessionStorage.removeItem('admissionPrefillPatient');
     }
   }, [location.state]);
 
@@ -1000,7 +1002,26 @@ const AdmissionManagement = () => {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const preselectedPatient = {
+                              patientId: request.patientId || request.id,
+                              patientName: request.patientName,
+                              name: request.patientName,
+                            };
+                            sessionStorage.setItem('admissionPrefillPatient', JSON.stringify(preselectedPatient));
+                            setFormData((current) => ({
+                              ...current,
+                              patientId: preselectedPatient.patientId,
+                              patientName: preselectedPatient.patientName,
+                              source: current.source || 'Direct Admission',
+                            }));
+                            setPatientSearchQuery(preselectedPatient.patientName || '');
+                            setShowAdmissionForm(true);
+                          }}
+                          className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                        >
                           <span className="flex items-center gap-1"><UserPlus className="w-3.5 h-3.5" />Admit</span>
                         </button>
                         <button type="button" onClick={() => showViewDetails(request, 'request')} className="rounded-md border border-blue-200 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50">

@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Plus,
   Calendar,
@@ -12,9 +12,11 @@ import {
   Menu,
   X,
   Search,
-  Filter
+  Filter,
+  User
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
+import { apiRequest, parseListResponse } from '../utils/api';
 import { addLeaveRequest, approveLeave, rejectLeave, addOvertimeRecord, addDutyRoster, addDutyAssignment } from '../features/rosterSlice';
 
 const DutyRoster = () => {
@@ -32,6 +34,9 @@ const DutyRoster = () => {
   const [showCreateRosterModal, setShowCreateRosterModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [staffSearchQuery, setStaffSearchQuery] = useState('');
 
   const [leaveFormData, setLeaveFormData] = useState({
     staffId: '',
@@ -67,6 +72,54 @@ const DutyRoster = () => {
   const leaveTypes = ['Annual', 'Sick', 'Maternity', 'Paternity', 'Study', 'Compassionate', 'Conference'];
   const dutyTypes = ['Call Duty', 'Night Duty', 'Weekend', 'Emergency', 'Clinic'];
 
+  const rosterSummary = useMemo(() => ({
+    published: dutyRosters.length,
+    pendingLeaves: leaves.filter(l => l.status === 'Pending').length,
+    overtimeHours: overtime.reduce((sum, r) => sum + (parseFloat(r.hoursWorked || r.hours || 0)), 0)
+  }), [dutyRosters, leaves, overtime]);
+
+  useEffect(() => {
+    const loadRosterData = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+      try {
+        const [rostersResponse, leavesResponse, overtimeResponse] = await Promise.all([
+          apiRequest('/api/v1/ward-rounds/duty-rosters/'),
+          apiRequest('/api/v1/ward-rounds/leave-requests/'),
+          apiRequest('/api/v1/ward-rounds/overtime-records/')
+        ]);
+
+        const rosterItems = parseListResponse(rostersResponse).map(item => ({
+          ...item,
+          rosterId: item.rosterId || item.id,
+          assignments: item.assignments || []
+        }));
+        const leaveItems = parseListResponse(leavesResponse).map(item => ({
+          ...item,
+          leaveId: item.leaveId || item.id,
+          status: item.status || 'Pending'
+        }));
+        const overtimeItems = parseListResponse(overtimeResponse).map(item => ({
+          ...item,
+          overtimeId: item.overtimeId || item.id,
+          status: item.approvalStatus || item.status || 'Pending'
+        }));
+
+        if (rosterItems.length) {
+          dispatch(addDutyRoster(rosterItems[0]));
+        }
+        leaveItems.forEach((leave) => dispatch(addLeaveRequest(leave)));
+        overtimeItems.forEach((record) => dispatch(addOvertimeRecord(record)));
+      } catch (error) {
+        setErrorMessage(error.message || 'Unable to load roster data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadRosterData();
+  }, [dispatch]);
+
   // Filter leaves based on search query
   const filteredLeaves = searchQuery 
     ? leaves.filter(leave => {
@@ -80,18 +133,27 @@ const DutyRoster = () => {
     : leaves;
 
   // Approve leave request
-  const handleApproveLeave = (leaveId) => {
-    dispatch(approveLeave(leaveId));
+  const handleApproveLeave = async (leaveId) => {
+    try {
+      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/approve/`, { method: 'POST', body: JSON.stringify({ approvedBy: 'System' }) });
+      dispatch(approveLeave({ leaveId, approvedBy: 'System' }));
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to approve leave.');
+    }
   };
 
   // Reject leave request
-  const handleRejectLeave = (leaveId) => {
-    dispatch(rejectLeave(leaveId));
+  const handleRejectLeave = async (leaveId) => {
+    try {
+      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/reject/`, { method: 'POST', body: JSON.stringify({ approvedBy: 'System' }) });
+      dispatch(rejectLeave({ leaveId, approvedBy: 'System' }));
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to reject leave.');
+    }
   };
 
   // Get leave balance for a staff member
   const getLeaveBalance = (staffId) => {
-    const allocation = { 'DR001': 21, 'NUR001': 21, 'PHARM001': 21, 'LAB001': 21, 'ADMIN001': 18 };
     const usedDays = leaves
       .filter(l => l.staffId === staffId && l.status === 'Approved' && l.leaveType === 'Annual')
       .reduce((sum, l) => {
@@ -100,37 +162,79 @@ const DutyRoster = () => {
         const end = new Date(l.endDate);
         return sum + Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
       }, 0);
-    return (allocation[staffId] || 0) - usedDays;
+    return Math.max(0, 21 - usedDays);
   };
 
-  const handleAddLeave = () => {
+  const handleAddLeave = async () => {
     if (leaveFormData.staffId && leaveFormData.leaveType && leaveFormData.startDate && leaveFormData.endDate) {
-      setShowAddLeaveModal(false);
-      setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
+      try {
+        const payload = {
+          staffId: leaveFormData.staffId,
+          staffName: staff.find(member => member.staffId === leaveFormData.staffId)?.name || '',
+          leaveType: leaveFormData.leaveType,
+          startDate: leaveFormData.startDate,
+          endDate: leaveFormData.endDate,
+          reason: leaveFormData.reason,
+          status: 'Pending'
+        };
+        const response = await apiRequest('/api/v1/ward-rounds/leave-requests/', { method: 'POST', body: JSON.stringify(payload) });
+        dispatch(addLeaveRequest({ ...response, leaveId: response.leaveId || response.id }));
+        setShowAddLeaveModal(false);
+        setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
+      } catch (error) {
+        setErrorMessage(error.message || 'Unable to save leave request.');
+      }
     }
   };
 
-  const handleAddOvertime = () => {
+  const handleAddOvertime = async () => {
     if (overtimeFormData.staffId && overtimeFormData.date && overtimeFormData.hours) {
-      setShowAddOvertimeModal(false);
-      setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
+      try {
+        const payload = {
+          staffId: overtimeFormData.staffId,
+          staffName: staff.find(member => member.staffId === overtimeFormData.staffId)?.name || '',
+          date: overtimeFormData.date,
+          hoursWorked: overtimeFormData.hours,
+          reason: overtimeFormData.reason,
+          status: 'Pending',
+          rate: '1.5x'
+        };
+        const response = await apiRequest('/api/v1/ward-rounds/overtime-records/', { method: 'POST', body: JSON.stringify(payload) });
+        dispatch(addOvertimeRecord({ ...response, overtimeId: response.overtimeId || response.id, status: response.approvalStatus || response.status || 'Pending' }));
+        setShowAddOvertimeModal(false);
+        setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
+      } catch (error) {
+        setErrorMessage(error.message || 'Unable to save overtime record.');
+      }
     }
   };
 
-  const handleCreateRoster = () => {
+  const handleCreateRoster = async () => {
     if (rosterFormData.month && rosterFormData.year && rosterFormData.department) {
-      const newRoster = {
-        rosterId: `ROSTER${Date.now()}`,
-        month: rosterFormData.month,
-        year: parseInt(rosterFormData.year),
-        department: rosterFormData.department,
-        status: 'Draft',
-        createdDate: new Date().toISOString().split('T')[0],
-        assignments: rosterFormData.assignments
-      };
-      dispatch(addDutyRoster(newRoster));
-      setShowCreateRosterModal(false);
-      setRosterFormData({ month: '', year: '', department: '', assignments: [] });
+      try {
+        const payload = {
+          month: rosterFormData.month,
+          year: parseInt(rosterFormData.year, 10),
+          department: rosterFormData.department,
+          status: 'Draft',
+          assignments: rosterFormData.assignments.map(assignment => ({
+            staffId: assignment.staffId,
+            staffName: assignment.staffName,
+            date: assignment.date,
+            dutyType: assignment.dutyType,
+            startTime: assignment.startTime,
+            endTime: assignment.endTime,
+            notes: assignment.notes
+          }))
+        };
+        const response = await apiRequest('/api/v1/ward-rounds/duty-rosters/', { method: 'POST', body: JSON.stringify(payload) });
+        dispatch(addDutyRoster({ ...response, rosterId: response.rosterId || response.id, assignments: response.assignments || [] }));
+        setShowCreateRosterModal(false);
+        setRosterFormData({ month: '', year: '', department: '', assignments: [] });
+        setStaffSearchQuery('');
+      } catch (error) {
+        setErrorMessage(error.message || 'Unable to create roster.');
+      }
     }
   };
 
@@ -159,6 +263,7 @@ const DutyRoster = () => {
         endTime: '',
         notes: ''
       });
+      setStaffSearchQuery('');
     }
   };
 
@@ -264,7 +369,7 @@ const DutyRoster = () => {
             <Calendar className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-nigerian-green mr-2 md:mr-3" />
             <div>
               <p className="text-gray-600 text-xs md:text-sm">Published Rosters</p>
-              <p className="text-nigerian-green font-bold text-lg md:text-xl lg:text-2xl">{dutyRosters.length}</p>
+              <p className="text-nigerian-green font-bold text-lg md:text-xl lg:text-2xl">{rosterSummary.published}</p>
             </div>
           </div>
         </div>
@@ -274,7 +379,7 @@ const DutyRoster = () => {
             <AlertCircle className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-blue-500 mr-2 md:mr-3" />
             <div>
               <p className="text-gray-600 text-xs md:text-sm">Pending Leaves</p>
-              <p className="text-blue-500 font-bold text-lg md:text-xl lg:text-2xl">{leaves.filter(l => l.status === 'Pending').length}</p>
+              <p className="text-blue-500 font-bold text-lg md:text-xl lg:text-2xl">{rosterSummary.pendingLeaves}</p>
             </div>
           </div>
         </div>
@@ -285,7 +390,7 @@ const DutyRoster = () => {
             <div>
               <p className="text-gray-600 text-xs md:text-sm">Overtime Hours</p>
               <p className="text-orange-500 font-bold text-lg md:text-xl lg:text-2xl">
-                {overtime.reduce((sum, r) => sum + (parseFloat(r.hoursWorked || r.hours || 0)), 0).toFixed(1)}
+                {rosterSummary.overtimeHours}
               </p>
             </div>
           </div>
@@ -392,6 +497,14 @@ const DutyRoster = () => {
           </button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+      )}
+
+      {isLoading && (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Loading roster data…</div>
+      )}
 
       {/* Rosters Tab */}
       {activeTab === 'roster' && (
@@ -763,9 +876,13 @@ const DutyRoster = () => {
       {/* Create Roster Modal */}
       <GenericModal
         isOpen={showCreateRosterModal}
-        onClose={() => setShowCreateRosterModal(false)}
+        onClose={() => {
+          setShowCreateRosterModal(false);
+          setStaffSearchQuery('');
+          setShowStaffDropdown(false);
+        }}
         title="Create Duty Roster"
-        size="large"
+        size="2xl"
       >
         <div className="space-y-6">
           {/* Roster Details */}
@@ -817,21 +934,72 @@ const DutyRoster = () => {
           {/* Add Assignment Form */}
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Duty Assignments</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Staff Member</label>
-                <select
-                  value={assignmentFormData.staffId}
-                  onChange={(e) => setAssignmentFormData(prev => ({ ...prev, staffId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
-                >
-                  <option value="">Select Staff</option>
-                  {staff.map(member => (
-                    <option key={member.staffId} value={member.staffId}>
-                      {member.name} - {member.role}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={staffSearchQuery}
+                    onChange={(e) => setStaffSearchQuery(e.target.value)}
+                    placeholder="Search staff by name, role, or department..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                  />
+                  {staffSearchQuery && (
+                    <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                      {staff
+                        .filter(member => {
+                          const query = staffSearchQuery.toLowerCase();
+                          return (
+                            (member.name || '').toLowerCase().includes(query) ||
+                            (member.role || '').toLowerCase().includes(query) ||
+                            (member.staffId || '').toLowerCase().includes(query) ||
+                            (member.department || '').toLowerCase().includes(query) ||
+                            (member.email || '').toLowerCase().includes(query)
+                          );
+                        })
+                        .slice(0, 8)
+                        .map(member => (
+                          <button
+                            key={member.id || member.staffId}
+                            type="button"
+                            onClick={() => {
+                              setAssignmentFormData(prev => ({
+                                ...prev,
+                                staffId: member.staffId || member.id,
+                                staffName: member.name || ''
+                              }));
+                              setStaffSearchQuery(member.name || '');
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-0"
+                          >
+                            <span className="font-medium text-gray-900">{member.name}</span>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span>{member.role}</span>
+                              {member.department && (
+                                <>
+                                  <span>•</span>
+                                  <span>{member.department}</span>
+                                </>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      {staff.filter(member => {
+                        const query = staffSearchQuery.toLowerCase();
+                        return (
+                          (member.name || '').toLowerCase().includes(query) ||
+                          (member.role || '').toLowerCase().includes(query) ||
+                          (member.staffId || '').toLowerCase().includes(query) ||
+                          (member.department || '').toLowerCase().includes(query) ||
+                          (member.email || '').toLowerCase().includes(query)
+                        );
+                      }).length === 0 && (
+                        <p className="px-3 py-2 text-xs text-gray-500">No staff found</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>

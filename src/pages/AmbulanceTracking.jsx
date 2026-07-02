@@ -1,5 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
+import { emergencyApi } from '../utils/api';
 import {
   updateAmbulanceLocation,
   dispatchAmbulance,
@@ -46,6 +47,7 @@ const AmbulanceTracking = () => {
     location: '',
     notes: ''
   });
+  const [loading, setLoading] = useState(false);
 
   // Filter missions based on search query
   const filteredActiveMissions = activeMissions.filter(mission => {
@@ -92,7 +94,7 @@ const AmbulanceTracking = () => {
     return () => clearInterval(interval);
   }, [ambulances, dispatch]);
 
-  const handleDispatch = (e) => {
+  const handleDispatch = async (e) => {
     e.preventDefault();
 
     if (!dispatchData.ambulanceId || !dispatchData.patientId) {
@@ -100,55 +102,67 @@ const AmbulanceTracking = () => {
       return;
     }
 
-    const patient = patients.find(p => p.patientId === dispatchData.patientId);
-    const ambulance = ambulances.find(a => a.ambulanceId === dispatchData.ambulanceId);
+    setLoading(true);
+    try {
+      const patient = patients.find(p => p.patientId === dispatchData.patientId);
+      const ambulance = ambulances.find(a => a.ambulanceId === dispatchData.ambulanceId);
 
-    const missionData = {
-      missionId: `MISS${Date.now()}`,
-      incidentType: dispatchData.incidentType || 'Medical Emergency',
-      priority: dispatchData.priority || 'Medium',
-      patientInfo: {
-        name: patient?.name || 'Unknown',
-        age: patient?.age || 0,
-        condition: 'Emergency transport required'
-      },
-      pickupLocation: {
-        address: dispatchData.location || 'Unknown location',
-        coordinates: ambulance?.location || { lat: 6.5244, lng: 3.3792 }
-      },
-      destination: {
-        name: 'General Hospital',
-        address: 'Hospital Road, Lagos',
-        coordinates: { lat: 6.5244, lng: 3.3792 }
-      },
-      crew: [
-        { name: 'Paramedic', role: 'Medical Officer' },
-        { name: 'Driver', role: 'Driver' }
-      ],
-      notes: dispatchData.notes || '',
-      dispatchedAt: new Date().toISOString(),
-      status: 'Dispatched'
-    };
-
-    dispatch(dispatchAmbulance({
-      ambulanceId: dispatchData.ambulanceId,
-      missionData
-    }));
-
-    if (patient?.patientId || dispatchData.patientId) {
-      dispatch(createAdmissionRequest({
-        patientId: patient?.patientId || dispatchData.patientId,
-        patientName: patient?.name || 'Unknown',
-        source: 'Emergency Department',
-        diagnosis: dispatchData.incidentType || 'Emergency transport',
-        preferredWardType: 'General Ward',
+      const missionData = {
+        ambulanceId: dispatchData.ambulanceId,
+        incidentType: dispatchData.incidentType || 'Medical Emergency',
         priority: dispatchData.priority || 'Medium',
-        notes: `Auto-created from ambulance mission ${missionData.missionId}`
-      }));
-    }
+        patientInfo: {
+          name: patient?.name || 'Unknown',
+          age: patient?.age || 0,
+          condition: 'Emergency transport required'
+        },
+        pickupLocation: {
+          address: dispatchData.location || 'Unknown location',
+          coordinates: ambulance?.location || { lat: 6.5244, lng: 3.3792 }
+        },
+        destination: {
+          name: 'General Hospital',
+          address: 'Hospital Road, Lagos',
+          coordinates: { lat: 6.5244, lng: 3.3792 }
+        },
+        crew: [
+          { name: 'Paramedic', role: 'Medical Officer' },
+          { name: 'Driver', role: 'Driver' }
+        ],
+        notes: dispatchData.notes || '',
+        status: 'Dispatched'
+      };
 
-    setShowDispatchForm(false);
-    resetDispatchForm();
+      const createdMission = await emergencyApi.createMission(missionData);
+      dispatch(dispatchAmbulance({
+        ambulanceId: dispatchData.ambulanceId,
+        missionData: {
+          ...missionData,
+          missionId: createdMission.missionId || createdMission.id,
+          dispatchedAt: createdMission.dispatchedAt || new Date().toISOString(),
+          status: createdMission.status || 'Dispatched'
+        }
+      }));
+
+      if (patient?.patientId || dispatchData.patientId) {
+        dispatch(createAdmissionRequest({
+          patientId: patient?.patientId || dispatchData.patientId,
+          patientName: patient?.name || 'Unknown',
+          source: 'Emergency Department',
+          diagnosis: dispatchData.incidentType || 'Emergency transport',
+          preferredWardType: 'General Ward',
+          priority: dispatchData.priority || 'Medium',
+          notes: `Auto-created from ambulance mission ${createdMission.missionId || createdMission.id}`
+        }));
+      }
+
+      setShowDispatchForm(false);
+      resetDispatchForm();
+    } catch (error) {
+      alert(error.message || 'Unable to dispatch ambulance');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetDispatchForm = () => {
@@ -162,21 +176,31 @@ const AmbulanceTracking = () => {
     });
   };
 
-  const handleStatusUpdate = (missionId, status) => {
-    dispatch(updateMissionStatus({
-      missionId,
-      status,
-      timestamp: new Date().toISOString(),
-      notes: `Status updated to ${status}`
-    }));
+  const handleStatusUpdate = async (missionId, status) => {
+    try {
+      const updated = await emergencyApi.updateMissionStatus(missionId, { status });
+      dispatch(updateMissionStatus({
+        missionId,
+        status: updated.status || status,
+        timestamp: new Date().toISOString(),
+        notes: `Status updated to ${status}`
+      }));
+    } catch (error) {
+      alert(error.message || 'Unable to update mission');
+    }
   };
 
-  const handleCompleteMission = (missionId) => {
-    dispatch(completeMission({
-      missionId,
-      outcome: 'Patient transported successfully',
-      completedAt: new Date().toISOString()
-    }));
+  const handleCompleteMission = async (missionId) => {
+    try {
+      const completed = await emergencyApi.updateMissionStatus(missionId, { status: 'Completed', outcome: 'Patient transported successfully' });
+      dispatch(completeMission({
+        missionId,
+        outcome: completed.outcome || 'Patient transported successfully',
+        completedAt: completed.completedAt || new Date().toISOString()
+      }));
+    } catch (error) {
+      alert(error.message || 'Unable to complete mission');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -319,7 +343,7 @@ const AmbulanceTracking = () => {
           className="bg-red-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-md hover:bg-red-700 font-medium text-sm md:text-base inline-flex items-center justify-center"
         >
           <Plus className="w-4 h-4 mr-1 md:mr-2" />
-          <span>Dispatch</span>
+          <span>{loading ? 'Dispatching...' : 'Dispatch'}</span>
         </button>
       </div>
 

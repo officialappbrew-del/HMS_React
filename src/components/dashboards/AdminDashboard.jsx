@@ -1548,17 +1548,18 @@ const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hosp
   };
 
   const handleCreateAdmissionForPatient = (patient) => {
+    const preselectedPatient = {
+      patientId: patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id,
+      patientName: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+      name: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+      phone: patient.phone || patient.phone_number,
+      email: patient.email,
+      id: patient.id,
+    };
+
+    sessionStorage.setItem('admissionPrefillPatient', JSON.stringify(preselectedPatient));
     navigate('/admissions', {
-      state: {
-        preselectedPatient: {
-          patientId: patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id,
-          patientName: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
-          name: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
-          phone: patient.phone || patient.phone_number,
-          email: patient.email,
-          id: patient.id,
-        }
-      }
+      state: { preselectedPatient },
     });
   };
 

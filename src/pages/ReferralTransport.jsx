@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Plane,
   MapPin,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { createReferral, updateReferral, completeTransport } from '../features/referralSlice';
+import { emergencyApi } from '../utils/api';
 
 const ReferralTransport = () => {
   const referralState = useSelector(state => state.referral || {});
@@ -31,6 +32,21 @@ const ReferralTransport = () => {
   const [selectedReferral, setSelectedReferral] = useState(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [referralForm, setReferralForm] = useState({
+    referralType: '',
+    patientName: '',
+    referralReason: '',
+    receivingFacility: '',
+    ambulanceId: ''
+  });
+  const [evacuationForm, setEvacuationForm] = useState({
+    patientName: '',
+    originCountry: '',
+    destinationCountry: '',
+    fundingSource: '',
+    transportMode: 'Air Ambulance'
+  });
+  const [statusForm, setStatusForm] = useState('Pending');
 
   const activeReferrals = referrals.filter(r => {
     if (!r || !r.status) return false;
@@ -102,20 +118,139 @@ const ReferralTransport = () => {
     return transferCompliance.filter(c => c.referralId === referralId);
   };
 
-  const handleCreateReferral = () => {
-    console.log('Creating new referral');
-    setShowReferralModal(false);
+  useEffect(() => {
+    const loadReferrals = async () => {
+      try {
+        const records = await emergencyApi.getReferrals();
+        const normalized = Array.isArray(records) ? records : records.results || [];
+        normalized.forEach((ref) => dispatch(createReferral({
+          referralId: ref.referralId || ref.id,
+          patientName: ref.patientName,
+          referralType: ref.referralType,
+          referralReason: ref.referralReason,
+          referringFacility: ref.referringFacility || {},
+          receivingFacility: ref.receivingFacility || {},
+          status: ref.status,
+          ambulanceId: ref.ambulanceId,
+          referralDate: ref.referralDate,
+          arrivalTime: ref.arrivalTime,
+          outcome: ref.outcome,
+          notes: ref.notes,
+          isMedicalEvacuation: ref.isMedicalEvacuation,
+          fundingSource: ref.fundingSource,
+          originCountry: ref.originCountry,
+          destinationCountry: ref.destinationCountry,
+          transportMode: ref.transportMode,
+          cost: ref.cost || 0,
+          transferCompliance: ref.transferCompliance || {}
+        })));
+      } catch (error) {
+        console.error('Failed to load referrals', error);
+      }
+    };
+
+    if (!referrals.length) {
+      loadReferrals();
+    }
+  }, [dispatch, referrals.length]);
+
+  const handleCreateReferral = async () => {
+    try {
+      const payload = {
+        patientName: referralForm.patientName,
+        referralType: referralForm.referralType,
+        referralReason: referralForm.referralReason,
+        receivingFacility: { name: referralForm.receivingFacility, address: '' },
+        ambulanceId: referralForm.ambulanceId,
+        status: 'Pending',
+        isMedicalEvacuation: false
+      };
+      const created = await emergencyApi.createReferral(payload);
+      dispatch(createReferral({
+        referralId: created.referralId || created.id,
+        patientName: created.patientName,
+        referralType: created.referralType,
+        referralReason: created.referralReason,
+        referringFacility: created.referringFacility || {},
+        receivingFacility: created.receivingFacility || {},
+        status: created.status || 'Pending',
+        ambulanceId: created.ambulanceId,
+        referralDate: created.referralDate,
+        arrivalTime: created.arrivalTime,
+        outcome: created.outcome,
+        notes: created.notes,
+        isMedicalEvacuation: created.isMedicalEvacuation,
+        fundingSource: created.fundingSource,
+        originCountry: created.originCountry,
+        destinationCountry: created.destinationCountry,
+        transportMode: created.transportMode,
+        cost: created.cost || 0,
+        transferCompliance: created.transferCompliance || {}
+      }));
+      setShowReferralModal(false);
+      setReferralForm({ referralType: '', patientName: '', referralReason: '', receivingFacility: '', ambulanceId: '' });
+    } catch (error) {
+      alert(error.message || 'Unable to create referral');
+    }
   };
 
-  const handleCreateEvacuation = () => {
-    console.log('Creating medical evacuation');
-    setShowEvacuationModal(false);
+  const handleCreateEvacuation = async () => {
+    try {
+      const payload = {
+        patientName: evacuationForm.patientName,
+        referralType: 'Medical Evacuation',
+        referralReason: 'Medical evacuation request',
+        originCountry: evacuationForm.originCountry,
+        destinationCountry: evacuationForm.destinationCountry,
+        fundingSource: evacuationForm.fundingSource,
+        transportMode: evacuationForm.transportMode,
+        status: 'Pending',
+        isMedicalEvacuation: true,
+        cost: 0
+      };
+      const created = await emergencyApi.createReferral(payload);
+      dispatch(createReferral({
+        referralId: created.referralId || created.id,
+        patientName: created.patientName,
+        referralType: created.referralType,
+        referralReason: created.referralReason,
+        referringFacility: created.referringFacility || {},
+        receivingFacility: created.receivingFacility || {},
+        status: created.status || 'Pending',
+        ambulanceId: created.ambulanceId,
+        referralDate: created.referralDate,
+        arrivalTime: created.arrivalTime,
+        outcome: created.outcome,
+        notes: created.notes,
+        isMedicalEvacuation: created.isMedicalEvacuation,
+        fundingSource: created.fundingSource,
+        originCountry: created.originCountry,
+        destinationCountry: created.destinationCountry,
+        transportMode: created.transportMode,
+        cost: created.cost || 0,
+        transferCompliance: created.transferCompliance || {}
+      }));
+      setShowEvacuationModal(false);
+      setEvacuationForm({ patientName: '', originCountry: '', destinationCountry: '', fundingSource: '', transportMode: 'Air Ambulance' });
+    } catch (error) {
+      alert(error.message || 'Unable to create evacuation');
+    }
   };
 
-  const handleUpdateReferral = () => {
+  const handleUpdateReferral = async () => {
     if (!selectedReferral) return;
-    console.log('Updating referral:', selectedReferral.referralId);
-    setSelectedReferral(null);
+    try {
+      const updated = await emergencyApi.completeReferral(selectedReferral.referralId || selectedReferral.id, { outcome: 'Updated via transport workflow' });
+      dispatch(updateReferral({
+        referralId: selectedReferral.referralId || selectedReferral.id,
+        status: updated.status || statusForm,
+        outcome: updated.outcome || 'Updated via transport workflow',
+        arrivalTime: updated.arrivalTime
+      }));
+      setSelectedReferral(null);
+    } catch (error) {
+      alert(error.message || 'Unable to update referral');
+    }
   };
 
   return (
@@ -646,21 +781,22 @@ const ReferralTransport = () => {
         size="lg"
       >
         <div className="space-y-3 md:space-y-4">
-          <select className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
+          <select value={referralForm.referralType} onChange={(e) => setReferralForm({ ...referralForm, referralType: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
             <option value="">Select Referral Type</option>
             <option value="Maternal Referral">Maternal Referral</option>
             <option value="Neonatal Transfer">Neonatal Transfer</option>
             <option value="Critical Care Transfer">Critical Care Transfer</option>
             <option value="Inter-facility Transfer">Inter-facility Transfer</option>
           </select>
-          <input type="text" placeholder="Patient Name" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-          <textarea placeholder="Referral Reason" rows="3" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-          <select className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
+          <input type="text" placeholder="Patient Name" value={referralForm.patientName} onChange={(e) => setReferralForm({ ...referralForm, patientName: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+          <textarea placeholder="Referral Reason" rows="3" value={referralForm.referralReason} onChange={(e) => setReferralForm({ ...referralForm, referralReason: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+          <select value={referralForm.receivingFacility} onChange={(e) => setReferralForm({ ...referralForm, receivingFacility: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
             <option value="">Select Receiving Facility</option>
             <option value="Lagos Central Hospital">Lagos Central Hospital</option>
             <option value="Tertiary Hospital">Tertiary Hospital</option>
             <option value="Specialized Center">Specialized Center</option>
           </select>
+          <input type="text" placeholder="Ambulance ID" value={referralForm.ambulanceId} onChange={(e) => setReferralForm({ ...referralForm, ambulanceId: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
           <div className="flex gap-2 pt-2">
             <button onClick={handleCreateReferral} className="flex-1 bg-nigerian-green text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-green-700 font-medium text-sm md:text-base transition-colors">
               Create Referral
@@ -679,16 +815,20 @@ const ReferralTransport = () => {
         size="lg"
       >
         <div className="space-y-3 md:space-y-4">
-          <input type="text" placeholder="Patient Name" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+          <input type="text" placeholder="Patient Name" value={evacuationForm.patientName} onChange={(e) => setEvacuationForm({ ...evacuationForm, patientName: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-            <input type="text" placeholder="Origin Country" className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-            <input type="text" placeholder="Destination Country" className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+            <input type="text" placeholder="Origin Country" value={evacuationForm.originCountry} onChange={(e) => setEvacuationForm({ ...evacuationForm, originCountry: e.target.value })} className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+            <input type="text" placeholder="Destination Country" value={evacuationForm.destinationCountry} onChange={(e) => setEvacuationForm({ ...evacuationForm, destinationCountry: e.target.value })} className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
           </div>
-          <select className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
+          <select value={evacuationForm.fundingSource} onChange={(e) => setEvacuationForm({ ...evacuationForm, fundingSource: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
             <option value="">Select Funding Source</option>
             <option value="Insurance">Insurance</option>
             <option value="Government">Government</option>
             <option value="Private">Private</option>
+          </select>
+          <select value={evacuationForm.transportMode} onChange={(e) => setEvacuationForm({ ...evacuationForm, transportMode: e.target.value })} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
+            <option value="Air Ambulance">Air Ambulance</option>
+            <option value="Ground Ambulance">Ground Ambulance</option>
           </select>
           <div className="flex gap-2 pt-2">
             <button onClick={handleCreateEvacuation} className="flex-1 bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 font-medium text-sm md:text-base transition-colors">
@@ -713,8 +853,9 @@ const ReferralTransport = () => {
               <p className="text-xs md:text-sm text-gray-600">Current Status</p>
               <p className="font-bold text-base md:text-lg">{selectedReferral.status || 'Unknown'}</p>
             </div>
-            <select className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
-              <option value="Referred">Referred</option>
+            <select value={statusForm} onChange={(e) => setStatusForm(e.target.value)} className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
               <option value="In Transit">In Transit</option>
               <option value="Arrived">Arrived</option>
               <option value="Completed">Completed</option>
