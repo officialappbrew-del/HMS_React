@@ -149,6 +149,7 @@ const Login = () => {
       localStorage.setItem('refreshToken', refreshToken || '');
       localStorage.setItem('authToken', token);
       localStorage.setItem('userRole', user.role || '');
+      localStorage.setItem('userIsRootAdmin', user.is_root_admin ? 'true' : 'false');
       localStorage.setItem('userEmail', user.email || formData.email);
       localStorage.setItem('userName', user.username || user.user_id || formData.email);
       localStorage.setItem('userFirstName', user.first_name || '');

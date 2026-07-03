@@ -22,7 +22,7 @@ import {
   LogOut
 } from 'lucide-react';
 
-const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobileClose }) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -80,6 +80,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
   };
 
   const currentMenu = menuItems[userRole] || menuItems.admin;
+  const filteredMenu = currentMenu.filter(item => {
+    if (item.path === '/settings' && userRole === 'admin' && !isRootAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   const handleNavigate = (path) => {
     navigate(path);
@@ -89,6 +95,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
   const confirmLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('userIsRootAdmin');
     localStorage.removeItem('userEmail');
     window.dispatchEvent(new Event('authChanged'));
     navigate('/login');
@@ -116,7 +123,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isMobileOpen, onMobile
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {currentMenu.map((item) => {
+          {filteredMenu.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (

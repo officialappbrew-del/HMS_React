@@ -77,6 +77,11 @@ const getStoredRole = () => {
   return localStorage.getItem('userRole') || 'admin';
 };
 
+const getStoredIsRootAdmin = () => {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem('userIsRootAdmin') === 'true';
+};
+
 const isAuthenticated = () => {
   if (typeof window === 'undefined') return false;
   return Boolean(localStorage.getItem('authToken'));
@@ -87,6 +92,20 @@ const ProtectedRoute = ({ children }) => {
 
    if (!isAuthenticated()) {
      return <Navigate to="/login" replace state={{ from: location }} />;
+   }
+
+   return children;
+ };
+ 
+ const SettingsRoute = ({ children }) => {
+   const location = useLocation();
+
+   if (!isAuthenticated()) {
+     return <Navigate to="/login" replace state={{ from: location }} />;
+   }
+
+   if (localStorage.getItem('userIsRootAdmin') !== 'true') {
+     return <Navigate to="/dashboard" replace state={{ from: location }} />;
    }
 
    return children;
@@ -113,11 +132,16 @@ function AppLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
+  const [isRootAdmin, setIsRootAdmin] = useState(getStoredIsRootAdmin);
   const [isDark, setIsDark] = useState(() => getUserPreferences().theme === 'dark');
 
   useEffect(() => {
     const syncRole = () => {
       setUserRole(getStoredRole());
+    };
+
+    const syncIsRootAdmin = () => {
+      setIsRootAdmin(getStoredIsRootAdmin());
     };
 
     const syncTheme = () => {
@@ -131,17 +155,22 @@ function AppLayout() {
     };
 
     syncRole();
+    syncIsRootAdmin();
     syncTheme();
     handleResize();
     window.addEventListener('authChanged', syncRole);
+    window.addEventListener('authChanged', syncIsRootAdmin);
     window.addEventListener('storage', syncRole);
+    window.addEventListener('storage', syncIsRootAdmin);
     window.addEventListener('storage', syncTheme);
     window.addEventListener('themeChanged', syncTheme);
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('authChanged', syncRole);
+      window.removeEventListener('authChanged', syncIsRootAdmin);
       window.removeEventListener('storage', syncRole);
+      window.removeEventListener('storage', syncIsRootAdmin);
       window.removeEventListener('storage', syncTheme);
       window.removeEventListener('themeChanged', syncTheme);
       window.removeEventListener('resize', handleResize);
@@ -163,6 +192,7 @@ function AppLayout() {
               isCollapsed={isSidebarCollapsed}
               setIsCollapsed={setIsSidebarCollapsed}
               userRole={userRole}
+              isRootAdmin={isRootAdmin}
               isMobileOpen={isSidebarOpenOnMobile}
               onMobileClose={() => setIsSidebarOpenOnMobile(false)}
             />
@@ -240,8 +270,8 @@ function AppLayout() {
               <Route path="/patient-feedback" element={<ProtectedRoute><PatientFeedback /></ProtectedRoute>} />
               <Route path="/credit-management" element={<ProtectedRoute><CreditManagement /></ProtectedRoute>} />
               <Route path="/ndpr-compliance" element={<ProtectedRoute><NDPRCompliance /></ProtectedRoute>} />
-<Route path="/budgeting-forecasting" element={<ProtectedRoute><BudgetingForecasting /></ProtectedRoute>} />
-<Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/budgeting-forecasting" element={<ProtectedRoute><BudgetingForecasting /></ProtectedRoute>} />
+              <Route path="/settings" element={<SettingsRoute><Settings /></SettingsRoute>} />
                <Route path="/404" element={<NotFoundLayout><NotFound /></NotFoundLayout>} />
               </Routes>
             </Suspense>

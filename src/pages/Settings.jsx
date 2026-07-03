@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { tenantSettingsApi } from '../utils/api';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -17,13 +18,83 @@ const Settings = () => {
     workingHours: {
       start: '08:00',
       end: '18:00'
-    }
+    },
+    system_logo: null,
+    system_name: 'SmartCare HMS',
+    default_clinic: 'Main Clinic',
+    default_ward: 'General Ward',
+    theme_color: '#007bff',
+    currency_symbol: '₦',
+    tax_rate: 7.5,
+    billing_cycle: 'monthly',
+    push_notifications: true,
+    password_policy: {},
+    session_timeout: 30,
+    max_login_attempts: 5,
+    require_2fa: false,
+    backup_frequency: 'daily',
+    backup_retention_days: 30,
+    custom_settings: {},
   });
-
-  // State for logo
   const [logo, setLogo] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const response = await tenantSettingsApi.getCurrent();
+        setSettings((prev) => ({
+          ...prev,
+          hospitalName: response.system_name || prev.hospitalName,
+          address: response.address || prev.address,
+          phone: response.phone || prev.phone,
+          email: response.email || prev.email,
+          timezone: response.timezone || prev.timezone,
+          currency: response.currency || prev.currency,
+          language: response.language || prev.language,
+          autoBackup: response.auto_backup ?? prev.autoBackup,
+          emailNotifications: response.email_notifications ?? prev.emailNotifications,
+          smsNotifications: response.sms_notifications ?? prev.smsNotifications,
+          maintenanceMode: response.maintenance_mode ?? prev.maintenanceMode,
+          maxPatientsPerDay: response.max_patients_per_day ?? prev.maxPatientsPerDay,
+          workingHours: response.working_hours || prev.workingHours,
+          system_logo: response.system_logo || null,
+          system_name: response.system_name || prev.system_name,
+          default_clinic: response.default_clinic || prev.default_clinic,
+          default_ward: response.default_ward || prev.default_ward,
+          theme_color: response.theme_color || prev.theme_color,
+          currency_symbol: response.currency_symbol || prev.currency_symbol,
+          tax_rate: response.tax_rate ?? prev.tax_rate,
+          billing_cycle: response.billing_cycle || prev.billing_cycle,
+          push_notifications: response.push_notifications ?? prev.push_notifications,
+          password_policy: response.password_policy || prev.password_policy,
+          session_timeout: response.session_timeout ?? prev.session_timeout,
+          max_login_attempts: response.max_login_attempts ?? prev.max_login_attempts,
+          require_2fa: response.require_2fa ?? prev.require_2fa,
+          backup_frequency: response.backup_frequency || prev.backup_frequency,
+          backup_retention_days: response.backup_retention_days ?? prev.backup_retention_days,
+          custom_settings: response.custom_settings || prev.custom_settings,
+        }));
+        if (response.system_logo) {
+          setLogoPreview(response.system_logo);
+        }
+      } catch (error) {
+        console.error('Unable to load settings:', error);
+        setMessage('Unable to load tenant settings.');
+        setMessageType('error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -109,17 +180,57 @@ const Settings = () => {
   const handleRemoveLogo = () => {
     setLogo(null);
     setLogoPreview(null);
-    
-    // In real app, you would also call API to remove from server
-    // await fetch('/api/remove-logo', { method: 'DELETE' });
-    
-    alert('Logo removed successfully!');
+    setSettings(prev => ({
+      ...prev,
+      system_logo: null,
+    }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // In a real app, this would save to backend
-    alert('Settings saved successfully!');
+    setSaving(true);
+    setMessage('');
+    setMessageType('');
+
+    try {
+      const payload = {
+        system_name: settings.system_name,
+        timezone: settings.timezone,
+        currency: settings.currency,
+        currency_symbol: settings.currency_symbol,
+        tax_rate: settings.tax_rate,
+        billing_cycle: settings.billing_cycle,
+        email_notifications: settings.emailNotifications,
+        sms_notifications: settings.smsNotifications,
+        push_notifications: settings.push_notifications,
+        auto_backup: settings.autoBackup,
+        maintenance_mode: settings.maintenanceMode,
+        session_timeout: settings.session_timeout,
+        max_login_attempts: settings.max_login_attempts,
+        require_2fa: settings.require_2fa,
+        backup_frequency: settings.backup_frequency,
+        backup_retention_days: settings.backup_retention_days,
+        custom_settings: settings.custom_settings,
+        default_clinic: settings.default_clinic,
+        default_ward: settings.default_ward,
+        theme_color: settings.theme_color,
+        system_logo: logo || settings.system_logo,
+      };
+
+      const response = await tenantSettingsApi.updateCurrent(payload);
+      setSettings(prev => ({
+        ...prev,
+        system_logo: response.system_logo || prev.system_logo,
+      }));
+      setMessage('Settings saved successfully.');
+      setMessageType('success');
+    } catch (error) {
+      console.error('Save settings error:', error);
+      setMessage('Unable to save settings.');
+      setMessageType('error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

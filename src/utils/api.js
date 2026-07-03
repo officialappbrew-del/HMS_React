@@ -46,8 +46,7 @@ const clearAuthData = () => {
   localStorage.removeItem('tenantId');
   localStorage.removeItem('tenantDomain');
   localStorage.removeItem('tenantName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userEmail');
+  localStorage.removeItem('userRole');  localStorage.removeItem('userIsRootAdmin');  localStorage.removeItem('userEmail');
   localStorage.removeItem('userName');
   localStorage.removeItem('userFirstName');
   localStorage.removeItem('userLastName');
@@ -117,8 +116,9 @@ export const apiRequest = async (path, options = {}) => {
     const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
     const tenantId = localStorage.getItem('tenantId');
 
+    const isFormData = options.body instanceof FormData;
     const headers = {
-      'Content-Type': 'application/json',
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token && !shouldSkipAuthHeader(path) ? { Authorization: `Bearer ${token}` } : {}),
       ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
       ...(options.headers || {}),
@@ -218,6 +218,28 @@ export const pharmacyApi = {
   },
   createSale: (data) => apiRequest('/api/v1/pharmacy/sales/', { method: 'POST', body: JSON.stringify(data) }),
   getTenant: () => apiRequest('/api/v1/tenants/active-tenants/'),
+};
+
+export const tenantSettingsApi = {
+  getCurrent: () => apiRequest('/api/v1/tenants/settings/current/'),
+  updateCurrent: (data) => {
+    const hasFile = data?.system_logo instanceof File;
+    if (hasFile) {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (key === 'custom_settings') {
+          formData.append(key, JSON.stringify(value));
+        } else if (key === 'system_logo') {
+          formData.append('system_logo', value);
+        } else {
+          formData.append(key, value);
+        }
+      });
+      return apiRequest('/api/v1/tenants/settings/current/', { method: 'PUT', body: formData });
+    }
+    return apiRequest('/api/v1/tenants/settings/current/', { method: 'PUT', body: JSON.stringify(data) });
+  }
 };
 
 export const admissionApi = {
