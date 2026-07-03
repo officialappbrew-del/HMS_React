@@ -27,7 +27,11 @@ const rosterSlice = createSlice({
 
   reducers: {
     addDutyRoster: (state, action) => {
-      state.dutyRosters.push(action.payload);
+      const payload = action.payload;
+      const key = payload.rosterId || payload.id;
+      if (!state.dutyRosters.some(r => (r.rosterId || r.id) === key)) {
+        state.dutyRosters.push(payload);
+      }
     },
 
     updateDutyRoster: (state, action) => {
@@ -45,7 +49,11 @@ const rosterSlice = createSlice({
     },
 
     addLeaveRequest: (state, action) => {
-      state.leaves.push(action.payload);
+      const payload = action.payload;
+      const key = payload.leaveId || payload.id;
+      if (!state.leaves.some(l => (l.leaveId || l.id) === key)) {
+        state.leaves.push(payload);
+      }
     },
 
     approveLeave: (state, action) => {
@@ -69,7 +77,11 @@ const rosterSlice = createSlice({
     },
 
     addOvertimeRecord: (state, action) => {
-      state.overtime.push(action.payload);
+      const payload = action.payload;
+      const key = payload.overtimeId || payload.id;
+      if (!state.overtime.some(o => (o.overtimeId || o.id) === key)) {
+        state.overtime.push(payload);
+      }
     },
 
     approveOvertime: (state, action) => {

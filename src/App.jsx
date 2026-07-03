@@ -1,75 +1,76 @@
-import React from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { useState, useEffect } from 'react';
 import store from './store';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageErrorBoundary from './components/PageErrorBoundary';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import Sidebar from './components/Sidebar';
 import { getUserPreferences } from './utils/cookies';
-import Dashboard from './pages/Dashboard';
-import PatientManagement from './pages/PatientManagement';
-import Billing from './pages/Billing';
-import Pharmacy from './pages/Pharmacy';
-import Consultation from './pages/Consultation';
-import ConsultationV2 from './pages/ConsultationV2';
-import Laboratory from './pages/Laboratory';
-import StaffManagement from './pages/StaffManagement';
-import Appointments from './pages/Appointments';
-import Inventory from './pages/Inventory';
-import NotFound from './pages/NotFound';
-import ActivityLog from './pages/ActivityLog';
-import BedAllocation from './pages/BedAllocation';
-import AdmissionManagement from './pages/AdmissionManagement';
-import WardRoundManagement from './pages/WardRoundManagement';
-import StaffDirectory from './pages/StaffDirectory';
-import LicenseTracking from './pages/LicenseTracking';
-import DutyRoster from './pages/DutyRoster';
-import PerformanceManagement from './pages/PerformanceManagement';
-import PayrollManagement from './pages/PayrollManagement';
-import EquipmentManagement from './pages/EquipmentManagement';
-import MaintenanceManagement from './pages/MaintenanceManagement';
-import GeneratorManagement from './pages/GeneratorManagement';
-import OxygenManagement from './pages/OxygenManagement';
-import TheaterScheduling from './pages/TheaterScheduling';
-import PreOperativeAssessment from './pages/PreOperativeAssessment';
-import IntraOperativeDocumentation from './pages/IntraOperativeDocumentation';
-import PostOperativeCare from './pages/PostOperativeCare';
-import TheaterAnalytics from './pages/TheaterAnalytics';
-import AmbulanceTracking from './pages/AmbulanceTracking';
-// import AmbulanceTracking from './pages/AmbulanceTracking';
-import FleetOperations from './pages/FleetOperations';
-import EmergencyResponse from './pages/EmergencyResponse';
-import ReferralTransport from './pages/ReferralTransport';
-import PharmacyInventory from './pages/PharmacyInventory';
-import MedicalSupplies from './pages/MedicalSupplies';
-import CentralStore from './pages/CentralStore';
-import Procurement from './pages/Procurement';
-import VitalSignsMonitoring from './pages/VitalSignsMonitoring';
-import ElectronicMedicalRecords from './pages/ElectronicMedicalRecords';
-import USSDSystem from './pages/USSDSystem';
-import ClinicalDecisionSupport from './pages/ClinicalDecisionSupport';
-import OrderEntrySystem from './pages/OrderEntrySystem';
-import EmergencyDepartmentManagement from './pages/EmergencyDepartmentManagement';
-import NHISManagement from './pages/NHISManagement';
-import PatientPortal from './pages/PatientPortal';
-import MobileMoneyIntegration from './pages/MobileMoneyIntegration';
-import AppointmentReminders from './pages/AppointmentReminders';
-import NCDCDiseaseSurveillance from './pages/NCDCDiseaseSurveillance';
-import ExternalIntegrations from './pages/ExternalIntegrations';
-import FinancialAnalytics from './pages/FinancialAnalytics';
-import ClinicalAudit from './pages/ClinicalAudit';
-import PatientFeedback from './pages/PatientFeedback';
-import CreditManagement from './pages/CreditManagement';
-import NDPRCompliance from './pages/NDPRCompliance';
-import BudgetingForecasting from './pages/BudgetingForecasting';
-import Settings from './pages/Settings';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import LandingPage from './pages/LandingPage';
-// import ClinicalDecisionSupport from './pages/ClinicalDecisionSupport';
+import Loader from './components/Loader';
+
+// Lazy-load pages and heavier layout parts to enable code-splitting and faster initial loads
+const Header = lazy(() => import('./components/Header'));
+const Footer = lazy(() => import('./components/Footer'));
+const Sidebar = lazy(() => import('./components/Sidebar'));
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const PatientManagement = lazy(() => import('./pages/PatientManagement'));
+const Billing = lazy(() => import('./pages/Billing'));
+const Pharmacy = lazy(() => import('./pages/Pharmacy'));
+const Consultation = lazy(() => import('./pages/Consultation'));
+const ConsultationV2 = lazy(() => import('./pages/ConsultationV2'));
+const Laboratory = lazy(() => import('./pages/Laboratory'));
+const StaffManagement = lazy(() => import('./pages/StaffManagement'));
+const Appointments = lazy(() => import('./pages/Appointments'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const ActivityLog = lazy(() => import('./pages/ActivityLog'));
+const BedAllocation = lazy(() => import('./pages/BedAllocation'));
+const AdmissionManagement = lazy(() => import('./pages/AdmissionManagement'));
+const WardRoundManagement = lazy(() => import('./pages/WardRoundManagement'));
+const StaffDirectory = lazy(() => import('./pages/StaffDirectory'));
+const LicenseTracking = lazy(() => import('./pages/LicenseTracking'));
+const DutyRoster = lazy(() => import('./pages/DutyRoster'));
+const PerformanceManagement = lazy(() => import('./pages/PerformanceManagement'));
+const PayrollManagement = lazy(() => import('./pages/PayrollManagement'));
+const EquipmentManagement = lazy(() => import('./pages/EquipmentManagement'));
+const MaintenanceManagement = lazy(() => import('./pages/MaintenanceManagement'));
+const GeneratorManagement = lazy(() => import('./pages/GeneratorManagement'));
+const OxygenManagement = lazy(() => import('./pages/OxygenManagement'));
+const TheaterScheduling = lazy(() => import('./pages/TheaterScheduling'));
+const PreOperativeAssessment = lazy(() => import('./pages/PreOperativeAssessment'));
+const IntraOperativeDocumentation = lazy(() => import('./pages/IntraOperativeDocumentation'));
+const PostOperativeCare = lazy(() => import('./pages/PostOperativeCare'));
+const TheaterAnalytics = lazy(() => import('./pages/TheaterAnalytics'));
+const AmbulanceTracking = lazy(() => import('./pages/AmbulanceTracking'));
+const FleetOperations = lazy(() => import('./pages/FleetOperations'));
+const EmergencyResponse = lazy(() => import('./pages/EmergencyResponse'));
+const ReferralTransport = lazy(() => import('./pages/ReferralTransport'));
+const PharmacyInventory = lazy(() => import('./pages/PharmacyInventory'));
+const MedicalSupplies = lazy(() => import('./pages/MedicalSupplies'));
+const CentralStore = lazy(() => import('./pages/CentralStore'));
+const Procurement = lazy(() => import('./pages/Procurement'));
+const VitalSignsMonitoring = lazy(() => import('./pages/VitalSignsMonitoring'));
+const ElectronicMedicalRecords = lazy(() => import('./pages/ElectronicMedicalRecords'));
+const USSDSystem = lazy(() => import('./pages/USSDSystem'));
+const ClinicalDecisionSupport = lazy(() => import('./pages/ClinicalDecisionSupport'));
+const OrderEntrySystem = lazy(() => import('./pages/OrderEntrySystem'));
+const EmergencyDepartmentManagement = lazy(() => import('./pages/EmergencyDepartmentManagement'));
+const NHISManagement = lazy(() => import('./pages/NHISManagement'));
+const PatientPortal = lazy(() => import('./pages/PatientPortal'));
+const MobileMoneyIntegration = lazy(() => import('./pages/MobileMoneyIntegration'));
+const AppointmentReminders = lazy(() => import('./pages/AppointmentReminders'));
+const NCDCDiseaseSurveillance = lazy(() => import('./pages/NCDCDiseaseSurveillance'));
+const ExternalIntegrations = lazy(() => import('./pages/ExternalIntegrations'));
+const FinancialAnalytics = lazy(() => import('./pages/FinancialAnalytics'));
+const ClinicalAudit = lazy(() => import('./pages/ClinicalAudit'));
+const PatientFeedback = lazy(() => import('./pages/PatientFeedback'));
+const CreditManagement = lazy(() => import('./pages/CreditManagement'));
+const NDPRCompliance = lazy(() => import('./pages/NDPRCompliance'));
+const BudgetingForecasting = lazy(() => import('./pages/BudgetingForecasting'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 const getStoredRole = () => {
   if (typeof window === 'undefined') return 'admin';
@@ -157,27 +158,32 @@ function AppLayout() {
     <div className={`app-shell relative flex min-h-screen overflow-x-hidden transition-colors duration-300 ${isDark ? 'dark-theme' : ''}`}>
       {!isPublicPage && (
         <div className="print:hidden">
-          <Sidebar
-            isCollapsed={isSidebarCollapsed}
-            setIsCollapsed={setIsSidebarCollapsed}
-            userRole={userRole}
-            isMobileOpen={isSidebarOpenOnMobile}
-            onMobileClose={() => setIsSidebarOpenOnMobile(false)}
-          />
+          <Suspense fallback={null}>
+            <Sidebar
+              isCollapsed={isSidebarCollapsed}
+              setIsCollapsed={setIsSidebarCollapsed}
+              userRole={userRole}
+              isMobileOpen={isSidebarOpenOnMobile}
+              onMobileClose={() => setIsSidebarOpenOnMobile(false)}
+            />
+          </Suspense>
         </div>
       )}
       <div className={`relative flex min-h-screen w-full min-w-0 flex-1 flex-col transition-all duration-300 print:block ${!isPublicPage ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
         {!isPublicPage && (
           <div className="print:hidden">
-            <Header
-              userRole={userRole}
-              onToggleSidebar={() => setIsSidebarOpenOnMobile(!isSidebarOpenOnMobile)}
-            />
+            <Suspense fallback={null}>
+              <Header
+                userRole={userRole}
+                onToggleSidebar={() => setIsSidebarOpenOnMobile(!isSidebarOpenOnMobile)}
+              />
+            </Suspense>
           </div>
         )}
         <main className={`flex-1 overflow-x-hidden transition-colors duration-300 ${!isPublicPage ? (isDark ? 'bg-slate-950' : 'bg-slate-50') : ''} print:bg-white`}>
           <PageErrorBoundary>
-            <Routes>
+            <Suspense fallback={<Loader />}> 
+              <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
               <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
@@ -238,11 +244,14 @@ function AppLayout() {
 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                <Route path="/404" element={<NotFoundLayout><NotFound /></NotFoundLayout>} />
               </Routes>
+            </Suspense>
           </PageErrorBoundary>
         </main>
         {!isPublicPage && (
           <div className="print:hidden">
-            <Footer />
+            <Suspense fallback={null}>
+              <Footer />
+            </Suspense>
           </div>
         )}
       </div>

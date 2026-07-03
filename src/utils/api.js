@@ -304,9 +304,36 @@ export const consultationApi = {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
     const qsStr = qs.toString();
-    return apiRequest(`/api/v1/billing/items/${qsStr ? '?' + qsStr : ''}`);
+    return apiRequest(`/api/v1/billing/invoice-items/${qsStr ? '?' + qsStr : ''}`);
   },
-  createBillingItem: (data) => apiRequest('/api/v1/billing/items/', { method: 'POST', body: JSON.stringify(data) }),
+  createBillingItem: (data) => apiRequest('/api/v1/billing/invoice-items/', { method: 'POST', body: JSON.stringify(data) }),
+  getInvoices: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/billing/invoices/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getInvoice: (id) => apiRequest(`/api/v1/billing/invoices/${id}/`),
+  createInvoice: (data) => apiRequest('/api/v1/billing/invoices/', { method: 'POST', body: JSON.stringify(data) }),
+  updateInvoice: (id, data) => apiRequest(`/api/v1/billing/invoices/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  issueInvoice: (id) => apiRequest(`/api/v1/billing/invoices/${id}/issue/`, { method: 'POST' }),
+  cancelInvoice: (id) => apiRequest(`/api/v1/billing/invoices/${id}/cancel/`, { method: 'POST' }),
+  getInvoiceSummary: () => apiRequest('/api/v1/billing/invoices/summary/'),
+  getPayments: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/billing/payments/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createPayment: (data) => apiRequest('/api/v1/billing/payments/', { method: 'POST', body: JSON.stringify(data) }),
+  getInsuranceClaims: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/billing/insurance-claims/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createInsuranceClaim: (data) => apiRequest('/api/v1/billing/insurance-claims/', { method: 'POST', body: JSON.stringify(data) }),
+  submitInsuranceClaim: (id) => apiRequest(`/api/v1/billing/insurance-claims/${id}/submit/`, { method: 'POST' }),
 };
 
 export const vitalsApi = {

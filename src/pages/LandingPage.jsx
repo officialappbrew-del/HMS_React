@@ -1,22 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ShieldCheck, Stethoscope, Activity, Users, Pill, HeartPulse,
-  ArrowRight, Microscope, Ambulance, Brain, FileText,
-  Play, Users2, CreditCard, Building, Truck, BarChart3,
-  Video, Calendar, Radio, Hospital, Wallet, Settings2,
-  LayoutDashboard, UserCheck, Heart, Bot, LineChart,
-  Bell, Target, FileSpreadsheet, Workflow, UserPlus,
-  GitBranch, Layers, Check, Star, Shield as ShieldIcon,
-  Globe, Menu, X, Sparkles, PlayCircle, Rocket,
-  BadgeCheck, ChevronRight, Building2, TrendingUp,
-  Award, Zap, Clock, Code, Palette, Cpu, Cloud,
-  Server, Database, Lock, Fingerprint, ScanEye,
-  Radar, Network, Blocks, PanelTop, Gauge, GanttChart,
-  NotepadText, FlaskRound, TestTube, Bone, Baby,
-  Clover, Flower, Leaf, Sprout, Sun, Moon,
-  Star as StarIcon, Crown, Gem, Gift, LogIn
-} from 'lucide-react';
+
+// We'll dynamically load icons from `lucide-react` after the first paint/idle.
+// This avoids bundling the full icon set into the initial landing-page chunk.
 
 const SmartCareHMSRedesigned = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -32,9 +18,52 @@ const SmartCareHMSRedesigned = () => {
   const sectionRefs = useRef({});
   const heroRef = useRef(null);
   const statsRef = useRef(null);
+  const [icons, setIcons] = useState(null);
+  const [isReady, setIsReady] = useState(false);
 
-  // Intersection Observer for scroll animations
+  // Mark component ready during idle time to defer heavy animations and listeners
   useEffect(() => {
+    const markReady = () => setIsReady(true);
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      // give it a small timeout to ensure first paint
+      requestIdleCallback(markReady, { timeout: 1000 });
+    } else {
+      const t = setTimeout(markReady, 600);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  // Dynamically import icons after idle to avoid large initial bundle
+  useEffect(() => {
+    if (!isReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const mod = await import('lucide-react');
+        if (!cancelled) setIcons(mod);
+      } catch (e) {
+        // ignore icon load failures
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isReady]);
+
+  // Proxy to provide icon components by name without importing them statically.
+  const IconProxy = new Proxy({}, {
+    get: (_, name) => (props) => {
+      if (!icons) return <span className="inline-block w-6 h-6 bg-slate-200 rounded" />;
+      const Comp = icons[name];
+      return Comp ? <Comp {...props} /> : <span className="inline-block w-6 h-6 bg-slate-200 rounded" />;
+    }
+  });
+
+  const { ShieldCheck, Stethoscope, Activity, Users, Pill, HeartPulse, ArrowRight, Microscope, Ambulance, Brain, FileText, Play, Users2, CreditCard, Building, Truck, BarChart3, Video, Calendar, Radio, Hospital, Wallet, Settings2, LayoutDashboard, UserCheck, Heart, Bot, LineChart, Bell, Target, FileSpreadsheet, Workflow, UserPlus, GitBranch, Layers, Check, Star, Globe, Menu, X, Sparkles, PlayCircle, Rocket, BadgeCheck, ChevronRight, Building2, TrendingUp, Award, Zap, Clock, Code, Palette, Cpu, Cloud, Server, Database, Lock, Fingerprint, ScanEye, Radar, Network, Blocks, PanelTop, Gauge, GanttChart, NotepadText, FlaskRound, TestTube, Bone, Baby, Clover, Flower, Leaf, Sprout, Sun, Moon, Crown, Gem, Gift, LogIn } = IconProxy;
+  const ShieldIcon = ShieldCheck; // alias used previously
+  const StarIcon = Star;
+
+  // Intersection Observer for scroll animations (deferred)
+  useEffect(() => {
+    if (!isReady) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
@@ -51,10 +80,11 @@ const SmartCareHMSRedesigned = () => {
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [isReady]);
 
-  // Counter animation for stats
+  // Counter animation for stats (deferred)
   useEffect(() => {
+    if (!isReady) return;
     const targets = [500, 25000, 2000000, 9999, 100];
     const intervals = targets.map((target, index) => {
       let current = 0;
@@ -84,10 +114,11 @@ const SmartCareHMSRedesigned = () => {
       intervals.forEach(interval => clearInterval(interval));
       clearTimeout(timeout);
     };
-  }, []);
+  }, [isReady]);
 
-  // Mouse parallax effect
+  // Mouse parallax effect (deferred)
   useEffect(() => {
+    if (!isReady) return;
     const handleMouseMove = (e) => {
       setMousePosition({
         x: (e.clientX / window.innerWidth - 0.5) * 20,
@@ -96,23 +127,25 @@ const SmartCareHMSRedesigned = () => {
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [isReady]);
 
-  // Auto-rotate testimonials
+  // Auto-rotate testimonials (deferred)
   useEffect(() => {
+    if (!isReady) return;
     const interval = setInterval(() => {
       setActiveTestimonial(prev => (prev + 1) % 4);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isReady]);
 
-  // Animated progress
+  // Animated progress (deferred)
   useEffect(() => {
+    if (!isReady) return;
     const interval = setInterval(() => {
       setAnimatedProgress(prev => (prev + 1) % 100);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isReady]);
 
   // Scroll handler for navbar
   useEffect(() => {

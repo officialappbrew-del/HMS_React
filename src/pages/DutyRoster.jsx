@@ -37,6 +37,7 @@ const DutyRoster = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [staffSearchQuery, setStaffSearchQuery] = useState('');
+  const [showStaffDropdown, setShowStaffDropdown] = useState(false);
 
   const [leaveFormData, setLeaveFormData] = useState({
     staffId: '',
@@ -62,6 +63,7 @@ const DutyRoster = () => {
 
   const [assignmentFormData, setAssignmentFormData] = useState({
     staffId: '',
+    staffName: '',
     date: '',
     dutyType: '',
     startTime: '',
@@ -78,81 +80,94 @@ const DutyRoster = () => {
     overtimeHours: overtime.reduce((sum, r) => sum + (parseFloat(r.hoursWorked || r.hours || 0)), 0)
   }), [dutyRosters, leaves, overtime]);
 
-  useEffect(() => {
-    const loadRosterData = async () => {
-      setIsLoading(true);
-      setErrorMessage('');
-      try {
-        const [rostersResponse, leavesResponse, overtimeResponse] = await Promise.all([
-          apiRequest('/api/v1/ward-rounds/duty-rosters/'),
-          apiRequest('/api/v1/ward-rounds/leave-requests/'),
-          apiRequest('/api/v1/ward-rounds/overtime-records/')
-        ]);
+ useEffect(() => {
+  const loadRosterData = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      const [rostersResponse, leavesResponse, overtimeResponse] = await Promise.all([
+        apiRequest('/api/v1/ward-rounds/duty-rosters/'),
+        apiRequest('/api/v1/ward-rounds/leave-requests/'),
+        apiRequest('/api/v1/ward-rounds/overtime-records/')
+      ]);
 
-        const rosterItems = parseListResponse(rostersResponse).map(item => ({
-          ...item,
-          rosterId: item.rosterId || item.id,
-          assignments: item.assignments || []
-        }));
-        const leaveItems = parseListResponse(leavesResponse).map(item => ({
-          ...item,
-          leaveId: item.leaveId || item.id,
-          status: item.status || 'Pending'
-        }));
-        const overtimeItems = parseListResponse(overtimeResponse).map(item => ({
-          ...item,
-          overtimeId: item.overtimeId || item.id,
-          status: item.approvalStatus || item.status || 'Pending'
-        }));
+      const rosterItems = parseListResponse(rostersResponse).map(item => ({
+        ...item,
+        rosterId: item.rosterId || item.id,
+        assignments: item.assignments || []
+      }));
+      
+      const leaveItems = parseListResponse(leavesResponse).map(item => ({
+        ...item,
+        leaveId: item.leaveId || item.id,
+        status: item.status || 'Pending'
+      }));
+      
+      const overtimeItems = parseListResponse(overtimeResponse).map(item => ({
+        ...item,
+        overtimeId: item.overtimeId || item.id,
+        status: item.approvalStatus || item.status || 'Pending'
+      }));
 
-        if (rosterItems.length) {
-          dispatch(addDutyRoster(rosterItems[0]));
-        }
-        leaveItems.forEach((leave) => dispatch(addLeaveRequest(leave)));
-        overtimeItems.forEach((record) => dispatch(addOvertimeRecord(record)));
-      } catch (error) {
-        setErrorMessage(error.message || 'Unable to load roster data.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      rosterItems.forEach(roster => dispatch(addDutyRoster(roster)));
+      leaveItems.forEach(leave => dispatch(addLeaveRequest(leave)));
+      overtimeItems.forEach(record => dispatch(addOvertimeRecord(record)));
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to load roster data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    loadRosterData();
-  }, [dispatch]);
+  loadRosterData();
+}, [dispatch]);
 
-  // Filter leaves based on search query
+  const getStaffName = (sid) => {
+    if (!sid) return 'Unknown Staff';
+    const member = staff.find(s => (s.employee_id || String(s.id)) === String(sid));
+    return member?.full_name || `${member?.first_name || ''} ${member?.last_name || ''}`.trim() || 'Unknown Staff';
+  };
+
+  const getStaffById = (sid) => {
+    if (!sid) return null;
+    return staff.find(s => (s.employee_id || String(s.id)) === String(sid));
+  };
+
   const filteredLeaves = searchQuery 
     ? leaves.filter(leave => {
-        const staffMember = staff.find(s => s.staffId === leave.staffId);
+        const staffName = getStaffName(leave.staffId);
         return (
-          (staffMember?.name && staffMember.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (leave.leaveType && leave.leaveType.toLowerCase().includes(searchQuery.toLowerCase())) ||
           (leave.status && leave.status.toLowerCase().includes(searchQuery.toLowerCase()))
         );
       })
     : leaves;
 
-  // Approve leave request
   const handleApproveLeave = async (leaveId) => {
     try {
-      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/approve/`, { method: 'POST', body: JSON.stringify({ approvedBy: 'System' }) });
+      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/approve/`, { 
+        method: 'POST', 
+        body: JSON.stringify({ approvedBy: 'System' }) 
+      });
       dispatch(approveLeave({ leaveId, approvedBy: 'System' }));
     } catch (error) {
       setErrorMessage(error.message || 'Unable to approve leave.');
     }
   };
 
-  // Reject leave request
   const handleRejectLeave = async (leaveId) => {
     try {
-      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/reject/`, { method: 'POST', body: JSON.stringify({ approvedBy: 'System' }) });
+      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/reject/`, { 
+        method: 'POST', 
+        body: JSON.stringify({ approvedBy: 'System' }) 
+      });
       dispatch(rejectLeave({ leaveId, approvedBy: 'System' }));
     } catch (error) {
       setErrorMessage(error.message || 'Unable to reject leave.');
     }
   };
 
-  // Get leave balance for a staff member
   const getLeaveBalance = (staffId) => {
     const usedDays = leaves
       .filter(l => l.staffId === staffId && l.status === 'Approved' && l.leaveType === 'Annual')
@@ -165,107 +180,260 @@ const DutyRoster = () => {
     return Math.max(0, 21 - usedDays);
   };
 
+  const isDuplicateLeave = (staffId, leaveType, startDate, endDate) => {
+    return leaves.some(l => 
+      l.staffId === staffId && 
+      l.leaveType === leaveType && 
+      l.startDate === startDate && 
+      l.endDate === endDate
+    );
+  };
+
+  const isDuplicateOvertime = (staffId, date) => {
+    return overtime.some(o => o.staffId === staffId && o.date === date);
+  };
+
+  const isDuplicateAssignment = (assignments, staffId, date, dutyType) => {
+    return assignments.some(a => 
+      a.staffId === staffId && 
+      a.date === date && 
+      a.dutyType === dutyType
+    );
+  };
+
+  const isDuplicateRoster = (month, year, department) => {
+    return dutyRosters.some(r => 
+      r.month === month && 
+      r.year === parseInt(year) && 
+      r.department === department
+    );
+  };
+
   const handleAddLeave = async () => {
-    if (leaveFormData.staffId && leaveFormData.leaveType && leaveFormData.startDate && leaveFormData.endDate) {
-      try {
-        const payload = {
-          staffId: leaveFormData.staffId,
-          staffName: staff.find(member => member.staffId === leaveFormData.staffId)?.name || '',
-          leaveType: leaveFormData.leaveType,
-          startDate: leaveFormData.startDate,
-          endDate: leaveFormData.endDate,
-          reason: leaveFormData.reason,
-          status: 'Pending'
-        };
-        const response = await apiRequest('/api/v1/ward-rounds/leave-requests/', { method: 'POST', body: JSON.stringify(payload) });
-        dispatch(addLeaveRequest({ ...response, leaveId: response.leaveId || response.id }));
-        setShowAddLeaveModal(false);
-        setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
-      } catch (error) {
-        setErrorMessage(error.message || 'Unable to save leave request.');
-      }
+    if (!leaveFormData.staffId || !leaveFormData.leaveType || !leaveFormData.startDate || !leaveFormData.endDate) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
+
+    if (isDuplicateLeave(leaveFormData.staffId, leaveFormData.leaveType, leaveFormData.startDate, leaveFormData.endDate)) {
+      setErrorMessage('A leave request with the same type and dates already exists for this staff member.');
+      return;
+    }
+
+    try {
+      const matchedStaff = getStaffById(leaveFormData.staffId);
+      const displayName = matchedStaff?.full_name || 
+        `${matchedStaff?.first_name || ''} ${matchedStaff?.last_name || ''}`.trim() || '';
+      
+      const payload = {
+        staffId: leaveFormData.staffId,
+        staffName: displayName,
+        leaveType: leaveFormData.leaveType,
+        startDate: leaveFormData.startDate,
+        endDate: leaveFormData.endDate,
+        reason: leaveFormData.reason,
+        status: 'Pending'
+      };
+      
+      const response = await apiRequest('/api/v1/ward-rounds/leave-requests/', { 
+        method: 'POST', 
+        body: JSON.stringify(payload) 
+      });
+      
+      dispatch(addLeaveRequest({ 
+        ...response, 
+        leaveId: response.leaveId || response.id 
+      }));
+      
+      setShowAddLeaveModal(false);
+      setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to save leave request.');
     }
   };
 
   const handleAddOvertime = async () => {
-    if (overtimeFormData.staffId && overtimeFormData.date && overtimeFormData.hours) {
-      try {
-        const payload = {
-          staffId: overtimeFormData.staffId,
-          staffName: staff.find(member => member.staffId === overtimeFormData.staffId)?.name || '',
-          date: overtimeFormData.date,
-          hoursWorked: overtimeFormData.hours,
-          reason: overtimeFormData.reason,
-          status: 'Pending',
-          rate: '1.5x'
-        };
-        const response = await apiRequest('/api/v1/ward-rounds/overtime-records/', { method: 'POST', body: JSON.stringify(payload) });
-        dispatch(addOvertimeRecord({ ...response, overtimeId: response.overtimeId || response.id, status: response.approvalStatus || response.status || 'Pending' }));
-        setShowAddOvertimeModal(false);
-        setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
-      } catch (error) {
-        setErrorMessage(error.message || 'Unable to save overtime record.');
-      }
+    if (!overtimeFormData.staffId || !overtimeFormData.date || !overtimeFormData.hours) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
     }
-  };
 
-  const handleCreateRoster = async () => {
-    if (rosterFormData.month && rosterFormData.year && rosterFormData.department) {
-      try {
-        const payload = {
-          month: rosterFormData.month,
-          year: parseInt(rosterFormData.year, 10),
-          department: rosterFormData.department,
-          status: 'Draft',
-          assignments: rosterFormData.assignments.map(assignment => ({
-            staffId: assignment.staffId,
-            staffName: assignment.staffName,
-            date: assignment.date,
-            dutyType: assignment.dutyType,
-            startTime: assignment.startTime,
-            endTime: assignment.endTime,
-            notes: assignment.notes
-          }))
-        };
-        const response = await apiRequest('/api/v1/ward-rounds/duty-rosters/', { method: 'POST', body: JSON.stringify(payload) });
-        dispatch(addDutyRoster({ ...response, rosterId: response.rosterId || response.id, assignments: response.assignments || [] }));
-        setShowCreateRosterModal(false);
-        setRosterFormData({ month: '', year: '', department: '', assignments: [] });
-        setStaffSearchQuery('');
-      } catch (error) {
-        setErrorMessage(error.message || 'Unable to create roster.');
-      }
+    if (isDuplicateOvertime(overtimeFormData.staffId, overtimeFormData.date)) {
+      setErrorMessage('An overtime record for this staff member on this date already exists.');
+      return;
+    }
+
+    try {
+      const matchedStaff = getStaffById(overtimeFormData.staffId);
+      const displayName = matchedStaff?.full_name || 
+        `${matchedStaff?.first_name || ''} ${matchedStaff?.last_name || ''}`.trim() || '';
+      
+      const payload = {
+        staffId: overtimeFormData.staffId,
+        staffName: displayName,
+        date: overtimeFormData.date,
+        hoursWorked: overtimeFormData.hours,
+        reason: overtimeFormData.reason,
+        status: 'Pending',
+        rate: '1.5x'
+      };
+      
+      const response = await apiRequest('/api/v1/ward-rounds/overtime-records/', { 
+        method: 'POST', 
+        body: JSON.stringify(payload) 
+      });
+      
+      dispatch(addOvertimeRecord({ 
+        ...response, 
+        overtimeId: response.overtimeId || response.id, 
+        status: response.approvalStatus || response.status || 'Pending' 
+      }));
+      
+      setShowAddOvertimeModal(false);
+      setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to save overtime record.');
     }
   };
 
   const handleAddAssignment = () => {
-    if (assignmentFormData.staffId && assignmentFormData.date && assignmentFormData.dutyType) {
-      const staffMember = staff.find(s => s.staffId === assignmentFormData.staffId);
-      const newAssignment = {
-        assignmentId: `ASSIGN${Date.now()}`,
-        staffId: assignmentFormData.staffId,
-        staffName: staffMember?.name || 'Unknown Staff',
-        date: assignmentFormData.date,
-        dutyType: assignmentFormData.dutyType,
-        startTime: assignmentFormData.startTime,
-        endTime: assignmentFormData.endTime,
-        notes: assignmentFormData.notes
+    if (!assignmentFormData.staffId || !assignmentFormData.date || !assignmentFormData.dutyType) {
+      setErrorMessage('Please fill in staff, date, and duty type.');
+      return;
+    }
+
+    if (isDuplicateAssignment(
+      rosterFormData.assignments, 
+      assignmentFormData.staffId, 
+      assignmentFormData.date, 
+      assignmentFormData.dutyType
+    )) {
+      setErrorMessage('This assignment already exists for the staff member on this date with the same duty type.');
+      return;
+    }
+
+    const staffMember = getStaffById(assignmentFormData.staffId);
+    const displayName = staffMember?.full_name || 
+      `${staffMember?.first_name || ''} ${staffMember?.last_name || ''}`.trim() || 'Unknown Staff';
+    
+    const newAssignment = {
+      assignmentId: `ASSIGN${Date.now()}`,
+      staffId: assignmentFormData.staffId,
+      staffName: displayName,
+      date: assignmentFormData.date,
+      dutyType: assignmentFormData.dutyType,
+      startTime: assignmentFormData.startTime || '',
+      endTime: assignmentFormData.endTime || '',
+      notes: assignmentFormData.notes || ''
+    };
+    
+    setRosterFormData(prev => ({
+      ...prev,
+      assignments: [...prev.assignments, newAssignment]
+    }));
+    
+    setAssignmentFormData({
+      staffId: '',
+      staffName: '',
+      date: '',
+      dutyType: '',
+      startTime: '',
+      endTime: '',
+      notes: ''
+    });
+    setStaffSearchQuery('');
+    setShowStaffDropdown(false);
+    setErrorMessage('');
+  };
+
+  const removeAssignment = (index) => {
+    setRosterFormData(prev => ({
+      ...prev,
+      assignments: prev.assignments.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleCreateRoster = async () => {
+    if (!rosterFormData.month || !rosterFormData.year || !rosterFormData.department) {
+      setErrorMessage('Please fill in month, year, and department.');
+      return;
+    }
+
+    if (rosterFormData.assignments.length === 0) {
+      setErrorMessage('Please add at least one assignment.');
+      return;
+    }
+
+    if (isDuplicateRoster(rosterFormData.month, rosterFormData.year, rosterFormData.department)) {
+      setErrorMessage('A roster for this month, year, and department already exists.');
+      return;
+    }
+
+    try {
+      const payload = {
+        month: rosterFormData.month,
+        year: parseInt(rosterFormData.year, 10),
+        department: rosterFormData.department,
+        status: 'Draft',
+        assignments: rosterFormData.assignments.map(assignment => ({
+          staffId: assignment.staffId,
+          staffName: assignment.staffName,
+          date: assignment.date,
+          dutyType: assignment.dutyType,
+          startTime: assignment.startTime,
+          endTime: assignment.endTime,
+          notes: assignment.notes
+        }))
       };
-      setRosterFormData(prev => ({
-        ...prev,
-        assignments: [...prev.assignments, newAssignment]
-      }));
-      setAssignmentFormData({
-        staffId: '',
-        date: '',
-        dutyType: '',
-        startTime: '',
-        endTime: '',
-        notes: ''
+      
+      const response = await apiRequest('/api/v1/ward-rounds/duty-rosters/', { 
+        method: 'POST', 
+        body: JSON.stringify(payload) 
       });
+      
+      dispatch(addDutyRoster({ 
+        ...response, 
+        rosterId: response.rosterId || response.id, 
+        assignments: response.assignments || [] 
+      }));
+      
+      setShowCreateRosterModal(false);
+      setRosterFormData({ month: '', year: '', department: '', assignments: [] });
       setStaffSearchQuery('');
+      setShowStaffDropdown(false);
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to create roster.');
     }
   };
+
+  const selectStaff = (member) => {
+    const displayName = member.full_name || 
+      `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown';
+    
+    setAssignmentFormData(prev => ({
+      ...prev,
+      staffId: member.employee_id || String(member.id),
+      staffName: displayName
+    }));
+    setStaffSearchQuery(displayName);
+    setShowStaffDropdown(false);
+  };
+
+  const filteredStaff = staff.filter(member => {
+    const query = staffSearchQuery.toLowerCase();
+    const fullName = `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase();
+    const displayName = (member.full_name || fullName || '').toLowerCase();
+    return (
+      displayName.includes(query) ||
+      (member.role || '').toLowerCase().includes(query) ||
+      (member.employee_id || '').toLowerCase().includes(query) ||
+      (member.department_name || '').toLowerCase().includes(query) ||
+      (member.email || '').toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="duty-roster p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -278,7 +446,7 @@ const DutyRoster = () => {
           {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="text-lg font-bold text-gray-800">Duty Roster</div>
-        <div className="w-10"></div> {/* Spacer for alignment */}
+        <div className="w-10"></div>
       </div>
 
       {/* Header */}
@@ -288,10 +456,12 @@ const DutyRoster = () => {
             <Calendar className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3 text-nigerian-green" />
             Duty Roster Management
           </h1>
-          <p className="text-gray-600 mt-1 md:mt-2 text-sm md:text-base">Create and manage staff duty schedules, leave, and overtime</p>
+          <p className="text-gray-600 mt-1 md:mt-2 text-sm md:text-base">
+            Create and manage staff duty schedules, leave, and overtime
+          </p>
         </div>
         
-        {/* Search Bar - Mobile Top */}
+        {/* Search Bar - Mobile */}
         <div className="md:hidden w-full mb-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -305,7 +475,7 @@ const DutyRoster = () => {
           </div>
         </div>
 
-        {/* Responsive Action Buttons */}
+        {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           {activeTab === 'roster' && (
             <button
@@ -369,7 +539,9 @@ const DutyRoster = () => {
             <Calendar className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-nigerian-green mr-2 md:mr-3" />
             <div>
               <p className="text-gray-600 text-xs md:text-sm">Published Rosters</p>
-              <p className="text-nigerian-green font-bold text-lg md:text-xl lg:text-2xl">{rosterSummary.published}</p>
+              <p className="text-nigerian-green font-bold text-lg md:text-xl lg:text-2xl">
+                {rosterSummary.published}
+              </p>
             </div>
           </div>
         </div>
@@ -379,7 +551,9 @@ const DutyRoster = () => {
             <AlertCircle className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-blue-500 mr-2 md:mr-3" />
             <div>
               <p className="text-gray-600 text-xs md:text-sm">Pending Leaves</p>
-              <p className="text-blue-500 font-bold text-lg md:text-xl lg:text-2xl">{rosterSummary.pendingLeaves}</p>
+              <p className="text-blue-500 font-bold text-lg md:text-xl lg:text-2xl">
+                {rosterSummary.pendingLeaves}
+              </p>
             </div>
           </div>
         </div>
@@ -390,7 +564,7 @@ const DutyRoster = () => {
             <div>
               <p className="text-gray-600 text-xs md:text-sm">Overtime Hours</p>
               <p className="text-orange-500 font-bold text-lg md:text-xl lg:text-2xl">
-                {rosterSummary.overtimeHours}
+                {rosterSummary.overtimeHours.toFixed(1)}
               </p>
             </div>
           </div>
@@ -401,7 +575,9 @@ const DutyRoster = () => {
             <CheckCircle className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-green-500 mr-2 md:mr-3" />
             <div>
               <p className="text-gray-600 text-xs md:text-sm">Approved Leaves</p>
-              <p className="text-green-500 font-bold text-lg md:text-xl lg:text-2xl">{leaves.filter(l => l.status === 'Approved').length}</p>
+              <p className="text-green-500 font-bold text-lg md:text-xl lg:text-2xl">
+                {leaves.filter(l => l.status === 'Approved').length}
+              </p>
             </div>
           </div>
         </div>
@@ -447,7 +623,7 @@ const DutyRoster = () => {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Tabs - Desktop */}
       <div className="hidden md:flex gap-2 lg:gap-4 mb-4 lg:mb-6 border-b border-gray-200 overflow-x-auto">
         <button
           onClick={() => setActiveTab('roster')}
@@ -498,90 +674,109 @@ const DutyRoster = () => {
         </div>
       </div>
 
+      {/* Error and Loading Messages */}
       {errorMessage && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
       )}
 
       {isLoading && (
-        <div className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">Loading roster data…</div>
+        <div className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+          Loading roster data…
+        </div>
       )}
 
       {/* Rosters Tab */}
       {activeTab === 'roster' && (
         <div className="space-y-4 md:space-y-6">
-          {dutyRosters.map(roster => (
-            <div key={roster.rosterId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
-              <div className="mb-3 md:mb-4">
-                <h3 className="text-lg md:text-xl font-bold text-gray-800">{roster.month || 'Unnamed Roster'} - {roster.department || 'No Department'}</h3>
-                <p className="text-xs md:text-sm text-gray-600 mt-1">
-                  Status: <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-green-100 text-green-800 rounded-full font-semibold text-xs md:text-sm">
-                    {roster.status || 'Draft'}
-                  </span>
-                </p>
-              </div>
-              <div className="overflow-x-auto -mx-4 md:mx-0">
-                <div className="min-w-full">
-                  <div className="hidden md:table w-full">
-                    <div className="table-row border-b">
-                      <div className="table-cell py-3 px-4 font-semibold text-gray-700">Staff Member</div>
-                      <div className="table-cell py-3 px-4 font-semibold text-gray-700">Date</div>
-                      <div className="table-cell py-3 px-4 font-semibold text-gray-700">Duty Type</div>
-                      <div className="table-cell py-3 px-4 font-semibold text-gray-700">Time</div>
-                      <div className="table-cell py-3 px-4 font-semibold text-gray-700">Notes</div>
-                    </div>
-                    {(roster.assignments || []).map(assignment => (
-                      <div key={assignment.assignmentId} className="table-row border-b hover:bg-gray-50">
-                        <div className="table-cell py-3 px-4 font-medium">{assignment.staffName || 'Unknown Staff'}</div>
-                        <div className="table-cell py-3 px-4">
-                          {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
-                        </div>
-                        <div className="table-cell py-3 px-4">
-                          <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold">
-                            {assignment.dutyType || 'Unspecified'}
-                          </span>
-                        </div>
-                        <div className="table-cell py-3 px-4">{assignment.startTime || '--'} - {assignment.endTime || '--'}</div>
-                        <div className="table-cell py-3 px-4 text-sm text-gray-600 truncate max-w-xs">{assignment.notes || 'No notes'}</div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Mobile View */}
-                  <div className="md:hidden space-y-3">
-                    {(roster.assignments || []).map(assignment => (
-                      <div key={assignment.assignmentId} className="border border-gray-200 rounded-lg p-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-medium text-sm">{assignment.staffName || 'Unknown Staff'}</p>
-                            <p className="text-xs text-gray-600">
-                              {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
-                            </p>
-                          </div>
-                          <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                            {assignment.dutyType || 'Unspecified'}
-                          </span>
-                        </div>
-                        <div className="text-sm mb-1">
-                          <span className="text-gray-600">Time: </span>
-                          <span className="font-medium">{assignment.startTime || '--'} - {assignment.endTime || '--'}</span>
-                        </div>
-                        {assignment.notes && (
-                          <div className="text-xs text-gray-600 truncate">
-                            {assignment.notes}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-          {dutyRosters.length === 0 && (
+          {dutyRosters.length === 0 ? (
             <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
               <Calendar className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
               <p className="text-gray-600 font-medium text-sm md:text-base">No rosters published yet</p>
             </div>
+          ) : (
+            dutyRosters.map(roster => (
+              <div key={roster.rosterId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
+                <div className="mb-3 md:mb-4">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800">
+                    {roster.month || 'Unnamed Roster'} - {roster.department || 'No Department'}
+                  </h3>
+                  <p className="text-xs md:text-sm text-gray-600 mt-1">
+                    Status: 
+                    <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-green-100 text-green-800 rounded-full font-semibold text-xs md:text-sm ml-2">
+                      {roster.status || 'Draft'}
+                    </span>
+                  </p>
+                </div>
+                
+                <div className="overflow-x-auto -mx-4 md:mx-0">
+                  <div className="min-w-full">
+                    {/* Desktop Table View */}
+                    <div className="hidden md:table w-full">
+                      <div className="table-row border-b">
+                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Staff Member</div>
+                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Date</div>
+                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Duty Type</div>
+                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Time</div>
+                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Notes</div>
+                      </div>
+                      {roster.assignments && roster.assignments.map(assignment => (
+                        <div key={assignment.assignmentId} className="table-row border-b hover:bg-gray-50">
+                          <div className="table-cell py-3 px-4 font-medium">
+                            {assignment.staffName || 'Unknown Staff'}
+                          </div>
+                          <div className="table-cell py-3 px-4">
+                            {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
+                          </div>
+                          <div className="table-cell py-3 px-4">
+                            <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold">
+                              {assignment.dutyType || 'Unspecified'}
+                            </span>
+                          </div>
+                          <div className="table-cell py-3 px-4">
+                            {assignment.startTime || '--'} - {assignment.endTime || '--'}
+                          </div>
+                          <div className="table-cell py-3 px-4 text-sm text-gray-600 truncate max-w-xs">
+                            {assignment.notes || 'No notes'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-3">
+                      {roster.assignments && roster.assignments.map(assignment => (
+                        <div key={assignment.assignmentId} className="border border-gray-200 rounded-lg p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium text-sm">{assignment.staffName || 'Unknown Staff'}</p>
+                              <p className="text-xs text-gray-600">
+                                {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
+                              </p>
+                            </div>
+                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                              {assignment.dutyType || 'Unspecified'}
+                            </span>
+                          </div>
+                          <div className="text-sm mb-1">
+                            <span className="text-gray-600">Time: </span>
+                            <span className="font-medium">
+                              {assignment.startTime || '--'} - {assignment.endTime || '--'}
+                            </span>
+                          </div>
+                          {assignment.notes && (
+                            <div className="text-xs text-gray-600 truncate">
+                              {assignment.notes}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       )}
@@ -599,13 +794,17 @@ const DutyRoster = () => {
             </div>
           ) : (
             filteredLeaves.map(leave => {
-              const staffMember = staff.find(s => s.staffId === leave.staffId);
+              const staffName = getStaffName(leave.staffId);
+              const days = leave.startDate && leave.endDate 
+                ? Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1
+                : 'N/A';
+              
               return (
                 <div key={leave.leaveId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 items-start">
                     <div className="sm:col-span-2 lg:col-span-1">
                       <p className="text-xs md:text-sm text-gray-600">Staff Member</p>
-                      <p className="font-bold text-sm md:text-base truncate">{staffMember?.name || 'Unknown Staff'}</p>
+                      <p className="font-bold text-sm md:text-base truncate">{staffName}</p>
                     </div>
                     <div>
                       <p className="text-xs md:text-sm text-gray-600">Leave Type</p>
@@ -620,17 +819,16 @@ const DutyRoster = () => {
                     </div>
                     <div className="hidden lg:block">
                       <p className="text-xs md:text-sm text-gray-600">Dates</p>
-                      <p className="font-bold text-sm">{leave.startDate ? new Date(leave.startDate).toLocaleDateString('en-NG') : 'No start'}</p>
-                      <p className="font-bold text-sm">to {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-NG') : 'No end'}</p>
+                      <p className="font-bold text-sm">
+                        {leave.startDate ? new Date(leave.startDate).toLocaleDateString('en-NG') : 'No start'}
+                      </p>
+                      <p className="font-bold text-sm">
+                        to {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-NG') : 'No end'}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs md:text-sm text-gray-600">Days</p>
-                      <p className="font-bold text-xs md:text-sm">
-                        {leave.startDate && leave.endDate 
-                          ? Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1
-                          : 'N/A'
-                        }
-                      </p>
+                      <p className="font-bold text-xs md:text-sm">{days}</p>
                     </div>
                     <div>
                       <p className="text-xs md:text-sm text-gray-600">Status</p>
@@ -667,7 +865,9 @@ const DutyRoster = () => {
                   </div>
                   {leave.reason && (
                     <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs md:text-sm text-gray-700"><strong>Reason:</strong> {leave.reason}</p>
+                      <p className="text-xs md:text-sm text-gray-700">
+                        <strong>Reason:</strong> {leave.reason}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -687,13 +887,13 @@ const DutyRoster = () => {
             </div>
           ) : (
             overtime.map(overtimeRecord => {
-              const staffMember = staff.find(s => s.staffId === overtimeRecord.staffId);
+              const staffName = getStaffName(overtimeRecord.staffId);
               return (
                 <div key={overtimeRecord.overtimeId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 items-start">
                     <div className="sm:col-span-2 lg:col-span-1">
                       <p className="text-xs md:text-sm text-gray-600">Staff Member</p>
-                      <p className="font-bold text-sm md:text-base truncate">{staffMember?.name || 'Unknown Staff'}</p>
+                      <p className="font-bold text-sm md:text-base truncate">{staffName}</p>
                     </div>
                     <div>
                       <p className="text-xs md:text-sm text-gray-600">Date</p>
@@ -703,7 +903,9 @@ const DutyRoster = () => {
                     </div>
                     <div>
                       <p className="text-xs md:text-sm text-gray-600">Hours</p>
-                      <p className="font-bold text-xs md:text-sm">{overtimeRecord.hoursWorked || overtimeRecord.hours || 0} hours</p>
+                      <p className="font-bold text-xs md:text-sm">
+                        {overtimeRecord.hoursWorked || overtimeRecord.hours || 0} hours
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs md:text-sm text-gray-600">Status</p>
@@ -720,7 +922,9 @@ const DutyRoster = () => {
                   </div>
                   {overtimeRecord.reason && (
                     <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs md:text-sm text-gray-700"><strong>Reason:</strong> {overtimeRecord.reason}</p>
+                      <p className="text-xs md:text-sm text-gray-700">
+                        <strong>Reason:</strong> {overtimeRecord.reason}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -733,7 +937,11 @@ const DutyRoster = () => {
       {/* Add Leave Modal */}
       <GenericModal
         isOpen={showAddLeaveModal}
-        onClose={() => setShowAddLeaveModal(false)}
+        onClose={() => {
+          setShowAddLeaveModal(false);
+          setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
+          setErrorMessage('');
+        }}
         title="Request Leave"
         size="lg"
       >
@@ -744,12 +952,17 @@ const DutyRoster = () => {
             className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
           >
             <option value="">Select Staff Member</option>
-            {staff.map(s => (
-              <option key={s.staffId} value={s.staffId}>
-                {s.name} (Balance: {getLeaveBalance(s.staffId)} days)
-              </option>
-            ))}
+            {staff.map(s => {
+              const sid = s.employee_id || String(s.id);
+              const name = s.full_name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown';
+              return (
+                <option key={sid} value={sid}>
+                  {name} (Balance: {getLeaveBalance(sid)} days)
+                </option>
+              );
+            })}
           </select>
+          
           <select
             value={leaveFormData.leaveType}
             onChange={(e) => setLeaveFormData({ ...leaveFormData, leaveType: e.target.value })}
@@ -760,6 +973,7 @@ const DutyRoster = () => {
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div>
               <label className="block text-xs md:text-sm text-gray-600 mb-1">Start Date</label>
@@ -780,6 +994,7 @@ const DutyRoster = () => {
               />
             </div>
           </div>
+          
           <div>
             <label className="block text-xs md:text-sm text-gray-600 mb-1">Reason for leave</label>
             <textarea
@@ -788,8 +1003,13 @@ const DutyRoster = () => {
               onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
               rows="3"
               className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
-            ></textarea>
+            />
           </div>
+          
+          {errorMessage && (
+            <div className="text-red-600 text-sm">{errorMessage}</div>
+          )}
+          
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleAddLeave}
@@ -798,7 +1018,11 @@ const DutyRoster = () => {
               Request Leave
             </button>
             <button
-              onClick={() => setShowAddLeaveModal(false)}
+              onClick={() => {
+                setShowAddLeaveModal(false);
+                setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
+                setErrorMessage('');
+              }}
               className="flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
             >
               Cancel
@@ -810,7 +1034,11 @@ const DutyRoster = () => {
       {/* Add Overtime Modal */}
       <GenericModal
         isOpen={showAddOvertimeModal}
-        onClose={() => setShowAddOvertimeModal(false)}
+        onClose={() => {
+          setShowAddOvertimeModal(false);
+          setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
+          setErrorMessage('');
+        }}
         title="Record Overtime"
         size="lg"
       >
@@ -821,10 +1049,15 @@ const DutyRoster = () => {
             className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
           >
             <option value="">Select Staff Member</option>
-            {staff.map(s => (
-              <option key={s.staffId} value={s.staffId}>{s.name}</option>
-            ))}
+            {staff.map(s => {
+              const sid = s.employee_id || String(s.id);
+              const name = s.full_name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown';
+              return (
+                <option key={sid} value={sid}>{name}</option>
+              );
+            })}
           </select>
+          
           <div>
             <label className="block text-xs md:text-sm text-gray-600 mb-1">Date</label>
             <input
@@ -834,6 +1067,7 @@ const DutyRoster = () => {
               className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
             />
           </div>
+          
           <div>
             <label className="block text-xs md:text-sm text-gray-600 mb-1">Hours worked</label>
             <input
@@ -846,6 +1080,7 @@ const DutyRoster = () => {
               className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
             />
           </div>
+          
           <div>
             <label className="block text-xs md:text-sm text-gray-600 mb-1">Reason for overtime</label>
             <textarea
@@ -854,8 +1089,13 @@ const DutyRoster = () => {
               onChange={(e) => setOvertimeFormData({ ...overtimeFormData, reason: e.target.value })}
               rows="3"
               className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
-            ></textarea>
+            />
           </div>
+          
+          {errorMessage && (
+            <div className="text-red-600 text-sm">{errorMessage}</div>
+          )}
+          
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleAddOvertime}
@@ -864,7 +1104,11 @@ const DutyRoster = () => {
               Record Overtime
             </button>
             <button
-              onClick={() => setShowAddOvertimeModal(false)}
+              onClick={() => {
+                setShowAddOvertimeModal(false);
+                setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
+                setErrorMessage('');
+              }}
               className="flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
             >
               Cancel
@@ -878,8 +1122,10 @@ const DutyRoster = () => {
         isOpen={showCreateRosterModal}
         onClose={() => {
           setShowCreateRosterModal(false);
+          setRosterFormData({ month: '', year: '', department: '', assignments: [] });
           setStaffSearchQuery('');
           setShowStaffDropdown(false);
+          setErrorMessage('');
         }}
         title="Create Duty Roster"
         size="2xl"
@@ -941,60 +1187,39 @@ const DutyRoster = () => {
                   <input
                     type="text"
                     value={staffSearchQuery}
-                    onChange={(e) => setStaffSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setStaffSearchQuery(e.target.value);
+                      setShowStaffDropdown(e.target.value.length > 0);
+                    }}
                     placeholder="Search staff by name, role, or department..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
                   />
-                  {staffSearchQuery && (
+                  {showStaffDropdown && staffSearchQuery && (
                     <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
-                      {staff
-                        .filter(member => {
-                          const query = staffSearchQuery.toLowerCase();
-                          return (
-                            (member.name || '').toLowerCase().includes(query) ||
-                            (member.role || '').toLowerCase().includes(query) ||
-                            (member.staffId || '').toLowerCase().includes(query) ||
-                            (member.department || '').toLowerCase().includes(query) ||
-                            (member.email || '').toLowerCase().includes(query)
-                          );
-                        })
-                        .slice(0, 8)
-                        .map(member => (
+                      {filteredStaff.slice(0, 8).map(member => {
+                        const displayName = member.full_name || 
+                          `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown';
+                        return (
                           <button
-                            key={member.id || member.staffId}
+                            key={member.id}
                             type="button"
-                            onClick={() => {
-                              setAssignmentFormData(prev => ({
-                                ...prev,
-                                staffId: member.staffId || member.id,
-                                staffName: member.name || ''
-                              }));
-                              setStaffSearchQuery(member.name || '');
-                            }}
+                            onClick={() => selectStaff(member)}
                             className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-0"
                           >
-                            <span className="font-medium text-gray-900">{member.name}</span>
+                            <span className="font-medium text-gray-900">{displayName}</span>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
                               <span>{member.role}</span>
-                              {member.department && (
+                              {member.department_name && (
                                 <>
                                   <span>•</span>
-                                  <span>{member.department}</span>
+                                  <span>{member.department_name}</span>
                                 </>
                               )}
                             </div>
                           </button>
-                        ))}
-                      {staff.filter(member => {
-                        const query = staffSearchQuery.toLowerCase();
-                        return (
-                          (member.name || '').toLowerCase().includes(query) ||
-                          (member.role || '').toLowerCase().includes(query) ||
-                          (member.staffId || '').toLowerCase().includes(query) ||
-                          (member.department || '').toLowerCase().includes(query) ||
-                          (member.email || '').toLowerCase().includes(query)
                         );
-                      }).length === 0 && (
+                      })}
+                      {filteredStaff.length === 0 && (
                         <p className="px-3 py-2 text-xs text-gray-500">No staff found</p>
                       )}
                     </div>
@@ -1065,7 +1290,9 @@ const DutyRoster = () => {
           {/* Assignments List */}
           {rosterFormData.assignments.length > 0 && (
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Current Assignments ({rosterFormData.assignments.length})</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Current Assignments ({rosterFormData.assignments.length})
+              </h3>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {rosterFormData.assignments.map((assignment, index) => (
                   <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
@@ -1076,10 +1303,7 @@ const DutyRoster = () => {
                       </p>
                     </div>
                     <button
-                      onClick={() => setRosterFormData(prev => ({
-                        ...prev,
-                        assignments: prev.assignments.filter((_, i) => i !== index)
-                      }))}
+                      onClick={() => removeAssignment(index)}
                       className="text-red-600 hover:text-red-800"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1090,10 +1314,20 @@ const DutyRoster = () => {
             </div>
           )}
 
+          {errorMessage && (
+            <div className="text-red-600 text-sm">{errorMessage}</div>
+          )}
+
           {/* Modal Actions */}
           <div className="flex justify-end space-x-3 pt-6 border-t">
             <button
-              onClick={() => setShowCreateRosterModal(false)}
+              onClick={() => {
+                setShowCreateRosterModal(false);
+                setRosterFormData({ month: '', year: '', department: '', assignments: [] });
+                setStaffSearchQuery('');
+                setShowStaffDropdown(false);
+                setErrorMessage('');
+              }}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
             >
               Cancel
