@@ -228,17 +228,23 @@ export const tenantSettingsApi = {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
         if (value === undefined || value === null) return;
-        if (key === 'custom_settings') {
-          formData.append(key, JSON.stringify(value));
-        } else if (key === 'system_logo') {
+        if (key === 'system_logo') {
           formData.append('system_logo', value);
-        } else {
-          formData.append(key, value);
+          return;
         }
+        if (key === 'custom_settings' || key === 'password_policy' || key === 'vitals_units') {
+          formData.append(key, JSON.stringify(value));
+          return;
+        }
+        if (typeof value === 'object') {
+          formData.append(key, JSON.stringify(value));
+          return;
+        }
+        formData.append(key, value);
       });
-      return apiRequest('/api/v1/tenants/settings/current/', { method: 'PUT', body: formData });
+      return apiRequest('/api/v1/tenants/settings/current/', { method: 'PATCH', body: formData });
     }
-    return apiRequest('/api/v1/tenants/settings/current/', { method: 'PUT', body: JSON.stringify(data) });
+    return apiRequest('/api/v1/tenants/settings/current/', { method: 'PATCH', body: JSON.stringify(data) });
   }
 };
 
