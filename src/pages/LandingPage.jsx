@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import TourModal from '../components/TourModal';
 
 const SmartCareHMSRedesigned = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -7,6 +8,7 @@ const SmartCareHMSRedesigned = () => {
   const [hoveredFeature, setHoveredFeature] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [visibleSections, setVisibleSections] = useState({});
+  const [isTourOpen, setIsTourOpen] = useState(false);
   
   const heroRef = useRef(null);
   const [icons, setIcons] = useState(null);
@@ -361,7 +363,7 @@ const SmartCareHMSRedesigned = () => {
                     Book a Demo
                     <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </a>
-                  <button className="group inline-flex items-center gap-3 rounded-xl border-2 border-slate-200 px-8 py-4 text-base font-medium text-slate-700 hover:bg-slate-50 transition-all hover:border-slate-300">
+                  <button onClick={() => setIsTourOpen(true)} className="group inline-flex items-center gap-3 rounded-xl border-2 border-slate-200 px-8 py-4 text-base font-medium text-slate-700 hover:bg-slate-50 transition-all hover:border-slate-300">
                     Watch Tour
                     <PlayCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
                   </button>
@@ -684,7 +686,7 @@ const SmartCareHMSRedesigned = () => {
                 Book a Demo
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </a>
-              <button className="group inline-flex items-center gap-3 rounded-xl border-2 border-white/30 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
+              <button onClick={() => setIsTourOpen(true)} className="group inline-flex items-center gap-3 rounded-xl border-2 border-white/30 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
                 <PlayCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
                 Watch Tour
               </button>
@@ -760,6 +762,8 @@ const SmartCareHMSRedesigned = () => {
           animation: gradient 6s ease infinite;
         }
       `}</style>
+
+      <TourModal isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
     </div>
   );
 };

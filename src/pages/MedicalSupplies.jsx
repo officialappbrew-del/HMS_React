@@ -1,26 +1,99 @@
-import { useSelector, useDispatch } from 'react-redux';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Package, Plus, AlertCircle, Droplet, Wrench, Menu, X, Search, Filter } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
-import { updateConsumable, addSupplyTransaction, addRequisition } from '../features/medicalSuppliesSlice';
+import { apiRequest, parseListResponse } from '../utils/api';
 
 const MedicalSupplies = () => {
-  // Add safe defaults for Redux state
-  const medicalSupplies = useSelector(state => state.medicalSupplies || {});
-  const dispatch = useDispatch();
+  const getArray = (value) => Array.isArray(value) ? value : [];
 
-  const consumables = medicalSupplies.consumables || [];
-  const laboratoryReagents = medicalSupplies.laboratoryReagents || [];
-  const radiologySupplies = medicalSupplies.radiologySupplies || [];
-  const surgicalInstruments = medicalSupplies.surgicalInstruments || [];
-  const linenAndLaundry = medicalSupplies.linenAndLaundry || [];
-  const wasteManagement = medicalSupplies.wasteManagement || [];
-  const donations = medicalSupplies.donations || [];
-
+  const [inventoryItems, setInventoryItems] = useState([]);
   const [activeTab, setActiveTab] = useState('consumables');
   const [showModal, setShowModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [formData, setFormData] = useState({
+    type: '',
+    name: '',
+    quantity: '',
+    expiryDate: '',
+    supplier: '',
+    unitCost: '',
+    batchNumber: ''
+  });
+
+  const sectionFromItem = (item = {}) => {
+    const haystack = `${item.name || ''} ${item.category || ''} ${item.generic_name || ''} ${item.form || ''}`.toLowerCase();
+
+    if (/reagent|lab|test|diagnostic|culture|kit/.test(haystack)) return 'reagents';
+    if (/radiology|x-ray|imaging|scan|film|contrast/.test(haystack)) return 'radiology';
+    if (/surgical|instrument|scalpel|forceps|needle|drill/.test(haystack)) return 'surgical';
+    if (/linen|laundry|sheet|drape|gown/.test(haystack)) return 'linen';
+    return 'consumables';
+  };
+
+  const normalizeInventoryItem = (item = {}) => {
+    const currentStock = Number(item.stock_quantity ?? item.currentStock ?? item.quantityInStock ?? 0);
+    const reorderPoint = Number(item.reorder_level ?? item.reorderPoint ?? 0);
+    const unitCost = Number(item.unit_price ?? item.unitCost ?? 0);
+    const section = item.section || sectionFromItem(item);
+
+    return {
+      id: item.id || item.itemId || item.drug_code || `${section}-${Math.random()}`,
+      consumableId: item.id || item.itemId || item.drug_code || `${section}-${Math.random()}`,
+      reagentId: item.id || item.itemId || item.drug_code || `${section}-${Math.random()}`,
+      radiologyId: item.id || item.itemId || item.drug_code || `${section}-${Math.random()}`,
+      instrumentId: item.id || item.itemId || item.drug_code || `${section}-${Math.random()}`,
+      linenId: item.id || item.itemId || item.drug_code || `${section}-${Math.random()}`,
+      name: item.name || item.drug_name || 'Unnamed Item',
+      category: item.category || item.form || 'General',
+      type: item.type || item.form || 'General',
+      quantityInStock: currentStock,
+      quantity: currentStock,
+      currentStock,
+      reorderPoint,
+      unitCost,
+      expiryDate: item.expiry_date || item.expiryDate || null,
+      status: currentStock <= reorderPoint ? 'Low Stock' : 'Available',
+      testType: item.testType || item.category || 'General',
+      storageTemp: item.storage_conditions || item.storageTemp || 'Room Temp',
+      sterilizationStatus: item.sterilizationStatus || 'Pending',
+      condition: item.condition || 'Good',
+      section,
+      source: 'api'
+    };
+  };
+
+  const loadSupplies = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const response = await apiRequest('/api/v1/pharmacy/drugs/?page_size=100');
+      const list = parseListResponse(response);
+      const normalized = getArray(list).map(normalizeInventoryItem);
+      setInventoryItems(normalized);
+    } catch (error) {
+      setInventoryItems([]);
+      setErrorMessage(error.message || 'Unable to load medical supplies from the API.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSupplies();
+  }, []);
+
+  const consumables = getArray(inventoryItems.filter(item => item.section === 'consumables'));
+  const laboratoryReagents = getArray(inventoryItems.filter(item => item.section === 'reagents'));
+  const radiologySupplies = getArray(inventoryItems.filter(item => item.section === 'radiology'));
+  const surgicalInstruments = getArray(inventoryItems.filter(item => item.section === 'surgical'));
+  const linenAndLaundry = getArray(inventoryItems.filter(item => item.section === 'linen'));
+  const wasteManagement = getArray([]);
+  const donations = getArray([]);
 
   // Safe filter with null checks
   const lowStockConsumables = consumables.filter(c => {
@@ -86,9 +159,59 @@ const MedicalSupplies = () => {
 
   const filteredItems = getFilteredItems();
 
-  const handleAddSupply = () => {
-    console.log('Adding new supply');
-    setShowModal(false);
+  const handleAddSupply = async (event) => {
+    event.preventDefault();
+
+    if (!formData.type || !formData.name || !formData.quantity) {
+      setErrorMessage('Please select a supply type, enter a name, and set a quantity.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const payload = {
+        name: formData.name,
+        generic_name: formData.name,
+        brand_name: formData.name,
+        drug_code: `SUP-${Date.now()}`,
+        category: 'other',
+        form: 'tablet',
+        strength: '',
+        stock_quantity: Number(formData.quantity),
+        reorder_level: 5,
+        reorder_quantity: Number(formData.quantity),
+        unit_price: Number(formData.unitCost || 0),
+        unit_of_measure: 'piece',
+        batch_number: formData.batchNumber || '',
+        expiry_date: formData.expiryDate || null,
+        supplier: formData.supplier || '',
+        storage_conditions: 'Room temperature',
+        last_restocked: new Date().toISOString().split('T')[0],
+      };
+
+      await apiRequest('/api/v1/pharmacy/drugs/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      setFormData({
+        type: '',
+        name: '',
+        quantity: '',
+        expiryDate: '',
+        supplier: '',
+        unitCost: '',
+        batchNumber: ''
+      });
+      setShowModal(false);
+      await loadSupplies();
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to create the supply record.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -141,6 +264,18 @@ const MedicalSupplies = () => {
           </span>
         </button>
       </div>
+
+      {errorMessage && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+          Loading medical supplies from the API...
+        </div>
+      )}
 
       {/* Search Bar - Desktop */}
       <div className="hidden md:block mb-6">
@@ -644,26 +779,78 @@ const MedicalSupplies = () => {
         title="Add New Supply"
         size="lg"
       >
-        <div className="space-y-3 md:space-y-4">
-          <select className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base">
+        <form onSubmit={handleAddSupply} className="space-y-3 md:space-y-4">
+          <select
+            value={formData.type}
+            onChange={(event) => setFormData({ ...formData, type: event.target.value })}
+            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
+          >
             <option value="">Select Supply Type</option>
-            <option value="consumable">Consumable</option>
-            <option value="reagent">Reagent</option>
+            <option value="consumables">Consumable</option>
+            <option value="reagents">Reagent</option>
+            <option value="radiology">Radiology Supply</option>
             <option value="surgical">Surgical Instrument</option>
             <option value="linen">Linen</option>
           </select>
-          <input type="text" placeholder="Item Name" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-          <input type="number" placeholder="Quantity" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
-          <input type="date" placeholder="Expiry Date" className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base" />
+          <input
+            type="text"
+            placeholder="Item Name"
+            value={formData.name}
+            onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
+          />
+          <input
+            type="number"
+            placeholder="Quantity"
+            value={formData.quantity}
+            onChange={(event) => setFormData({ ...formData, quantity: event.target.value })}
+            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
+          />
+          <input
+            type="number"
+            placeholder="Unit Cost"
+            value={formData.unitCost}
+            onChange={(event) => setFormData({ ...formData, unitCost: event.target.value })}
+            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
+          />
+          <input
+            type="text"
+            placeholder="Supplier"
+            value={formData.supplier}
+            onChange={(event) => setFormData({ ...formData, supplier: event.target.value })}
+            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
+          />
+          <input
+            type="text"
+            placeholder="Batch Number"
+            value={formData.batchNumber}
+            onChange={(event) => setFormData({ ...formData, batchNumber: event.target.value })}
+            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
+          />
+          <input
+            type="date"
+            placeholder="Expiry Date"
+            value={formData.expiryDate}
+            onChange={(event) => setFormData({ ...formData, expiryDate: event.target.value })}
+            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
+          />
           <div className="flex gap-2 pt-2">
-            <button onClick={handleAddSupply} className="flex-1 bg-green-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-green-700 font-medium text-sm md:text-base transition-colors">
-              Add Supply
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 bg-green-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-green-700 font-medium text-sm md:text-base transition-colors disabled:opacity-60"
+            >
+              {isSubmitting ? 'Saving...' : 'Add Supply'}
             </button>
-            <button onClick={() => setShowModal(false)} className="flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors">
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
+            >
               Cancel
             </button>
           </div>
-        </div>
+        </form>
       </GenericModal>
     </div>
   );
