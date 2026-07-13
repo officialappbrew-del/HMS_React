@@ -1467,6 +1467,48 @@ const PatientManagement = () => {
     return `/api/v1/patients/patients/${qs ? `?${qs}` : ''}`;
   };
 
+  const normalizePatient = (patient) => {
+    const fullName = patient.full_name || patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(' ').trim() || 'Unknown Patient';
+    const hospitalNumber = patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id || '';
+    return {
+      ...patient,
+      id: patient.id,
+      name: fullName,
+      full_name: fullName,
+      hospital_number: hospitalNumber,
+      hospitalNumber,
+      nin: patient.nin || patient.nhis_number || '',
+      phone: patient.phone || patient.phone_number || '',
+      status: patient.patient_status || patient.status || 'active',
+      patient_status: patient.patient_status || patient.status || 'active',
+      date_of_birth: patient.date_of_birth || patient.dateOfBirth || '',
+      registration_date: patient.registration_date || patient.createdAt || '',
+    };
+  };
+
+  const ensureNormalizePatient = () => {
+    if (typeof normalizePatient !== 'function') {
+      console.error('PatientManagement regression: normalizePatient helper is missing or not a function.');
+      throw new Error('PatientManagement regression: normalizePatient helper missing');
+    }
+  };
+
+  useEffect(() => {
+    ensureNormalizePatient();
+  }, []);
+
+  useEffect(() => {
+    loadPatients(buildPatientsUrl(), { silent: true });
+  }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      loadPatients(buildPatientsUrl(), { silent: true });
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [searchTermLocal]);
+
   const loadPatients = async (url = '/api/v1/patients/patients/', { silent = false, fetchAll = false } = {}) => {
     try {
       if (silent) setTableLoading(true);

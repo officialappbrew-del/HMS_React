@@ -2216,7 +2216,7 @@ const AdminDashboard = () => {
     return (
       <>
         {/* Critical Alerts Banner */}
-        {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
+        {/* {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center flex-1 min-w-0">
@@ -2244,7 +2244,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

@@ -1540,7 +1540,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
     return (
       <>
         {/* Critical Alerts */}
-        {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
+        {/* {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -1561,7 +1561,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
               </ButtonWithTooltip>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

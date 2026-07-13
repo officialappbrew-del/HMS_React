@@ -1729,7 +1729,7 @@ const DoctorDashboard = () => {
   const renderOverviewContent = () => {
     return (
       <>
-        {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
+        {/* {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -1749,7 +1749,7 @@ const DoctorDashboard = () => {
               </Button>
             </div>
           </div>
-        )}
+        )} */}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
