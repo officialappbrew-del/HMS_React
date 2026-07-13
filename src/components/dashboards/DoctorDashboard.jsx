@@ -11,6 +11,7 @@ import {
   Stethoscope,
   Activity,
   AlertCircle,
+  RotateCcw,
   Calendar,
   FileText,
   Heart,
@@ -1018,6 +1019,19 @@ const DoctorDashboard = () => {
     });
   };
 
+  const handleRestorePatient = async (patient) => {
+    try {
+      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ patient_status: 'active', is_active: true }),
+      });
+      await loadDashboardPatients('/api/v1/patients/patients/');
+    } catch (err) {
+      console.error('Failed to restore patient:', err);
+      alert(err.message || 'Failed to restore patient');
+    }
+  };
+
   const handleClosePatientModal = () => {
     setShowPatientModal(false);
     setSelectedPatient(null);
@@ -1094,6 +1108,7 @@ const DoctorDashboard = () => {
       notes: patient.notes || '',
       registration_date: patient.registration_date || '',
       last_visit: patient.last_visit || null,
+      lastVisit: patient.last_visit || patient.lastVisit || null,
       registered_by: patient.registered_by || null,
       is_active: patient.is_active !== undefined ? patient.is_active : true,
       tenant: patient.tenant || null,
@@ -1151,7 +1166,7 @@ const DoctorDashboard = () => {
 
   // Load patients when component mounts
   useEffect(() => {
-    loadDashboardPatients('/api/v1/patients/patients/');
+    loadDashboardPatients('/api/v1/patients/patients/?status=all');
   }, []);
 
   const totalItems = patientsCount || dashboardPatients.length;
@@ -2034,6 +2049,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               <tbody className="divide-y divide-gray-100">
                 {dashboardPatients.map((patient) => {
                   const status = getStatusBadge(patient.status);
+                  const isInactive = patient?.status === 'inactive' || patient?.status === 'archived';
                   return (
                     <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-3">
@@ -2101,6 +2117,14 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             onClick={() => navigate(`/patients/${patient.id}/emr`)}
                             variant="info"
                           />
+                          {isInactive && (
+                            <IconButton
+                              icon={RotateCcw}
+                              onClick={() => handleRestorePatient(patient)}
+                              tooltip="Restore patient"
+                              variant="success"
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>

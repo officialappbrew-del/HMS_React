@@ -9,6 +9,7 @@ import {
   Calendar,
   FileText,
   Phone,
+  RotateCcw,
   Ambulance,
   Clipboard,
   AlertCircle,
@@ -1021,7 +1022,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
 
   // Load patients when component mounts
   useEffect(() => {
-    loadPatients('/api/v1/patients/patients/');
+    loadPatients('/api/v1/patients/patients/?status=all');
   }, []);
 
   // Update stats when data changes
@@ -1347,6 +1348,19 @@ const displayTenantName = authTenant?.name || 'Hospital';
     });
   };
 
+  const handleRestorePatient = async (patient) => {
+    try {
+      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ patient_status: 'active', is_active: true }),
+      });
+      await loadPatients('/api/v1/patients/patients/');
+    } catch (err) {
+      console.error('Failed to restore patient:', err);
+      alert(err.message || 'Failed to restore patient');
+    }
+  };
+
   const handleClosePatientModal = () => {
     setShowPatientModal(false);
     setSelectedPatient(null);
@@ -1447,81 +1461,72 @@ const displayTenantName = authTenant?.name || 'Hospital';
   const renderOverviewContent = () => {
     return (
       <>
-        {/* Key Metrics */}
+        {/* Key Metrics - Tooltips REMOVED */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Tooltip text="Total appointments scheduled for today">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-blue-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Today's Appointments</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{stats.todaysAppointments}</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Today's Appointments</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.todaysAppointments}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-blue-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
 
-          <Tooltip text="Patients currently waiting in queue">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-orange-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Waiting Patients</p>
-                  <p className="mt-1 text-2xl font-bold text-orange-600">{stats.waitingPatients}</p>
-                </div>
-                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-orange-600" />
-                </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Waiting Patients</p>
+                <p className="mt-1 text-2xl font-bold text-orange-600">{stats.waitingPatients}</p>
+              </div>
+              <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-orange-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
 
-          <Tooltip text="Patients checked in today">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-green-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Check-ins Today</p>
-                  <p className="mt-1 text-2xl font-bold text-green-600">{stats.checkIns}</p>
-                </div>
-                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <UserCheck className="w-5 h-5 text-green-600" />
-                </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Check-ins Today</p>
+                <p className="mt-1 text-2xl font-bold text-green-600">{stats.checkIns}</p>
+              </div>
+              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <UserCheck className="w-5 h-5 text-green-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
 
-          <Tooltip text="Referrals received today">
-            <div className="cursor-help rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-purple-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Referrals</p>
-                  <p className="mt-1 text-2xl font-bold text-purple-600">{stats.referrals}</p>
-                </div>
-                <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                  <Ambulance className="w-5 h-5 text-purple-600" />
-                </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase">Referrals</p>
+                <p className="mt-1 text-2xl font-bold text-purple-600">{stats.referrals}</p>
+              </div>
+              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Ambulance className="w-5 h-5 text-purple-600" />
               </div>
             </div>
-          </Tooltip>
+          </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Tooltips REMOVED */}
         <div className="mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
-                <Tooltip key={index} text={`Go to ${action.label}`}>
-                  <button
-                    onClick={() => navigate(action.action)}
-                    className={`${action.color} text-white p-3 rounded-lg hover:opacity-90 transition-opacity flex flex-col items-center justify-center h-16 sm:h-20`}
-                  >
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
-                    <span className="text-[10px] sm:text-xs font-medium text-center">{action.label}</span>
-                  </button>
-                </Tooltip>
+                <button
+                  key={index}
+                  onClick={() => navigate(action.action)}
+                  className={`${action.color} text-white p-3 rounded-lg hover:opacity-90 transition-opacity flex flex-col items-center justify-center h-16 sm:h-20`}
+                >
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
+                  <span className="text-[10px] sm:text-xs font-medium text-center">{action.label}</span>
+                </button>
               );
             })}
           </div>
@@ -1928,6 +1933,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
               <tbody className="divide-y divide-gray-100">
                 {patientsList.map((patient) => {
                   const status = getStatusBadge(patient.status);
+                  const isInactive = (patient.patient_status || patient.status) !== 'active';
                   return (
                     <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-3">
@@ -1994,6 +2000,14 @@ const displayTenantName = authTenant?.name || 'Hospital';
                             tooltip="View EMR"
                             variant="info"
                           />
+                          {isInactive && (
+                            <IconButton
+                              icon={RotateCcw}
+                              onClick={() => handleRestorePatient(patient)}
+                              tooltip="Restore patient"
+                              variant="success"
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2114,7 +2128,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - Tooltips KEPT */}
       <div className="border-b border-gray-200 mb-6 overflow-x-auto">
         <nav className="flex gap-4 min-w-max" aria-label="Tabs">
           {tabs.map((tab) => {

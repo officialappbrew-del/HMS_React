@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Menu, ChevronDown, Bell, Search, UserCircle, Moon, Sun } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { getUserPreferences, setUserPreferences } from '../utils/cookies';
+import { logout } from '../utils/api';
 
 const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   const { branding = { logo: '' }, subdomain = 'hospital' } = useSelector(state => state.tenant || {});
@@ -112,7 +113,6 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     { path: '/laboratory', label: 'Laboratory', aliases: ['lab', 'tests', 'results'] },
     { path: '/staff', label: 'Staff Management', aliases: ['employees', 'staff directory', 'personnel'] },
     { path: '/inventory', label: 'Inventory', aliases: ['stock', 'supplies'] },
-    { path: '/activities', label: 'Activity Log', aliases: ['audit trail', 'recent activity'] },
     { path: '/bed-allocation', label: 'Bed Allocation', aliases: ['beds', 'ward beds'] },
     { path: '/admissions', label: 'Admissions', aliases: ['admit', 'inpatients'] },
     { path: '/ward-rounds', label: 'Ward Rounds', aliases: ['rounds'] },
@@ -150,6 +150,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     setUserPreferencesState(newPreferences);
     setUserPreferences(newPreferences);
     window.dispatchEvent(new Event('themeChanged'));
+    window.dispatchEvent(new Event('preferencesChanged'));
   };
 
   const handleLogoClick = (e) => {
@@ -157,23 +158,8 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     navigate(localStorage.getItem('authToken') ? '/dashboard' : '/');
   };
 
-  const confirmLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userFirstName');
-    localStorage.removeItem('userLastName');
-    localStorage.removeItem('userFullName');
-    localStorage.removeItem('licenseNumber');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('tenantId');
-    localStorage.removeItem('tenantDomain');
-    localStorage.removeItem('tenantName');
-    localStorage.removeItem('rememberMe');
-    window.dispatchEvent(new Event('authChanged'));
+  const confirmLogout = async () => {
+    await logout();
     navigate('/login');
     setShowLogoutConfirm(false);
   };

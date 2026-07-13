@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
+import { logout } from '../utils/api';
 import {
   Home,
   Users,
@@ -92,18 +93,14 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
     if (onMobileClose) onMobileClose();
   };
 
-  const confirmLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userIsRootAdmin');
-    localStorage.removeItem('userEmail');
-    window.dispatchEvent(new Event('authChanged'));
+  const confirmLogout = async () => {
+    await logout();
     navigate('/login');
     if (onMobileClose) onMobileClose();
     setShowLogoutConfirm(false);
   };
 
-  const sidebarClasses = `fixed left-0 top-0 z-50 h-screen w-72 max-w-[85vw] border-r border-slate-200 bg-white shadow-xl transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-20' : 'lg:w-72'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
+  const sidebarClasses = `fixed left-0 top-0 z-50 h-screen w-80 max-w-[85vw] border-r border-slate-200 bg-white shadow-xl transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-24' : 'lg:w-80'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
 
   return (
     <>

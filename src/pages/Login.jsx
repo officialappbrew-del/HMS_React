@@ -8,6 +8,23 @@ import {
 } from 'lucide-react';
 import { apiRequest, API_BASE_URL } from '../utils/api';
 
+const parseJwt = (token) => {
+  try {
+    if (!token || typeof token !== 'string') return null;
+    const payload = token.split('.')[1];
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
+        .join('')
+    );
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+};
+
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -77,6 +94,20 @@ const Login = () => {
         if (data.refresh || data.refresh_token) {
           localStorage.setItem('refreshToken', data.refresh || data.refresh_token);
         }
+
+        const decoded = parseJwt(accessToken);
+        if (decoded) {
+          if (decoded.tenant_public_id) localStorage.setItem('tenantId', decoded.tenant_public_id);
+          if (decoded.tenant_id) localStorage.setItem('tenantId', decoded.tenant_id);
+          if (decoded.tenant_domain) localStorage.setItem('tenantDomain', decoded.tenant_domain);
+          if (decoded.full_name) localStorage.setItem('userFullName', decoded.full_name);
+          if (decoded.first_name) localStorage.setItem('userFirstName', decoded.first_name);
+          if (decoded.last_name) localStorage.setItem('userLastName', decoded.last_name);
+          if (decoded.username) localStorage.setItem('userName', decoded.username);
+          if (decoded.email) localStorage.setItem('userEmail', decoded.email);
+          if (decoded.role) localStorage.setItem('userRole', decoded.role);
+        }
+
         window.dispatchEvent(new Event('authChanged'));
         navigate('/dashboard');
       } catch {

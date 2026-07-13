@@ -34,8 +34,8 @@ const patientSlice = createSlice({
       const uniquePatients = dedupePatients(action.payload);
       state.patients = uniquePatients;
       // Filter only active patients by default
-      state.filteredPatients = uniquePatients.filter(patient => 
-        state.showArchived ? true : patient.status === 'active'
+      state.filteredPatients = uniquePatients.filter(patient =>
+        state.showArchived ? true : patient.patient_status === 'active'
       );
     },
 
@@ -50,6 +50,7 @@ const patientSlice = createSlice({
         ...action.payload,
         id: Date.now(), // Generate unique ID
         status: 'active',
+        patient_status: 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -82,20 +83,26 @@ const patientSlice = createSlice({
       }
     },
 
-    // Permanent deletion (hard delete)
+    // Soft deletion: mark record inactive instead of removing it
     deletePatient: (state, action) => {
       const patientId = action.payload;
+      const index = state.patients.findIndex(p => p.id === patientId);
       
-      // Remove from patients array
-      state.patients = dedupePatients(state.patients.filter(p => p.id !== patientId));
-      
-      // Clear current patient if it's the one being deleted
-      if (state.currentPatient && state.currentPatient.id === patientId) {
-        state.currentPatient = null;
+      if (index !== -1) {
+        state.patients[index] = {
+          ...state.patients[index],
+          status: 'inactive',
+          patient_status: 'inactive',
+          is_active: false,
+          updatedAt: new Date().toISOString(),
+        };
+        
+        if (state.currentPatient && state.currentPatient.id === patientId) {
+          state.currentPatient = null;
+        }
+        
+        updateFilteredPatients(state);
       }
-      
-      // Update filtered patients
-      updateFilteredPatients(state);
     },
 
     // Archive patient (soft delete)
@@ -106,17 +113,17 @@ const patientSlice = createSlice({
       if (index !== -1) {
         state.patients[index] = {
           ...state.patients[index],
-          status: 'archived',
+          status: 'inactive',
+          patient_status: 'inactive',
+          is_active: false,
           archivedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         
-        // Clear current patient if it's the one being archived
         if (state.currentPatient && state.currentPatient.id === patientId) {
           state.currentPatient = null;
         }
         
-        // Update filtered patients
         updateFilteredPatients(state);
       }
     },
@@ -130,6 +137,7 @@ const patientSlice = createSlice({
         state.patients[index] = {
           ...state.patients[index],
           status: 'active',
+          patient_status: 'active',
           restoredAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -216,7 +224,7 @@ const updateFilteredPatients = (state) => {
   
   // Filter by status (active/archived)
   if (!state.showArchived) {
-    filtered = filtered.filter(patient => patient.status === 'active');
+    filtered = filtered.filter(patient => patient.patient_status === 'active');
   }
   
   // Filter by search term

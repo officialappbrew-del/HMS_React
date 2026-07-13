@@ -20,7 +20,8 @@ import {
   Users,
   X,
   Printer,
-  MoreHorizontal
+  MoreHorizontal,
+  User
 } from 'lucide-react';
 import {
   fetchInvoices,
@@ -70,6 +71,12 @@ const Billing = () => {
   const [claimSearchQuery, setClaimSearchQuery] = useState('');
   const [claimStatusFilter, setClaimStatusFilter] = useState('all');
   const [claimCurrentPage, setClaimCurrentPage] = useState(1);
+
+  const [patients, setPatients] = useState([]);
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [selectedPatientName, setSelectedPatientName] = useState('');
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
   const [invoiceForm, setInvoiceForm] = useState({
     patientId: '',
@@ -125,6 +132,51 @@ const Billing = () => {
     dispatch(fetchInvoiceSummary());
     dispatch(fetchAuditLogs());
   }, [dispatch]);
+
+  const fetchPatients = async (query = '') => {
+    setIsLoadingPatients(true);
+    try {
+      let url = '/api/v1/patients/patients/';
+      if (query) {
+        url = `/api/v1/patients/patients/?search=${encodeURIComponent(query)}`;
+      }
+      const data = await apiRequest(url);
+      const results = Array.isArray(data) ? data : (data.results || []);
+      setPatients(results);
+    } catch (err) {
+      console.error('Failed to fetch patients:', err);
+    } finally {
+      setIsLoadingPatients(false);
+    }
+  };
+
+  const handlePatientSearch = (e) => {
+    const value = e.target.value;
+    setPatientSearchQuery(value);
+    setShowPatientDropdown(true);
+    if (value.trim().length > 0) {
+      fetchPatients(value.trim());
+    } else {
+      setPatients([]);
+    }
+  };
+
+  const handleSelectPatient = (patient) => {
+    setInvoiceForm({ ...invoiceForm, patientId: patient.id.toString() });
+    setSelectedPatientName(patient.name || patient.full_name || '');
+    setPatientSearchQuery('');
+    setShowPatientDropdown(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showPatientDropdown && !event.target.closest('.patient-search-dropdown')) {
+        setShowPatientDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPatientDropdown]);
 
   const buildInvoicePayload = () => {
     const mappedItems = invoiceForm.items.map(item => ({
@@ -240,19 +292,27 @@ const Billing = () => {
     try {
       const payload = buildInvoicePayload();
       await dispatch(createInvoice(payload)).unwrap();
-      setInvoiceForm({
-        patientId: '',
-        visitId: '',
-        dueDate: '',
-        discountAmount: 0,
-        taxAmount: 0,
-        notes: '',
-        items: []
-      });
+      resetInvoiceForm();
       setShowInvoiceModal(false);
     } catch (err) {
       dispatch(setError(err.message || 'Failed to create invoice.'));
     }
+  };
+
+  const resetInvoiceForm = () => {
+    setInvoiceForm({
+      patientId: '',
+      visitId: '',
+      dueDate: '',
+      discountAmount: 0,
+      taxAmount: 0,
+      notes: '',
+      items: []
+    });
+    setPatientSearchQuery('');
+    setSelectedPatientName('');
+    setShowPatientDropdown(false);
+    setPatients([]);
   };
 
   const handleAddInvoiceItem = () => {
@@ -854,21 +914,62 @@ const Billing = () => {
       {/* Create Invoice Modal */}
       <GenericModal
         isOpen={showInvoiceModal}
-        onClose={() => setShowInvoiceModal(false)}
+        onClose={() => { resetInvoiceForm(); setShowInvoiceModal(false); }}
         title="Create Invoice"
         size="2xl"
       >
         <form onSubmit={handleCreateInvoice} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Patient ID *</label>
-              <input
-                type="text"
-                value={invoiceForm.patientId}
-                onChange={(e) => setInvoiceForm({ ...invoiceForm, patientId: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                required
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Patient *</label>
+              <div className="relative patient-search-dropdown">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+                <input
+                  type="text"
+                  value={selectedPatientName || patientSearchQuery}
+                  onChange={handlePatientSearch}
+                  onFocus={() => setShowPatientDropdown(true)}
+                  placeholder="Search patient by name, email, or hospital number..."
+                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                  required
+                />
+                {showPatientDropdown && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {isLoadingPatients ? (
+                      <div className="px-4 py-3 text-sm text-gray-500">Loading patients...</div>
+                    ) : patients.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500">No patients found</div>
+                    ) : (
+                      patients.map((patient) => (
+                        <button
+                          key={patient.id}
+                          type="button"
+                          onClick={() => handleSelectPatient(patient)}
+                          className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-xs flex-shrink-0">
+                              {(patient.name || patient.full_name || '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {patient.name || patient.full_name}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {patient.hospital_number ? `Hosp: ${patient.hospital_number}` : patient.email || ''}
+                                {patient.phone ? ` • ${patient.phone}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              {selectedPatientName && (
+                <p className="mt-1 text-xs text-gray-500">Selected: {selectedPatientName}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Visit ID (Optional)</label>
@@ -1008,7 +1109,7 @@ const Billing = () => {
             </button>
             <button
               type="button"
-              onClick={() => setShowInvoiceModal(false)}
+              onClick={resetInvoiceForm}
               className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
             >
               Cancel

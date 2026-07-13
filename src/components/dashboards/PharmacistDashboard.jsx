@@ -2091,7 +2091,6 @@ const displayTenantName = authTenant?.name || 'Hospital';
         </nav>
       </div>
 
-      {/* Tab Content */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
         {renderTabContent()}
       </div>

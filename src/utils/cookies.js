@@ -39,6 +39,7 @@ export const COOKIE_NAMES = {
   THEME: 'theme',
   LANGUAGE: 'language',
   SIDEBAR_COLLAPSED: 'sidebar_collapsed',
+  REFRESH_INTERVAL: 'refresh_interval',
   // Analytics
   VISITOR_ID: 'visitor_id',
   SESSION_START: 'session_start',
@@ -145,7 +146,8 @@ export const getUserPreferences = () => {
   return {
     theme: getCookie(COOKIE_NAMES.THEME) || 'light',
     language: getCookie(COOKIE_NAMES.LANGUAGE) || 'en',
-    sidebarCollapsed: getCookie(COOKIE_NAMES.SIDEBAR_COLLAPSED) === 'true'
+    sidebarCollapsed: getCookie(COOKIE_NAMES.SIDEBAR_COLLAPSED) === 'true',
+    refreshInterval: parseInt(getCookie(COOKIE_NAMES.REFRESH_INTERVAL) || '60', 10) || 60,
   };
 };
 
@@ -158,6 +160,9 @@ export const setUserPreferences = (preferences) => {
   if (preferences.language) setPreferenceCookie(COOKIE_NAMES.LANGUAGE, preferences.language);
   if (typeof preferences.sidebarCollapsed === 'boolean') {
     setPreferenceCookie(COOKIE_NAMES.SIDEBAR_COLLAPSED, preferences.sidebarCollapsed.toString());
+  }
+  if (typeof preferences.refreshInterval !== 'undefined') {
+    setPreferenceCookie(COOKIE_NAMES.REFRESH_INTERVAL, String(preferences.refreshInterval));
   }
 };
 

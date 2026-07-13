@@ -481,6 +481,7 @@ const ConsultationV2 = () => {
     try {
       const response = await consultationApi.createConsultationNote({
         visit: visitId,
+        patient: consultation.patient.patientId,
         chief_complaint: consultation.hpi.chiefComplaint,
         subjective: consultation.hpi.freeNotes,
         hpi_data: consultation.hpi
@@ -498,6 +499,7 @@ const ConsultationV2 = () => {
     try {
       const response = await consultationApi.createConsultationNote({
         visit: visitId,
+        patient: consultation.patient.patientId,
         ros_data: consultation.ros
       });
       dispatch(addAuditLog({ action: 'Saved ROS section' }));
@@ -513,6 +515,7 @@ const ConsultationV2 = () => {
     try {
       const response = await consultationApi.createConsultationNote({
         visit: visitId,
+        patient: consultation.patient.patientId,
         diagnosis_codes: consultation.icd10.selectedCodes.map(c => c.code)
       });
       dispatch(addAuditLog({ action: 'Saved ICD-10 codes' }));
@@ -528,6 +531,7 @@ const ConsultationV2 = () => {
     try {
       const response = await consultationApi.createConsultationNote({
         visit: visitId,
+        patient: consultation.patient.patientId,
         plan: `${consultation.treatmentPlan.managementPlan}\n${consultation.treatmentPlan.medications}\n${consultation.treatmentPlan.lifestyleAdvice}\n${consultation.treatmentPlan.dietaryAdvice}\n${consultation.treatmentPlan.monitoringPlan}\n${consultation.treatmentPlan.safetyNetAdvice}`
       });
       dispatch(addAuditLog({ action: 'Saved Treatment Plan section' }));
@@ -541,13 +545,21 @@ const ConsultationV2 = () => {
   const handleSaveOrders = async (orderType, orderData) => {
     if (!visitId) return;
     try {
+      const payload = {
+        ...orderData,
+        visit: visitId,
+        patient: consultation.patient.patientId
+      };
+      if (orderType === 'laboratory') {
+        payload.test = orderData.test?.id || orderData.test?.code || orderData.test;
+      }
       const createMap = {
         laboratory: consultationApi.createLabOrder,
         radiology: consultationApi.createRadiologyOrder,
         procedures: consultationApi.createProcedure,
         referralOrders: consultationApi.createReferral
       };
-      await createMap[orderType]({ ...orderData, visit: visitId });
+      await createMap[orderType](payload);
       dispatch(addAuditLog({ action: `Saved ${ORDER_TYPES.find(o => o.key === orderType)?.label} order` }));
       setApiMessage('Order saved.');
       setTimeout(() => setApiMessage(''), 3000);

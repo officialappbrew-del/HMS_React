@@ -73,6 +73,7 @@ import {
   AlertTriangle,
   Check,
   CreditCard,
+  RotateCcw,
   Hospital,
   Ambulance as AmbulanceIcon,
   Stethoscope as StethoscopeIcon,
@@ -106,15 +107,15 @@ import {
   Stethoscope as StethoscopeIcon2,
 } from 'lucide-react';
 
-// Tooltip Component
+// ==================== TOOLTIP COMPONENT ====================
 const Tooltip = ({ children, text, position = 'top' }) => {
   const [show, setShow] = useState(false);
   
   const positionClasses = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2',
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
   };
 
   return (
@@ -127,13 +128,13 @@ const Tooltip = ({ children, text, position = 'top' }) => {
       {children}
       {show && (
         <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
-          <div className="bg-gray-900 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-lg">
+          <div className="bg-gray-900 text-white text-[10px] px-2 py-1 rounded shadow-lg">
             {text}
-            <div className={`absolute w-2 h-2 bg-gray-900 transform rotate-45 ${
-              position === 'top' ? 'bottom-[-4px] left-1/2 -translate-x-1/2' :
-              position === 'bottom' ? 'top-[-4px] left-1/2 -translate-x-1/2' :
-              position === 'left' ? 'right-[-4px] top-1/2 -translate-y-1/2' :
-              'left-[-4px] top-1/2 -translate-y-1/2'
+            <div className={`absolute w-1.5 h-1.5 bg-gray-900 transform rotate-45 ${
+              position === 'top' ? 'bottom-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'bottom' ? 'top-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'left' ? 'right-[-3px] top-1/2 -translate-y-1/2' :
+              'left-[-3px] top-1/2 -translate-y-1/2'
             }`} />
           </div>
         </div>
@@ -142,15 +143,27 @@ const Tooltip = ({ children, text, position = 'top' }) => {
   );
 };
 
-// Icon Button with Tooltip
-const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
+// ==================== ICON BUTTON ====================
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
   const variantClasses = {
-    default: 'text-gray-400 hover:text-gray-600',
-    primary: 'text-blue-600 hover:text-blue-700',
-    success: 'text-green-600 hover:text-green-700',
-    danger: 'text-red-600 hover:text-red-700',
-    warning: 'text-yellow-600 hover:text-yellow-700',
-    info: 'text-blue-600 hover:text-blue-700',
+    default: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+    primary: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+    success: 'text-green-600 hover:text-green-700 hover:bg-green-50',
+    danger: 'text-red-600 hover:text-red-700 hover:bg-red-50',
+    warning: 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50',
+    info: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+  };
+
+  const sizeClasses = {
+    sm: 'p-1',
+    md: 'p-1.5',
+    lg: 'p-2',
+  };
+
+  const iconSizes = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-5 h-5',
   };
 
   return (
@@ -158,24 +171,31 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
       <button
         onClick={onClick}
         disabled={disabled}
-        className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
+        className={`rounded-lg transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
         }`}
       >
-        <Icon className="w-4 h-4" />
+        <Icon className={iconSizes[size]} />
       </button>
     </Tooltip>
   );
 };
 
-// Button with Tooltip
-const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', type = 'button' }) => {
+// ==================== BUTTON WITH TOOLTIP ====================
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm', type = 'button' }) => {
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow',
     secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
-    success: 'bg-green-600 hover:bg-green-700 text-white',
-    danger: 'bg-red-600 hover:bg-red-700 text-white',
-    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+    success: 'bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow',
+    danger: 'bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm hover:shadow',
+    outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700',
+  };
+
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3.5 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-sm',
   };
 
   return (
@@ -183,7 +203,10 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
       <button
         type={type}
         onClick={onClick}
-        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
+        disabled={disabled}
+        className={`rounded-lg transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
       >
         {children}
       </button>
@@ -191,7 +214,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
-// Stats Card Component
+// ==================== STATS CARD ====================
 const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, tooltip, onClick }) => {
   const trendColors = {
     up: 'text-green-600',
@@ -229,7 +252,7 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
   );
 };
 
-// Profile Modal Component
+// ==================== PROFILE MODAL ====================
 const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading, saving, error, success, specializations, specializationsLoading, profilePicturePreview, onProfilePictureChange }) => {
   if (!isOpen) return null;
 
@@ -474,8 +497,10 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
   );
 };
 
-// Patient Detail Modal Component
-const PatientDetailModal = ({ patient, onClose }) => {
+// ==================== COMPACT PATIENT DETAIL MODAL ====================
+const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onViewEMR }) => {
+  const [activeTab, setActiveTab] = useState('personal');
+  
   if (!patient) return null;
 
   const formatDate = (date) => {
@@ -483,7 +508,7 @@ const PatientDetailModal = ({ patient, onClose }) => {
     try {
       return new Date(date).toLocaleDateString('en-US', {
         year: 'numeric',
-        month: 'long',
+        month: 'short',
         day: 'numeric'
       });
     } catch {
@@ -508,332 +533,253 @@ const PatientDetailModal = ({ patient, onClose }) => {
     return statusMap[status?.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  const getGenderIcon = (gender) => {
-    if (gender?.toLowerCase() === 'male') return <UserIcon className="w-4 h-4 text-blue-500" />;
-    if (gender?.toLowerCase() === 'female') return <UserIcon className="w-4 h-4 text-pink-500" />;
-    return <UserCircle className="w-4 h-4 text-gray-400" />;
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
         onClick={onClose}
       />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
-          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold text-white border-2 border-white/30">
-                  {getInitials(patient.name)}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">{patient.name}</h2>
-                  <div className="flex items-center gap-3 mt-1 text-sm text-blue-100">
-                    <span className="flex items-center gap-1">
-                      {getGenderIcon(patient.gender)}
-                      {patient.gender || 'Not specified'}
-                    </span>
-                    {patient.age && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {patient.age} years
-                      </span>
-                    )}
-                    {patient.hospital_number && (
-                      <span className="flex items-center gap-1">
-                        <IdCard className="w-3.5 h-3.5" />
-                        HN: {patient.hospital_number}
-                      </span>
-                    )}
-                  </div>
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-200">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm flex-shrink-0">
+                {getInitials(patient.name)}
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">{patient.name}</h3>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  {patient.hospital_number && <span>HN: {patient.hospital_number}</span>}
+                  {patient.age && <span>• {patient.age}y</span>}
+                  {patient.gender && <span>• {patient.gender}</span>}
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(patient.status)}`}>
-                {patient.status || 'Active'}
-              </span>
-              {patient.bloodType && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                  <DropletsIcon className="w-3 h-3 mr-1" />
-                  {patient.bloodType}
-                </span>
-              )}
-              {patient.genotype && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
-                  <BrainIcon className="w-3 h-3 mr-1" />
-                  Genotype: {patient.genotype}
-                </span>
-              )}
-              {patient.has_insurance && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                  <ShieldIcon className="w-3 h-3 mr-1" />
-                  Insured
-                </span>
-              )}
-            </div>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+            </button>
           </div>
 
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <UserCircle className="w-4 h-4 text-blue-600" />
-                  Personal Information
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Full Name</span>
-                    <span className="font-medium text-gray-900">{patient.name}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Date of Birth</span>
-                    <span className="font-medium text-gray-900">{formatDate(patient.dateOfBirth)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Age</span>
-                    <span className="font-medium text-gray-900">{patient.age || 'N/A'} years</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Gender</span>
-                    <span className="font-medium text-gray-900">{patient.gender || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">NIN</span>
-                    <span className="font-medium text-gray-900">{patient.nin || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Marital Status</span>
-                    <span className="font-medium text-gray-900">{patient.maritalStatus || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Religion</span>
-                    <span className="font-medium text-gray-900">{patient.religion || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Ethnicity</span>
-                    <span className="font-medium text-gray-900">{patient.tribe || patient.ethnicity || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Occupation</span>
-                    <span className="font-medium text-gray-900">{patient.occupation || 'N/A'}</span>
-                  </div>
+          {/* Status Badge */}
+          <div className="px-4 py-2 border-b border-gray-100 flex-shrink-0 flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusColor(patient.status)}`}>
+              {patient.status || 'Active'}
+            </span>
+            {patient.bloodType && (
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-200">
+                <Droplets className="w-3 h-3 mr-0.5" />
+                {patient.bloodType}
+              </span>
+            )}
+            {patient.has_insurance && (
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-200">
+                <Shield className="w-3 h-3 mr-0.5" />
+                Insured
+              </span>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-gray-100 px-4 flex-shrink-0">
+            {['personal', 'contact', 'medical'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {activeTab === 'personal' && (
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Full Name</p>
+                  <p className="font-medium text-gray-900">{patient.name}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Gender</p>
+                  <p className="font-medium text-gray-900 capitalize">{patient.gender || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Date of Birth</p>
+                  <p className="font-medium text-gray-900">
+                    {formatDate(patient.dateOfBirth)}
+                    {patient.age && ` (${patient.age}y)`}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">NIN</p>
+                  <p className="font-medium text-gray-900">{patient.nin || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Marital Status</p>
+                  <p className="font-medium text-gray-900 capitalize">{patient.maritalStatus || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Religion</p>
+                  <p className="font-medium text-gray-900">{patient.religion || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Ethnicity</p>
+                  <p className="font-medium text-gray-900">{patient.tribe || patient.ethnicity || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Occupation</p>
+                  <p className="font-medium text-gray-900">{patient.occupation || 'N/A'}</p>
                 </div>
               </div>
+            )}
 
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <PhoneIcon className="w-4 h-4 text-green-600" />
-                  Contact Information
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Phone</span>
-                    <span className="font-medium text-gray-900">{patient.phone || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Email</span>
-                    <span className="font-medium text-gray-900">{patient.email || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Address</span>
-                    <span className="font-medium text-gray-900">{patient.address || 'N/A'}</span>
-                  </div>
+            {activeTab === 'contact' && (
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Phone</p>
+                  <p className="font-medium text-gray-900">{patient.phone || 'N/A'}</p>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <h4 className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-purple-600" />
-                    Location
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Country</span>
-                      <span className="font-medium text-gray-900">{patient.country || 'Nigeria'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">State</span>
-                      <span className="font-medium text-gray-900">{patient.state || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">LGA</span>
-                      <span className="font-medium text-gray-900">{patient.lga || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">City</span>
-                      <span className="font-medium text-gray-900">{patient.city || 'N/A'}</span>
-                    </div>
-                  </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Email</p>
+                  <p className="font-medium text-gray-900">{patient.email || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Address</p>
+                  <p className="font-medium text-gray-900">{patient.address || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">State</p>
+                  <p className="font-medium text-gray-900">{patient.state || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">LGA</p>
+                  <p className="font-medium text-gray-900">{patient.lga || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">City</p>
+                  <p className="font-medium text-gray-900">{patient.city || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Emergency Contact</p>
+                  <p className="font-medium text-gray-900">
+                    {patient.emergencyContact || patient.next_of_kin_name || 'N/A'}
+                    {patient.emergencyPhone && ` (${patient.emergencyPhone})`}
+                  </p>
                 </div>
               </div>
+            )}
 
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <HeartPulseIcon className="w-4 h-4 text-red-600" />
-                  Medical Information
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Blood Group</span>
-                    <span className="font-medium text-gray-900">{patient.bloodType || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Genotype</span>
-                    <span className="font-medium text-gray-900">{patient.genotype || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Known Allergies</span>
-                    <span className="font-medium text-gray-900">{patient.known_allergies || 'None'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Chronic Conditions</span>
-                    <span className="font-medium text-gray-900">{patient.chronic_conditions || 'None'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Current Medications</span>
-                    <span className="font-medium text-gray-900">{patient.current_medications || 'None'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Surgical History</span>
-                    <span className="font-medium text-gray-900">{patient.surgical_history || 'None'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Family History</span>
-                    <span className="font-medium text-gray-900">{patient.family_history || 'None'}</span>
-                  </div>
+            {activeTab === 'medical' && (
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Blood Type</p>
+                  <p className="font-medium text-gray-900">{patient.bloodType || 'N/A'}</p>
                 </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <ShieldIcon className="w-4 h-4 text-yellow-600" />
-                  Emergency Contact
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Contact Name</span>
-                    <span className="font-medium text-gray-900">{patient.emergencyContact || patient.next_of_kin_name || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Contact Phone</span>
-                    <span className="font-medium text-gray-900">{patient.emergencyPhone || patient.next_of_kin_phone || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Relationship</span>
-                    <span className="font-medium text-gray-900">{patient.next_of_kin_relationship || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Address</span>
-                    <span className="font-medium text-gray-900">{patient.next_of_kin_address || 'N/A'}</span>
-                  </div>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Genotype</p>
+                  <p className="font-medium text-gray-900">{patient.genotype || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Known Allergies</p>
+                  <p className="font-medium text-gray-900">{patient.known_allergies || 'None'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Chronic Conditions</p>
+                  <p className="font-medium text-gray-900">{patient.chronic_conditions || 'None'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Current Medications</p>
+                  <p className="font-medium text-gray-900">{patient.current_medications || 'None'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Surgical History</p>
+                  <p className="font-medium text-gray-900">{patient.surgical_history || 'None'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Family History</p>
+                  <p className="font-medium text-gray-900">{patient.family_history || 'None'}</p>
+                </div>
+                <div className="bg-gray-50 rounded p-2 col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Notes</p>
+                  <p className="font-medium text-gray-900 whitespace-pre-line">{patient.notes || 'None'}</p>
                 </div>
                 {patient.has_insurance && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h4 className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-2">
-                      <IdCard className="w-3.5 h-3.5 text-blue-600" />
-                      Insurance Information
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Insurance Company</span>
-                        <span className="font-medium text-gray-900">{patient.insurance_company || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Policy Number</span>
-                        <span className="font-medium text-gray-900">{patient.insurance_policy_number || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">NHIS Number</span>
-                        <span className="font-medium text-gray-900">{patient.nhis_number || 'N/A'}</span>
-                      </div>
-                    </div>
+                  <div className="bg-gray-50 rounded p-2 col-span-2">
+                    <p className="text-[10px] text-gray-500 uppercase font-medium">Insurance</p>
+                    <p className="font-medium text-gray-900">
+                      {patient.insurance_company || 'N/A'}
+                      {patient.insurance_policy_number && ` (${patient.insurance_policy_number})`}
+                    </p>
                   </div>
                 )}
               </div>
-
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 md:col-span-2">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <BuildingIcon className="w-4 h-4 text-blue-600" />
-                  Hospital Information
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Hospital Number</span>
-                    <span className="font-medium text-gray-900">{patient.hospital_number || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Login ID</span>
-                    <span className="font-medium text-gray-900">{patient.login_id || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Tenant/Hospital</span>
-                    <span className="font-medium text-gray-900">{patient.tenant_name || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Registration Date</span>
-                    <span className="font-medium text-gray-900">{formatDate(patient.registration_date || patient.createdAt)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Last Visit</span>
-                    <span className="font-medium text-gray-900">{formatDate(patient.last_visit)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Language Spoken</span>
-                    <span className="font-medium text-gray-900">{patient.language_spoken || 'N/A'}</span>
-                  </div>
-                </div>
-                {patient.notes && (
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Notes</span>
-                      <span className="font-medium text-gray-900 text-right max-w-[60%]">{patient.notes}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-100 flex-shrink-0 flex-wrap">
             <ButtonWithTooltip
               onClick={onClose}
-              tooltip="Close patient details"
+              tooltip="Close"
               variant="secondary"
+              size="sm"
             >
               <X className="w-3.5 h-3.5" />
               Close
             </ButtonWithTooltip>
-            <ButtonWithTooltip
-              onClick={() => window.open(`/patients/${patient.id}/consult`, '_blank')}
-              tooltip="Start consultation"
-              variant="primary"
-            >
-              <StethoscopeIcon2 className="w-3.5 h-3.5" />
-              Consult
-            </ButtonWithTooltip>
-            <ButtonWithTooltip
-              onClick={() => window.open(`/patients/${patient.id}/emr`, '_blank')}
-              tooltip="View medical records"
-              variant="success"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              View EMR
-            </ButtonWithTooltip>
-            <ButtonWithTooltip
-              onClick={() => window.open(`/patients/edit/${patient.id}`, '_blank')}
-              tooltip="Edit patient"
-              variant="warning"
-            >
-              <Edit className="w-3.5 h-3.5" />
-              Edit
-            </ButtonWithTooltip>
+            {onEdit && (
+              <ButtonWithTooltip
+                onClick={() => onEdit(patient)}
+                tooltip="Edit patient"
+                variant="warning"
+                size="sm"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                Edit
+              </ButtonWithTooltip>
+            )}
+            {onAdmit && (
+              <ButtonWithTooltip
+                onClick={() => onAdmit(patient)}
+                tooltip="Admit patient"
+                variant="success"
+                size="sm"
+              >
+                <Bed className="w-3.5 h-3.5" />
+                Admit
+              </ButtonWithTooltip>
+            )}
+            {onConsult && (
+              <ButtonWithTooltip
+                onClick={() => onConsult(patient)}
+                tooltip="Start consultation"
+                variant="primary"
+                size="sm"
+              >
+                <Stethoscope className="w-3.5 h-3.5" />
+                Consult
+              </ButtonWithTooltip>
+            )}
+            {onViewEMR && (
+              <ButtonWithTooltip
+                onClick={() => onViewEMR(patient)}
+                tooltip="View medical records"
+                variant="primary"
+                size="sm"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                EMR
+              </ButtonWithTooltip>
+            )}
           </div>
         </div>
       </div>
@@ -841,6 +787,509 @@ const PatientDetailModal = ({ patient, onClose }) => {
   );
 };
 
+// ==================== COMPACT EDIT PATIENT MODAL ====================
+const EditPatientModal = ({ 
+  isOpen, 
+  onClose, 
+  patient, 
+  onSave,
+  isSubmitting = false,
+}) => {
+  const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    if (patient) {
+      setFormData({
+        name: patient.name || patient.full_name || '',
+        nin: patient.nin || '',
+        phone: patient.phone || '',
+        email: patient.email || '',
+        address: patient.address || '',
+        tribe: patient.tribe || patient.ethnicity || '',
+        country: patient.country || 'Nigeria',
+        lga: patient.lga || '',
+        state: patient.state || '',
+        city: patient.city || '',
+        dateOfBirth: patient.dateOfBirth || '',
+        bloodType: patient.bloodType || patient.blood_group || '',
+        gender: (patient.gender || '').toLowerCase(),
+        maritalStatus: (patient.maritalStatus || patient.marital_status || '').toLowerCase(),
+        occupation: patient.occupation || '',
+        emergencyContact: patient.emergencyContact || patient.next_of_kin_name || '',
+        emergencyPhone: patient.emergencyPhone || patient.next_of_kin_phone || '',
+        religion: patient.religion || '',
+        patient_status: patient.patient_status || 'active',
+        genotype: patient.genotype || '',
+        has_insurance: patient.has_insurance || false,
+        insurance_company: patient.insurance_company || '',
+        insurance_policy_number: patient.insurance_policy_number || '',
+        nhis_number: patient.nhis_number || '',
+        known_allergies: patient.known_allergies || '',
+        chronic_conditions: patient.chronic_conditions || '',
+        current_medications: patient.current_medications || '',
+        surgical_history: patient.surgical_history || '',
+        family_history: patient.family_history || '',
+        notes: patient.notes || '',
+      });
+    }
+  }, [patient]);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (onSave) onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+        onClick={onClose}
+      />
+
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200 max-h-[90vh] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-yellow-100 flex items-center justify-center">
+                <Edit className="w-3.5 h-3.5 text-yellow-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">Edit Patient</h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              disabled={isSubmitting}
+            >
+              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Full Name *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Date of Birth</label>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    value={formData.dateOfBirth}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Gender</label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NIN</label>
+                  <input
+                    type="text"
+                    name="nin"
+                    value={formData.nin}
+                    onChange={handleChange}
+                    placeholder="National Identity Number"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone Number *</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">State</label>
+                  <input
+                    type="text"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">LGA</label>
+                  <input
+                    type="text"
+                    name="lga"
+                    value={formData.lga}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
+                  <select
+                    name="bloodType"
+                    value={formData.bloodType}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Genotype</label>
+                  <select
+                    name="genotype"
+                    value={formData.genotype}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select</option>
+                    <option value="AA">AA</option>
+                    <option value="AS">AS</option>
+                    <option value="SS">SS</option>
+                    <option value="AC">AC</option>
+                    <option value="SC">SC</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
+                  <select
+                    name="maritalStatus"
+                    value={formData.maritalStatus}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select</option>
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="divorced">Divorced</option>
+                    <option value="widowed">Widowed</option>
+                    <option value="separated">Separated</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Religion</label>
+                  <input
+                    type="text"
+                    name="religion"
+                    value={formData.religion}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Occupation</label>
+                  <input
+                    type="text"
+                    name="occupation"
+                    value={formData.occupation}
+                    onChange={handleChange}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Ethnicity / Tribe</label>
+                  <input
+                    type="text"
+                    name="tribe"
+                    value={formData.tribe}
+                    onChange={handleChange}
+                    placeholder="e.g. Hausa, Igbo, Yoruba"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Contact</label>
+                  <input
+                    type="text"
+                    name="emergencyContact"
+                    value={formData.emergencyContact}
+                    onChange={handleChange}
+                    placeholder="Name"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+                    disabled={isSubmitting}
+                  />
+                  <input
+                    type="tel"
+                    name="emergencyPhone"
+                    value={formData.emergencyPhone}
+                    onChange={handleChange}
+                    placeholder="Phone"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Known Allergies</label>
+                  <input
+                    type="text"
+                    name="known_allergies"
+                    value={formData.known_allergies}
+                    onChange={handleChange}
+                    placeholder="e.g. Penicillin, Latex"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Chronic Conditions</label>
+                  <input
+                    type="text"
+                    name="chronic_conditions"
+                    value={formData.chronic_conditions}
+                    onChange={handleChange}
+                    placeholder="e.g. Diabetes, Hypertension"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Current Medications</label>
+                  <input
+                    type="text"
+                    name="current_medications"
+                    value={formData.current_medications}
+                    onChange={handleChange}
+                    placeholder="e.g. Metformin 500mg"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Surgical History</label>
+                  <input
+                    type="text"
+                    name="surgical_history"
+                    value={formData.surgical_history}
+                    onChange={handleChange}
+                    placeholder="e.g. Appendectomy 2020"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Family History</label>
+                  <input
+                    type="text"
+                    name="family_history"
+                    value={formData.family_history}
+                    onChange={handleChange}
+                    placeholder="e.g. Diabetes (Mother)"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Notes</label>
+                  <textarea
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleChange}
+                    rows="2"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Insurance */}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    id="has_insurance"
+                    type="checkbox"
+                    name="has_insurance"
+                    checked={formData.has_insurance}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    disabled={isSubmitting}
+                  />
+                  <label htmlFor="has_insurance" className="text-xs font-medium text-gray-700">
+                    Has Insurance
+                  </label>
+                </div>
+                {formData.has_insurance && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Insurance Company</label>
+                      <input
+                        type="text"
+                        name="insurance_company"
+                        value={formData.insurance_company}
+                        onChange={handleChange}
+                        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Policy Number</label>
+                      <input
+                        type="text"
+                        name="insurance_policy_number"
+                        value={formData.insurance_policy_number}
+                        onChange={handleChange}
+                        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NHIS Number</label>
+                      <input
+                        type="text"
+                        name="nhis_number"
+                        value={formData.nhis_number}
+                        onChange={handleChange}
+                        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Status Toggle */}
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.patient_status === 'active'}
+                    onChange={(e) => setFormData({ ...formData, patient_status: e.target.checked ? 'active' : 'inactive' })}
+                    className="sr-only peer"
+                    disabled={isSubmitting}
+                  />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+                <span className="text-xs text-gray-700">
+                  {formData.patient_status === 'active' ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Update Patient
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== MAIN ADMIN DASHBOARD COMPONENT ====================
 const AdminDashboard = () => {
   const { user: authUser, tenant: authTenant } = useAuth();
   const dispatch = useDispatch();
@@ -853,9 +1302,9 @@ const AdminDashboard = () => {
   const { wards, stats: wardStats } = useSelector(state => state.ward || { wards: [], stats: {} });
   const { admissions } = useSelector(state => state.admission || { admissions: [] });
 
-const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hospital';
-   const displayUserName = authUser?.full_name || [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
-   const displayRole = authUser?.role || 'admin';
+  const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hospital';
+  const displayUserName = authUser?.full_name || [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
+  const displayRole = authUser?.role || 'admin';
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -954,6 +1403,12 @@ const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hosp
   const [patientsLoading, setPatientsLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showPatientModal, setShowPatientModal] = useState(false);
+  
+  // Edit Patient Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState(null);
@@ -984,11 +1439,11 @@ const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hosp
 
   useEffect(() => {
     const lowStockItems = drugs.filter(drug => drug.quantityInStock <= drug.reorderLevel).length;
-    const totalRevenue = patients.length * 500000;
+    const totalRevenue = (patientsCount || patientsList.length || patients.length || 0) * 500000;
     const occupancyRate = wardStats.occupiedBeds ? Math.round((wardStats.occupiedBeds / wardStats.totalBeds) * 100) : 0;
 
     setStats({
-      totalPatients: patients.length || 156,
+      totalPatients: patientsCount || patientsList.length || patients.length || 0,
       totalRevenue: totalRevenue || 7800000,
       occupancyRate: occupancyRate || 75,
       criticalAlerts: alerts.filter(a => a.type === 'critical' && !a.read).length,
@@ -999,7 +1454,7 @@ const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hosp
       todayAppointments: 24,
       pendingBills: 18
     });
-  }, [patients, drugs, staff, wardStats, alerts]);
+  }, [patients, patientsList, patientsCount, drugs, staff, wardStats, alerts]);
 
   // Tab data
   const tabs = [
@@ -1500,23 +1955,23 @@ const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hosp
 
   // Load patients when component mounts
   useEffect(() => {
-    loadPatients('/api/v1/patients/patients/');
+    loadPatients('/api/v1/patients/patients/?status=all');
   }, []);
 
   // Refresh handler - refreshes current tab data
   const handleRefresh = () => {
     switch(activeTab) {
       case 'patients':
-        loadPatients('/api/v1/patients/patients/');
+        loadPatients('/api/v1/patients/patients/?status=all');
         break;
       case 'departments':
         loadDepartments();
         break;
       case 'overview':
-        loadPatients('/api/v1/patients/patients/');
+        loadPatients('/api/v1/patients/patients/?status=all');
         break;
       default:
-        loadPatients('/api/v1/patients/patients/');
+        loadPatients('/api/v1/patients/patients/?status=all');
     }
   };
 
@@ -1547,6 +2002,71 @@ const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hosp
     setShowPatientModal(true);
   };
 
+  const handleEditPatient = (patient) => {
+    setEditingPatient(patient);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (formData) => {
+    setEditSubmitting(true);
+    try {
+      const fullName = formData.name.trim().split(/\s+/);
+      const firstName = fullName.shift() || '';
+      const lastName = fullName.join(' ') || 'Unknown';
+
+      const payload = {
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: formData.dateOfBirth || '1990-01-01',
+        gender: formData.gender?.toLowerCase() || 'unknown',
+        phone: formData.phone,
+        email: formData.email || '',
+        address: formData.address || '',
+        city: formData.city || '',
+        state: formData.state || 'Rivers',
+        lga: formData.lga || '',
+        country: formData.country || 'Nigeria',
+        blood_group: formData.bloodType || 'unknown',
+        marital_status: formData.maritalStatus?.toLowerCase() || 'single',
+        religion: formData.religion || '',
+        ethnicity: formData.tribe || '',
+        occupation: formData.occupation || '',
+        next_of_kin_name: formData.emergencyContact || '',
+        next_of_kin_phone: formData.emergencyPhone || '',
+        nin: formData.nin || '',
+        patient_status: formData.patient_status || 'active',
+        is_active: formData.patient_status === 'active',
+        genotype: formData.genotype || '',
+        has_insurance: formData.has_insurance || false,
+        insurance_company: formData.insurance_company || '',
+        insurance_policy_number: formData.insurance_policy_number || '',
+        nhis_number: formData.nhis_number || '',
+        known_allergies: formData.known_allergies || '',
+        chronic_conditions: formData.chronic_conditions || '',
+        current_medications: formData.current_medications || '',
+        surgical_history: formData.surgical_history || '',
+        family_history: formData.family_history || '',
+        notes: formData.notes || '',
+      };
+
+      await apiRequest(`/api/v1/patients/patients/${editingPatient.id}/`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      
+      // Refresh patient list
+      await loadPatients('/api/v1/patients/patients/');
+      
+      setShowEditModal(false);
+      setEditingPatient(null);
+    } catch (err) {
+      console.error('Failed to update patient:', err);
+      alert(err.message || 'Failed to update patient');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   const handleCreateAdmissionForPatient = (patient) => {
     const preselectedPatient = {
       patientId: patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id,
@@ -1561,6 +2081,19 @@ const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hosp
     navigate('/admissions', {
       state: { preselectedPatient },
     });
+  };
+
+  const handleRestorePatient = async (patient) => {
+    try {
+      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ patient_status: 'active', is_active: true }),
+      });
+      await loadPatients('/api/v1/patients/patients/');
+    } catch (err) {
+      console.error('Failed to restore patient:', err);
+      alert(err.message || 'Failed to restore patient');
+    }
   };
 
   const handleClosePatientModal = () => {
@@ -1919,9 +2452,9 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               onClick={() => document.getElementById('admin-bulk-upload-input')?.click()}
             >
               {bulkUploading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <Upload className="w-3.5 h-3.5" />
+                <Upload className="w-5 h-5" />
               )}
               Bulk Upload
             </ButtonWithTooltip>
@@ -1956,13 +2489,13 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {bulkUploading ? (
-                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                 ) : bulkUploadResult?.status === 'completed' ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-5 h-5 text-green-600" />
                 ) : bulkUploadResult?.status === 'failed' ? (
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
                 ) : (
-                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                 )}
                 <span className="text-xs sm:text-sm font-medium text-gray-900">
                   {bulkUploadProgress?.message || bulkUploadResult?.message}
@@ -2069,7 +2602,24 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             onClick={() => handleViewPatient(patient)}
                             tooltip="View patient details"
                             variant="primary"
+                            size="sm"
                           />
+                          <IconButton
+                            icon={Edit}
+                            onClick={() => handleEditPatient(patient)}
+                            tooltip="Edit patient"
+                            variant="warning"
+                            size="sm"
+                          />
+                          {patient.status !== 'active' && patient.patient_status !== 'active' ? (
+                            <IconButton
+                              icon={RotateCcw}
+                              onClick={() => handleRestorePatient(patient)}
+                              tooltip="Restore patient"
+                              variant="success"
+                              size="sm"
+                            />
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => handleCreateAdmissionForPatient(patient)}
@@ -2079,16 +2629,11 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             Admit
                           </button>
                           <IconButton
-                            icon={Edit}
-                            onClick={() => navigate(`/patients/edit/${patient.id}`)}
-                            tooltip="Edit patient"
-                            variant="primary"
-                          />
-                          <IconButton
                             icon={FileText}
                             onClick={() => navigate(`/patients/${patient.id}/emr`)}
                             tooltip="View EMR"
                             variant="info"
+                            size="sm"
                           />
                         </div>
                       </td>
@@ -2109,6 +2654,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   tooltip="Previous page"
                   variant="default"
                   disabled={!patientsPreviousPage || patientsLoading}
+                  size="sm"
                 />
                 <span className="text-[10px] sm:text-xs text-gray-600">
                   Page {patientsList.length > 0 ? Math.ceil((totalItems - patientsList.length + 1) / 20) : 0} of {totalPages || 1}
@@ -2119,6 +2665,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   tooltip="Next page"
                   variant="default"
                   disabled={!patientsNextPage || patientsLoading}
+                  size="sm"
                 />
               </div>
             </div>
@@ -2129,7 +2676,25 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         {showPatientModal && selectedPatient && (
           <PatientDetailModal 
             patient={selectedPatient} 
-            onClose={handleClosePatientModal} 
+            onClose={handleClosePatientModal}
+            onEdit={handleEditPatient}
+            onAdmit={handleCreateAdmissionForPatient}
+            onConsult={(patient) => window.open(`/patients/${patient.id}/consult`, '_blank')}
+            onViewEMR={(patient) => window.open(`/patients/${patient.id}/emr`, '_blank')}
+          />
+        )}
+
+        {/* Edit Patient Modal */}
+        {showEditModal && editingPatient && (
+          <EditPatientModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingPatient(null);
+            }}
+            patient={editingPatient}
+            onSave={handleSaveEdit}
+            isSubmitting={editSubmitting}
           />
         )}
       </div>
@@ -2197,8 +2762,8 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 </td>
                 <td className="py-3">
                   <div className="flex items-center gap-1">
-                    <IconButton icon={Eye} tooltip="View bill" variant="primary" />
-                    <IconButton icon={Printer} tooltip="Print bill" variant="default" />
+                    <IconButton icon={Eye} tooltip="View bill" variant="primary" size="sm" />
+                    <IconButton icon={Printer} tooltip="Print bill" variant="default" size="sm" />
                   </div>
                 </td>
               </tr>
@@ -2211,8 +2776,8 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 </td>
                 <td className="py-3">
                   <div className="flex items-center gap-1">
-                    <IconButton icon={Eye} tooltip="View bill" variant="primary" />
-                    <IconButton icon={Edit} tooltip="Edit bill" variant="primary" />
+                    <IconButton icon={Eye} tooltip="View bill" variant="primary" size="sm" />
+                    <IconButton icon={Edit} tooltip="Edit bill" variant="primary" size="sm" />
                   </div>
                 </td>
               </tr>
@@ -2417,6 +2982,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   onClick={() => handleEditDepartment(dept)}
                   tooltip="Edit department"
                   variant="primary"
+                  size="sm"
                 />
                 <IconButton
                   icon={Trash2}
@@ -2424,6 +2990,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   tooltip="Delete department"
                   variant="danger"
                   disabled={isDeleting}
+                  size="sm"
                 />
               </div>
             </div>
@@ -2488,12 +3055,14 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                       onClick={() => handleMarkAlertRead(alert.id)}
                       tooltip="Mark as read"
                       variant="success"
+                      size="sm"
                     />
                     <IconButton
                       icon={X}
                       onClick={() => handleDismissAlert(alert.id)}
                       tooltip="Dismiss alert"
                       variant="danger"
+                      size="sm"
                     />
                   </div>
                 </div>
@@ -2531,6 +3100,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                         onClick={() => handleMarkAlertRead(alert.id)}
                         tooltip="Mark as read"
                         variant="success"
+                        size="sm"
                       />
                     )}
                     <IconButton
@@ -2538,6 +3108,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                       onClick={() => handleDismissAlert(alert.id)}
                       tooltip="Dismiss alert"
                       variant="default"
+                      size="sm"
                     />
                   </div>
                 </div>

@@ -9,6 +9,7 @@ import {
   Activity,
   Pill,
   Bed,
+  RotateCcw,
   Heart,
   Stethoscope,
   AlertCircle,
@@ -1040,7 +1041,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
 
   // Load patients when component mounts
   useEffect(() => {
-    loadPatients('/api/v1/patients/patients/');
+    loadPatients('/api/v1/patients/patients/?status=all');
   }, []);
 
   // Update stats when patients or tasks change
@@ -1418,6 +1419,19 @@ const displayTenantName = authTenant?.name || 'Hospital';
     });
   };
 
+  const handleRestorePatient = async (patient) => {
+    try {
+      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ patient_status: 'active', is_active: true }),
+      });
+      await loadPatients('/api/v1/patients/patients/');
+    } catch (err) {
+      console.error('Failed to restore patient:', err);
+      alert(err.message || 'Failed to restore patient');
+    }
+  };
+
   const handleClosePatientModal = () => {
     setShowPatientModal(false);
     setSelectedPatient(null);
@@ -1749,6 +1763,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
               <tbody className="divide-y divide-gray-100">
                 {patientsList.map((patient) => {
                   const status = getStatusBadge(patient.status);
+                  const isInactive = (patient.patient_status || patient.status) !== 'active';
                   return (
                     <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-3">
@@ -1815,6 +1830,14 @@ const displayTenantName = authTenant?.name || 'Hospital';
                             tooltip="View medications"
                             variant="info"
                           />
+                          {isInactive && (
+                            <IconButton
+                              icon={RotateCcw}
+                              onClick={() => handleRestorePatient(patient)}
+                              tooltip="Restore patient"
+                              variant="success"
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2451,7 +2474,6 @@ const displayTenantName = authTenant?.name || 'Hospital';
         </nav>
       </div>
 
-      {/* Tab Content */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
         {renderTabContent()}
       </div>

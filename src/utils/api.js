@@ -46,14 +46,33 @@ const clearAuthData = () => {
   localStorage.removeItem('tenantId');
   localStorage.removeItem('tenantDomain');
   localStorage.removeItem('tenantName');
-  localStorage.removeItem('userRole');  localStorage.removeItem('userIsRootAdmin');  localStorage.removeItem('userEmail');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userIsRootAdmin');
+  localStorage.removeItem('userEmail');
   localStorage.removeItem('userName');
   localStorage.removeItem('userFirstName');
   localStorage.removeItem('userLastName');
   localStorage.removeItem('userFullName');
   localStorage.removeItem('licenseNumber');
   localStorage.removeItem('userId');
+  localStorage.removeItem('userProfilePicture');
+  localStorage.removeItem('rememberMe');
   window.dispatchEvent(new Event('authChanged'));
+};
+
+export const logout = async () => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  try {
+    await fetch(`${API_BASE_URL}/api/v1/auth/logout/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+  } catch {
+    // Ignore logout API errors; we still clear the client session.
+  } finally {
+    clearAuthData();
+  }
 };
 
 const isTokenErrorMessage = (message = '') =>
@@ -297,9 +316,9 @@ export const consultationApi = {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
     const qsStr = qs.toString();
-    return apiRequest(`/api/v1/laboratory/orders/${qsStr ? '?' + qsStr : ''}`);
+    return apiRequest(`/api/v1/lab/orders/${qsStr ? '?' + qsStr : ''}`);
   },
-  createLabOrder: (data) => apiRequest('/api/v1/laboratory/orders/', { method: 'POST', body: JSON.stringify(data) }),
+  createLabOrder: (data) => apiRequest('/api/v1/lab/orders/', { method: 'POST', body: JSON.stringify(data) }),
   getRadiologyOrders: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
@@ -332,9 +351,9 @@ export const consultationApi = {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
     const qsStr = qs.toString();
-    return apiRequest(`/api/v1/billing/invoice-items/${qsStr ? '?' + qsStr : ''}`);
+    return apiRequest(`/api/v1/billing/invoices/${qsStr ? '?' + qsStr : ''}`);
   },
-  createBillingItem: (data) => apiRequest('/api/v1/billing/invoice-items/', { method: 'POST', body: JSON.stringify(data) }),
+  createBillingItem: (data) => apiRequest('/api/v1/billing/invoices/', { method: 'POST', body: JSON.stringify(data) }),
   getInvoices: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });

@@ -1,12 +1,12 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   addPatient,
   updatePatient,
   deletePatient,
   archivePatient,
-  searchPatients,
+  restorePatient,
   sortPatients,
   filterPatients,
   setPatients,
@@ -22,18 +22,21 @@ import {
   UserCheck, UserX, Activity, Baby, Droplets,
   Map, Building2, Globe, BookOpen, Award,
   Menu, MoreVertical, UserCircle, IdCard, Loader2,
-  Archive, Upload
+  Archive, Upload, ChevronDown, FileSpreadsheet,
+  Users as UsersIcon, Filter as FilterIcon, Brain, RotateCcw
 } from 'lucide-react';
 
-// Tooltip Component
+// ==================== COMPONENTS ====================
+
+// Compact Tooltip Component
 const Tooltip = ({ children, text, position = 'top' }) => {
   const [show, setShow] = useState(false);
   
   const positionClasses = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2',
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
   };
 
   return (
@@ -46,13 +49,13 @@ const Tooltip = ({ children, text, position = 'top' }) => {
       {children}
       {show && (
         <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
-          <div className="bg-gray-900 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-lg">
+          <div className="bg-gray-900 text-white text-[10px] px-2 py-1 rounded shadow-lg">
             {text}
-            <div className={`absolute w-2 h-2 bg-gray-900 transform rotate-45 ${
-              position === 'top' ? 'bottom-[-4px] left-1/2 -translate-x-1/2' :
-              position === 'bottom' ? 'top-[-4px] left-1/2 -translate-x-1/2' :
-              position === 'left' ? 'right-[-4px] top-1/2 -translate-y-1/2' :
-              'left-[-4px] top-1/2 -translate-y-1/2'
+            <div className={`absolute w-1.5 h-1.5 bg-gray-900 transform rotate-45 ${
+              position === 'top' ? 'bottom-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'bottom' ? 'top-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'left' ? 'right-[-3px] top-1/2 -translate-y-1/2' :
+              'left-[-3px] top-1/2 -translate-y-1/2'
             }`} />
           </div>
         </div>
@@ -61,15 +64,27 @@ const Tooltip = ({ children, text, position = 'top' }) => {
   );
 };
 
-// Icon Button with Tooltip
-const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
+// Compact Icon Button
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
   const variantClasses = {
-    default: 'text-gray-400 hover:text-gray-600',
-    primary: 'text-blue-600 hover:text-blue-700',
-    success: 'text-green-600 hover:text-green-700',
-    danger: 'text-red-600 hover:text-red-700',
-    warning: 'text-yellow-600 hover:text-yellow-700',
-    info: 'text-blue-600 hover:text-blue-700',
+    default: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+    primary: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+    success: 'text-green-600 hover:text-green-700 hover:bg-green-50',
+    danger: 'text-red-600 hover:text-red-700 hover:bg-red-50',
+    warning: 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50',
+    info: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+  };
+
+  const sizeClasses = {
+    sm: 'p-1',
+    md: 'p-1.5',
+    lg: 'p-2',
+  };
+
+  const iconSizes = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-5 h-5',
   };
 
   return (
@@ -77,24 +92,31 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
       <button
         onClick={onClick}
         disabled={disabled}
-        className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
+        className={`rounded-lg transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
         }`}
       >
-        <Icon className="w-4 h-4" />
+        <Icon className={iconSizes[size]} />
       </button>
     </Tooltip>
   );
 };
 
-// Button with Tooltip
-const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false }) => {
+// Compact Button with Tooltip
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm' }) => {
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow',
     secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
-    success: 'bg-green-600 hover:bg-green-700 text-white',
-    danger: 'bg-red-600 hover:bg-red-700 text-white',
-    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+    success: 'bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow',
+    danger: 'bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm hover:shadow',
+    outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700',
+  };
+
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3.5 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-sm',
   };
 
   return (
@@ -102,7 +124,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
       <button
         onClick={onClick}
         disabled={disabled}
-        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className} ${
+        className={`rounded-lg transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
           disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
       >
@@ -112,46 +134,50 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   );
 };
 
-// Compact Custom Confirm Modal
-const CustomConfirmModal = ({ 
+// ==================== MODALS ====================
+
+// Compact Bulk Upload Modal
+const BulkUploadModal = ({ 
   isOpen, 
   onClose, 
-  onConfirm, 
-  onSoftDelete,
-  title, 
-  message, 
-  confirmText = 'Delete',
-  cancelText = 'Cancel',
-  patientData = null,
-  showSoftDelete = false,
+  onUpload,
+  isUploading = false,
+  progress = null,
+  result = null,
 }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+  const [file, setFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   if (!isOpen) return null;
 
-  const handleConfirm = async () => {
-    setIsDeleting(true);
-    try {
-      await onConfirm();
-    } finally {
-      setIsDeleting(false);
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
     }
+  };
+
+  const handleUpload = () => {
+    if (file && onUpload) {
+      onUpload(file);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const csvContent = `first_name,last_name,date_of_birth,gender,marital_status,phone,email,address,city,state,lga,country,blood_group,genotype,next_of_kin_name,next_of_kin_phone,next_of_kin_address
+John,Smith,1985-03-12,male,single,08012345678,john@example.com,12 Main Street,Lagos,Lagos,Ikeja,Nigeria,O+,AA,Mary Smith,08087654321,45 Church Road
+Jane,Doe,1990-07-25,female,married,09098765432,jane@example.com,34 Park Avenue,Abuja,FCT,Maitama,Nigeria,A-,AS,Richard Doe,08123456789,18 London Street
+Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Road,Enugu,Enugu,Enugu North,Nigeria,AB+,SS,Ngozi Okafor,09065432109,30 Market Square`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'patient_upload_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -161,116 +187,152 @@ const CustomConfirmModal = ({
         onClick={onClose}
       />
 
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm transform transition-all duration-200">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 p-1 rounded-lg hover:bg-gray-100 transition-colors"
-            disabled={isDeleting}
-          >
-            <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-          </button>
-
-          <div className="p-5">
-            {/* Icon and Title */}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <Trash2 className="w-5 h-5 text-red-600" />
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+                <Upload className="w-3.5 h-3.5 text-blue-600" />
               </div>
-              <h3 className="text-base font-bold text-gray-900">
-                {title}
-              </h3>
+              <h3 className="text-sm font-semibold text-gray-900">Bulk Upload Patients</h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              disabled={isUploading}
+            >
+              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+            </button>
+          </div>
+
+          <div className="p-4">
+            {/* Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-3">
+              <div className="flex items-start gap-2">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-blue-800">Upload CSV File</p>
+                  <p className="text-xs text-blue-600">Supported format: .csv with patient data</p>
+                </div>
+              </div>
             </div>
 
-            {/* Message */}
-            <p className="text-sm text-gray-600 leading-relaxed mb-4">
-              {message}
-            </p>
+            {/* File Input */}
+            <div className="mb-3">
+              <div 
+                className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer ${
+                  file ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-blue-400'
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  disabled={isUploading}
+                />
+                {file ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-gray-700">{file.name}</span>
+                    <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                    <p className="text-sm text-gray-600">Click to select CSV file</p>
+                    <p className="text-xs text-gray-400">or drag and drop</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
-            {/* Patient Details - Compact */}
-            {patientData && (
-              <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-200">
+            {/* Progress / Result */}
+            {progress && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <User className="w-3.5 h-3.5 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">
-                      {patientData.name || patientData.full_name}
-                    </p>
-                    <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                      {patientData.phone && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" /> {patientData.phone}
-                        </span>
-                      )}
-                      {patientData.email && (
-                        <span className="flex items-center gap-1 truncate max-w-[120px]">
-                          <Mail className="w-3 h-3 flex-shrink-0" /> {patientData.email}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                  ) : progress.status === 'completed' ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : progress.status === 'failed' ? (
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                  ) : (
+                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                  )}
+                  <span className="text-xs font-medium text-gray-700 flex-1">
+                    {progress.message || 'Processing...'}
+                  </span>
                 </div>
               </div>
             )}
 
-            {/* Warning - Compact */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-2.5 mb-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-                <p className="text-xs text-red-700">
-                  This action cannot be undone
-                </p>
-              </div>
-            </div>
-
-            {/* Soft Delete Option - Compact */}
-            {showSoftDelete && onSoftDelete && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <div className="flex items-start gap-2">
-                  <Archive className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-xs font-medium text-blue-800">Archive instead?</p>
-                    <p className="text-xs text-blue-600 mb-2">Preserve record, hide from active lists</p>
-                    <button
-                      onClick={onSoftDelete}
-                      disabled={isDeleting}
-                      className="w-full py-1.5 px-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Archive Patient
-                    </button>
-                  </div>
+            {result && (
+              <div className={`rounded-lg p-2.5 mb-3 border ${
+                result.status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+              }`}>
+                <div className="text-xs">
+                  <p className="font-medium text-gray-700">
+                    Total: {result.total_records} | Success: {result.success_count} | Failed: {result.failure_count}
+                  </p>
+                  {result.errors && result.errors.length > 0 && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-red-700 font-medium">
+                        View errors ({result.errors.length})
+                      </summary>
+                      <div className="mt-1 max-h-32 overflow-y-auto bg-white rounded border border-red-100 p-2">
+                        {result.errors.slice(0, 10).map((err, idx) => (
+                          <div key={idx} className="text-xs text-red-800 py-0.5 border-b border-red-50 last:border-0">
+                            Row {err.row}: {err.error}
+                          </div>
+                        ))}
+                        {result.errors.length > 10 && (
+                          <div className="text-xs text-gray-500 mt-1">...and {result.errors.length - 10} more</div>
+                        )}
+                      </div>
+                    </details>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Action Buttons - Compact */}
+            {/* Template link */}
+            <button
+              onClick={handleDownloadTemplate}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 mb-3"
+            >
+              <Download className="w-3 h-3" />
+              Download CSV Template
+            </button>
+
+            {/* Actions */}
             <div className="flex gap-2">
               <button
-                onClick={handleConfirm}
-                disabled={isDeleting}
-                className="flex-1 py-2 px-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                onClick={handleUpload}
+                disabled={!file || isUploading}
+                className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
-                {isDeleting ? (
+                {isUploading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Deleting...
+                    Uploading...
                   </>
                 ) : (
                   <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {confirmText}
+                    <Upload className="w-3.5 h-3.5" />
+                    Upload
                   </>
                 )}
               </button>
               <button
                 onClick={onClose}
-                disabled={isDeleting}
-                className="flex-1 py-2 px-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                disabled={isUploading}
+                className="flex-1 bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {cancelText}
+                Cancel
               </button>
             </div>
           </div>
@@ -280,78 +342,1093 @@ const CustomConfirmModal = ({
   );
 };
 
+// Compact Edit/View Patient Modal
+const PatientModal = ({ 
+  isOpen, 
+  onClose, 
+  patient, 
+  mode = 'view',
+  onSave,
+  isSubmitting = false,
+  formError,
+}) => {
+  const [formData, setFormData] = useState({});
+  const [activeTab, setActiveTab] = useState('personal');
+  const [dupCheck, setDupCheck] = useState({ loading: false, duplicate: false, existing: null });
+  const [forceDuplicate, setForceDuplicate] = useState(false);
+  
+  useEffect(() => {
+    if (patient && mode === 'edit') {
+      setFormData({
+        name: patient.name || patient.full_name || '',
+        nin: patient.nin || '',
+        phone: patient.phone || '',
+        email: patient.email || '',
+        address: patient.address || '',
+        tribe: patient.tribe || patient.ethnicity || '',
+        country: patient.country || 'Nigeria',
+        lga: patient.lga || '',
+        state: patient.state || '',
+        city: patient.city || '',
+        dateOfBirth: patient.dateOfBirth || '',
+        bloodType: patient.bloodType || patient.blood_group || '',
+        gender: (patient.gender || '').toLowerCase(),
+        maritalStatus: (patient.maritalStatus || patient.marital_status || '').toLowerCase(),
+        occupation: patient.occupation || '',
+        emergencyContact: patient.emergencyContact || patient.next_of_kin_name || '',
+        emergencyPhone: patient.emergencyPhone || patient.next_of_kin_phone || '',
+        religion: patient.religion || '',
+        patient_status: patient.patient_status || 'active',
+        genotype: patient.genotype || '',
+        has_insurance: patient.has_insurance || false,
+        insurance_company: patient.insurance_company || '',
+        insurance_policy_number: patient.insurance_policy_number || '',
+        nhis_number: patient.nhis_number || '',
+        known_allergies: patient.known_allergies || '',
+        chronic_conditions: patient.chronic_conditions || '',
+        current_medications: patient.current_medications || '',
+        surgical_history: patient.surgical_history || '',
+        family_history: patient.family_history || '',
+        notes: patient.notes || '',
+      });
+    } else if (mode === 'add') {
+      setFormData({
+        name: '',
+        nin: '',
+        phone: '',
+        email: '',
+        address: '',
+        tribe: '',
+        country: 'Nigeria',
+        lga: '',
+        state: '',
+        city: '',
+        dateOfBirth: '',
+        bloodType: '',
+        gender: '',
+        maritalStatus: '',
+        occupation: '',
+        emergencyContact: '',
+        emergencyPhone: '',
+        religion: '',
+        patient_status: 'active',
+        genotype: '',
+        has_insurance: false,
+        insurance_company: '',
+        insurance_policy_number: '',
+        nhis_number: '',
+        known_allergies: '',
+        chronic_conditions: '',
+        current_medications: '',
+        surgical_history: '',
+        family_history: '',
+        notes: '',
+      });
+    }
+  }, [patient, mode]);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
+  // Live duplicate check (add mode only) — warns before submit.
+  useEffect(() => {
+    setForceDuplicate(false);
+    setDupCheck({ loading: false, duplicate: false, existing: null });
+
+    if (mode !== 'add' || !isOpen) return;
+
+    const name = (formData.name || '').trim();
+    const dob = (formData.dateOfBirth || '').trim();
+    if (!name || !dob) return;
+
+    const parts = name.split(/\s+/);
+    const firstName = parts.shift() || '';
+    const lastName = parts.join(' ') || 'Unknown';
+
+    const handler = setTimeout(async () => {
+      setDupCheck((prev) => ({ ...prev, loading: true }));
+      try {
+        const data = await apiRequest('/api/v1/patients/patients/check_duplicate/', {
+          method: 'POST',
+          body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            date_of_birth: dob,
+          }),
+        });
+        setDupCheck({
+          loading: false,
+          duplicate: !!data.duplicate,
+          existing: data.existing_patient || null,
+        });
+      } catch {
+        setDupCheck({ loading: false, duplicate: false, existing: null });
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [mode, isOpen, formData.name, formData.dateOfBirth]);
+
+
+  if (!isOpen) return null;
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (onSave) onSave(formData, forceDuplicate);
+  };
+
+  const getStatusColor = (status) => {
+    const statusMap = {
+      'active': 'bg-green-100 text-green-800 border-green-200',
+      'inactive': 'bg-gray-100 text-gray-800 border-gray-200',
+      'archived': 'bg-gray-100 text-gray-800 border-gray-200',
+      'critical': 'bg-red-100 text-red-800 border-red-200',
+      'stable': 'bg-green-100 text-green-800 border-green-200',
+      'monitoring': 'bg-blue-100 text-blue-800 border-blue-200',
+    };
+    return statusMap[status?.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  const renderPersonalInfo = () => {
+    if (mode === 'view') {
+      const patientStatus = patient?.patient_status || 'active';
+      const isActive = patientStatus === 'active' || patientStatus === 'Active';
+      
+      return (
+        <>
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusColor(patientStatus)}`}>
+              {isActive ? 'Active' : 'Inactive'}
+            </span>
+            {patient?.bloodType && (
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-200">
+                <Droplets className="w-3 h-3 mr-0.5" />
+                {patient.bloodType}
+              </span>
+            )}
+            {patient?.has_insurance && (
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-200">
+                <Shield className="w-3 h-3 mr-0.5" />
+                Insured
+              </span>
+            )}
+            {patient?.genotype && (
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                <Brain className="w-3 h-3 mr-0.5" />
+                {patient.genotype}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-gray-50 rounded p-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Full Name</p>
+              <p className="font-medium text-gray-900">{patient?.name || patient?.full_name || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded p-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Gender</p>
+              <p className="font-medium text-gray-900 capitalize">{patient?.gender || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded p-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Date of Birth</p>
+              <p className="font-medium text-gray-900">
+                {patient?.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString() : 'N/A'}
+                {patient?.age && ` (${patient.age}y)`}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded p-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">NIN</p>
+              <p className="font-medium text-gray-900">{patient?.nin || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded p-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Marital Status</p>
+              <p className="font-medium text-gray-900 capitalize">{patient?.maritalStatus || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded p-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Religion</p>
+              <p className="font-medium text-gray-900">{patient?.religion || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded p-2 col-span-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Ethnicity</p>
+              <p className="font-medium text-gray-900">{patient?.tribe || patient?.ethnicity || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded p-2 col-span-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Occupation</p>
+              <p className="font-medium text-gray-900">{patient?.occupation || 'N/A'}</p>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Full Name *</label>
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+            disabled={isSubmitting}
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Date of Birth</label>
+          <input
+            type="date"
+            name="dateOfBirth"
+            value={formData.dateOfBirth}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Gender</label>
+          <select
+            name="gender"
+            value={formData.gender}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          >
+            <option value="">Select</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NIN</label>
+          <input
+            type="text"
+            name="nin"
+            value={formData.nin}
+            onChange={handleChange}
+            placeholder="National Identity Number"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone Number *</label>
+          <input
+            type="tel"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Email</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
+          <input
+            type="text"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">State</label>
+          <input
+            type="text"
+            name="state"
+            value={formData.state}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">LGA</label>
+          <input
+            type="text"
+            name="lga"
+            value={formData.lga}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
+          <select
+            name="bloodType"
+            value={formData.bloodType}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          >
+            <option value="">Select</option>
+            <option value="O+">O+</option>
+            <option value="O-">O-</option>
+            <option value="A+">A+</option>
+            <option value="A-">A-</option>
+            <option value="B+">B+</option>
+            <option value="B-">B-</option>
+            <option value="AB+">AB+</option>
+            <option value="AB-">AB-</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Genotype</label>
+          <select
+            name="genotype"
+            value={formData.genotype}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          >
+            <option value="">Select</option>
+            <option value="AA">AA</option>
+            <option value="AS">AS</option>
+            <option value="SS">SS</option>
+            <option value="AC">AC</option>
+            <option value="SC">SC</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
+          <select
+            name="maritalStatus"
+            value={formData.maritalStatus}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          >
+            <option value="">Select</option>
+            <option value="single">Single</option>
+            <option value="married">Married</option>
+            <option value="divorced">Divorced</option>
+            <option value="widowed">Widowed</option>
+            <option value="separated">Separated</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Religion</label>
+          <input
+            type="text"
+            name="religion"
+            value={formData.religion}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Occupation</label>
+          <input
+            type="text"
+            name="occupation"
+            value={formData.occupation}
+            onChange={handleChange}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Ethnicity / Tribe</label>
+          <input
+            type="text"
+            name="tribe"
+            value={formData.tribe}
+            onChange={handleChange}
+            placeholder="e.g. Hausa, Igbo, Yoruba"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Contact</label>
+          <input
+            type="text"
+            name="emergencyContact"
+            value={formData.emergencyContact}
+            onChange={handleChange}
+            placeholder="Name"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+            disabled={isSubmitting}
+          />
+          <input
+            type="tel"
+            name="emergencyPhone"
+            value={formData.emergencyPhone}
+            onChange={handleChange}
+            placeholder="Phone"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Known Allergies</label>
+          <input
+            type="text"
+            name="known_allergies"
+            value={formData.known_allergies}
+            onChange={handleChange}
+            placeholder="e.g. Penicillin, Latex"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Chronic Conditions</label>
+          <input
+            type="text"
+            name="chronic_conditions"
+            value={formData.chronic_conditions}
+            onChange={handleChange}
+            placeholder="e.g. Diabetes, Hypertension"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Current Medications</label>
+          <input
+            type="text"
+            name="current_medications"
+            value={formData.current_medications}
+            onChange={handleChange}
+            placeholder="e.g. Metformin 500mg"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Surgical History</label>
+          <input
+            type="text"
+            name="surgical_history"
+            value={formData.surgical_history}
+            onChange={handleChange}
+            placeholder="e.g. Appendectomy 2020"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Family History</label>
+          <input
+            type="text"
+            name="family_history"
+            value={formData.family_history}
+            onChange={handleChange}
+            placeholder="e.g. Diabetes (Mother)"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Notes</label>
+          <textarea
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            rows="2"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+        onClick={onClose}
+      />
+
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200 max-h-[90vh] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                mode === 'view' ? 'bg-blue-100' : 'bg-green-100'
+              }`}>
+                {mode === 'view' ? (
+                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                ) : (
+                  <UserPlus className="w-3.5 h-3.5 text-green-600" />
+                )}
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">
+                {mode === 'view' ? 'Patient Details' : mode === 'edit' ? 'Edit Patient' : 'Add Patient'}
+              </h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              disabled={isSubmitting}
+            >
+              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+            </button>
+          </div>
+
+          {mode === 'view' && (
+            <div className="flex border-b border-gray-100 px-4 flex-shrink-0">
+              {['personal', 'contact', 'medical'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                    activeTab === tab
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto p-4">
+            {mode === 'view' ? (
+              <div>
+                {activeTab === 'personal' && (
+                  <div className="space-y-3">
+                    {renderPersonalInfo()}
+                  </div>
+                )}
+                {activeTab === 'contact' && (
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Phone</p>
+                      <p className="font-medium text-gray-900">{patient?.phone || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Email</p>
+                      <p className="font-medium text-gray-900">{patient?.email || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Address</p>
+                      <p className="font-medium text-gray-900">{patient?.address || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">State</p>
+                      <p className="font-medium text-gray-900">{patient?.state || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">LGA</p>
+                      <p className="font-medium text-gray-900">{patient?.lga || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">City</p>
+                      <p className="font-medium text-gray-900">{patient?.city || 'N/A'}</p>
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'medical' && (
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Blood Type</p>
+                      <p className="font-medium text-gray-900">{patient?.bloodType || patient?.blood_group || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Genotype</p>
+                      <p className="font-medium text-gray-900">{patient?.genotype || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Known Allergies</p>
+                      <p className="font-medium text-gray-900">{patient?.known_allergies || 'None'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Chronic Conditions</p>
+                      <p className="font-medium text-gray-900">{patient?.chronic_conditions || 'None'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Current Medications</p>
+                      <p className="font-medium text-gray-900">{patient?.current_medications || 'None'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Surgical History</p>
+                      <p className="font-medium text-gray-900">{patient?.surgical_history || 'None'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Family History</p>
+                      <p className="font-medium text-gray-900">{patient?.family_history || 'None'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Notes</p>
+                      <p className="font-medium text-gray-900 whitespace-pre-line">{patient?.notes || 'None'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 col-span-2">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">Emergency Contact</p>
+                      <p className="font-medium text-gray-900">
+                        {patient?.emergencyContact || patient?.next_of_kin_name || 'N/A'}
+                        {patient?.emergencyPhone && ` (${patient.emergencyPhone})`}
+                      </p>
+                    </div>
+                    {patient?.has_insurance && (
+                      <div className="bg-gray-50 rounded p-2 col-span-2">
+                        <p className="text-[10px] text-gray-500 uppercase font-medium">Insurance</p>
+                        <p className="font-medium text-gray-900">
+                          {patient?.insurance_company || 'N/A'}
+                          {patient?.insurance_policy_number && ` (${patient.insurance_policy_number})`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-3">
+                {formError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-2.5">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                      <p className="text-sm text-red-800">{formError}</p>
+                    </div>
+                  </div>
+                )}
+                {renderPersonalInfo()}
+
+                <div className="border-t border-gray-100 pt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      id="has_insurance"
+                      type="checkbox"
+                      name="has_insurance"
+                      checked={formData.has_insurance}
+                      onChange={handleChange}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      disabled={isSubmitting}
+                    />
+                    <label htmlFor="has_insurance" className="text-xs font-medium text-gray-700">
+                      Has Insurance
+                    </label>
+                  </div>
+                  {formData.has_insurance && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Insurance Company</label>
+                        <input
+                          type="text"
+                          name="insurance_company"
+                          value={formData.insurance_company}
+                          onChange={handleChange}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Policy Number</label>
+                        <input
+                          type="text"
+                          name="insurance_policy_number"
+                          value={formData.insurance_policy_number}
+                          onChange={handleChange}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NHIS Number</label>
+                        <input
+                          type="text"
+                          name="nhis_number"
+                          value={formData.nhis_number}
+                          onChange={handleChange}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.patient_status === 'active'}
+                      onChange={(e) => setFormData({ ...formData, patient_status: e.target.checked ? 'active' : 'inactive' })}
+                      className="sr-only peer"
+                      disabled={isSubmitting}
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                  <span className="text-xs text-gray-700">
+                    {formData.patient_status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                {dupCheck.duplicate && dupCheck.existing && (
+                  <div className="mb-3 p-2.5 rounded-lg border border-yellow-300 bg-yellow-50">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-yellow-800">
+                          Possible duplicate patient found
+                        </p>
+                        <p className="text-[11px] text-yellow-700 truncate">
+                          {dupCheck.existing.full_name || dupCheck.existing.name} ·{' '}
+                          {dupCheck.existing.hospital_number}
+                        </p>
+                      </div>
+                    </div>
+                    {!forceDuplicate && (
+                      <button
+                        type="button"
+                        onClick={() => setForceDuplicate(true)}
+                        className="mt-2 w-full text-xs font-medium text-yellow-800 bg-yellow-100 hover:bg-yellow-200 rounded-lg py-1.5 transition-colors"
+                      >
+                        This is a different patient — Create Anyway
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || (dupCheck.duplicate && !forceDuplicate)}
+                    className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        {mode === 'edit' ? 'Update' : 'Add'} Patient
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {mode === 'view' && (
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <ButtonWithTooltip
+                onClick={onClose}
+                tooltip="Close details"
+                variant="secondary"
+                size="sm"
+              >
+                Close
+              </ButtonWithTooltip>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Compact Delete Confirmation Modal
+const DeleteConfirmModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  patient,
+  isDeleting = false,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+        onClick={onClose}
+      />
+
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm transform transition-all duration-200">
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                <Archive className="w-4 h-4 text-yellow-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Archive Patient?</h3>
+                <p className="text-xs text-gray-500">This will mark the patient as inactive and hide them from active search results.</p>
+              </div>
+            </div>
+
+            {patient && (
+              <div className="bg-gray-50 rounded-lg p-2.5 mb-3 border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <User className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
+                      {patient.name || patient.full_name}
+                    </p>
+                    <div className="flex gap-2 text-xs text-gray-500">
+                      {patient.phone && <span>📱 {patient.phone}</span>}
+                      {patient.email && <span className="truncate">✉️ {patient.email}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                <p className="text-xs text-yellow-700">
+                  This will mark the patient record as inactive. The patient data will remain in the system but be hidden from active searches.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={onConfirm}
+                disabled={isDeleting}
+                className="flex-1 py-1.5 px-3 bg-yellow-600 text-white font-medium rounded-lg hover:bg-yellow-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Archiving...
+                  </>
+                ) : (
+                  <>
+                    <Archive className="w-3.5 h-3.5" />
+                    Archive
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={isDeleting}
+                className="flex-1 py-1.5 px-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Compact Duplicate Warning Modal
+const DuplicateWarningModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  existingPatient,
+  isSubmitting = false,
+}) => {
+  if (!isOpen) return null;
+
+  const formatDob = (dob) => {
+    if (!dob) return 'N/A';
+    const d = new Date(dob);
+    return isNaN(d.getTime()) ? dob : d.toLocaleDateString();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] overflow-y-auto">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        onClick={onClose}
+      />
+
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm transform transition-all duration-200">
+          <div className="p-4">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-4 h-4 text-yellow-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Possible Duplicate Patient</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  A patient with the same name and date of birth already exists.
+                </p>
+              </div>
+            </div>
+
+            {existingPatient && (
+              <div className="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <User className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
+                      {existingPatient.full_name || existingPatient.name || 'Unknown'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {existingPatient.hospital_number || 'No Hospital Number'}
+                    </p>
+                  </div>
+                  <span className={`inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                    (existingPatient.patient_status || 'active') === 'active'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {(existingPatient.patient_status || 'active').charAt(0).toUpperCase() + (existingPatient.patient_status || 'active').slice(1)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-gray-600">
+                  <div>
+                    <span className="text-gray-400">DOB: </span>
+                    {formatDob(existingPatient.date_of_birth)}
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Gender: </span>
+                    {existingPatient.gender || 'N/A'}
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-400">Phone: </span>
+                    {existingPatient.phone || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 mb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                <p className="text-xs text-yellow-700">
+                  Creating this record will add a duplicate patient. Please verify this
+                  is not the same person before continuing.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={onConfirm}
+                disabled={isSubmitting}
+                className="flex-1 py-1.5 px-3 bg-yellow-600 text-white font-medium rounded-lg hover:bg-yellow-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Create Anyway
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="flex-1 py-1.5 px-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== MAIN COMPONENT ====================
+
 const PatientManagement = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { patients, filteredPatients, searchTerm, sortBy, filterBy, error } = useSelector(
     state => state.patient
   );
 
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [viewMode, setViewMode] = useState('table');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
-  const [patientsNextPage, setPatientsNextPage] = useState(null);
-  const [patientsPreviousPage, setPatientsPreviousPage] = useState(null);
-  const [currentPageUrl, setCurrentPageUrl] = useState('/api/v1/patients/patients/');
-  const itemsPerPage = 10;
-  const [currentPageNumber, setCurrentPageNumber] = useState(1);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    nin: '',
-    phone: '',
-    email: '',
-    address: '',
-    tribe: '',
-    country: 'Nigeria',
-    lga: '',
-    state: '',
-    city: '',
-    dateOfBirth: '',
-    bloodType: '',
-    gender: '',
-    maritalStatus: '',
-    occupation: '',
-    emergencyContact: '',
-    emergencyPhone: '',
-    nextOfKin: '',
-    nextOfKinPhone: '',
-    religion: '',
-  });
-
-  const [availableLGAs, setAvailableLGAs] = useState([]);
-  const [nigerianStates, setNigerianStates] = useState([]);
-  const [countries, setCountries] = useState([]);
-  const [countryStates, setCountryStates] = useState({});
-  const [loadingData, setLoadingData] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nigerianData, setNigerianData] = useState({});
+  // ===== STATE =====
+  const [showPatientModal, setShowPatientModal] = useState(false);
+  const [modalMode, setModalMode] = useState('view');
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [showPatientDetails, setShowPatientDetails] = useState(false);
-
-  const [apiError, setApiError] = useState(null);
-  const [showApiError, setShowApiError] = useState(false);
-
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicatePatient, setDuplicatePatient] = useState(null);
+  const [pendingFormData, setPendingFormData] = useState(null);
+  
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [localPatients, setLocalPatients] = useState([]);
+  
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState(null);
   const [bulkUploadResult, setBulkUploadResult] = useState(null);
+  const [bulkUploadError, setBulkUploadError] = useState(null);
   const bulkUploadPollsRef = useRef({});
-
-  // Helper function to get current page number
-  const getCurrentPage = () => {
-    return currentPageNumber;
-  };
-
-  const resetBulkUpload = () => {
-    setBulkUploadFile(null);
-    setBulkUploading(false);
-    setBulkUploadProgress(null);
-    setBulkUploadResult(null);
-  };
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [patientSummary, setPatientSummary] = useState({ total: 0, active: 0, inactive: 0 });
+  const [patientsNextPage, setPatientsNextPage] = useState(null);
+  const [patientsPreviousPage, setPatientsPreviousPage] = useState(null);
+  const [currentPageUrl, setCurrentPageUrl] = useState('/api/v1/patients/patients/');
+  const [currentPageNumber, setCurrentPageNumber] = useState(1);
+  
+  const [searchTermLocal, setSearchTermLocal] = useState('');
+  const [sortByLocal, setSortByLocal] = useState('name');
+  const [filterByLocal, setFilterByLocal] = useState('all');
+  
+  const [nigerianStates, setNigerianStates] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [apiError, setApiError] = useState(null);
+  const [showApiError, setShowApiError] = useState(false);
+  const [formError, setFormError] = useState(null);
 
   const extractApiError = (err) => {
     const data = err?.data;
@@ -369,283 +1446,81 @@ const PatientManagement = () => {
     return err?.message || 'Unable to save patient';
   };
 
-  const handleBulkUpload = async () => {
-    if (!bulkUploadFile) return;
-    setBulkUploading(true);
-    setBulkUploadProgress({ status: 'uploading', message: 'Uploading file...' });
-    setBulkUploadResult(null);
+  // ===== API FUNCTIONS =====
+  // Build the patients list URL with the active search + filters so that
+  // searching/filtering happens on the server and works across ALL pages.
+  const buildPatientsUrl = (overrides = {}) => {
+    const search = overrides.search !== undefined ? overrides.search : searchTermLocal;
+    const status = overrides.status !== undefined ? overrides.status : statusFilter;
+    const stateFilter = overrides.state !== undefined ? overrides.state : filterByLocal;
+    const pageSize = overrides.page_size;
+    const page = overrides.page;
+
+    const params = new URLSearchParams();
+    if (search && search.trim()) params.append('search', search.trim());
+    if (status !== undefined) params.append('status', status);
+    if (stateFilter && stateFilter !== 'all') params.append('state', stateFilter);
+    if (pageSize) params.append('page_size', pageSize);
+    if (page) params.append('page', page);
+
+    const qs = params.toString();
+    return `/api/v1/patients/patients/${qs ? `?${qs}` : ''}`;
+  };
+
+  const loadPatients = async (url = '/api/v1/patients/patients/', { silent = false, fetchAll = false } = {}) => {
     try {
-      const formData = new FormData();
-      formData.append('file', bulkUploadFile);
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/v1/patients/bulk-uploads/upload/`, {
-        method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: formData,
-      });
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type') || '';
-        const isJson = contentType.includes('application/json');
-        const data = isJson ? await response.json().catch(() => ({})) : await response.text();
-        const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Upload failed with status ${response.status}`;
-        throw new Error(message);
-      }
-      const upload = await response.json();
-      setBulkUploadProgress({ status: 'processing', uploadId: upload.id, message: 'Processing in background...' });
-      pollBulkUploadStatus(upload.id);
-    } catch (err) {
-      setBulkUploadProgress(null);
-      setBulkUploadResult({ status: 'failed', message: err.message || 'Upload failed.' });
-      setBulkUploading(false);
-    }
-  };
-
-  const pollBulkUploadStatus = async (uploadId) => {
-    const maxAttempts = 120;
-    let attempts = 0;
-    const interval = setInterval(async () => {
-      attempts += 1;
-      try {
-        const data = await apiRequest(`/api/v1/patients/bulk-uploads/${uploadId}/`);
-        const status = data.status;
-        setBulkUploadProgress(prev => prev ? { ...prev, status, message: status === 'completed' ? 'Completed' : status === 'failed' ? 'Failed' : `Processing... ${data.processed_records || 0}/${data.total_records || 0}` } : null);
-        if (status === 'completed' || status === 'failed') {
-          clearInterval(interval);
-          setBulkUploading(false);
-          setBulkUploadResult({
-            status,
-            message: data.result_message || (status === 'completed' ? 'Bulk upload completed.' : 'Bulk upload failed.'),
-            success_count: data.success_count,
-            failure_count: data.failure_count,
-            total_records: data.total_records,
-            errors: data.errors,
-          });
-          if (status === 'completed') {
-            loadPatients();
-          }
-        }
-        if (attempts >= maxAttempts) {
-          clearInterval(interval);
-          setBulkUploading(false);
-          setBulkUploadProgress(null);
-        }
-      } catch {
-        if (attempts >= maxAttempts) {
-          clearInterval(interval);
-          setBulkUploading(false);
-          setBulkUploadProgress(null);
-        }
-      }
-    }, 2000);
-    bulkUploadPollsRef.current[uploadId] = interval;
-  };
-
-  // Custom Modal states
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    patientData: null,
-    action: null,
-    softDeleteAction: null,
-    title: '',
-    message: '',
-    confirmText: '',
-    showSoftDelete: false,
-  });
-
-  // Load countries, states, and Nigerian LGAs
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const statesResponse = await fetch('https://countriesnow.space/api/v0.1/countries/states');
-        const statesData = await statesResponse.json();
-
-        const countriesList = statesData.data.map(country => country.name);
-        const statesMap = {};
-        statesData.data.forEach(country => {
-          statesMap[country.name] = country.states.map(state => state.name);
-        });
-
-        setCountries(countriesList);
-        setCountryStates(statesMap);
-
-        // Load Nigerian LGAs from local JSON
-        const nigerianStatesList = Object.keys(nigerianData);
-        setNigerianStates(nigerianStatesList);
-      } catch (error) {
-        console.error('Error fetching global data:', error);
-        setCountries(['Nigeria']);
-        setCountryStates({ 'Nigeria': Object.keys(nigerianData) });
-        setNigerianStates(Object.keys(nigerianData));
-      } finally {
-        setLoadingData(false);
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [nigerianData]);
-
-  const dedupePatientsById = (patientsList = []) => {
-    const seen = new Set();
-    return patientsList.filter((patient) => {
-      const key = patient?.id ?? patient?.hospital_number ?? patient?.email ?? patient?.nin;
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
-
-  // Updated normalizePatient function to handle all fields properly
-  const normalizePatient = (patient) => {
-    // Capitalize gender for display
-    const genderMap = {
-      'male': 'Male',
-      'female': 'Female',
-      'other': 'Other',
-      '': ''
-    };
-
-    // Capitalize marital status for display
-    const maritalStatusMap = {
-      'single': 'Single',
-      'married': 'Married',
-      'divorced': 'Divorced',
-      'widowed': 'Widowed',
-      'separated': 'Separated',
-      '': ''
-    };
-
-    // Parse date of birth to calculate age
-    const calculateAge = (dob) => {
-      if (!dob) return 'N/A';
-      const birthDate = new Date(dob);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      return age;
-    };
-
-    return {
-      id: patient.id,
-      name: patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
-      first_name: patient.first_name || '',
-      last_name: patient.last_name || '',
-      nin: patient.nin || '',
-      phone: patient.phone || '',
-      email: patient.email || '',
-      address: patient.address || '',
-      tribe: patient.ethnicity || patient.tribe || '',
-      country: patient.country || 'Nigeria',
-      lga: patient.lga || '',
-      state: patient.state || '',
-      city: patient.city || '',
-      dateOfBirth: patient.date_of_birth || '',
-      bloodType: patient.blood_group || patient.bloodType || '',
-      gender: genderMap[patient.gender?.toLowerCase()] || patient.gender || '',
-      maritalStatus: maritalStatusMap[patient.marital_status?.toLowerCase()] || patient.marital_status || '',
-      occupation: patient.occupation || '',
-      emergencyContact: patient.next_of_kin_name || '',
-      emergencyPhone: patient.next_of_kin_phone || '',
-      religion: patient.religion || '',
-      status: patient.patient_status || patient.status || 'active',
-      createdAt: patient.registration_date || patient.createdAt || new Date().toISOString(),
-      updatedAt: patient.updated_at || patient.updatedAt || new Date().toISOString(),
-      hospital_number: patient.hospital_number || '',
-      login_id: patient.login_id || '',
-      age: calculateAge(patient.date_of_birth),
-      full_name: patient.full_name || '',
-      age_display: patient.age_display || '',
-      tenant_name: patient.tenant_name || '',
-      nhis_number: patient.nhis_number || '',
-      middle_name: patient.middle_name || '',
-      phone2: patient.phone2 || '',
-      next_of_kin_relationship: patient.next_of_kin_relationship || '',
-      next_of_kin_address: patient.next_of_kin_address || '',
-      known_allergies: patient.known_allergies || '',
-      chronic_conditions: patient.chronic_conditions || '',
-      current_medications: patient.current_medications || '',
-      surgical_history: patient.surgical_history || '',
-      family_history: patient.family_history || '',
-      has_insurance: patient.has_insurance || false,
-      insurance_company: patient.insurance_company || '',
-      insurance_policy_number: patient.insurance_policy_number || '',
-      insurance_expiry: patient.insurance_expiry || null,
-      ethnicity: patient.ethnicity || '',
-      language_spoken: patient.language_spoken || '',
-      patient_status: patient.patient_status || 'active',
-      photo: patient.photo || null,
-      notes: patient.notes || '',
-      registration_date: patient.registration_date || '',
-      last_visit: patient.last_visit || null,
-      registered_by: patient.registered_by || null,
-      is_active: patient.is_active !== undefined ? patient.is_active : true,
-      tenant: patient.tenant || null,
-      genotype: patient.genotype || '',
-    };
-  };
-
-  const loadPatients = async (url = '/api/v1/patients/patients/') => {
-    try {
-      setIsLoading(true);
+      if (silent) setTableLoading(true);
+      else setIsLoading(true);
       
+      let combinedPatients = [];
+      let nextUrl = url;
       let data;
-      let apiUrl = url;
-      
-      // If the URL is a full URL (starts with http), use it directly with fetch
-      if (url.startsWith('http')) {
-        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-        const response = await fetch(url, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+
+      const fetchPage = async (pageUrl) => {
+        if (pageUrl.startsWith('http')) {
+          const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+          const response = await fetch(pageUrl, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { Authorization: `Bearer ${token}` }),
+            },
+          });
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          return await response.json();
         }
-        
-        data = await response.json();
-        // Keep the full URL for display purposes
-        apiUrl = url;
+        return await apiRequest(pageUrl);
+      };
+
+      if (fetchAll) {
+        while (nextUrl) {
+          data = await fetchPage(nextUrl);
+          const patientsList = Array.isArray(data) ? data : (data.results || []);
+          const normalizedPatients = patientsList.map(normalizePatient);
+          combinedPatients = combinedPatients.concat(normalizedPatients);
+          nextUrl = data.next || null;
+        }
       } else {
-        // Use the apiRequest for relative URLs
-        data = await apiRequest(url);
-        apiUrl = url;
+        data = await fetchPage(url);
+        const patientsList = Array.isArray(data) ? data : (data.results || []);
+        combinedPatients = patientsList.map(normalizePatient);
+        nextUrl = data.next || null;
       }
       
-      // Handle both paginated and non-paginated responses
-      const patientsList = Array.isArray(data) ? data : (data.results || []);
-      const normalizedPatients = dedupePatientsById(patientsList.map(normalizePatient));
+      // Store in local state
+      setLocalPatients(combinedPatients);
       
-      dispatch(setPatients(normalizedPatients));
+      // Dispatch to Redux
+      dispatch(setPatients(combinedPatients));
       
-      // Update pagination state
-      if (data.count !== undefined) {
-        setTotalCount(data.count);
-      } else {
-        setTotalCount(normalizedPatients.length);
-      }
+      setTotalCount(fetchAll ? combinedPatients.length : (data.count !== undefined ? data.count : combinedPatients.length));
       
-      // Store the full URL for next/previous
-      setPatientsNextPage(data.next || null);
-      setPatientsPreviousPage(data.previous || null);
-      setCurrentPageUrl(apiUrl);
+      setPatientsNextPage(fetchAll ? null : (data.next || null));
+      setPatientsPreviousPage(fetchAll ? null : (data.previous || null));
+      setCurrentPageUrl(url);
       
-      // Extract current page number from URL
-      const urlParams = new URLSearchParams(apiUrl.split('?')[1] || '');
+      const urlParams = new URLSearchParams(url.split('?')[1] || '');
       const pageParam = urlParams.get('page');
-      if (pageParam) {
-        setCurrentPageNumber(parseInt(pageParam, 10));
-      } else {
-        setCurrentPageNumber(1);
-      }
+      setCurrentPageNumber(pageParam ? parseInt(pageParam, 10) : 1);
       
     } catch (err) {
       console.error('Failed to load patients:', err);
@@ -653,1088 +1528,506 @@ const PatientManagement = () => {
       setShowApiError(true);
     } finally {
       setIsLoading(false);
+      setTableLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadPatients();
-  }, [dispatch]);
-
-  const tribes = ['Yoruba', 'Hausa', 'Igbo', 'Fulani', 'Ijaw', 'Kanuri', 'Ibibio', 'Tiv', 'Other'];
-  const bloodTypes = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
-  const genders = ['Male', 'Female', 'Other'];
-  const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
-  const religions = ['Christianity', 'Islam', 'Traditional', 'Other'];
-
-  // Stats calculation
-  const uniqueFilteredPatients = dedupePatientsById(filteredPatients);
-
-  const stats = {
-    total: totalCount || uniqueFilteredPatients.length,
-    active: uniqueFilteredPatients.filter(p => p.status === 'active').length,
-    inactive: uniqueFilteredPatients.filter(p => p.status === 'inactive' || p.status === 'archived').length,
-    byState: uniqueFilteredPatients.reduce((acc, p) => {
-      acc[p.state] = (acc[p.state] || 0) + 1;
-      return acc;
-    }, {}),
-  };
-
-  // View patient details handler
+  // ===== EVENT HANDLERS =====
   const handleViewPatient = (patient) => {
     setSelectedPatient(patient);
-    setShowPatientDetails(true);
+    setModalMode('view');
+    setShowPatientModal(true);
   };
 
-  // Open custom confirm modal for delete
-  const handleDeleteClick = (patient) => {
-    setConfirmModal({
-      isOpen: true,
-      patientData: {
-        name: patient.name || patient.full_name || '',
-        email: patient.email || '',
-        phone: patient.phone || '',
-      },
-      action: async () => {
-        setIsLoading(true);
-        try {
-          await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
-            method: 'DELETE',
-          });
-          dispatch(deletePatient(patient.id));
-          await loadPatients();
-          setConfirmModal({ ...confirmModal, isOpen: false });
-        } catch (error) {
-          console.error('Delete failed:', error);
-          setApiError(extractApiError(error));
-          setShowApiError(true);
-          throw error;
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      softDeleteAction: async () => {
-        setIsLoading(true);
-        try {
-          await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
-            method: 'PATCH',
-            body: JSON.stringify({
-              patient_status: 'archived',
-              is_active: false,
-            }),
-          });
-          dispatch(archivePatient(patient.id));
-          await loadPatients();
-          setConfirmModal({ ...confirmModal, isOpen: false });
-        } catch (error) {
-          console.error('Archive failed:', error);
-          setApiError(extractApiError(error));
-          setShowApiError(true);
-          throw error;
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      title: 'Delete Patient?',
-      message: 'This will permanently delete the patient record and all associated data.',
-      confirmText: 'Delete',
-      showSoftDelete: true,
-    });
+  const handleEditPatient = (patient) => {
+    setSelectedPatient(patient);
+    setFormError(null);
+    setModalMode('edit');
+    setShowPatientModal(true);
   };
 
-  // Close confirm modal
-  const handleConfirmModalClose = () => {
-    if (!isLoading) {
-      setConfirmModal({ ...confirmModal, isOpen: false });
+  const handleAddPatient = () => {
+    setSelectedPatient(null);
+    setFormError(null);
+    setModalMode('add');
+    setShowPatientModal(true);
+  };
+
+  const handleBulkUpload = async (file) => {
+    setBulkUploadFile(file);
+    setBulkUploadResult(null);
+    setBulkUploadProgress(null);
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/patients/bulk-uploads/`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+        const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Upload failed with status ${response.status}`;
+        throw new Error(message);
+      }
+
+      const result = await response.json();
+      setBulkUploadResult(result);
+      setBulkUploadProgress(null);
+
+      if (result.status === 'completed' || result.status === 'processing') {
+        await loadPatients(buildPatientsUrl(), { silent: true });
+      }
+    } catch (error) {
+      console.error('Bulk upload failed:', error);
+      setBulkUploadError(error.message);
+    } finally {
+      setBulkUploading(false);
     }
   };
 
-  // Open modal for edit
-  const handleEditClick = (patient) => {
-    // Ensure marital status is properly capitalized for the form
-    const maritalStatusMap = {
-      'single': 'Single',
-      'married': 'Married',
-      'divorced': 'Divorced',
-      'widowed': 'Widowed',
-      'separated': 'Separated',
-      '': ''
-    };
-
-    // Ensure gender is properly capitalized for the form
-    const genderMap = {
-      'male': 'Male',
-      'female': 'Female',
-      'other': 'Other',
-      '': ''
-    };
-
-    const formPatient = {
-      ...patient,
-      maritalStatus: maritalStatusMap[patient.maritalStatus?.toLowerCase()] || patient.maritalStatus || '',
-      gender: genderMap[patient.gender?.toLowerCase()] || patient.gender || '',
-      state: patient.state || '',
-      city: patient.city || '',
-      lga: patient.lga || '',
-      country: patient.country || 'Nigeria',
-      dateOfBirth: patient.dateOfBirth || '',
-      bloodType: patient.bloodType || '',
-      tribe: patient.tribe || '',
-      religion: patient.religion || '',
-      occupation: patient.occupation || '',
-      emergencyContact: patient.emergencyContact || '',
-      emergencyPhone: patient.emergencyPhone || '',
-      nin: patient.nin || '',
-      phone: patient.phone || '',
-      email: patient.email || '',
-      address: patient.address || '',
-      name: patient.name || '',
-    };
-
-    setFormData(formPatient);
-    setAvailableLGAs(nigerianData[patient.state] || []);
-    setEditingId(patient.id);
-    setShowForm(true);
+  const resetBulkUpload = () => {
+    setBulkUploadFile(null);
+    setBulkUploadProgress(null);
+    setBulkUploadResult(null);
+    setBulkUploadError(null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleDeleteClick = (patient) => {
+    setPatientToDelete(patient);
+    setShowDeleteModal(true);
+  };
 
-    if (!formData.name.trim() || !formData.phone.trim()) {
-      alert('Name and Phone are required fields');
+  const handleDeleteConfirm = async () => {
+    if (!patientToDelete) return;
+    setIsLoading(true);
+    try {
+      await apiRequest(`/api/v1/patients/patients/${patientToDelete.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          patient_status: 'inactive',
+          is_active: false,
+        }),
+      });
+      dispatch(archivePatient(patientToDelete.id));
+      await loadPatients(buildPatientsUrl(), { silent: true });
+      setShowDeleteModal(false);
+      setPatientToDelete(null);
+    } catch (error) {
+      console.error('Archive failed:', error);
+      setApiError(extractApiError(error));
+      setShowApiError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestorePatient = async (patient) => {
+    if (!patient) return;
+    const confirmation = window.confirm(`Restore patient ${patient.name || 'this patient'}?`);
+    if (!confirmation) return;
+
+    setIsLoading(true);
+    try {
+      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          patient_status: 'active',
+          is_active: true,
+        }),
+      });
+      dispatch(restorePatient(patient.id));
+      await loadPatients(buildPatientsUrl(), { silent: true });
+    } catch (error) {
+      console.error('Restore failed:', error);
+      setApiError(extractApiError(error));
+      setShowApiError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSavePatient = async (formData, forceDuplicate = false) => {
+    setFormError(null);
+    setIsSubmitting(true);
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      setFormError('Invalid email format');
+      setIsSubmitting(false);
       return;
     }
-
-    const fullName = formData.name.trim().split(/\s+/);
-    const firstName = fullName.shift() || '';
-    const lastName = fullName.join(' ') || 'Unknown';
-
-    // Map marital status to lowercase for API
-    const maritalStatusMap = {
-      'Single': 'single',
-      'Married': 'married',
-      'Divorced': 'divorced',
-      'Widowed': 'widowed',
-      'Separated': 'separated',
-      '': ''
-    };
-
-    // Map gender to lowercase for API
-    const genderMap = {
-      'Male': 'male',
-      'Female': 'female',
-      'Other': 'other',
-      '': 'unknown'
-    };
-
-    const payload = {
-      first_name: firstName,
-      last_name: lastName,
-      date_of_birth: formData.dateOfBirth || '1990-01-01',
-      gender: genderMap[formData.gender] || (formData.gender || 'unknown').toLowerCase(),
-      phone: formData.phone,
-      email: formData.email || '',
-      address: formData.address || '',
-      city: formData.city || '',
-      state: formData.state || 'Rivers',
-      lga: formData.lga || '',
-      country: formData.country || 'Nigeria',
-      blood_group: formData.bloodType || 'unknown',
-      marital_status: maritalStatusMap[formData.maritalStatus] || (formData.maritalStatus || 'single').toLowerCase(),
-      religion: formData.religion || '',
-      ethnicity: formData.tribe || '',
-      occupation: formData.occupation || '',
-      next_of_kin_name: formData.emergencyContact || '',
-      next_of_kin_phone: formData.emergencyPhone || '',
-      password: 'PatientPass123!',
-      nin: formData.nin || '',
-    };
-
+    
+    if (formData.dateOfBirth && new Date(formData.dateOfBirth) > new Date()) {
+      setFormError('Date of birth cannot be in the future');
+      setIsSubmitting(false);
+      return;
+    }
+    
     try {
-      setIsSubmitting(true);
-      setIsLoading(true);
+      const fullName = (formData.name || '').trim().split(/\s+/);
+      const firstName = fullName.shift() || '';
+      const lastName = fullName.join(' ') || 'Unknown';
 
-      if (editingId) {
-        const updated = await apiRequest(`/api/v1/patients/patients/${editingId}/`, {
+      const payload = {
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: formData.dateOfBirth || '',
+        gender: formData.gender?.toLowerCase() || 'unknown',
+        phone: formData.phone,
+        email: formData.email || '',
+        address: formData.address || '',
+        city: formData.city || '',
+        state: formData.state || 'Rivers',
+        lga: formData.lga || '',
+        country: formData.country || 'Nigeria',
+        blood_group: formData.bloodType || 'unknown',
+        marital_status: formData.maritalStatus?.toLowerCase() || 'single',
+        religion: formData.religion || '',
+        ethnicity: formData.tribe || '',
+        occupation: formData.occupation || '',
+        next_of_kin_name: formData.emergencyContact || '',
+        next_of_kin_phone: formData.emergencyPhone || '',
+        password: 'PatientPass123!',
+        nin: formData.nin || '',
+        patient_status: formData.patient_status || 'active',
+        is_active: formData.patient_status === 'active',
+        genotype: formData.genotype || '',
+        has_insurance: formData.has_insurance || false,
+        insurance_company: formData.insurance_company || '',
+        insurance_policy_number: formData.insurance_policy_number || '',
+        nhis_number: formData.nhis_number || '',
+        known_allergies: formData.known_allergies || '',
+        chronic_conditions: formData.chronic_conditions || '',
+        current_medications: formData.current_medications || '',
+        surgical_history: formData.surgical_history || '',
+        family_history: formData.family_history || '',
+        notes: formData.notes || '',
+      };
+
+      if (forceDuplicate) {
+        payload.confirm_duplicate = true;
+      }
+
+      if (modalMode === 'edit' && selectedPatient) {
+        const updated = await apiRequest(`/api/v1/patients/patients/${selectedPatient.id}/`, {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
         dispatch(updatePatient(normalizePatient(updated)));
-        setEditingId(null);
       } else {
-        const created = await apiRequest('/api/v1/patients/patients/', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
-        dispatch(addPatient(normalizePatient(created)));
+        try {
+          const created = await apiRequest('/api/v1/patients/patients/', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          dispatch(addPatient(normalizePatient(created)));
+        } catch (err) {
+          if (err?.data?.duplicate) {
+            setPendingFormData(formData);
+            setDuplicatePatient(err.data.existing_patient || null);
+            setShowDuplicateModal(true);
+            return;
+          }
+          throw err;
+        }
       }
 
-      resetForm();
-      setShowForm(false);
-      await loadPatients();
+      setShowPatientModal(false);
+      await loadPatients(buildPatientsUrl(), { silent: true });
     } catch (err) {
       console.error('Failed to save patient:', err);
       setApiError(extractApiError(err));
       setShowApiError(true);
     } finally {
       setIsSubmitting(false);
-      setIsLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      nin: '',
-      phone: '',
-      email: '',
-      address: '',
-      tribe: '',
-      country: 'Nigeria',
-      lga: '',
-      state: '',
-      city: '',
-      dateOfBirth: '',
-      bloodType: '',
-      gender: '',
-      maritalStatus: '',
-      occupation: '',
-      emergencyContact: '',
-      emergencyPhone: '',
-      nextOfKin: '',
-      nextOfKinPhone: '',
-      religion: '',
-    });
-    setAvailableLGAs([]);
-    setEditingId(null);
+  const confirmDuplicateCreate = () => {
+    setShowDuplicateModal(false);
+    if (pendingFormData) {
+      handleSavePatient(pendingFormData, true);
+    }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  // ===== FILTER HANDLERS =====
+  const setStatusFilterLocal = (filter) => {
+    if (statusFilter === filter) return;
+    setStatusFilter(filter);
+    if (filter !== 'all') {
+      setFilterByLocal('all');
+    }
+  };
 
-    if (name === 'country') {
-      setFormData(prev => ({ ...prev, state: '', lga: '', city: '' }));
-      setAvailableLGAs([]);
-      setNigerianStates(countryStates[value] || []);
-    } else if (name === 'state') {
-      setFormData(prev => ({ ...prev, lga: '', city: '' }));
-      if (formData.country === 'Nigeria') {
-        setAvailableLGAs(nigerianData[value] || []);
+  const setStateFilterLocal = (state) => {
+    if (filterByLocal === state) return;
+    setFilterByLocal(state);
+    setStatusFilter('all');
+  };
+
+  const handleFilterByStatus = (filter) => {
+    if (statusFilter === filter) return;
+
+    setStatusFilter(filter);
+    if (filter !== 'all') {
+      setFilterByLocal('all');
+    }
+    // Reload from server so the status filter applies across all pages
+    loadPatients(buildPatientsUrl({ status: filter }), { silent: true });
+  };
+
+  const handleFilterByState = (state) => {
+    if (filterByLocal === state) return;
+
+    setFilterByLocal(state);
+    setStatusFilter('all');
+    dispatch(filterPatients(state));
+    // Reload from server so the state filter applies across all pages
+    loadPatients(buildPatientsUrl({ state, status: 'all' }), { silent: true });
+  };
+
+  // ===== FILTER PATIENTS BY STATUS =====
+  const getFilteredPatientsByStatus = () => {
+    // Use localPatients first, fallback to filteredPatients or patients
+    const baseList = localPatients.length > 0 ? localPatients : (filteredPatients || patients || []);
+    
+    // First apply state filter if not 'all'
+    let stateFiltered = baseList;
+    if (filterByLocal !== 'all') {
+      stateFiltered = baseList.filter(patient => patient.state === filterByLocal);
+    }
+    
+    // Then apply status filter
+    if (statusFilter === 'all') {
+      return stateFiltered;
+    }
+    
+    return stateFiltered.filter(patient => {
+      const patientStatus = (patient.patient_status || patient.status || 'active').toLowerCase();
+      if (statusFilter === 'active') {
+        return patientStatus === 'active';
       }
-    }
+      if (statusFilter === 'inactive') {
+        return patientStatus === 'inactive' || patientStatus === 'archived';
+      }
+      return true;
+    });
   };
 
-  const handleSearch = (e) => {
-    dispatch(searchPatients(e.target.value));
+  // ===== STATS =====
+  const allPatients = localPatients.length > 0 ? localPatients : (filteredPatients || patients || []);
+  const filteredByStatus = getFilteredPatientsByStatus();
+  
+  const activeCount = allPatients.filter(p => {
+    const status = (p.patient_status || p.status || 'active').toLowerCase();
+    return status === 'active';
+  }).length;
+
+  const inactiveCount = allPatients.filter(p => {
+    const status = (p.patient_status || p.status || 'active').toLowerCase();
+    return status === 'inactive' || status === 'archived';
+  }).length;
+
+  const stats = {
+    total: patientSummary.total || activeCount + inactiveCount,
+    active: patientSummary.active || activeCount,
+    inactive: patientSummary.inactive || inactiveCount,
+    states: new Set(allPatients.map(p => p.state).filter(Boolean)).size,
   };
 
-  const handleSort = (e) => {
-    dispatch(sortPatients(e.target.value));
-  };
-
-  const handleFilter = (e) => {
-    dispatch(filterPatients(e.target.value));
-    loadPatients('/api/v1/patients/patients/');
-  };
-
-  // Calculate pagination
-  const totalItems = totalCount || patients.length;
-  const totalPages = Math.ceil(totalItems / 20);
-  const startIndex = patients.length > 0 ? (totalItems - patients.length + 1) : 0;
-  const endIndex = startIndex + patients.length - 1;
-
-  // Render patient details modal
-  const renderPatientDetails = () => {
-    if (!selectedPatient) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-600" />
-              Patient Details
-            </h2>
-            <button
-              onClick={() => {
-                setShowPatientDetails(false);
-                setSelectedPatient(null);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-
-          <div className="p-6 space-y-6">
-            {/* Personal Information */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-600" />
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Full Name</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.full_name || selectedPatient.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Gender</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.gender || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Date of Birth</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {selectedPatient.dateOfBirth ? new Date(selectedPatient.dateOfBirth).toLocaleDateString() : 'N/A'}
-                    {selectedPatient.age !== undefined && selectedPatient.age !== 'N/A' && ` (${selectedPatient.age} years)`}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">NIN</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.nin || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Marital Status</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.maritalStatus || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Religion</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.religion || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Ethnicity</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.ethnicity || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Occupation</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.occupation || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Information */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Phone className="w-4 h-4 text-green-600" />
-                Contact Information
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Phone</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.phone || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Email</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.email || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Address</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.address || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Location Information */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-purple-600" />
-                Location
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Country</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.country || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">State</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.state || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">LGA</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.lga || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">City</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.city || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Medical Information */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Heart className="w-4 h-4 text-red-600" />
-                Medical Information
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Blood Group</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.bloodType || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Genotype</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.genotype || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Known Allergies</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.known_allergies || 'None'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Chronic Conditions</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.chronic_conditions || 'None'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Current Medications</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.current_medications || 'None'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Surgical History</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.surgical_history || 'None'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Family History</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.family_history || 'None'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Emergency Contact */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-yellow-600" />
-                Emergency Contact
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Contact Name</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.emergencyContact || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Contact Phone</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.emergencyPhone || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Relationship</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.next_of_kin_relationship || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Address</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.next_of_kin_address || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Insurance Information */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <IdCard className="w-4 h-4 text-blue-600" />
-                Insurance Information
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Has Insurance</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.has_insurance ? 'Yes' : 'No'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Insurance Company</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.insurance_company || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Policy Number</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.insurance_policy_number || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">NHIS Number</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.nhis_number || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Hospital Information */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                Hospital Information
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Hospital Number</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.hospital_number || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Login ID</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.login_id || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Tenant/Hospital</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.tenant_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Registration Date</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {selectedPatient.registration_date ? new Date(selectedPatient.registration_date).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Status</p>
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    selectedPatient.status === 'active'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {selectedPatient.status || 'active'}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Last Visit</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {selectedPatient.last_visit ? new Date(selectedPatient.last_visit).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Language Spoken</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.language_spoken || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Notes</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPatient.notes || 'None'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Close button at bottom */}
-            <div className="flex justify-end pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowPatientDetails(false);
-                  setSelectedPatient(null);
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Render patient table
-  const renderPatientTable = () => (
-    <>
-      {/* Add Patient Button at Top of Table */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-gray-900">Patient List</h3>
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-            {totalItems} total
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <ButtonWithTooltip
-            onClick={() => setShowForm(true)}
-            tooltip="Register a new patient"
-            variant="primary"
-          >
-            <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden xs:inline">Add Patient</span>
-          </ButtonWithTooltip>
-          <ButtonWithTooltip
-            tooltip="Bulk upload patients from CSV"
-            variant="secondary"
-            onClick={() => document.getElementById('bulk-upload-input')?.click()}
-            className="font-bold border-blue-300 text-blue-700 hover:bg-blue-50"
-          >
-            {bulkUploading ? (
-              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-            ) : (
-              <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            )}
-            <span className="hidden xs:inline font-bold">Bulk Upload</span>
-          </ButtonWithTooltip>
-          <input
-            id="bulk-upload-input"
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setBulkUploadFile(file);
-                handleBulkUpload();
-              }
-              e.target.value = '';
-            }}
-          />
-        </div>
-      </div>
-
-      {filteredPatients.length === 0 ? (
-        <div className="text-center py-8 sm:py-12">
-          <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-          <p className="text-gray-600 font-medium text-sm sm:text-base">No patients found</p>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            {searchTerm ? 'Try adjusting your search or filters' : 'Start by registering your first patient'}
-          </p>
-          {!searchTerm && (
-            <ButtonWithTooltip
-              onClick={() => setShowForm(true)}
-              tooltip="Register a new patient"
-              variant="primary"
-              className="mt-3 sm:mt-4"
-            >
-              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Add Patient
-            </ButtonWithTooltip>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto -mx-3 sm:mx-0">
-            <table className="w-full min-w-[640px] sm:min-w-0">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    #
-                  </th>
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Location</th>
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Blood</th>
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {uniqueFilteredPatients.map((patient, index) => {
-                  // Calculate serial number based on current page and index
-                  const serialNumber = (currentPageNumber - 1) * 20 + index + 1;
-                  return (
-                    <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-2 sm:py-3 text-center text-xs sm:text-sm text-gray-500 font-medium">
-                        {serialNumber}
-                      </td>
-                      <td className="py-2 sm:py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
-                            {patient.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 text-xs sm:text-sm">{patient.name}</div>
-                            <div className="text-[10px] text-gray-500">
-                              {patient.nin ? `NIN: ${patient.nin}` : 'No NIN'}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2 sm:py-3 hidden sm:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-600">{patient.phone}</div>
-                        <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
-                      </td>
-                      <td className="py-2 sm:py-3 hidden md:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-600">{patient.state || '-'}</div>
-                        <div className="text-[10px] text-gray-400">{patient.lga || patient.city || '-'}</div>
-                      </td>
-                      <td className="py-2 sm:py-3 hidden lg:table-cell">
-                        <span className="text-xs font-medium">{patient.bloodType || '-'}</span>
-                      </td>
-                      <td className="py-2 sm:py-3">
-                        <span className={`inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full ${
-                          patient.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {patient.status || 'active'}
-                        </span>
-                      </td>
-                      <td className="py-2 sm:py-3">
-                        <div className="flex items-center gap-0.5 sm:gap-1">
-                          <IconButton
-                            icon={Eye}
-                            onClick={() => handleViewPatient(patient)}
-                            tooltip="View patient details"
-                            variant="primary"
-                            disabled={isLoading}
-                          />
-                          <IconButton
-                            icon={Bed}
-                            onClick={() => navigate('/admissions', {
-                              state: {
-                                preselectedPatient: {
-                                  patientId: patient.hospital_number || patient.hospitalNumber || patient.patient_id || patient.id,
-                                  patientName: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
-                                  name: patient.name || patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
-                                  phone: patient.phone || patient.phone_number,
-                                  email: patient.email,
-                                  id: patient.id,
-                                }
-                              }
-                            })}
-                            tooltip="Create admission for this patient"
-                            variant="success"
-                            disabled={isLoading}
-                          />
-                          <IconButton
-                            icon={Edit}
-                            onClick={() => handleEditClick(patient)}
-                            tooltip="Edit patient"
-                            variant="primary"
-                            disabled={isLoading}
-                          />
-                          <IconButton
-                            icon={Trash2}
-                            onClick={() => handleDeleteClick(patient)}
-                            tooltip="Delete patient"
-                            variant="danger"
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Fixed Pagination */}
-          <div className="flex flex-col sm:flex-row items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 gap-2 sm:gap-0">
-            <div className="text-[10px] sm:text-xs text-gray-500">
-              Showing {totalItems === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2">
-              <IconButton
-                icon={ChevronLeft}
-                onClick={() => {
-                  if (patientsPreviousPage) {
-                    console.log('Loading previous page:', patientsPreviousPage);
-                    loadPatients(patientsPreviousPage);
-                  }
-                }}
-                tooltip="Previous page"
-                variant="default"
-                disabled={!patientsPreviousPage || isLoading}
-              />
-              <span className="text-[10px] sm:text-xs text-gray-600">
-                Page {getCurrentPage()} of {totalPages || 1}
-              </span>
-              <IconButton
-                icon={ChevronRight}
-                onClick={() => {
-                  if (patientsNextPage) {
-                    console.log('Loading next page:', patientsNextPage);
-                    loadPatients(patientsNextPage);
-                  }
-                }}
-                tooltip="Next page"
-                variant="default"
-                disabled={!patientsNextPage || isLoading}
-              />
-            </div>
-          </div>
-        </>
-      )}
-    </>
-  );
-
-  // Show loading spinner overlay when any API request is processing
+  // ===== RENDER =====
   if (isLoading) {
     return (
-      <>
-        <div className="min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
-            {/* Header - Disabled during loading */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-                  Patient Management
-                </h1>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                  Manage patient records, demographics, and medical history
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <ButtonWithTooltip
-                  tooltip="Export patient data"
-                  variant="secondary"
-                  disabled={true}
-                >
-                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">Export</span>
-                </ButtonWithTooltip>
-                <ButtonWithTooltip
-                  onClick={() => setShowForm(true)}
-                  tooltip="Register a new patient"
-                  variant="primary"
-                  disabled={true}
-                >
-                  <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">Add Patient</span>
-                </ButtonWithTooltip>
-                <ButtonWithTooltip
-                  tooltip="Bulk upload patients from CSV"
-                  variant="secondary"
-                  onClick={() => document.getElementById('bulk-upload-input')?.click()}
-                >
-                  <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">Bulk Upload</span>
-                </ButtonWithTooltip>
-                <input
-                  id="bulk-upload-input"
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setBulkUploadFile(file);
-                      handleBulkUpload();
-                    }
-                    e.target.value = '';
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Stats Grid - Disabled during loading - No tooltips */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 opacity-50 pointer-events-none">
-              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
-                    <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
-                  </div>
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
-                    <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.active}</p>
-                  </div>
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Inactive</p>
-                    <p className="text-lg sm:text-2xl font-bold text-gray-600 mt-0.5 sm:mt-1">{stats.inactive}</p>
-                  </div>
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-50 rounded-lg flex items-center justify-center">
-                    <UserX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">States</p>
-                    <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{Object.keys(stats.byState).length}</p>
-                  </div>
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                    <Map className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {(bulkUploadProgress || bulkUploadResult) && (
-              <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${bulkUploadResult?.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {bulkUploading ? (
-                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                    ) : bulkUploadResult?.status === 'completed' ? (
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    ) : bulkUploadResult?.status === 'failed' ? (
-                      <AlertTriangle className="w-4 h-4 text-red-600" />
-                    ) : (
-                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                    )}
-                    <span className="text-xs sm:text-sm font-medium text-gray-900">
-                      {bulkUploadProgress?.message || bulkUploadResult?.message}
-                    </span>
-                  </div>
-                  {!bulkUploading && (
-                    <button
-                      onClick={resetBulkUpload}
-                      className="p-1 hover:bg-gray-200 rounded"
-                    >
-                      <X className="w-4 h-4 text-gray-600" />
-                    </button>
-                  )}
-                </div>
-                {bulkUploadResult && (
-                  <div className="mt-2 text-xs sm:text-sm text-gray-700">
-                    <p>Total: {bulkUploadResult.total_records} | Success: {bulkUploadResult.success_count} | Failed: {bulkUploadResult.failure_count}</p>
-                    {bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-red-700 font-medium">View errors ({bulkUploadResult.errors.length})</summary>
-                        <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded border border-red-100 p-2">
-                          {bulkUploadResult.errors.map((err, idx) => (
-                            <div key={idx} className="text-xs text-red-800 py-1 border-b border-red-50 last:border-0">
-                              Row {err.row}: {err.error}
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Main Content - Disabled during loading */}
-            <div className="bg-white rounded-lg border border-gray-200">
-              <div className="p-3 sm:p-4 border-b border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="relative flex-1 max-w-full sm:max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search patients..."
-                      value={searchTerm}
-                      className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg"
-                      disabled
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                    <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
-                      <option>Name A-Z</option>
-                    </select>
-                    <select className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg" disabled>
-                      <option>All States</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 sm:p-4">
-                <div className="text-center py-8 sm:py-12">
-                  <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                  <p className="text-gray-600 font-medium text-sm sm:text-base">Loading patients...</p>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <LoadingSpinner overlay text="Loading patients..." />
         </div>
-        <LoadingSpinner overlay text="Processing request..." />
-      </>
+      </div>
     );
   }
 
-  // Main render when not loading
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Users className="w-6 h-6 text-blue-600" />
               Patient Management
             </h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
+            <p className="text-sm text-gray-500 mt-0.5">
               Manage patient records, demographics, and medical history
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <ButtonWithTooltip
-              tooltip="Export patient data"
+              onClick={() => setShowBulkUploadModal(true)}
+              tooltip="Bulk upload patients via CSV"
               variant="secondary"
-              disabled={true}
+              size="sm"
             >
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Export</span>
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Bulk Upload</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
-              onClick={() => {
-                const csvContent = `first_name,last_name,date_of_birth,gender,marital_status,phone,email,address,city,state,lga,country,blood_group,genotype,next_of_kin_name,next_of_kin_phone,next_of_kin_address
-John,Smith,1985-03-12,male,single,08012345678,john@example.com,12 Main Street,Lagos,Lagos,Ikeja,Nigeria,O+,AA,Mary Smith,08087654321,45 Church Road
-Jane,Doe,1990-07-25,female,married,09098765432,jane@example.com,34 Park Avenue,Abuja,FCT,Maitama,Nigeria,A-,AS,Richard Doe,08123456789,18 London Street
-Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Road,Enugu,Enugu,Enugu North,Nigeria,AB+,SS,Ngozi Okafor,09065432109,30 Market Square`;
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = 'patient_upload_template.csv';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              tooltip="Download CSV template with example data for bulk upload"
-              variant="secondary"
+              onClick={handleAddPatient}
+              tooltip="Register a new patient"
+              variant="primary"
+              size="sm"
             >
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Template</span>
+              <UserPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Patient</span>
             </ButtonWithTooltip>
           </div>
         </div>
 
-        {/* Stats Grid - Tooltips removed from stats cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+        {/* Stats - All cards are clickable */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          {/* Total Card - Click to show all patients */}
+          <div 
+            className={`bg-white rounded-lg border p-3 hover:shadow-md transition-all cursor-pointer ${
+              statusFilter === 'all' && filterByLocal === 'all' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+            }`}
+            onClick={() => {
+              if (statusFilter !== 'all' || filterByLocal !== 'all') {
+                setStatusFilterLocal('all');
+                setStateFilterLocal('all');
+              }
+            }}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.total}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">Total</p>
+                <p className="text-xl font-bold text-gray-900">{stats.total}</p>
               </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Users className="w-4 h-4 text-blue-600" />
               </div>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+
+          {/* Active Card - Click to show only active patients */}
+          <div 
+            className={`bg-white rounded-lg border p-3 hover:shadow-md transition-all cursor-pointer ${
+              statusFilter === 'active' ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-200'
+            }`}
+            onClick={() => setStatusFilterLocal('active')}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5 sm:mt-1">{stats.active}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">Active</p>
+                <p className="text-xl font-bold text-green-600">{stats.active}</p>
               </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+              <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center">
+                <UserCheck className="w-4 h-4 text-green-600" />
               </div>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+
+          {/* Inactive Card - Click to show only inactive patients */}
+          <div 
+            className={`bg-white rounded-lg border p-3 hover:shadow-md transition-all cursor-pointer ${
+              statusFilter === 'inactive' ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200'
+            }`}
+            onClick={() => setStatusFilterLocal('inactive')}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Inactive</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-600 mt-0.5 sm:mt-1">{stats.inactive}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">Inactive</p>
+                <p className="text-xl font-bold text-gray-600">{stats.inactive}</p>
               </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-50 rounded-lg flex items-center justify-center">
-                <UserX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+              <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center">
+                <UserX className="w-4 h-4 text-gray-600" />
               </div>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+
+          {/* States Card - Click to show state distribution */}
+          <div 
+            className={`bg-white rounded-lg border p-3 hover:shadow-md transition-all cursor-pointer ${
+              filterByLocal !== 'all' && statusFilter === 'all' ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200'
+            }`}
+            onClick={() => {
+              // Cycle through states or show all
+              if (filterByLocal === 'all' && nigerianStates.length > 0) {
+                setStateFilterLocal(nigerianStates[0]);
+              } else {
+                const currentIndex = nigerianStates.indexOf(filterByLocal);
+                const nextIndex = (currentIndex + 1) % nigerianStates.length;
+                setStateFilterLocal(nextIndex === 0 ? 'all' : nigerianStates[nextIndex]);
+              }
+            }}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">States</p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{Object.keys(stats.byState).length}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">States</p>
+                <p className="text-xl font-bold text-purple-600">{stats.states}</p>
+                {filterByLocal !== 'all' && (
+                  <p className="text-xs text-purple-600 truncate max-w-[80px]">Filtered: {filterByLocal}</p>
+                )}
               </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                <Map className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+              <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Map className="w-4 h-4 text-purple-600" />
               </div>
             </div>
           </div>
         </div>
 
+        {/* Status Filter Indicator */}
+        {(statusFilter !== 'all' || filterByLocal !== 'all') && (
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
+            {statusFilter !== 'all' && (
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                statusFilter === 'active' 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                <FilterIcon className="w-3 h-3" />
+                Showing: {statusFilter === 'active' ? 'Active Patients' : 'Inactive Patients'}
+                <button
+                  onClick={() => {
+                    handleFilterByStatus('all');
+                  }}
+                  className="ml-1 hover:bg-gray-200 rounded p-0.5 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {filterByLocal !== 'all' && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-100 text-purple-800">
+                <Map className="w-3 h-3" />
+                State: {filterByLocal}
+                <button
+                  onClick={() => {
+                    handleFilterByState('all');
+                  }}
+                  className="ml-1 hover:bg-purple-200 rounded p-0.5 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <span className="text-xs text-gray-500">
+              {filteredByStatus.length} patients found
+            </span>
+          </div>
+        )}
+
+        {/* Bulk Upload Status Banner */}
         {(bulkUploadProgress || bulkUploadResult) && (
-          <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${bulkUploadResult?.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className={`mb-4 p-3 rounded-lg border ${
+            bulkUploadResult?.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {bulkUploading ? (
@@ -1746,7 +2039,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 ) : (
                   <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
                 )}
-                <span className="text-xs sm:text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-gray-900">
                   {bulkUploadProgress?.message || bulkUploadResult?.message}
                 </span>
               </div>
@@ -1760,17 +2053,22 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               )}
             </div>
             {bulkUploadResult && (
-              <div className="mt-2 text-xs sm:text-sm text-gray-700">
+              <div className="mt-2 text-sm text-gray-700">
                 <p>Total: {bulkUploadResult.total_records} | Success: {bulkUploadResult.success_count} | Failed: {bulkUploadResult.failure_count}</p>
                 {bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-red-700 font-medium">View errors ({bulkUploadResult.errors.length})</summary>
-                    <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded border border-red-100 p-2">
-                      {bulkUploadResult.errors.map((err, idx) => (
+                    <summary className="cursor-pointer text-red-700 font-medium text-sm">
+                      View errors ({bulkUploadResult.errors.length})
+                    </summary>
+                    <div className="mt-1 max-h-32 overflow-y-auto bg-white rounded border border-red-100 p-2">
+                      {bulkUploadResult.errors.slice(0, 10).map((err, idx) => (
                         <div key={idx} className="text-xs text-red-800 py-1 border-b border-red-50 last:border-0">
                           Row {err.row}: {err.error}
                         </div>
                       ))}
+                      {bulkUploadResult.errors.length > 10 && (
+                        <div className="text-xs text-gray-500 mt-1">...and {bulkUploadResult.errors.length - 10} more</div>
+                      )}
                     </div>
                   </details>
                 )}
@@ -1779,416 +2077,320 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         )}
 
-        {/* Main Content - Full width table with form modal */}
-        <div className="bg-white rounded-lg border border-gray-200">
+        {/* Main Table */}
+        <div className="bg-white rounded-lg border border-gray-200 relative">
+          {tableLoading && (
+            <div className="absolute inset-0 z-10 bg-white/60 rounded-lg flex items-center justify-center">
+              <div className="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-100">
+                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                Loading...
+              </div>
+            </div>
+          )}
           {/* Toolbar */}
-          <div className="p-3 sm:p-4 border-b border-gray-200">
+          <div className="p-3 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="relative flex-1 max-w-full sm:max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search patients..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Search by patient ID or name..."
+                  value={searchTermLocal}
+                  onChange={(e) => setSearchTermLocal(e.target.value)}
+                  className="w-full pl-9 pr-9 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-              </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <IconButton
-                  icon={Filter}
-                  onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  tooltip={showMobileFilters ? "Hide filters" : "Show filters"}
-                  variant="default"
-                  className="lg:hidden"
-                />
-                <div className="hidden sm:flex items-center gap-1.5">
-                  <Tooltip text="Sort patients">
-                    <select
-                      value={sortBy}
-                      onChange={handleSort}
-                      className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                  {tableLoading ? (
+                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                  ) : searchTermLocal ? (
+                    <button
+                      onClick={() => setSearchTermLocal('')}
+                      className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+                      title="Clear search"
                     >
-                      <option value="name">Name A-Z</option>
-                      <option value="date">Newest</option>
-                      <option value="state">State</option>
-                    </select>
-                  </Tooltip>
-                  <Tooltip text="Filter by state">
-                    <select
-                      value={filterBy}
-                      onChange={handleFilter}
-                      className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="all">All States</option>
-                      {nigerianStates.map(state => (
-                        <option key={state} value={state}>{state}</option>
-                      ))}
-                    </select>
-                  </Tooltip>
+                      <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  ) : null}
                 </div>
-                <IconButton
-                  icon={viewMode === 'table' ? Grid : List}
-                  onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
-                  tooltip={viewMode === 'table' ? "Switch to grid view" : "Switch to table view"}
-                  variant="default"
-                />
-                <IconButton
-                  icon={Printer}
-                  onClick={() => window.print()}
-                  tooltip="Print patient list"
-                  variant="default"
-                />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => handleFilterByStatus(e.target.value)}
+                  className="px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="all">All Patients</option>
+                  <option value="active">Active Only</option>
+                  <option value="inactive">Inactive Only</option>
+                </select>
+                
+                <select
+                  value={sortByLocal}
+                  onChange={(e) => {
+                    setSortByLocal(e.target.value);
+                    dispatch(sortPatients(e.target.value));
+                  }}
+                  className="px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="name">Name A-Z</option>
+                  <option value="date">Newest</option>
+                  <option value="state">State</option>
+                </select>
+                <select
+                  value={filterByLocal}
+                  onChange={(e) => handleFilterByState(e.target.value)}
+                  className="px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="all">All States</option>
+                  {nigerianStates.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Patient List Content */}
-          <div className="p-3 sm:p-4">
-            {renderPatientTable()}
+          {/* Table */}
+          <div className="p-3">
+            {filteredByStatus.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 font-medium">No patients found</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {searchTermLocal ? 'Try adjusting your search' : 'Start by registering your first patient'}
+                </p>
+                {!searchTermLocal && (
+                  <ButtonWithTooltip
+                    onClick={handleAddPatient}
+                    tooltip="Register a new patient"
+                    variant="primary"
+                    className="mt-3"
+                    size="sm"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Add Patient
+                  </ButtonWithTooltip>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto -mx-3">
+                  <table className="w-full min-w-[600px]">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
+                        <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                        <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                        <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Location</th>
+                        <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredByStatus.map((patient, index) => {
+                        const serialNumber = (currentPageNumber - 1) * 20 + index + 1;
+                        const patientStatus = patient.patient_status || 'active';
+                        const isActive = patientStatus === 'active' || patientStatus === 'Active';
+                        
+                        return (
+                          <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="py-2 text-center text-sm text-gray-500 font-medium">
+                              {serialNumber}
+                            </td>
+                            <td className="py-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-sm flex-shrink-0 ${
+                                  isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                  {patient.name?.charAt(0) || '?'}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-gray-900 text-sm">{patient.name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {patient.hospital_number || 'No ID'}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2 hidden sm:table-cell">
+                              <div className="text-sm text-gray-600">{patient.phone}</div>
+                              <div className="text-xs text-gray-400">{patient.email || 'No email'}</div>
+                            </td>
+                            <td className="py-2 hidden md:table-cell">
+                              <div className="text-sm text-gray-600">{patient.state || '-'}</div>
+                              <div className="text-xs text-gray-400">{patient.city || patient.lga || '-'}</div>
+                            </td>
+                            <td className="py-2">
+                              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+                                isActive
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="py-2">
+                              <div className="flex items-center gap-0.5">
+                                <IconButton
+                                  icon={Eye}
+                                  onClick={() => handleViewPatient(patient)}
+                                  tooltip="View details"
+                                  variant="primary"
+                                  size="sm"
+                                />
+                                <IconButton
+                                  icon={Edit}
+                                  onClick={() => handleEditPatient(patient)}
+                                  tooltip="Edit patient"
+                                  variant="primary"
+                                  size="sm"
+                                />
+                                {isActive ? (
+                                  <IconButton
+                                    icon={Trash2}
+                                    onClick={() => handleDeleteClick(patient)}
+                                    tooltip="Archive patient"
+                                    variant="danger"
+                                    size="sm"
+                                  />
+                                ) : (
+                                  <IconButton
+                                    icon={RotateCcw}
+                                    onClick={() => handleRestorePatient(patient)}
+                                    tooltip="Restore patient"
+                                    variant="success"
+                                    size="sm"
+                                  />
+                                )}
+                                <IconButton
+                                  icon={Bed}
+                                  onClick={() => navigate('/admissions', {
+                                    state: {
+                                      preselectedPatient: {
+                                        patientId: patient.hospital_number || patient.id,
+                                        patientName: patient.name,
+                                        phone: patient.phone,
+                                        email: patient.email,
+                                        id: patient.id,
+                                      }
+                                    }
+                                  })}
+                                  tooltip="Create admission"
+                                  variant="success"
+                                  size="sm"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex flex-col sm:flex-row items-center justify-between mt-3 pt-3 border-t border-gray-200 gap-2">
+                  <div className="text-xs text-gray-500">
+                    Showing {Math.min((currentPageNumber - 1) * 20 + 1, totalCount)} to {Math.min(currentPageNumber * 20, totalCount)} of {totalCount}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <IconButton
+                      icon={ChevronLeft}
+                      onClick={() => patientsPreviousPage && loadPatients(patientsPreviousPage, { silent: true })}
+                      tooltip="Previous page"
+                      variant="default"
+                      size="sm"
+                      disabled={!patientsPreviousPage}
+                    />
+                    <span className="text-xs text-gray-600 px-2">
+                      Page {currentPageNumber} of {Math.ceil(totalCount / 20) || 1}
+                    </span>
+                    <IconButton
+                      icon={ChevronRight}
+                      onClick={() => patientsNextPage && loadPatients(patientsNextPage, { silent: true })}
+                      tooltip="Next page"
+                      variant="default"
+                      size="sm"
+                      disabled={!patientsNextPage}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Add/Edit Patient Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-blue-600" />
-                {editingId ? 'Edit Patient' : 'Add New Patient'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+      {/* Patient Modal */}
+      <PatientModal
+        isOpen={showPatientModal}
+        onClose={() => {
+          setShowPatientModal(false);
+          setSelectedPatient(null);
+          setFormError(null);
+        }}
+        patient={selectedPatient}
+        mode={modalMode}
+        onSave={handleSavePatient}
+        isSubmitting={isSubmitting}
+        formError={formError}
+      />
 
-            <div className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Personal Information */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <User className="w-4 h-4 text-blue-600" />
-                    Personal Information
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                        <input
-                          type="date"
-                          name="dateOfBirth"
-                          value={formData.dateOfBirth}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                        <select
-                          name="gender"
-                          value={formData.gender}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Select</option>
-                          {genders.map(g => <option key={g} value={g}>{g}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">NIN</label>
-                      <input
-                        type="text"
-                        name="nin"
-                        value={formData.nin}
-                        onChange={handleChange}
-                        placeholder="National Identity Number"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-                </div>
+      {/* Bulk Upload Modal */}
+      <BulkUploadModal
+        isOpen={showBulkUploadModal}
+        onClose={() => {
+          setShowBulkUploadModal(false);
+          resetBulkUpload();
+        }}
+        onUpload={handleBulkUpload}
+        isUploading={bulkUploading}
+        progress={bulkUploadProgress}
+        result={bulkUploadResult}
+      />
 
-                {/* Contact Information */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-green-600" />
-                    Contact Information
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-                </div>
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setPatientToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        patient={patientToDelete}
+        isDeleting={isLoading}
+      />
 
-                {/* Location Information */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-purple-600" />
-                    Location
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                      <select
-                        name="country"
-                        value={formData.country}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting || loadingData}
-                      >
-                        <option value="">Select Country</option>
-                        {countries.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                      <select
-                        name="state"
-                        value={formData.state}
-                        onChange={handleChange}
-                        disabled={!formData.country || loadingData || isSubmitting}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-                      >
-                        <option value="">Select State</option>
-                        {nigerianStates.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    {formData.country === 'Nigeria' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">LGA</label>
-                        <select
-                          name="lga"
-                          value={formData.lga}
-                          onChange={handleChange}
-                          disabled={!formData.state || isSubmitting}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-                        >
-                          <option value="">Select LGA</option>
-                          {availableLGAs.map(lga => <option key={lga} value={lga}>{lga}</option>)}
-                        </select>
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        placeholder="City/Town"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                      <textarea
-                        name="address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        rows="2"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Medical & Demographic */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-red-600" />
-                    Medical & Demographic
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Blood Type</label>
-                      <select
-                        name="bloodType"
-                        value={formData.bloodType}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      >
-                        <option value="">Select</option>
-                        {bloodTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tribe</label>
-                      <select
-                        name="tribe"
-                        value={formData.tribe}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      >
-                        <option value="">Select</option>
-                        {tribes.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Religion</label>
-                      <select
-                        name="religion"
-                        value={formData.religion}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      >
-                        <option value="">Select</option>
-                        {religions.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
-                      <select
-                        name="maritalStatus"
-                        value={formData.maritalStatus}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      >
-                        <option value="">Select</option>
-                        {maritalStatuses.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Emergency Contact */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-yellow-600" />
-                    Emergency Contact
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Name</label>
-                      <input
-                        type="text"
-                        name="emergencyContact"
-                        value={formData.emergencyContact}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Phone</label>
-                      <input
-                        type="tel"
-                        name="emergencyPhone"
-                        value={formData.emergencyPhone}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Form Actions */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        {editingId ? 'Updating...' : 'Adding...'}
-                      </>
-                    ) : (
-                      <>
-                        {editingId ? 'Update' : 'Add'} Patient
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      resetForm();
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Patient Details Modal */}
-      {showPatientDetails && renderPatientDetails()}
+      {/* Duplicate Warning Modal */}
+      <DuplicateWarningModal
+        isOpen={showDuplicateModal}
+        onClose={() => {
+          setShowDuplicateModal(false);
+          setDuplicatePatient(null);
+          setPendingFormData(null);
+        }}
+        onConfirm={confirmDuplicateCreate}
+        existingPatient={duplicatePatient}
+        isSubmitting={isSubmitting}
+      />
 
       {/* API Error Modal */}
       {showApiError && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-5">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
                 </div>
-                <h3 className="text-base font-bold text-gray-900">Save Failed</h3>
+                <h3 className="text-sm font-bold text-gray-900">Error</h3>
               </div>
-              <div className="bg-red-50 rounded-lg border border-red-200 p-3 mb-4">
+              <div className="bg-red-50 rounded-lg border border-red-200 p-2.5 mb-3">
                 <p className="text-sm text-red-800 whitespace-pre-line">{apiError}</p>
               </div>
               <button
                 onClick={() => setShowApiError(false)}
-                className="w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                className="w-full py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
               >
                 Close
               </button>
@@ -2196,20 +2398,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
       )}
-
-      {/* Custom Confirm Modal */}
-      <CustomConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={handleConfirmModalClose}
-        onConfirm={confirmModal.action}
-        onSoftDelete={confirmModal.softDeleteAction}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        confirmText={confirmModal.confirmText}
-        cancelText="Cancel"
-        patientData={confirmModal.patientData}
-        showSoftDelete={confirmModal.showSoftDelete}
-      />
     </div>
   );
 };

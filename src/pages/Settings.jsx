@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { tenantSettingsApi } from '../utils/api';
+import { getUserPreferences, setUserPreferences } from '../utils/cookies';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCog,
@@ -47,6 +48,7 @@ const Settings = () => {
     currency: 'NGN',
     currency_symbol: '₦',
     tax_rate: 7.5,
+    dashboard_refresh_interval: getUserPreferences().refreshInterval || 60,
     billing_cycle: 'monthly',
     email_notifications: true,
     sms_notifications: true,
@@ -75,6 +77,7 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [refreshHint, setRefreshHint] = useState('');
   const [activeSection, setActiveSection] = useState('general');
 
   const isBusy = loading || saving;
@@ -138,6 +141,14 @@ const Settings = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+
+    if (name === 'dashboard_refresh_interval') {
+      const intervalSeconds = Math.max(15, Number(value) || 60);
+      setUserPreferences({ refreshInterval: intervalSeconds });
+      window.dispatchEvent(new Event('preferencesChanged'));
+      setRefreshHint(`Dashboard refresh interval set to ${intervalSeconds} seconds.`);
+      window.setTimeout(() => setRefreshHint(''), 4000);
+    }
   };
 
   const handleLogoChange = (e) => {
@@ -499,6 +510,28 @@ const Settings = () => {
                             className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 font-mono text-sm"
                           />
                         </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
+                          <FontAwesomeIcon icon={faClock} className="mr-2 text-blue-600" />
+                          Dashboard refresh interval
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="number"
+                            min="15"
+                            max="300"
+                            name="dashboard_refresh_interval"
+                            value={settings.dashboard_refresh_interval}
+                            onChange={handleChange}
+                            className="w-24 px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50"
+                          />
+                          <span className="text-sm text-slate-500">seconds</span>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-400">Reloads sidebar insights at this interval (min 15 sec).</p>
+                        {refreshHint && (
+                          <p className="mt-2 text-sm text-emerald-700">{refreshHint}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-600 mb-1.5">
