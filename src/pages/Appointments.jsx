@@ -330,6 +330,8 @@ const Appointments = () => {
     setDoctorSearchQuery(value);
     if (!value) {
       setFormData(prev => ({ ...prev, doctor: '', doctorId: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, doctor: '', doctorId: '' }));
     }
   };
 
@@ -910,7 +912,7 @@ const Appointments = () => {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Doctor</label>
                   <input
                     type="text"
-                    value={doctorSearchQuery}
+                    value={formData.doctor || doctorSearchQuery}
                     onChange={handleDoctorSearch}
                     onFocus={() => {
                       if (doctorsList.length === 0 && !doctorsLoading) {
