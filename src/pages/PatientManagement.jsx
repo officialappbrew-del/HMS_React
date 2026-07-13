@@ -144,6 +144,7 @@ const BulkUploadModal = ({
   isUploading = false,
   progress = null,
   result = null,
+  error = null,
 }) => {
   const [file, setFile] = useState(null);
   const fileInputRef = useRef(null);
@@ -251,51 +252,57 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             </div>
 
             {/* Progress / Result */}
-            {progress && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-3">
+            {(isUploading || progress || result || error) && (
+              <div className={`rounded-lg p-2.5 mb-3 border ${
+                error || progress?.status === 'failed' || result?.status === 'failed'
+                  ? 'bg-red-50 border-red-200'
+                  : result?.status === 'completed' || progress?.status === 'completed' || (!isUploading && !error && (result || progress))
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-blue-50 border-blue-200'
+              }`}>
                 <div className="flex items-center gap-2">
                   {isUploading ? (
                     <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                  ) : progress.status === 'completed' ? (
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                  ) : progress.status === 'failed' ? (
+                  ) : error || progress?.status === 'failed' || result?.status === 'failed' ? (
                     <AlertTriangle className="w-4 h-4 text-red-600" />
+                  ) : result?.status === 'completed' || progress?.status === 'completed' || (!isUploading && !error && (result || progress)) ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
                   ) : (
                     <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
                   )}
                   <span className="text-xs font-medium text-gray-700 flex-1">
-                    {progress.message || 'Processing...'}
+                    {error || progress?.message || result?.message || 'Processing...'}
                   </span>
                 </div>
-              </div>
-            )}
 
-            {result && (
-              <div className={`rounded-lg p-2.5 mb-3 border ${
-                result.status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-              }`}>
-                <div className="text-xs">
-                  <p className="font-medium text-gray-700">
-                    Total: {result.total_records} | Success: {result.success_count} | Failed: {result.failure_count}
-                  </p>
-                  {result.errors && result.errors.length > 0 && (
-                    <details className="mt-1">
-                      <summary className="cursor-pointer text-red-700 font-medium">
-                        View errors ({result.errors.length})
-                      </summary>
-                      <div className="mt-1 max-h-32 overflow-y-auto bg-white rounded border border-red-100 p-2">
-                        {result.errors.slice(0, 10).map((err, idx) => (
-                          <div key={idx} className="text-xs text-red-800 py-0.5 border-b border-red-50 last:border-0">
-                            Row {err.row}: {err.error}
-                          </div>
-                        ))}
-                        {result.errors.length > 10 && (
-                          <div className="text-xs text-gray-500 mt-1">...and {result.errors.length - 10} more</div>
-                        )}
-                      </div>
-                    </details>
-                  )}
-                </div>
+                {error && (
+                  <p className="mt-1 text-xs text-red-700">{error}</p>
+                )}
+
+                {result && !error && (
+                  <div className="mt-2 text-xs text-gray-700">
+                    <p className="font-medium text-gray-700">
+                      Total: {result.total_records} | Success: {result.success_count} | Failed: {result.failure_count}
+                    </p>
+                    {result.errors && result.errors.length > 0 && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-red-700 font-medium">
+                          View errors ({result.errors.length})
+                        </summary>
+                        <div className="mt-1 max-h-32 overflow-y-auto bg-white rounded border border-red-100 p-2">
+                          {result.errors.slice(0, 10).map((err, idx) => (
+                            <div key={idx} className="text-xs text-red-800 py-0.5 border-b border-red-50 last:border-0">
+                              Row {err.row}: {err.error}
+                            </div>
+                          ))}
+                          {result.errors.length > 10 && (
+                            <div className="text-xs text-gray-500 mt-1">...and {result.errors.length - 10} more</div>
+                          )}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1598,7 +1605,13 @@ const PatientManagement = () => {
   const handleBulkUpload = async (file) => {
     setBulkUploadFile(file);
     setBulkUploadResult(null);
-    setBulkUploadProgress(null);
+    setBulkUploadError(null);
+    setBulkUploading(true);
+    setBulkUploadProgress({
+      status: 'processing',
+      message: 'Uploading CSV and processing patients...',
+    });
+
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
       const formData = new FormData();
@@ -1621,16 +1634,24 @@ const PatientManagement = () => {
       }
 
       const result = await response.json();
+      const isSuccess = response.ok;
       setBulkUploadResult(result);
-      setBulkUploadProgress(null);
+      setBulkUploadProgress({
+        status: isSuccess ? 'completed' : 'failed',
+        message: result?.message || (isSuccess ? 'Bulk upload completed successfully.' : 'Bulk upload failed.'),
+      });
+      setBulkUploading(false);
 
-      if (result.status === 'completed' || result.status === 'processing') {
+      if (isSuccess) {
         await loadPatients(buildPatientsUrl(), { silent: true });
       }
     } catch (error) {
       console.error('Bulk upload failed:', error);
       setBulkUploadError(error.message);
-    } finally {
+      setBulkUploadProgress({
+        status: 'failed',
+        message: error.message || 'Bulk upload failed.',
+      });
       setBulkUploading(false);
     }
   };
@@ -2389,6 +2410,7 @@ const PatientManagement = () => {
         isUploading={bulkUploading}
         progress={bulkUploadProgress}
         result={bulkUploadResult}
+        error={bulkUploadError}
       />
 
       {/* Delete Confirmation Modal */}
