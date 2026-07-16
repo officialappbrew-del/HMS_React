@@ -72,6 +72,7 @@ const BudgetingForecasting = lazy(() => import('./pages/BudgetingForecasting'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
+const InvitationSignup = lazy(() => import('./pages/InvitationSignup'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 const getStoredRole = () => {
@@ -117,8 +118,8 @@ const NotFoundLayout = ({ children }) => {
     return <>{children}</>;
   };
 
-  const PublicRoute = ({ children }) => {
-  if (isAuthenticated()) {
+  const PublicRoute = ({ children, allowAuthenticated = false }) => {
+  if (isAuthenticated() && !allowAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -130,7 +131,8 @@ function AppLayout() {
    const isLandingPage = location.pathname === '/';
    const isLoginPage = location.pathname === '/login';
    const isSignupPage = location.pathname === '/signup';
-   const isPublicPage = isLandingPage || isLoginPage || isSignupPage;
+   const isInvitationSignupPage = location.pathname === '/invitation-signup' || location.pathname.startsWith('/invitation-signup/');
+   const isPublicPage = isLandingPage || isLoginPage || isSignupPage || isInvitationSignupPage;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
@@ -304,6 +306,7 @@ function AppLayout() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
                 <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+                <Route path="/invitation-signup" element={<PublicRoute allowAuthenticated={true}><InvitationSignup /></PublicRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/patients" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
                 <Route path="/patients/add" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />

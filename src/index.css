@@ -408,3 +408,23 @@ html {
   top: 0;
 }
 
+/* Add to your global CSS or styles section */
+@layer utilities {
+  @media (min-width: 480px) {
+    .xs\:inline {
+      display: inline;
+    }
+    .xs\:hidden {
+      display: none;
+    }
+    .xs\:flex-row {
+      flex-direction: row;
+    }
+    .xs\:w-auto {
+      width: auto;
+    }
+    .xs\:block {
+      display: block;
+    }
+  }
+}

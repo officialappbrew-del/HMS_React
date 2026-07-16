@@ -31,6 +31,7 @@ const PUBLIC_AUTH_PATHS = [
   '/api/v1/auth/two-factor/backup-codes/',
   '/api/v1/tenants/active-tenants/',
   '/api/v1/tenants/invitations/accept/',
+  '/api/v1/tenants/invitations/accept',
 ];
 
 let isRefreshing = false;
@@ -58,6 +59,50 @@ const clearAuthData = () => {
   localStorage.removeItem('userProfilePicture');
   localStorage.removeItem('rememberMe');
   window.dispatchEvent(new Event('authChanged'));
+};
+
+const extractErrorMessage = (data, fallback = 'Request failed') => {
+  if (!data) return fallback;
+
+  if (typeof data === 'string') {
+    const message = data.trim();
+    return message || fallback;
+  }
+
+  if (data instanceof Error) {
+    return data.message || fallback;
+  }
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const message = extractErrorMessage(item, '');
+      if (message) return message;
+    }
+    return fallback;
+  }
+
+  if (typeof data !== 'object') return fallback;
+
+  const preferredKeys = ['detail', 'error', 'message'];
+  for (const key of preferredKeys) {
+    const value = data[key];
+    if (value === undefined || value === null || value === '') continue;
+    const message = extractErrorMessage(value, '');
+    if (message) return message;
+  }
+
+  if (Array.isArray(data.non_field_errors)) {
+    const message = extractErrorMessage(data.non_field_errors, '');
+    if (message) return message;
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (['detail', 'error', 'message', 'non_field_errors'].includes(key)) continue;
+    const message = extractErrorMessage(value, '');
+    if (message) return message;
+  }
+
+  return fallback;
 };
 
 export const logout = async () => {
@@ -102,9 +147,7 @@ const refreshAccessToken = async () => {
       const data = isJson ? await response.json().catch(() => ({})) : await response.text();
 
       if (!response.ok) {
-        const message =
-          (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) ||
-          `Refresh failed with status ${response.status}`;
+        const message = extractErrorMessage(data, `Refresh failed with status ${response.status}`);
         throw new Error(message);
       }
 
@@ -154,9 +197,7 @@ export const apiRequest = async (path, options = {}) => {
     const data = isJson ? await response.json().catch(() => ({})) : await response.text();
 
     if (!response.ok) {
-      const message =
-        (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) ||
-        `Request failed with status ${response.status}`;
+      const message = extractErrorMessage(data, `Request failed with status ${response.status}`);
 
       const shouldAttemptRefresh =
         !shouldSkipAuthHeader(path) &&
@@ -241,6 +282,27 @@ export const pharmacyApi = {
 
 export const tenantSettingsApi = {
   getCurrent: () => apiRequest('/api/v1/tenants/settings/current/'),
+  getPendingUsers: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    qs.append('include_pending', 'true');
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/tenants/users/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createInvitation: (data) => apiRequest('/api/v1/tenants/invitations/', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...data,
+      frontend_base_url: typeof window !== 'undefined' ? window.location.origin : undefined,
+    }),
+  }),
+  listInvitations: () => apiRequest('/api/v1/tenants/invitations/'),
+  archiveInvitation: (id) => apiRequest(`/api/v1/tenants/invitations/${id}/archive/`, { method: 'POST' }),
+  unarchiveInvitation: (id) => apiRequest(`/api/v1/tenants/invitations/${id}/unarchive/`, { method: 'POST' }),
+  deleteInvitation: (id) => apiRequest(`/api/v1/tenants/invitations/${id}/`, { method: 'DELETE' }),
+  approveUser: (id) => apiRequest(`/api/v1/tenants/users/${id}/approve/`, { method: 'POST' }),
+  rejectUser: (id) => apiRequest(`/api/v1/tenants/users/${id}/reject/`, { method: 'POST' }),
+  acceptInvitation: (data) => apiRequest('/api/v1/tenants/invitations/accept/', { method: 'POST', body: JSON.stringify(data) }),
   updateCurrent: (data) => {
     const hasFile = data?.system_logo instanceof File;
     if (hasFile) {
