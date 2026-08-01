@@ -2,26 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
 import { logout } from '../utils/api';
-import {
-  Home,
-  Users,
-  Calendar,
-  FileText,
-  Pill,
-  Bed,
-  Heart,
-  Stethoscope,
-  Building2,
-  Activity,
-  Clipboard,
-  Shield,
-  Ambulance,
-  Phone,
-  ChevronLeft,
-  ChevronRight,
-  Settings,
-  LogOut
-} from 'lucide-react';
+import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, LogOut } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();

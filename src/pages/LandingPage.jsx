@@ -1,445 +1,509 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import TourModal from '../components/TourModal';
+
+/**
+ * DESIGN NOTES (read before editing)
+ * ------------------------------------------------------------
+ * Palette (defined once, used everywhere — do not introduce new colors ad hoc):
+ *   --ink       #0A2540   deep clinical navy — headings, footer, nav-on-scroll
+ *   --paper     #F8F7F3   warm, quiet background — not stark white
+ *   --forest    #0B6E4F   primary brand action color (Nigeria-rooted, clinical trust)
+ *   --forest-d  #084A36   forest hover/pressed
+ *   --coral     #E4572E   "vitals" accent — used ONLY for the pulse motif + rare emphasis
+ *   --gold      #B98A32   enterprise/compliance accent — used sparingly
+ *   --slate     #5B6472   body copy
+ *   --line      #E2DFD6   hairline borders
+ *
+ * Type system:
+ *   Display  — Space Grotesk (headlines, nav wordmark, big numbers)
+ *   Body     — IBM Plex Sans (paragraphs, nav links, UI copy)
+ *   Data/Mono— IBM Plex Mono (eyebrows, stat readouts, module tags — reads like a monitor)
+ *
+ * MATURITY PASS (v3 → v4)
+ *   The brief asked for something more mature. Enterprise clinical software is
+ *   trusted, not entertained — so this pass removes decorative motion that
+ *   competes for attention (floating blur orbs, pulsing button glow, bouncing
+ *   icons, sweeping shine, scattered particle fields, scale-pop hovers on
+ *   every element) and keeps exactly one recurring signature: the vitals
+ *   waveform. It draws in once, and a slow, quiet opacity sweep marks "LIVE"
+ *   states — the same restraint you'd want from an actual monitor on a ward.
+ *   Everything else moves with intent: fade-up on scroll, a hairline border
+ *   or shadow shift on hover, nothing that asks to be noticed twice.
+ * ------------------------------------------------------------
+ */
 
 const SmartCareHMSRedesigned = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [hoveredFeature, setHoveredFeature] = useState(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [hoveredModule, setHoveredModule] = useState(null);
   const [visibleSections, setVisibleSections] = useState({});
   const [isTourOpen, setIsTourOpen] = useState(false);
-  
-  const heroRef = useRef(null);
-  const [icons, setIcons] = useState(null);
-  const [isReady, setIsReady] = useState(false);
+  const [countedStats, setCountedStats] = useState({});
+  const [hoveredBenefit, setHoveredBenefit] = useState(null);
 
-  // Get current year for copyright
+  const [icons, setIcons] = useState(null);
+  const statsRef = useRef(null);
+
   const currentYear = new Date().getFullYear();
 
-  // Progressive enhancement for better performance
   useEffect(() => {
-    const markReady = () => setIsReady(true);
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      requestIdleCallback(markReady, { timeout: 1000 });
-    } else {
-      const t = setTimeout(markReady, 600);
-      return () => clearTimeout(t);
-    }
-  }, []);
-
-  // Dynamic icon loading
-  useEffect(() => {
-    if (!isReady) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const mod = await import('lucide-react');
+    import('lucide-react')
+      .then((mod) => {
         if (!cancelled) setIcons(mod);
-      } catch (e) {
-        // Silent fail
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isReady]);
+      })
+      .catch(() => {
+        // Silent fail — placeholders below cover this
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const IconProxy = new Proxy({}, {
     get: (_, name) => (props) => {
-      if (!icons) return <span className="inline-block w-6 h-6 bg-slate-200 rounded" />;
+      if (!icons) return <span className="inline-block w-5 h-5 bg-[#E2DFD6] rounded-sm" />;
       const Comp = icons[name];
-      return Comp ? <Comp {...props} /> : <span className="inline-block w-6 h-6 bg-slate-200 rounded" />;
+      return Comp ? <Comp {...props} /> : <span className="inline-block w-5 h-5 bg-[#E2DFD6] rounded-sm" />;
     }
   });
 
-  // Destructure icons with proper syntax
   const {
-    ShieldCheck, Stethoscope, Activity, Users, Pill, HeartPulse,
-    ArrowRight, Microscope, Ambulance, Brain, FileText, Play,
-    Users2, CreditCard, Building, Truck, BarChart3, Video,
-    Calendar, Radio, Hospital, Wallet, Settings2, LayoutDashboard,
-    UserCheck, Heart, Bot, LineChart, Bell, Target, FileSpreadsheet,
-    Workflow, UserPlus, GitBranch, Layers, Check, Star, Globe,
-    Menu, X, Sparkles, PlayCircle, Rocket, BadgeCheck, ChevronRight,
-    Building2, TrendingUp, Award, Zap, Clock, Code, Palette,
-    Cpu, Cloud, Server, Database, Lock, Fingerprint, ScanEye,
-    Radar, Network, Blocks, PanelTop, Gauge, GanttChart,
-    NotepadText, FlaskRound, TestTube, Bone, Baby, Clover,
-    Flower, Leaf, Sprout, Sun, Moon, Crown, Gem, Gift, LogIn
+    ShieldCheck, Stethoscope, Users, Pill, Microscope, Hospital, CreditCard,
+    ArrowRight, Brain, BarChart3, Check, Star, Menu, X, PlayCircle,
+    Building2, Heart, LogIn, Activity, Zap, Lock, Layers, Rocket,
   } = IconProxy;
 
-  // Scroll handler for navbar
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Intersection Observer for sections
   useEffect(() => {
-    if (!isReady) return;
+    const sections = document.querySelectorAll('[data-section]');
+    if (!sections.length) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach(entry => {
+        entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setVisibleSections(prev => ({ ...prev, [entry.target.id]: true }));
+            observer.unobserve(entry.target);
           }
         });
       },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
     );
 
-    document.querySelectorAll('[data-section]').forEach(el => {
-      observer.observe(el);
-    });
-
+    sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
-  }, [isReady]);
+  }, []);
 
-  // Mouse parallax
   useEffect(() => {
-    if (!isReady) return;
-    const handleMouseMove = (e) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth - 0.5) * 10,
-        y: (e.clientY / window.innerHeight - 0.5) * 10
-      });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isReady]);
+    if (!statsRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+
+        const statList = [
+          { key: 'hospitals', value: 500 },
+          { key: 'professionals', value: 25000 },
+          { key: 'patients', value: 2000000 },
+          { key: 'uptime', value: 99.99 },
+        ];
+
+        statList.forEach((stat) => {
+          let start = 0;
+          const step = stat.key === 'uptime' ? 0.1 : Math.max(1, Math.floor(stat.value / 45));
+          const timer = window.setInterval(() => {
+            start += step;
+            if (start >= stat.value) {
+              start = stat.value;
+              window.clearInterval(timer);
+            }
+            setCountedStats(prev => ({
+              ...prev,
+              [stat.key]: stat.key === 'uptime' ? Number(start.toFixed(2)) : Math.floor(start)
+            }));
+          }, 20);
+        });
+
+        observer.disconnect();
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(statsRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
-  // Core benefits - refined messaging
+  const fadeCls = (id) =>
+    `transition-all duration-700 ease-out ${visibleSections[id] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`;
+
+  const footerSections = {
+    product: [
+      { label: 'Features', to: '/about' },
+      { label: 'Pricing', to: '/terms' },
+      { label: 'Integrations', to: '/about' },
+      { label: 'Security', to: '/privacy' },
+    ],
+    solutions: [
+      { label: 'Hospitals', to: '/about' },
+      { label: 'Clinics', to: '/about' },
+      { label: 'Teaching Hospitals', to: '/about' },
+      { label: 'Networks', to: '/about' },
+    ],
+    support: [
+      { label: 'Help Center', to: '/contact' },
+      { label: 'Contact', to: '/contact' },
+      { label: 'Status', to: '/terms' },
+      { label: 'Community', to: '/contact' },
+    ],
+  };
+
   const coreBenefits = [
-    {
-      icon: ShieldCheck,
-      title: 'Enterprise-Grade Security',
-      description: 'HIPAA & NDPR compliant with end-to-end encryption and advanced access controls',
-      color: 'blue'
-    },
-    {
-      icon: Users,
-      title: 'Unified Patient Records',
-      description: 'Complete patient history, diagnoses, medications, and care plans in one place',
-      color: 'teal'
-    },
-    {
-      icon: Brain,
-      title: 'AI-Powered Clinical Support',
-      description: 'Intelligent decision support, predictive analytics, and automated workflows',
-      color: 'violet'
-    },
-    {
-      icon: BarChart3,
-      title: 'Real-Time Analytics',
-      description: 'Comprehensive dashboards with actionable insights for operational excellence',
-      color: 'emerald'
-    }
+    { icon: ShieldCheck, tag: 'SECURITY', title: 'Enterprise-grade protection', description: 'HIPAA & NDPR compliant, with end-to-end encryption and granular access controls.' },
+    { icon: Users, tag: 'RECORDS', title: 'Unified patient records', description: 'Full history, diagnoses, medication, and care plans in a single chart.' },
+    { icon: Brain, tag: 'AI', title: 'Clinical decision support', description: 'Predictive analytics and automated workflows that reduce clinician load.' },
+    { icon: BarChart3, tag: 'INSIGHT', title: 'Real-time analytics', description: 'Live dashboards built for operational and clinical decision-making.' },
   ];
 
-  // Core modules - more focused and professional
   const coreModules = [
-    { 
-      icon: Stethoscope, 
-      label: 'Clinical EMR', 
-      description: 'Comprehensive electronic medical records with Nigerian clinical templates',
-      gradient: 'from-blue-600 to-blue-700',
-      color: '#0F4C81'
-    },
-    { 
-      icon: Users, 
-      label: 'Patient Management', 
-      description: 'Complete patient registration, scheduling, and care coordination',
-      gradient: 'from-teal-500 to-teal-600',
-      color: '#14B8A6'
-    },
-    { 
-      icon: Pill, 
-      label: 'Pharmacy & Inventory', 
-      description: 'Integrated medication management with NAFDAC compliance tracking',
-      gradient: 'from-amber-500 to-amber-600',
-      color: '#F59E0B'
-    },
-    { 
-      icon: Microscope, 
-      label: 'Laboratory Information', 
-      description: 'End-to-end lab management with integrated LIS and result tracking',
-      gradient: 'from-violet-500 to-violet-600',
-      color: '#8B5CF6'
-    },
-    { 
-      icon: Hospital, 
-      label: 'Ward & Theatre Management', 
-      description: 'Efficient bed management, surgical scheduling, and patient flow',
-      gradient: 'from-cyan-500 to-cyan-600',
-      color: '#0891B2'
-    },
-    { 
-      icon: CreditCard, 
-      label: 'Billing & Revenue Cycle', 
-      description: 'Multi-payer billing, NHIS claims, and revenue optimization',
-      gradient: 'from-emerald-500 to-emerald-600',
-      color: '#059669'
-    }
+    { icon: Stethoscope, label: 'Clinical EMR', category: 'CLINICAL', description: 'Electronic medical records built around Nigerian clinical templates.' },
+    { icon: Users, label: 'Patient Management', category: 'CLINICAL', description: 'Registration, scheduling, and care coordination in one workflow.' },
+    { icon: Pill, label: 'Pharmacy & Inventory', category: 'OPERATIONS', description: 'Medication management with NAFDAC compliance tracking built in.' },
+    { icon: Microscope, label: 'Laboratory Information', category: 'CLINICAL', description: 'End-to-end lab workflow with integrated LIS and result tracking.' },
+    { icon: Hospital, label: 'Ward & Theatre', category: 'OPERATIONS', description: 'Bed management, surgical scheduling, and patient flow, coordinated.' },
+    { icon: CreditCard, label: 'Billing & Revenue Cycle', category: 'FINANCE', description: 'Multi-payer billing, NHIS claims, and revenue cycle optimization.' },
   ];
 
-  // Testimonials - more impactful
   const testimonials = [
-    {
-      name: 'Dr. Adebayo Ogunlesi',
-      role: 'Chief Medical Director',
-      hospital: 'Lagos University Teaching Hospital',
-      quote: 'SmartCare HMS has fundamentally transformed our clinical operations. The comprehensive EMR and integrated modules have improved patient outcomes and staff satisfaction significantly.',
-      rating: 5,
-      avatar: 'AO'
-    },
-    {
-      name: 'Mrs. Chioma Nwosu',
-      role: 'Head of Administration',
-      hospital: 'National Hospital Abuja',
-      quote: 'The NHIA claims management and revenue cycle features have been game-changing. We\'ve seen a 60% reduction in claim rejections and significantly improved cash flow.',
-      rating: 5,
-      avatar: 'CN'
-    },
-    {
-      name: 'Dr. Emeka Okonkwo',
-      role: 'Medical Director',
-      hospital: 'Nigerian Army Reference Hospital',
-      quote: 'The clinical decision support and patient safety features are world-class. Our medication error rates dropped by 45% in the first quarter of implementation.',
-      rating: 5,
-      avatar: 'EO'
-    }
+    { name: 'Dr. Adebayo Ogunlesi', role: 'Chief Medical Director', hospital: 'Lagos University Teaching Hospital', quote: 'SmartCare HMS has fundamentally changed how our clinical teams operate. The unified record and integrated modules have measurably improved both patient outcomes and staff satisfaction.', avatar: 'AO' },
+    { name: 'Mrs. Chioma Nwosu', role: 'Head of Administration', hospital: 'National Hospital Abuja', quote: 'NHIA claims management and the revenue cycle tools have been genuinely transformative — a 60% drop in claim rejections and a real improvement in cash flow.', avatar: 'CN' },
+    { name: 'Dr. Emeka Okonkwo', role: 'Medical Director', hospital: 'Nigerian Army Reference Hospital', quote: 'The clinical decision support and patient-safety tooling hold up against any global platform. Medication error rates fell 45% in our first quarter live.', avatar: 'EO' },
   ];
 
-  // Stats - more healthcare-focused
   const stats = [
-    { value: 500, label: 'Hospitals Served', icon: Building2, suffix: '+' },
-    { value: 25000, label: 'Healthcare Professionals', icon: Users, suffix: '+' },
-    { value: '2M+', label: 'Patients Managed', icon: Heart, suffix: '' },
-    { value: 99.99, label: 'Uptime Guarantee', icon: ShieldCheck, suffix: '%' }
+    { key: 'hospitals', value: '500+', label: 'Hospitals served', icon: Building2 },
+    { key: 'professionals', value: '25,000+', label: 'Healthcare professionals', icon: Users },
+    { key: 'patients', value: '2M+', label: 'Patients managed', icon: Heart },
+    { key: 'uptime', value: '99.99%', label: 'Uptime guarantee', icon: ShieldCheck },
   ];
 
-  // Compliance badges
-  const complianceBadges = [
-    { label: 'HIPAA Compliant', icon: ShieldCheck },
-    { label: 'NDPR Certified', icon: ShieldCheck },
-    { label: 'ISO 27001', icon: ShieldCheck },
-    { label: 'NHIS Accredited', icon: ShieldCheck },
-    { label: 'SOC 2 Type II', icon: ShieldCheck }
+  const complianceBadges = ['HIPAA Compliant', 'NDPR Certified', 'ISO 27001', 'NHIS Accredited', 'SOC 2 Type II'];
+
+  const securityFeatures = [
+    'End-to-end encryption',
+    'Role-based access control',
+    'Audit trails & logging',
+    'Two-factor authentication',
+    'Data residency in Nigeria',
+    'Regular independent security audits',
   ];
+
+  // Signature waveform — the one recurring motif. Reused as a divider and inside the dashboard mock.
+  const Vitals = ({ className = '', stroke = '#E4572E', strokeWidth = 2 }) => (
+    <svg viewBox="0 0 400 40" preserveAspectRatio="none" className={className} fill="none">
+      <path
+        d="M0 20 H130 L145 20 L153 4 L163 36 L172 12 L180 20 H400"
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pathLength="1"
+        className="vitals-path"
+      />
+    </svg>
+  );
 
   return (
-    <div className="min-h-screen bg-white font-['Inter',system-ui,sans-serif] antialiased">
-      {/* Enhanced Navigation with Glassmorphism */}
-      <header className={`fixed top-0 z-50 w-full transition-all duration-500 ${
-        scrolled 
-          ? 'bg-white/95 backdrop-blur-xl shadow-lg border-b border-slate-200/50' 
-          : 'bg-transparent'
+    <div className="min-h-screen bg-[#F8F7F3] font-['IBM_Plex_Sans',system-ui,sans-serif] antialiased text-[#0A2540]">
+      <style>{`
+        .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; }
+        .font-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+        /* Signature motif: draws in once, then a quiet, slow opacity sweep
+           reads as "live" without demanding attention. */
+        .vitals-path {
+          stroke-dasharray: 1;
+          stroke-dashoffset: 1;
+          animation: draw-vitals 1.8s ease-out forwards, sweep-vitals 6s ease-in-out 1.8s infinite;
+        }
+        @keyframes draw-vitals {
+          to { stroke-dashoffset: 0; }
+        }
+        @keyframes sweep-vitals {
+          0%, 100% { opacity: 0.75; }
+          50% { opacity: 1; }
+        }
+
+        /* Quiet status dot for "LIVE" readouts — a single, slow breath. */
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+        .pulse-dot { animation: pulse-dot 2.4s ease-in-out infinite; }
+
+        /* Card hover lift — the only interaction motion, used consistently */
+        .card-lift {
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .card-lift:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 16px 32px -16px rgba(10, 37, 64, 0.18);
+        }
+
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up { animation: fadeInUp 0.35s ease-out forwards; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .vitals-path { animation: none; stroke-dashoffset: 0; }
+          .pulse-dot { animation: none; }
+          .card-lift:hover { transform: none; }
+          .fade-in-up { animation: none; opacity: 1; transform: none; }
+        }
+      `}</style>
+
+      {/* ============================================================ */}
+      {/* NAVIGATION */}
+      {/* ============================================================ */}
+      <header className={`fixed top-0 z-50 w-full transition-colors duration-300 ${
+        scrolled ? 'bg-[#F8F7F3]/95 backdrop-blur-md border-b border-[#E2DFD6] shadow-sm' : 'bg-[#F8F7F3] border-b border-[#E2DFD6]/40'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 lg:h-20">
-            <div className="flex items-center gap-3">
-              <div className="relative group">
-                <div className="inline-flex rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 p-2.5 shadow-lg shadow-blue-600/20 transition-all duration-300 group-hover:shadow-blue-600/40">
-                  <ShieldCheck className="h-6 w-6 text-white" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white animate-ping" />
+          <div className="flex items-center justify-between h-16 lg:h-18 py-2">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="flex items-center justify-center w-9 h-9 rounded-md bg-[#0A2540] shrink-0">
+                <ShieldCheck className="h-5 w-5 text-white" strokeWidth={2} />
               </div>
-              <div>
-                <span className="text-xl font-bold text-slate-900">SmartCare<span className="text-blue-600">HMS</span></span>
-                <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                  Enterprise
-                </span>
+              <div className="leading-none min-w-0">
+                <div className="font-display text-base sm:text-lg font-semibold tracking-tight text-[#0A2540] truncate">
+                  SmartCare<span className="text-[#0B6E4F]">HMS</span>
+                </div>
+                <div className="font-mono text-[10px] tracking-widest text-[#5B6472] mt-0.5 hidden sm:block">ENTERPRISE PLATFORM</div>
               </div>
             </div>
 
             <nav className="hidden lg:flex items-center gap-8">
               {['Features', 'Solutions', 'Security', 'Testimonials'].map((item) => (
-                <a 
+                <a
                   key={item}
-                  href={`#${item.toLowerCase()}`} 
-                  className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors relative group"
+                  href={`#${item.toLowerCase()}`}
+                  className="relative text-sm font-medium text-[#5B6472] hover:text-[#0A2540] transition-colors duration-200 group"
                 >
                   {item}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full" />
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#0B6E4F] transition-all duration-200 group-hover:w-full" />
                 </a>
               ))}
-              <Link 
-                to="/login" 
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-blue-300 hover:bg-slate-50 transition-all"
+              <RouterLink
+                to="/login"
+                className="inline-flex items-center gap-2 rounded-md border border-[#E2DFD6] bg-white px-4 py-2 text-sm font-medium text-[#0A2540] hover:border-[#0A2540] transition-colors duration-200"
               >
                 Sign In
                 <LogIn className="h-4 w-4" />
-              </Link>
-              <a href="mailto:official.appbrew@gmail.com" className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 px-5 py-2.5 text-sm font-medium text-white hover:shadow-lg hover:shadow-blue-600/30 transition-all hover:scale-105">
-                Get Started
-                <ArrowRight className="h-4 w-4" />
+              </RouterLink>
+              <a
+                href="mailto:official.appbrew@gmail.com"
+                className="group inline-flex items-center gap-2 rounded-md bg-[#0B6E4F] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#084A36] transition-colors duration-200"
+              >
+                Book a Demo
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </a>
             </nav>
 
-            <button onClick={toggleMobileMenu} className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors">
+            <button
+              onClick={toggleMobileMenu}
+              aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMobileMenuOpen}
+              className="lg:hidden p-2 -mr-2 rounded-md hover:bg-[#EDEAE1] transition-colors duration-200"
+            >
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
 
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg">
-            <div className="max-w-7xl mx-auto px-4 py-4">
-              <div className="flex flex-col space-y-3">
-                {['Features', 'Solutions', 'Security', 'Testimonials'].map((item) => (
-                <a 
+          <div className="lg:hidden bg-[#F8F7F3] border-t border-[#E2DFD6] fade-in-up">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-1">
+              {['Features', 'Solutions', 'Security', 'Testimonials'].map((item) => (
+                <a
                   key={item}
-                  href={`#${item.toLowerCase()}`} 
+                  href={`#${item.toLowerCase()}`}
                   onClick={closeMobileMenu}
-                  className="text-sm text-slate-600 hover:text-blue-600 transition-colors py-2 px-4 rounded-lg hover:bg-slate-50"
+                  className="text-sm text-[#5B6472] hover:text-[#0A2540] py-2.5 px-3 rounded-md hover:bg-white transition-colors duration-200"
                 >
                   {item}
                 </a>
-                ))}
-                  <Link 
-                    to="/login" 
-                    onClick={closeMobileMenu}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:border-blue-300 hover:bg-slate-50 transition-all"
-                  >
-                    Sign In
-                    <LogIn className="h-4 w-4" />
-                  </Link>
-                  <a href="mailto:official.appbrew@gmail.com" className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2.5 text-sm font-medium text-white">
-                    Get Started
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-              </div>
+              ))}
+              <RouterLink
+                to="/login"
+                onClick={closeMobileMenu}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-[#E2DFD6] bg-white px-4 py-3 mt-2 text-sm font-medium text-[#0A2540] hover:bg-[#F8F7F3] transition-colors duration-200"
+              >
+                Sign In <LogIn className="h-4 w-4" />
+              </RouterLink>
+              <a
+                href="mailto:official.appbrew@gmail.com"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0B6E4F] px-4 py-3 mt-2 text-sm font-semibold text-white hover:bg-[#084A36] transition-colors duration-200"
+              >
+                Book a Demo
+              </a>
             </div>
           </div>
         )}
       </header>
 
-      <main>
-        {/* Hero Section - Enhanced with better copy and visuals */}
-        <section 
-          ref={heroRef}
-          id="hero"
-          className="relative min-h-screen flex items-center overflow-hidden pt-16"
-          data-section
-        >
-          {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-blue-50" />
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-400/10 rounded-full blur-3xl animate-float" />
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-400/10 rounded-full blur-3xl animate-float delay-700" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-400/5 rounded-full blur-3xl animate-pulse" />
+      {/* ============================================================ */}
+      {/* TOP IMAGE BANNER */}
+      {/* ============================================================ */}
+      <div className="relative w-full bg-[#0A2540] border-b border-[#E2DFD6]/20 mt-16 lg:mt-18">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="relative overflow-hidden rounded-xl shadow-xl">
+            <img
+              src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1200&q=80"
+              alt="SmartCare HMS — healthcare management platform"
+              className="w-full h-auto max-h-[120px] sm:max-h-[170px] lg:max-h-[220px] object-cover rounded-xl"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => {
+                e.target.src = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1200&q=80';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0A2540]/70 via-[#0A2540]/25 to-transparent rounded-xl" />
+            <div className="absolute inset-0 flex items-center px-5 sm:px-8">
+              <div>
+                <span className="font-mono text-[10px] tracking-[0.2em] text-white/60 uppercase">Enterprise Platform</span>
+                <h2 className="font-display text-lg sm:text-2xl lg:text-3xl font-semibold text-white mt-1">
+                  SmartCare<span className="text-[#38B387]">HMS</span>
+                  <span className="ml-3 hidden sm:inline text-xs font-mono text-[#38B387]/70">v3.0</span>
+                </h2>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-12">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              {/* Left Content - Enhanced Copy */}
-              <div className="space-y-8">
-                <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200/50 shadow-sm">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+      <main>
+        {/* Hero */}
+        <section id="hero" className="relative pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-16 lg:pb-28 overflow-hidden" data-section>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-12 items-start">
+              {/* Left Column */}
+              <div className={`pt-2 lg:pt-4 ${fadeCls('hero')}`}>
+                <div className="inline-flex items-center gap-2 font-mono text-xs tracking-widest text-[#0B6E4F] border border-[#0B6E4F]/25 bg-[#0B6E4F]/5 px-3 py-1.5 rounded-full mb-6 sm:mb-7">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="inline-flex rounded-full h-1.5 w-1.5 bg-[#0B6E4F] pulse-dot" />
                   </span>
-                  <span className="text-sm font-medium text-slate-700">Trusted by 500+ Nigerian Hospitals</span>
+                  LIVE ACROSS 500+ NIGERIAN HOSPITALS
                 </div>
 
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight">
-                  <span className="block">The Complete</span>
-                  <span className="block bg-gradient-to-r from-blue-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent animate-gradient">
-                    Hospital Management
+                <h1 className="font-display text-[2.25rem] leading-[1.1] sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[#0A2540]">
+                  The hospital
+                  <br />
+                  runs on one system.
+                  <br />
+                  <span className="text-[#0B6E4F] relative inline-block">
+                    SmartCare does the rest.
+                    <span className="absolute -bottom-1 left-0 w-full h-1 bg-[#0B6E4F]/20 rounded-full" />
                   </span>
-                  <span className="block text-3xl sm:text-4xl lg:text-5xl mt-2">System for Nigeria</span>
                 </h1>
 
-                <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-xl">
-                  One unified platform for patient care, clinical operations, administration, billing, 
-                  diagnostics, pharmacy, laboratory, workforce management, and healthcare analytics.
+                <p className="mt-6 sm:mt-7 text-base sm:text-lg text-[#5B6472] leading-relaxed max-w-xl">
+                  Patient care, clinical operations, pharmacy, laboratory, billing, and workforce
+                  management — unified in a single platform built for Nigerian healthcare.
                 </p>
 
-                <div className="flex flex-wrap gap-4">
-                  <a href="mailto:official.appbrew@gmail.com" className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-4 text-base font-medium text-white hover:shadow-xl hover:shadow-blue-600/30 transition-all hover:scale-105">
+                <div className="mt-8 sm:mt-9 flex flex-wrap gap-3 sm:gap-4">
+                  <a
+                    href="mailto:official.appbrew@gmail.com"
+                    className="group inline-flex items-center gap-2 rounded-md bg-[#0B6E4F] px-6 sm:px-7 py-3 sm:py-3.5 text-base font-semibold text-white hover:bg-[#084A36] transition-colors duration-200"
+                  >
                     Book a Demo
-                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                   </a>
-                  <button onClick={() => setIsTourOpen(true)} className="group inline-flex items-center gap-3 rounded-xl border-2 border-slate-200 px-8 py-4 text-base font-medium text-slate-700 hover:bg-slate-50 transition-all hover:border-slate-300">
-                    Watch Tour
-                    <PlayCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                  <button
+                    onClick={() => setIsTourOpen(true)}
+                    className="group inline-flex items-center gap-2 rounded-md border border-[#0A2540]/15 px-6 sm:px-7 py-3 sm:py-3.5 text-base font-medium text-[#0A2540] hover:bg-white hover:border-[#0A2540]/30 transition-colors duration-200"
+                  >
+                    <PlayCircle className="h-4 w-4" />
+                    Watch the tour
                   </button>
                 </div>
 
-                <div className="flex items-center gap-6 text-sm text-slate-500">
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    Free Demo
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    14-Day Trial
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    No Commitment
-                  </span>
+                <div className="mt-8 sm:mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[#5B6472]">
+                  {['Free demo', '14-day trial', 'No commitment'].map((t) => (
+                    <span key={t} className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-[#0B6E4F]" />
+                      <span>{t}</span>
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              {/* Right Content - Enhanced Dashboard Preview */}
-              <div className="relative hidden lg:block">
-                <div 
-                  className="relative bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/40 p-6 transition-all duration-300"
-                  style={{
-                    transform: `perspective(1000px) rotateY(${mousePosition.x * 0.02}deg) rotateX(${-mousePosition.y * 0.02}deg)`
-                  }}
-                >
-                  {/* Dashboard Header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="flex space-x-1.5">
-                        <div className="w-3 h-3 bg-red-400 rounded-full" />
-                        <div className="w-3 h-3 bg-yellow-400 rounded-full" />
-                        <div className="w-3 h-3 bg-emerald-400 rounded-full" />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700">SmartCare Command Center</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                      <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
-                      <span className="text-xs font-medium text-blue-700">Live</span>
-                    </div>
+              {/* Right Column — Image + Dashboard Card */}
+              <div className="relative">
+                <div className="relative rounded-xl overflow-hidden">
+                  <img
+                    src="https://images.unsplash.com/photo-1517120026326-d87759a7b63b?auto=format&fit=crop&w=1200&q=80"
+                    alt="Clinical staff on a hospital ward"
+                    className="w-full h-[220px] sm:h-[300px] lg:h-[380px] object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540]/80 via-[#0A2540]/15 to-[#0B6E4F]/10 mix-blend-multiply" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540]/40 to-transparent" />
+                  <span className="absolute bottom-4 left-5 font-mono text-[10px] tracking-widest text-white/70">
+                    LAGOS UNIVERSITY TEACHING HOSPITAL
+                  </span>
+                </div>
+
+                <div className="mt-6 bg-white rounded-xl border border-[#E2DFD6] shadow-[0_20px_50px_-20px_rgba(10,37,64,0.3)] overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2DFD6]">
+                    <span className="font-mono text-xs tracking-widest text-[#5B6472]">COMMAND CENTER</span>
+                    <span className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest text-[#0B6E4F]">
+                      <Activity className="h-3.5 w-3.5" /> <span className="pulse-dot">LIVE</span>
+                    </span>
                   </div>
 
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-4 gap-3 mb-6">
+                  <div className="px-5 pt-4">
+                    <Vitals className="w-full h-8" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-px bg-[#E2DFD6] mx-5 my-4 rounded-md overflow-hidden border border-[#E2DFD6]">
                     {[
-                      { label: 'Active Patients', value: '342', color: 'blue' },
-                      { label: 'Bed Occupancy', value: '87%', color: 'teal' },
-                      { label: 'Appointments', value: '24', color: 'emerald' },
-                      { label: 'Critical Cases', value: '5', color: 'amber' }
-                    ].map((item, i) => (
-                      <div key={i} className={`bg-gradient-to-br from-${item.color}-50 to-${item.color}-100/50 rounded-xl p-3 border border-${item.color}-100/50`}>
-                        <div className="text-2xl font-bold text-slate-900">{item.value}</div>
-                        <div className="text-xs text-slate-600 font-medium">{item.label}</div>
+                      { label: 'Active Patients', value: '342' },
+                      { label: 'Bed Occupancy', value: '87%' },
+                      { label: 'Appointments Today', value: '24' },
+                      { label: 'Critical Cases', value: '05' },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-white p-4">
+                        <div className="font-mono text-xl sm:text-2xl font-semibold text-[#0A2540]">{item.value}</div>
+                        <div className="text-xs text-[#5B6472] mt-1">{item.label}</div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Activity Feed */}
-                  <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/50">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recent Activity</span>
-                      <span className="text-xs text-blue-600 font-medium">View All</span>
-                    </div>
-                    <div className="space-y-2">
+                  <div className="px-5 pb-5">
+                    <div className="font-mono text-[10px] tracking-widest text-[#5B6472] mb-3">RECENT ACTIVITY</div>
+                    <div className="space-y-3">
                       {[
-                        { time: '2 min ago', event: 'New patient registered - Grace Adebayo', type: 'patient' },
-                        { time: '15 min ago', event: 'Lab results updated - 12 tests completed', type: 'lab' },
-                        { time: '1 hour ago', event: 'Pharmacy order dispensed - 45 medications', type: 'pharmacy' }
-                      ].map((activity, i) => (
-                        <div key={i} className="flex items-center gap-3 text-sm">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                          <span className="text-slate-600">{activity.event}</span>
-                          <span className="text-xs text-slate-400 ml-auto">{activity.time}</span>
+                        { time: '2m', event: 'New patient registered — Grace Adebayo' },
+                        { time: '15m', event: 'Lab results updated — 12 tests completed' },
+                        { time: '1h', event: 'Pharmacy order dispensed — 45 medications' },
+                      ].map((a) => (
+                        <div key={a.event} className="flex items-start gap-3 text-sm">
+                          <span className="font-mono text-[10px] text-[#5B6472] mt-0.5 w-6 shrink-0">{a.time}</span>
+                          <span className="text-[#0A2540]/80">{a.event}</span>
                         </div>
                       ))}
                     </div>
@@ -448,24 +512,28 @@ const SmartCareHMSRedesigned = () => {
               </div>
             </div>
           </div>
+
+          <Vitals className="w-full h-6 mt-14 sm:mt-16 opacity-60" strokeWidth={1.5} />
         </section>
 
-        {/* Trust Bar - Enhanced with better presentation */}
-        <section className="relative py-16 bg-white border-y border-slate-200/60">
+        {/* Stats */}
+        <section ref={statsRef} className="py-12 sm:py-14 bg-white border-y border-[#E2DFD6]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {stats.map((stat, index) => {
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+              {stats.map((stat) => {
                 const Icon = stat.icon;
+                const displayValue = countedStats[stat.key] !== undefined
+                  ? countedStats[stat.key] + (stat.key === 'uptime' ? '%' : stat.key === 'hospitals' ? '+' : stat.key === 'professionals' ? '+' : stat.key === 'patients' ? '+' : '')
+                  : stat.value;
                 return (
-                  <div 
-                    key={index} 
-                    className="text-center group"
-                  >
-                    <div className="inline-flex rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-3 mb-3 group-hover:shadow-lg group-hover:shadow-blue-100 transition-all duration-300 group-hover:scale-110">
-                      <Icon className="h-6 w-6 text-blue-600" />
+                  <div key={stat.label} className="flex items-start gap-3">
+                    <Icon className="h-5 w-5 text-[#0B6E4F] mt-1 shrink-0" strokeWidth={1.75} />
+                    <div className="min-w-0">
+                      <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold text-[#0A2540]">
+                        {displayValue}
+                      </div>
+                      <div className="text-xs sm:text-sm text-[#5B6472] mt-0.5">{stat.label}</div>
                     </div>
-                    <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-                    <div className="text-sm text-slate-500 font-medium mt-1">{stat.label}</div>
                   </div>
                 );
               })}
@@ -473,38 +541,37 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Core Benefits - Enhanced value props */}
-        <section className="py-24 bg-slate-50/50" data-section id="features">
+        {/* Benefits */}
+        <section className="py-16 sm:py-24" data-section id="features">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-20">
-              <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200/50 mb-4">
-                <Zap className="h-5 w-5 text-blue-600" />
-                <span className="text-sm font-semibold text-slate-700">Why Healthcare Leaders Choose Us</span>
+            <div className={`max-w-2xl mb-12 sm:mb-16 ${fadeCls('features')}`}>
+              <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                WHY HOSPITALS CHOOSE SMARTCARE
               </div>
-              <h2 className="text-4xl sm:text-5xl font-bold text-slate-900">
-                Comprehensive Healthcare <br className="hidden sm:block" />Management Platform
+              <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540]">
+                A platform built for how Nigerian hospitals actually run
               </h2>
-              <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-                Everything you need to run a modern healthcare facility in Nigeria, seamlessly integrated
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-[#E2DFD6] border border-[#E2DFD6] rounded-lg overflow-hidden">
               {coreBenefits.map((benefit, index) => {
                 const Icon = benefit.icon;
+                const isVisible = visibleSections['features'];
                 return (
                   <div
-                    key={index}
-                    className="group relative bg-white rounded-xl border border-slate-200 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                    key={benefit.title}
+                    className={`bg-white p-6 sm:p-7 transition-opacity transition-transform duration-500 card-lift cursor-default ${
+                      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+                    }`}
+                    style={{ transitionDelay: `${index * 90}ms` }}
+                    onMouseEnter={() => setHoveredBenefit(index)}
+                    onMouseLeave={() => setHoveredBenefit(null)}
                   >
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="relative">
-                      <div className={`inline-flex rounded-xl bg-gradient-to-r from-${benefit.color}-500 to-${benefit.color}-600 p-3 mb-4 shadow-lg shadow-${benefit.color}-500/20`}>
-                        <Icon className="h-6 w-6 text-white" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-slate-900 mb-2">{benefit.title}</h3>
-                      <p className="text-sm text-slate-500 leading-relaxed">{benefit.description}</p>
-                    </div>
+                    <div className="font-mono text-[10px] tracking-widest text-[#0B6E4F] mb-5">{benefit.tag}</div>
+                    <Icon className={`h-6 w-6 mb-4 transition-colors duration-200 ${hoveredBenefit === index ? 'text-[#0B6E4F]' : 'text-[#0A2540]'}`} strokeWidth={1.5} />
+                    <h3 className="font-display text-base font-semibold text-[#0A2540] mb-2">{benefit.title}</h3>
+                    <p className="text-sm text-[#5B6472] leading-relaxed">{benefit.description}</p>
                   </div>
                 );
               })}
@@ -512,53 +579,45 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Core Modules - Enhanced grid with better UX */}
-        <section className="py-24 bg-white" data-section id="solutions">
+        {/* Modules */}
+        <section className="py-16 sm:py-24 bg-white border-y border-[#E2DFD6]" data-section id="solutions">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-20">
-              <div className="inline-flex items-center gap-2 bg-teal-50 px-4 py-2 rounded-full shadow-sm border border-teal-200/50 mb-4">
-                <Layers className="h-5 w-5 text-teal-600" />
-                <span className="text-sm font-semibold text-slate-700">Integrated Modules</span>
+            <div className={`max-w-2xl mb-12 sm:mb-16 ${fadeCls('solutions')}`}>
+              <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                INTEGRATED MODULES
               </div>
-              <h2 className="text-4xl sm:text-5xl font-bold text-slate-900">
-                Everything You Need in <br className="hidden sm:block" />One Platform
+              <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540]">
+                Six modules. One record. Zero handoffs.
               </h2>
-              <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-                Six powerful modules working together to streamline your entire hospital operations
+              <p className="mt-4 text-[#5B6472] leading-relaxed">
+                Every module reads and writes to the same patient record, so nothing gets lost between departments.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {coreModules.map((module, index) => {
                 const Icon = module.icon;
+                const active = hoveredModule === index;
+                const isVisible = visibleSections['solutions'];
                 return (
                   <div
-                    key={index}
-                    className="group relative bg-white rounded-xl border border-slate-200 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer"
-                    onMouseEnter={() => setHoveredFeature(index)}
-                    onMouseLeave={() => setHoveredFeature(null)}
+                    key={module.label}
+                    onMouseEnter={() => setHoveredModule(index)}
+                    onMouseLeave={() => setHoveredModule(null)}
+                    className={`rounded-lg border p-6 transition-opacity transition-transform duration-500 cursor-default card-lift ${
+                      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+                    } ${
+                      active ? 'border-[#0B6E4F] bg-[#0B6E4F]/[0.03]' : 'border-[#E2DFD6] bg-[#F8F7F3]'
+                    }`}
+                    style={{ transitionDelay: `${index * 70}ms` }}
                   >
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-slate-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="relative">
-                      <div
-                        className={`inline-flex rounded-xl p-3 mb-4 transition-all duration-300 ${
-                          hoveredFeature === index 
-                            ? `bg-gradient-to-br ${module.gradient} text-white shadow-lg scale-110` 
-                            : 'text-slate-600'
-                        }`}
-                        style={{
-                          backgroundColor: hoveredFeature === index ? undefined : `${module.color}15`,
-                        }}
-                      >
-                        <Icon className={`h-6 w-6 transition-all duration-300 ${hoveredFeature === index ? 'scale-110' : ''}`} />
-                      </div>
-                      <h3 className="text-lg font-semibold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-                        {module.label}
-                      </h3>
-                      <p className="text-sm text-slate-500 group-hover:text-slate-700 transition-colors">
-                        {module.description}
-                      </p>
+                    <div className="flex items-center justify-between mb-5">
+                      <Icon className={`h-6 w-6 transition-colors duration-200 ${active ? 'text-[#0B6E4F]' : 'text-[#0A2540]'}`} strokeWidth={1.5} />
+                      <span className="font-mono text-[10px] tracking-widest text-[#5B6472]">{module.category}</span>
                     </div>
+                    <h3 className="font-display text-base font-semibold text-[#0A2540] mb-2">{module.label}</h3>
+                    <p className="text-sm text-[#5B6472] leading-relaxed">{module.description}</p>
                   </div>
                 );
               })}
@@ -566,96 +625,96 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Security Section - Enhanced compliance display */}
-        <section className="py-24 bg-slate-50/50" data-section id="security">
+        {/* Security */}
+        <section className="py-16 sm:py-24" data-section id="security">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className={`grid lg:grid-cols-2 gap-12 lg:gap-16 items-start ${fadeCls('security')}`}>
               <div>
-                <div className="inline-flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full shadow-sm border border-emerald-200/50 mb-4">
-                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                  <span className="text-sm font-semibold text-slate-700">Enterprise Security</span>
+                <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  ENTERPRISE SECURITY
                 </div>
-                <h2 className="text-4xl font-bold text-slate-900 mb-4">
-                  Bank-Grade Security for <br />Healthcare Data
+                <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540] mb-5">
+                  Held to the same standard as the data it protects
                 </h2>
-                <p className="text-lg text-slate-600 mb-6">
-                  Your patients' data is protected with the highest standards of security and compliance.
+                <p className="text-[#5B6472] leading-relaxed mb-8">
+                  Patient data is protected end to end, with independent audits and a compliance
+                  posture built for regulated healthcare environments.
                 </p>
-                <div className="space-y-4">
-                  {complianceBadges.map((badge, index) => {
-                    const Icon = badge.icon;
-                    return (
-                      <div key={index} className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-slate-200">
-                        <Icon className="h-5 w-5 text-emerald-500" />
-                        <span className="text-sm font-medium text-slate-700">{badge.label}</span>
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-wrap gap-2.5">
+                  {complianceBadges.map((badge, idx) => (
+                    <span
+                      key={badge}
+                      className={`inline-flex items-center gap-2 text-sm font-medium text-[#0A2540] bg-white border border-[#E2DFD6] px-3.5 py-2 rounded-md transition-colors duration-200 hover:border-[#0B6E4F] ${
+                        visibleSections['security'] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+                      }`}
+                      style={{ transitionDelay: `${idx * 60}ms`, transition: 'opacity 0.5s ease, transform 0.5s ease, border-color 0.2s ease' }}
+                    >
+                      <ShieldCheck className="h-4 w-4 text-[#0B6E4F]" />
+                      {badge}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <div className="relative">
-                <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
-                    <span className="text-sm font-medium text-slate-700">Security Features</span>
-                  </div>
-                  <div className="space-y-4">
-                    {[
-                      'End-to-End Encryption',
-                      'Role-Based Access Control',
-                      'Audit Trails & Logging',
-                      'Two-Factor Authentication',
-                      'Data Residency in Nigeria',
-                      'Regular Security Audits'
-                    ].map((feature, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <Check className="h-5 w-5 text-emerald-500" />
-                        <span className="text-slate-600">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
+
+              <div className={`bg-[#0A2540] rounded-xl p-7 sm:p-8 transition-all duration-700 ${
+                visibleSections['security'] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+              }`}>
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="w-2 h-2 rounded-full bg-[#0B6E4F] pulse-dot" />
+                  <span className="font-mono text-xs tracking-widest text-white/70">SECURITY LAYER</span>
+                </div>
+                <div className="space-y-4">
+                  {securityFeatures.map((feature, idx) => (
+                    <div key={feature} className={`flex items-center gap-3 transition-all duration-500 ${
+                      visibleSections['security'] ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'
+                    }`} style={{ transitionDelay: `${idx * 70 + 200}ms` }}>
+                      <Check className="h-4 w-4 text-[#0B6E4F] shrink-0" />
+                      <span className="text-white/85 text-sm">{feature}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Testimonials - Enhanced with better social proof */}
-        <section className="py-24 bg-white" data-section id="testimonials">
+        {/* Testimonials */}
+        <section className="py-16 sm:py-24 bg-white border-y border-[#E2DFD6]" data-section id="testimonials">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-20">
-              <div className="inline-flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-full shadow-sm border border-amber-200/50 mb-4">
-                <Star className="h-5 w-5 text-amber-600" />
-                <span className="text-sm font-semibold text-slate-700">Testimonials</span>
+            <div className={`max-w-2xl mb-12 sm:mb-16 ${fadeCls('testimonials')}`}>
+              <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
+                <Star className="h-4 w-4" />
+                FROM THE FIELD
               </div>
-              <h2 className="text-4xl sm:text-5xl font-bold text-slate-900">
-                Trusted by Healthcare Leaders
+              <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540]">
+                Trusted by healthcare leaders across Nigeria
               </h2>
-              <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-                Real feedback from hospital executives and medical directors across Nigeria
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {testimonials.map((testimonial, index) => (
-                <div 
-                  key={index} 
-                  className="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+              {testimonials.map((t, index) => (
+                <div
+                  key={t.name}
+                  className={`border border-[#E2DFD6] rounded-lg p-6 bg-[#F8F7F3] transition-opacity transition-transform duration-500 card-lift ${
+                    visibleSections['testimonials'] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+                  }`}
+                  style={{ transitionDelay: `${index * 90}ms` }}
                 >
-                  <div className="flex items-center gap-1 mb-4">
+                  <div className="flex gap-1 mb-4">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                      <Star key={i} className="h-3.5 w-3.5 fill-[#B98A32] text-[#B98A32]" />
                     ))}
                   </div>
-                  <p className="text-slate-600 leading-relaxed text-sm">"{testimonial.quote}"</p>
-                  <div className="mt-4 flex items-center gap-3 border-t border-slate-200 pt-4">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                      {testimonial.avatar}
+                  <p className="text-[#0A2540]/85 text-sm leading-relaxed">{t.quote}</p>
+                  <div className="mt-6 flex items-center gap-3 border-t border-[#E2DFD6] pt-5">
+                    <div className="w-9 h-9 rounded-md bg-[#0A2540] flex items-center justify-center text-white font-mono text-xs font-semibold shrink-0">
+                      {t.avatar}
                     </div>
-                    <div>
-                      <div className="font-semibold text-slate-900 text-sm">{testimonial.name}</div>
-                      <div className="text-xs text-slate-500">{testimonial.role}</div>
-                      <div className="text-xs font-medium text-blue-600">{testimonial.hospital}</div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[#0A2540] text-sm truncate">{t.name}</div>
+                      <div className="text-xs text-[#5B6472] truncate">{t.role}</div>
+                      <div className="text-xs font-medium text-[#0B6E4F] truncate">{t.hospital}</div>
                     </div>
                   </div>
                 </div>
@@ -664,104 +723,88 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Final CTA - Enhanced with better conversion */}
-        <section className="relative py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800" />
-          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-400/20 rounded-full blur-3xl animate-float" />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-400/20 rounded-full blur-3xl animate-float delay-500" />
+        {/* Final CTA */}
+        <section className="relative py-16 sm:py-24 overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1551601651-09492b5468b6?auto=format&fit=crop&w=1600&q=80"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-[#0A2540]/92" />
+          <Vitals className="absolute top-0 left-0 w-full h-10 opacity-15" stroke="#ffffff" strokeWidth={1.5} />
 
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 mb-6">
-              <Rocket className="h-5 w-5 text-white" />
-              <span className="text-sm font-semibold text-white">Get Started Today</span>
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+            <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-5 flex items-center justify-center gap-2">
+              <Rocket className="h-4 w-4" />
+              GET STARTED
             </div>
-            <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
-              Ready to Transform Your <br />Hospital Operations?
+            <h2 className="font-display text-2xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-white leading-tight">
+              Ready to run your hospital
+              <br />on one system?
             </h2>
-            <p className="mt-4 text-lg text-blue-100 max-w-2xl mx-auto">
-              Join 500+ hospitals across Nigeria using SmartCare HMS to deliver exceptional patient care.
+            <p className="mt-5 text-base sm:text-lg text-white/70 max-w-xl mx-auto">
+              Join 500+ hospitals across Nigeria delivering better care with SmartCare HMS.
             </p>
-            <div className="mt-10 flex flex-wrap justify-center gap-4">
-              <a href="mailto:official.appbrew@gmail.com" className="group inline-flex items-center gap-3 rounded-xl bg-white px-8 py-4 text-base font-semibold text-blue-600 hover:bg-blue-50 transition-all shadow-xl hover:shadow-2xl hover:scale-105">
+            <div className="mt-9 sm:mt-10 flex flex-wrap justify-center gap-3 sm:gap-4">
+              <a
+                href="mailto:official.appbrew@gmail.com"
+                className="group inline-flex items-center gap-2 rounded-md bg-white px-6 sm:px-7 py-3 sm:py-3.5 text-base font-semibold text-[#0A2540] hover:bg-[#F8F7F3] transition-colors duration-200"
+              >
                 Book a Demo
-                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </a>
-              <button onClick={() => setIsTourOpen(true)} className="group inline-flex items-center gap-3 rounded-xl border-2 border-white/30 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
-                <PlayCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                Watch Tour
+              <button
+                onClick={() => setIsTourOpen(true)}
+                className="inline-flex items-center gap-2 rounded-md border border-white/25 px-6 sm:px-7 py-3 sm:py-3.5 text-base font-medium text-white hover:bg-white/10 hover:border-white/40 transition-colors duration-200"
+              >
+                <PlayCircle className="h-4 w-4" />
+                Watch the tour
               </button>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Enterprise Footer */}
-      <footer className="bg-slate-900 text-slate-300 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
+      {/* Footer */}
+      <footer className="bg-[#0A2540] text-white/70 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-14">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
             <div className="lg:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="inline-flex rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 p-2">
+                <div className="flex items-center justify-center w-9 h-9 rounded-md bg-white/10 shrink-0">
                   <ShieldCheck className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-lg font-bold text-white">SmartCare<span className="text-blue-400">HMS</span></span>
+                <span className="font-display text-base font-semibold text-white">
+                  SmartCare<span className="text-[#38B387]">HMS</span>
+                </span>
               </div>
-              <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
-                Enterprise hospital management platform for Nigerian healthcare institutions.
-                Transforming healthcare operations through intelligent technology.
+              <p className="text-sm text-white/55 max-w-sm leading-relaxed">
+                Enterprise hospital management for Nigerian healthcare institutions —
+                one platform for clinical, operational, and financial workflows.
               </p>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-white mb-4">Product</h4>
-              <ul className="space-y-2 text-sm">
-                {['Features', 'Pricing', 'Integrations', 'Security'].map((item) => (
-                  <li key={item}><a href="#" className="hover:text-white transition-colors">{item}</a></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-white mb-4">Solutions</h4>
-              <ul className="space-y-2 text-sm">
-                {['Hospitals', 'Clinics', 'Teaching Hospitals', 'Networks'].map((item) => (
-                  <li key={item}><a href="#" className="hover:text-white transition-colors">{item}</a></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-white mb-4">Support</h4>
-              <ul className="space-y-2 text-sm">
-                {['Help Center', 'Contact', 'Status', 'Community'].map((item) => (
-                  <li key={item}><a href="#" className="hover:text-white transition-colors">{item}</a></li>
-                ))}
-              </ul>
-            </div>
+            {Object.entries({ Product: footerSections.product, Solutions: footerSections.solutions, Support: footerSections.support }).map(([heading, links]) => (
+              <div key={heading}>
+                <h4 className="font-mono text-xs tracking-widest text-white/50 mb-4">{heading.toUpperCase()}</h4>
+                <ul className="space-y-2.5 text-sm">
+                  {links.map((item) => (
+                    <li key={item.label}>
+                      <RouterLink to={item.to} className="hover:text-white transition-colors duration-200">
+                        {item.label}
+                      </RouterLink>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
-          <div className="mt-8 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
-            <span>© {currentYear} SmartCare HMS. All rights reserved. — Transforming Healthcare Operations Through Intelligent Technology</span>
+          <div className="mt-12 pt-6 border-t border-white/10 text-center text-xs text-white/40">
+            © {currentYear} SmartCare HMS. All rights reserved.
           </div>
         </div>
       </footer>
-
-      {/* Custom CSS Animations */}
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(1deg); }
-        }
-        .animate-float {
-          animation: float 8s ease-in-out infinite;
-        }
-        
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 6s ease infinite;
-        }
-      `}</style>
 
       <TourModal isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
     </div>

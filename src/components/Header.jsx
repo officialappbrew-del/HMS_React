@@ -1,7 +1,7 @@
 import { useSelector } from 'react-redux';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Menu, ChevronDown, Bell, Search, UserCircle, Moon, Sun } from 'lucide-react';
+import { Menu, Bell, Search, UserCircle, Moon, Sun, ChevronDown } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { getUserPreferences, setUserPreferences } from '../utils/cookies';
 import { logout } from '../utils/api';

@@ -7,7 +7,8 @@ import PageErrorBoundary from './components/PageErrorBoundary';
 import { getUserPreferences } from './utils/cookies';
 import Loader from './components/Loader';
 import { apiRequest, parseListResponse } from './utils/api';
-import RoleInsightPanel from './components/dashboards/RoleInsightPanel';
+
+const RoleInsightPanel = lazy(() => import('./components/dashboards/RoleInsightPanel'));
 
 // Lazy-load pages and heavier layout parts to enable code-splitting and faster initial loads
 const Header = lazy(() => import('./components/Header'));
@@ -74,6 +75,10 @@ const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const InvitationSignup = lazy(() => import('./pages/InvitationSignup'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
 
 const getStoredRole = () => {
   if (typeof window === 'undefined') return 'admin';
@@ -118,6 +123,28 @@ const NotFoundLayout = ({ children }) => {
     return <>{children}</>;
   };
 
+  const prefetchRouteModules = () => {
+    const modules = [
+      () => import('./pages/Dashboard'),
+      () => import('./pages/PatientManagement'),
+      () => import('./pages/Billing'),
+      () => import('./pages/Pharmacy'),
+      () => import('./pages/ConsultationV2'),
+      () => import('./pages/Laboratory'),
+      () => import('./pages/StaffManagement'),
+      () => import('./pages/Appointments'),
+      () => import('./pages/Settings'),
+      () => import('./pages/Login'),
+      () => import('./pages/Signup'),
+      () => import('./pages/AboutPage'),
+      () => import('./pages/PrivacyPage'),
+      () => import('./pages/TermsPage'),
+      () => import('./pages/ContactPage'),
+    ];
+
+    void Promise.allSettled(modules.map((load) => load())).catch(() => {});
+  };
+
   const PublicRoute = ({ children, allowAuthenticated = false }) => {
   if (isAuthenticated() && !allowAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -128,11 +155,13 @@ const NotFoundLayout = ({ children }) => {
 
 function AppLayout() {
    const location = useLocation();
+   const publicPaths = ['/', '/login', '/signup', '/invitation-signup', '/about', '/privacy', '/terms', '/contact'];
    const isLandingPage = location.pathname === '/';
    const isLoginPage = location.pathname === '/login';
    const isSignupPage = location.pathname === '/signup';
    const isInvitationSignupPage = location.pathname === '/invitation-signup' || location.pathname.startsWith('/invitation-signup/');
-   const isPublicPage = isLandingPage || isLoginPage || isSignupPage || isInvitationSignupPage;
+   const isInfoPage = publicPaths.includes(location.pathname);
+   const isPublicPage = isLandingPage || isLoginPage || isSignupPage || isInvitationSignupPage || isInfoPage;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
@@ -213,6 +242,31 @@ function AppLayout() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   }, [isDark]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let cancelled = false;
+    const runPrefetch = () => {
+      if (!cancelled) {
+        prefetchRouteModules();
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(runPrefetch, { timeout: 1500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(idleId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(runPrefetch, 800);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     const loadInsights = async () => {
@@ -307,6 +361,10 @@ function AppLayout() {
                 <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
                 <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
                 <Route path="/invitation-signup" element={<PublicRoute allowAuthenticated={true}><InvitationSignup /></PublicRoute>} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/contact" element={<ContactPage />} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/patients" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
                 <Route path="/patients/add" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
