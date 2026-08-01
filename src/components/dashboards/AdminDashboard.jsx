@@ -128,9 +128,9 @@ const Tooltip = ({ children, text, position = 'top' }) => {
       {children}
       {show && (
         <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
-          <div className="bg-gray-900 text-white text-[10px] px-2 py-1 rounded shadow-lg">
+          <div className="bg-[#1A1A1A] text-white text-[10px] px-2 py-1 shadow-lg">
             {text}
-            <div className={`absolute w-1.5 h-1.5 bg-gray-900 transform rotate-45 ${
+            <div className={`absolute w-1.5 h-1.5 bg-[#1A1A1A] transform rotate-45 ${
               position === 'top' ? 'bottom-[-3px] left-1/2 -translate-x-1/2' :
               position === 'bottom' ? 'top-[-3px] left-1/2 -translate-x-1/2' :
               position === 'left' ? 'right-[-3px] top-1/2 -translate-y-1/2' :
@@ -146,12 +146,12 @@ const Tooltip = ({ children, text, position = 'top' }) => {
 // ==================== ICON BUTTON ====================
 const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
   const variantClasses = {
-    default: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
-    primary: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
-    success: 'text-green-600 hover:text-green-700 hover:bg-green-50',
-    danger: 'text-red-600 hover:text-red-700 hover:bg-red-50',
-    warning: 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50',
-    info: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+    default: 'text-[#5A5A5A] hover:text-[#1A1A1A] hover:bg-[#F0EDE8]',
+    primary: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+    success: 'text-[#2D7D46] hover:text-[#1E5F33] hover:bg-[#EAF3EE]',
+    danger: 'text-[#C8553D] hover:text-[#A8442E] hover:bg-[#F5EDEA]',
+    warning: 'text-[#C87D3D] hover:text-[#A8662E] hover:bg-[#F5F0EA]',
+    info: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
   };
 
   const sizeClasses = {
@@ -171,8 +171,8 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
       <button
         onClick={onClick}
         disabled={disabled}
-        className={`rounded-lg transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
+        className={`rounded transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
       >
         <Icon className={iconSizes[size]} />
@@ -184,12 +184,12 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
 // ==================== BUTTON WITH TOOLTIP ====================
 const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm', type = 'button' }) => {
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow',
-    secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
-    success: 'bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow',
-    danger: 'bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow',
-    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm hover:shadow',
-    outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700',
+    primary: 'bg-[#008751] hover:bg-[#006B40] text-white',
+    secondary: 'bg-white border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+    success: 'bg-[#2D7D46] hover:bg-[#1E5F33] text-white',
+    danger: 'bg-[#C8553D] hover:bg-[#A8442E] text-white',
+    warning: 'bg-[#C87D3D] hover:bg-[#A8662E] text-white',
+    outline: 'border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
   };
 
   const sizeClasses = {
@@ -204,7 +204,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
         type={type}
         onClick={onClick}
         disabled={disabled}
-        className={`rounded-lg transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+        className={`rounded transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
           disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
       >
@@ -215,35 +215,43 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
 };
 
 // ==================== STATS CARD ====================
-const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, tooltip, onClick }) => {
+const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, tooltip, onClick, className = '' }) => {
   const trendColors = {
-    up: 'text-green-600',
-    down: 'text-red-600',
-    neutral: 'text-gray-500'
+    up: 'text-[#2D7D46]',
+    down: 'text-[#C8553D]',
+    neutral: 'text-[#5A5A5A]'
+  };
+
+  const colorMap = {
+    green: 'bg-[#008751]',
+    gold: 'bg-[#FFC107]',
+    terracotta: 'bg-[#C8553D]',
+    warm: 'bg-[#C87D3D]',
+    slate: 'bg-[#4A5A5A]',
   };
 
   return (
     <Tooltip text={tooltip}>
       <div 
         onClick={onClick}
-        className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+        className={`bg-white border border-[#E8E3DC] p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-gray-500 uppercase truncate">{title}</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
+            <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
+            <p className="mt-1 text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">{value}</p>
             {subValue && (
-              <p className="text-xs text-gray-500 mt-0.5">{subValue}</p>
+              <p className="text-xs text-[#5A5A5A] mt-0.5">{subValue}</p>
             )}
             {trend && (
-              <div className={`flex items-center mt-1 text-xs ${trendColors[trend]}`}>
+              <div className={`flex items-center mt-1 text-xs ${trendColors[trend]} font-medium`}>
                 {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5" />}
                 {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5" />}
                 <span>{trendValue}</span>
               </div>
             )}
           </div>
-          <div className={`w-10 h-10 ${color} rounded-lg flex items-center justify-center flex-shrink-0 ml-3`}>
+          <div className={`w-10 h-10 ${colorMap[color]} rounded flex items-center justify-center flex-shrink-0 ml-3`}>
             <Icon className="w-5 h-5 text-white" />
           </div>
         </div>
@@ -259,37 +267,37 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity"
         onClick={onClose}
       />
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
-          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+        <div className="relative bg-[#F7F5F2] w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-300">
+          <div className="border-b border-[#E8E3DC] p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold">My Profile</h2>
-                <p className="text-sm text-blue-100 mt-1">View and update your personal information</p>
+                <h2 className="text-xl font-display font-bold text-[#1A1A1A]">My Profile</h2>
+                <p className="text-sm text-[#5A5A5A] mt-0.5">View and update your personal information</p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 hover:bg-[#E8E3DC] rounded transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-[#5A5A5A]" />
               </button>
             </div>
           </div>
 
           <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
             {(error || success) && (
-              <div className={`mb-4 p-3 rounded-lg text-sm whitespace-pre-line ${error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+              <div className={`mb-4 p-3 text-sm whitespace-pre-line ${error ? 'bg-[#F5EDEA] text-[#C8553D] border border-[#E8D6D0]' : 'bg-[#EAF3EE] text-[#2D7D46] border border-[#D0E3D8]'}`}>
                 {error || success}
               </div>
             )}
 
             {!loading && (
-              <div className="flex flex-col items-center mb-6">
+              <div className="flex flex-col items-center mb-8">
                 <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                  <div className="w-24 h-24 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden">
                     {profilePicturePreview ? (
                       <img
                         key={profilePicturePreview}
@@ -304,11 +312,11 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                       />
                     ) : null}
                     <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: profilePicturePreview ? 'none' : 'flex' }}>
-                      <UserIcon className="w-12 h-12 text-gray-400" />
+                      <UserIcon className="w-12 h-12 text-[#5A5A5A]" />
                     </div>
                   </div>
                 </div>
-                <label className="mt-3 cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <label className="mt-3 cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-[#D8D4CD] text-xs font-medium text-[#1A1A1A] hover:bg-[#F7F5F2] transition-colors">
                   <Upload className="w-4 h-4" />
                   {profilePicturePreview ? 'Change Photo' : 'Upload Photo'}
                   <input
@@ -334,7 +342,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                     onClick={() => {
                       onProfilePictureChange('profile_picture_file', null);
                     }}
-                    className="mt-1 text-xs text-red-600 hover:text-red-700"
+                    className="mt-1 text-xs text-[#C8553D] hover:text-[#A8442E]"
                   >
                     Remove photo
                   </button>
@@ -344,112 +352,112 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
 
             {loading ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-500 text-sm mt-2">Loading profile...</p>
+                <div className="w-8 h-8 border-2 border-[#008751] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-[#5A5A5A] text-sm mt-2">Loading profile...</p>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">First Name *</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">First Name *</label>
                     <input
                       type="text"
                       value={profileData.first_name}
                       onChange={(e) => onChange('first_name', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Last Name *</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Last Name *</label>
                     <input
                       type="text"
                       value={profileData.last_name}
                       onChange={(e) => onChange('last_name', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Email *</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Email *</label>
                     <input
                       type="email"
                       value={profileData.email}
                       onChange={(e) => onChange('email', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Phone</label>
                     <input
                       type="tel"
                       value={profileData.phone}
                       onChange={(e) => onChange('phone', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Employee ID</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Employee ID</label>
                     <input
                       type="text"
                       value={profileData.employee_id}
                       disabled
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      className="w-full px-3 py-2 text-sm bg-[#F0EDE8] border border-[#E8E3DC] text-[#5A5A5A] cursor-not-allowed"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Role</label>
                     <input
                       type="text"
                       value={profileData.role}
                       disabled
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      className="w-full px-3 py-2 text-sm bg-[#F0EDE8] border border-[#E8E3DC] text-[#5A5A5A] cursor-not-allowed"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Department</label>
                     <input
                       type="text"
                       value={profileData.department_name}
                       disabled
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      className="w-full px-3 py-2 text-sm bg-[#F0EDE8] border border-[#E8E3DC] text-[#5A5A5A] cursor-not-allowed"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Designation</label>
                     <input
                       type="text"
                       value={profileData.designation}
                       onChange={(e) => onChange('designation', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">License Number</label>
                     <input
                       type="text"
                       value={profileData.license_number}
                       onChange={(e) => onChange('license_number', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Specialization</label>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Specialization</label>
                     <select
                       value={profileData.specialization}
                       onChange={(e) => onChange('specialization', e.target.value)}
                       disabled={specializationsLoading}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-600"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors disabled:bg-[#F0EDE8] disabled:text-[#5A5A5A]"
                     >
                       <option value="">-- Select specialization --</option>
                       {specializations.map(spec => (
@@ -460,19 +468,19 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Qualification</label>
+                  <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Qualification</label>
                   <textarea
                     value={profileData.qualification}
                     onChange={(e) => onChange('qualification', e.target.value)}
                     rows="2"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                   />
                 </div>
               </div>
             )}
           </div>
 
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
+          <div className="border-t border-[#E8E3DC] p-4 flex flex-wrap justify-end gap-2 bg-white">
             <ButtonWithTooltip
               onClick={onClose}
               tooltip="Close profile editor"
@@ -523,33 +531,33 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
 
   const getStatusColor = (status) => {
     const statusMap = {
-      'active': 'bg-green-100 text-green-800 border-green-200',
-      'inactive': 'bg-gray-100 text-gray-800 border-gray-200',
-      'archived': 'bg-gray-100 text-gray-800 border-gray-200',
-      'critical': 'bg-red-100 text-red-800 border-red-200',
-      'stable': 'bg-green-100 text-green-800 border-green-200',
-      'monitoring': 'bg-blue-100 text-blue-800 border-blue-200',
+      'active': 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]',
+      'inactive': 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]',
+      'archived': 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]',
+      'critical': 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]',
+      'stable': 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]',
+      'monitoring': 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]',
     };
-    return statusMap[status?.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
+    return statusMap[status?.toLowerCase()] || 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]';
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div 
-        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+        className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity"
         onClick={onClose}
       />
       <div className="flex min-h-full items-center justify-center p-3">
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-200">
+        <div className="relative bg-[#F7F5F2] w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E3DC] flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#E8F5EF] flex items-center justify-center text-[#008751] font-display font-semibold text-sm flex-shrink-0">
                 {getInitials(patient.name)}
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">{patient.name}</h3>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+                <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">{patient.name}</h3>
+                <div className="flex items-center gap-2 text-xs text-[#5A5A5A]">
                   {patient.hospital_number && <span>HN: {patient.hospital_number}</span>}
                   {patient.age && <span>• {patient.age}y</span>}
                   {patient.gender && <span>• {patient.gender}</span>}
@@ -558,25 +566,25 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-1.5 rounded hover:bg-[#E8E3DC] transition-colors"
             >
-              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              <X className="w-4 h-4 text-[#5A5A5A]" />
             </button>
           </div>
 
           {/* Status Badge */}
-          <div className="px-4 py-2 border-b border-gray-100 flex-shrink-0 flex items-center gap-2 flex-wrap">
-            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusColor(patient.status)}`}>
+          <div className="px-5 py-2.5 border-b border-[#E8E3DC] flex-shrink-0 flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium border ${getStatusColor(patient.status)}`}>
               {patient.status || 'Active'}
             </span>
             {patient.bloodType && (
-              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-200">
+              <span className="inline-flex px-2.5 py-0.5 text-xs font-medium border border-[#E8D6D0] bg-[#F5EDEA] text-[#C8553D]">
                 <Droplets className="w-3 h-3 mr-0.5" />
                 {patient.bloodType}
               </span>
             )}
             {patient.has_insurance && (
-              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-200">
+              <span className="inline-flex px-2.5 py-0.5 text-xs font-medium border border-[#D0E3D8] bg-[#EAF3EE] text-[#2D7D46]">
                 <Shield className="w-3 h-3 mr-0.5" />
                 Insured
               </span>
@@ -584,15 +592,15 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-gray-100 px-4 flex-shrink-0">
+          <div className="flex border-b border-[#E8E3DC] px-5 flex-shrink-0">
             {['personal', 'contact', 'medical'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
                   activeTab === tab
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-[#008751] text-[#008751]'
+                    : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A]'
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -601,76 +609,76 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-5">
             {activeTab === 'personal' && (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Full Name</p>
-                  <p className="font-medium text-gray-900">{patient.name}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Full Name</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.name}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Gender</p>
-                  <p className="font-medium text-gray-900 capitalize">{patient.gender || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Gender</p>
+                  <p className="font-medium text-[#1A1A1A] capitalize">{patient.gender || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Date of Birth</p>
-                  <p className="font-medium text-gray-900">
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Date of Birth</p>
+                  <p className="font-medium text-[#1A1A1A]">
                     {formatDate(patient.dateOfBirth)}
                     {patient.age && ` (${patient.age}y)`}
                   </p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">NIN</p>
-                  <p className="font-medium text-gray-900">{patient.nin || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">NIN</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.nin || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Marital Status</p>
-                  <p className="font-medium text-gray-900 capitalize">{patient.maritalStatus || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Marital Status</p>
+                  <p className="font-medium text-[#1A1A1A] capitalize">{patient.maritalStatus || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Religion</p>
-                  <p className="font-medium text-gray-900">{patient.religion || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Religion</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.religion || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Ethnicity</p>
-                  <p className="font-medium text-gray-900">{patient.tribe || patient.ethnicity || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Ethnicity</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.tribe || patient.ethnicity || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Occupation</p>
-                  <p className="font-medium text-gray-900">{patient.occupation || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Occupation</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.occupation || 'N/A'}</p>
                 </div>
               </div>
             )}
 
             {activeTab === 'contact' && (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Phone</p>
-                  <p className="font-medium text-gray-900">{patient.phone || 'N/A'}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Phone</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.phone || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Email</p>
-                  <p className="font-medium text-gray-900">{patient.email || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Email</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.email || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Address</p>
-                  <p className="font-medium text-gray-900">{patient.address || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Address</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.address || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">State</p>
-                  <p className="font-medium text-gray-900">{patient.state || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">State</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.state || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">LGA</p>
-                  <p className="font-medium text-gray-900">{patient.lga || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">LGA</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.lga || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">City</p>
-                  <p className="font-medium text-gray-900">{patient.city || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">City</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.city || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Emergency Contact</p>
-                  <p className="font-medium text-gray-900">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Emergency Contact</p>
+                  <p className="font-medium text-[#1A1A1A]">
                     {patient.emergencyContact || patient.next_of_kin_name || 'N/A'}
                     {patient.emergencyPhone && ` (${patient.emergencyPhone})`}
                   </p>
@@ -679,43 +687,43 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
             )}
 
             {activeTab === 'medical' && (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Blood Type</p>
-                  <p className="font-medium text-gray-900">{patient.bloodType || 'N/A'}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Blood Type</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.bloodType || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Genotype</p>
-                  <p className="font-medium text-gray-900">{patient.genotype || 'N/A'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC]">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Genotype</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.genotype || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Known Allergies</p>
-                  <p className="font-medium text-gray-900">{patient.known_allergies || 'None'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Known Allergies</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.known_allergies || 'None'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Chronic Conditions</p>
-                  <p className="font-medium text-gray-900">{patient.chronic_conditions || 'None'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Chronic Conditions</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.chronic_conditions || 'None'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Current Medications</p>
-                  <p className="font-medium text-gray-900">{patient.current_medications || 'None'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Current Medications</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.current_medications || 'None'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Surgical History</p>
-                  <p className="font-medium text-gray-900">{patient.surgical_history || 'None'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Surgical History</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.surgical_history || 'None'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Family History</p>
-                  <p className="font-medium text-gray-900">{patient.family_history || 'None'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Family History</p>
+                  <p className="font-medium text-[#1A1A1A]">{patient.family_history || 'None'}</p>
                 </div>
-                <div className="bg-gray-50 rounded p-2 col-span-2">
-                  <p className="text-[10px] text-gray-500 uppercase font-medium">Notes</p>
-                  <p className="font-medium text-gray-900 whitespace-pre-line">{patient.notes || 'None'}</p>
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Notes</p>
+                  <p className="font-medium text-[#1A1A1A] whitespace-pre-line">{patient.notes || 'None'}</p>
                 </div>
                 {patient.has_insurance && (
-                  <div className="bg-gray-50 rounded p-2 col-span-2">
-                    <p className="text-[10px] text-gray-500 uppercase font-medium">Insurance</p>
-                    <p className="font-medium text-gray-900">
+                  <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                    <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Insurance</p>
+                    <p className="font-medium text-[#1A1A1A]">
                       {patient.insurance_company || 'N/A'}
                       {patient.insurance_policy_number && ` (${patient.insurance_policy_number})`}
                     </p>
@@ -726,7 +734,7 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-100 flex-shrink-0 flex-wrap">
+          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#E8E3DC] flex-shrink-0 flex-wrap bg-white">
             <ButtonWithTooltip
               onClick={onClose}
               tooltip="Close"
@@ -866,26 +874,26 @@ const EditPatientModal = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div 
-        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+        className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity"
         onClick={onClose}
       />
 
       <div className="flex min-h-full items-center justify-center p-3">
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200 max-h-[90vh] flex flex-col">
+        <div className="relative bg-[#F7F5F2] w-full max-w-md transform transition-all duration-200 max-h-[90vh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#E8E3DC] flex-shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-yellow-100 flex items-center justify-center">
-                <Edit className="w-3.5 h-3.5 text-yellow-600" />
+              <div className="w-7 h-7 rounded-full bg-[#F5F0EA] flex items-center justify-center">
+                <Edit className="w-3.5 h-3.5 text-[#C87D3D]" />
               </div>
-              <h3 className="text-sm font-semibold text-gray-900">Edit Patient</h3>
+              <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Edit Patient</h3>
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-1 rounded hover:bg-[#E8E3DC] transition-colors"
               disabled={isSubmitting}
             >
-              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              <X className="w-4 h-4 text-[#5A5A5A]" />
             </button>
           </div>
 
@@ -894,35 +902,35 @@ const EditPatientModal = ({
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Full Name *</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Full Name *</label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     required
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Date of Birth</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Date of Birth</label>
                   <input
                     type="date"
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Gender</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Gender</label>
                   <select
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   >
                     <option value="">Select</option>
@@ -932,80 +940,80 @@ const EditPatientModal = ({
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NIN</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">NIN</label>
                   <input
                     type="text"
                     name="nin"
                     value={formData.nin}
                     onChange={handleChange}
                     placeholder="National Identity Number"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone Number *</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Phone Number *</label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     required
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Email</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Email</label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Address</label>
                   <input
                     type="text"
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">State</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">State</label>
                   <input
                     type="text"
                     name="state"
                     value={formData.state}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">LGA</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">LGA</label>
                   <input
                     type="text"
                     name="lga"
                     value={formData.lga}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Blood Type</label>
                   <select
                     name="bloodType"
                     value={formData.bloodType}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   >
                     <option value="">Select</option>
@@ -1020,12 +1028,12 @@ const EditPatientModal = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Genotype</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Genotype</label>
                   <select
                     name="genotype"
                     value={formData.genotype}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   >
                     <option value="">Select</option>
@@ -1037,12 +1045,12 @@ const EditPatientModal = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Marital Status</label>
                   <select
                     name="maritalStatus"
                     value={formData.maritalStatus}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   >
                     <option value="">Select</option>
@@ -1054,48 +1062,48 @@ const EditPatientModal = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Religion</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Religion</label>
                   <input
                     type="text"
                     name="religion"
                     value={formData.religion}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Occupation</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Occupation</label>
                   <input
                     type="text"
                     name="occupation"
                     value={formData.occupation}
                     onChange={handleChange}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Ethnicity / Tribe</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Ethnicity / Tribe</label>
                   <input
                     type="text"
                     name="tribe"
                     value={formData.tribe}
                     onChange={handleChange}
                     placeholder="e.g. Hausa, Igbo, Yoruba"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Contact</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Emergency Contact</label>
                   <input
                     type="text"
                     name="emergencyContact"
                     value={formData.emergencyContact}
                     onChange={handleChange}
                     placeholder="Name"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors mb-1"
                     disabled={isSubmitting}
                   />
                   <input
@@ -1104,85 +1112,85 @@ const EditPatientModal = ({
                     value={formData.emergencyPhone}
                     onChange={handleChange}
                     placeholder="Phone"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Known Allergies</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Known Allergies</label>
                   <input
                     type="text"
                     name="known_allergies"
                     value={formData.known_allergies}
                     onChange={handleChange}
                     placeholder="e.g. Penicillin, Latex"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Chronic Conditions</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Chronic Conditions</label>
                   <input
                     type="text"
                     name="chronic_conditions"
                     value={formData.chronic_conditions}
                     onChange={handleChange}
                     placeholder="e.g. Diabetes, Hypertension"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Current Medications</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Current Medications</label>
                   <input
                     type="text"
                     name="current_medications"
                     value={formData.current_medications}
                     onChange={handleChange}
                     placeholder="e.g. Metformin 500mg"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Surgical History</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Surgical History</label>
                   <input
                     type="text"
                     name="surgical_history"
                     value={formData.surgical_history}
                     onChange={handleChange}
                     placeholder="e.g. Appendectomy 2020"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Family History</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Family History</label>
                   <input
                     type="text"
                     name="family_history"
                     value={formData.family_history}
                     onChange={handleChange}
                     placeholder="e.g. Diabetes (Mother)"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Notes</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Notes</label>
                   <textarea
                     name="notes"
                     value={formData.notes}
                     onChange={handleChange}
                     rows="2"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     disabled={isSubmitting}
                   />
                 </div>
               </div>
 
               {/* Insurance */}
-              <div className="border-t border-gray-100 pt-3">
+              <div className="border-t border-[#E8E3DC] pt-3">
                 <div className="flex items-center gap-2 mb-2">
                   <input
                     id="has_insurance"
@@ -1190,45 +1198,45 @@ const EditPatientModal = ({
                     name="has_insurance"
                     checked={formData.has_insurance}
                     onChange={handleChange}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-[#D8D4CD] text-[#008751] focus:ring-0 focus:ring-offset-0"
                     disabled={isSubmitting}
                   />
-                  <label htmlFor="has_insurance" className="text-xs font-medium text-gray-700">
+                  <label htmlFor="has_insurance" className="text-xs font-medium text-[#1A1A1A]">
                     Has Insurance
                   </label>
                 </div>
                 {formData.has_insurance && (
                   <div className="grid grid-cols-2 gap-2">
                     <div className="col-span-2">
-                      <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Insurance Company</label>
+                      <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Insurance Company</label>
                       <input
                         type="text"
                         name="insurance_company"
                         value={formData.insurance_company}
                         onChange={handleChange}
-                        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                         disabled={isSubmitting}
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Policy Number</label>
+                      <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Policy Number</label>
                       <input
                         type="text"
                         name="insurance_policy_number"
                         value={formData.insurance_policy_number}
                         onChange={handleChange}
-                        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                         disabled={isSubmitting}
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NHIS Number</label>
+                      <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">NHIS Number</label>
                       <input
                         type="text"
                         name="nhis_number"
                         value={formData.nhis_number}
                         onChange={handleChange}
-                        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-2.5 py-1.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                         disabled={isSubmitting}
                       />
                     </div>
@@ -1237,7 +1245,7 @@ const EditPatientModal = ({
               </div>
 
               {/* Status Toggle */}
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+              <div className="flex items-center gap-2 pt-2 border-t border-[#E8E3DC]">
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -1246,19 +1254,19 @@ const EditPatientModal = ({
                     className="sr-only peer"
                     disabled={isSubmitting}
                   />
-                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-9 h-5 bg-[#E8E3DC] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D8D4CD] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#008751]"></div>
                 </label>
-                <span className="text-xs text-gray-700">
+                <span className="text-xs text-[#1A1A1A]">
                   {formData.patient_status === 'active' ? 'Active' : 'Inactive'}
                 </span>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2 border-t border-gray-100">
+              <div className="flex gap-2 pt-2 border-t border-[#E8E3DC]">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  className="flex-1 bg-[#008751] text-white py-1.5 px-3 hover:bg-[#006B40] transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                 >
                   {isSubmitting ? (
                     <>
@@ -1275,7 +1283,7 @@ const EditPatientModal = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-[#F0EDE8] text-[#1A1A1A] py-1.5 px-3 hover:bg-[#E8E3DC] transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isSubmitting}
                 >
                   Cancel
@@ -1369,10 +1377,10 @@ const AdminDashboard = () => {
   ]);
 
   const [recentActivities, setRecentActivities] = useState([
-    { id: 1, type: 'patient', message: 'New patient registered', details: 'John Doe - 2 minutes ago', icon: Users, color: 'blue' },
-    { id: 2, type: 'billing', message: 'Bill generated', details: '₦45,000 - 15 minutes ago', icon: FileText, color: 'green' },
-    { id: 3, type: 'bed', message: 'Bed allocated', details: 'Ward A, Room 203 - 1 hour ago', icon: Bed, color: 'purple' },
-    { id: 4, type: 'pharmacy', message: 'Stock alert', details: 'Paracetamol running low - 2 hours ago', icon: Pill, color: 'orange' }
+    { id: 1, type: 'patient', message: 'New patient registered', details: 'John Doe — 2 minutes ago', icon: Users, color: 'green' },
+    { id: 2, type: 'billing', message: 'Bill generated', details: '₦45,000 — 15 minutes ago', icon: FileText, color: 'gold' },
+    { id: 3, type: 'bed', message: 'Bed allocated', details: 'Ward A, Room 203 — 1 hour ago', icon: Bed, color: 'warm' },
+    { id: 4, type: 'pharmacy', message: 'Stock alert', details: 'Paracetamol running low — 2 hours ago', icon: Pill, color: 'terracotta' }
   ]);
 
   const [departments, setDepartments] = useState([]);
@@ -1465,16 +1473,16 @@ const AdminDashboard = () => {
     { id: 'alerts', label: 'Alerts', icon: Bell },
   ];
 
-  // Quick Actions
+  // Quick Actions with Nigerian brand colors
   const quickActions = [
-    { icon: Users, label: 'Register Patient', action: '/patients', color: 'bg-blue-500' },
-    { icon: Calendar, label: 'Schedule Appointment', action: '/appointments', color: 'bg-green-500' },
-    { icon: FileText, label: 'Create Bill', action: '/billing', color: 'bg-purple-500' },
-    { icon: Pill, label: 'Check Inventory', action: '/inventory', color: 'bg-orange-500' },
-    { icon: Bed, label: 'Bed Status', action: '/bed-allocation', color: 'bg-red-500' },
-    { icon: Heart, label: 'Admissions', action: '/admissions', color: 'bg-pink-500' },
-    { icon: Building2, label: 'Staff Directory', action: '/staff', color: 'bg-indigo-500' },
-    { icon: Settings, label: 'System Settings', action: '/settings', color: 'bg-gray-500' },
+    { icon: Users, label: 'Register Patient', action: '/patients', color: 'bg-[#008751]' },
+    { icon: Calendar, label: 'Schedule Appointment', action: '/appointments', color: 'bg-[#006B40]' },
+    { icon: FileText, label: 'Create Bill', action: '/billing', color: 'bg-[#004D2E]' },
+    { icon: Pill, label: 'Check Inventory', action: '/inventory', color: 'bg-[#FFC107]' },
+    { icon: Bed, label: 'Bed Status', action: '/bed-allocation', color: 'bg-[#C87D3D]' },
+    { icon: Heart, label: 'Admissions', action: '/admissions', color: 'bg-[#C8553D]' },
+    { icon: Building2, label: 'Staff Directory', action: '/staff', color: 'bg-[#008751]' },
+    { icon: Settings, label: 'System Settings', action: '/settings', color: 'bg-[#5A5A5A]' },
   ];
 
   // Handlers
@@ -1837,16 +1845,16 @@ const AdminDashboard = () => {
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      'active': { label: 'Active', color: 'bg-green-100 text-green-800' },
-      'inactive': { label: 'Inactive', color: 'bg-gray-100 text-gray-800' },
-      'archived': { label: 'Archived', color: 'bg-gray-100 text-gray-800' },
-      'critical': { label: 'Critical', color: 'bg-red-100 text-red-800' },
-      'stable': { label: 'Stable', color: 'bg-green-100 text-green-800' },
-      'monitoring': { label: 'Monitoring', color: 'bg-blue-100 text-blue-800' },
-      'admitted': { label: 'Admitted', color: 'bg-blue-100 text-blue-800' },
-      'discharged': { label: 'Discharged', color: 'bg-green-100 text-green-800' },
+      'active': { label: 'Active', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+      'inactive': { label: 'Inactive', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' },
+      'archived': { label: 'Archived', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' },
+      'critical': { label: 'Critical', color: 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]' },
+      'stable': { label: 'Stable', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+      'monitoring': { label: 'Monitoring', color: 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]' },
+      'admitted': { label: 'Admitted', color: 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]' },
+      'discharged': { label: 'Discharged', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
     };
-    return statusMap[status] || { label: status || 'Active', color: 'bg-green-100 text-green-800' };
+    return statusMap[status] || { label: status || 'Active', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' };
   };
 
   // Patient Management Functions
@@ -2212,102 +2220,106 @@ const AdminDashboard = () => {
     }
   };
 
+  // ==================== RENDER OVERVIEW CONTENT ====================
   const renderOverviewContent = () => {
     return (
-      <>
-        {/* Critical Alerts Banner */}
-        {/* {alerts.filter(a => a.type === 'critical' && !a.read).length > 0 && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center flex-1 min-w-0">
-                <AlertCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-red-800">Critical Alerts</h3>
-                  <p className="text-sm text-red-700 truncate">
-                    {alerts.filter(a => a.type === 'critical' && !a.read)[0]?.message || 'No critical alerts'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-sm font-medium text-red-700">
-                  {alerts.filter(a => a.type === 'critical' && !a.read).length} alert(s)
-                </span>
-                <ButtonWithTooltip
-                  onClick={() => navigate('/alerts')}
-                  tooltip="View all alerts"
-                  variant="secondary"
-                  className="text-xs"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  View All
-                </ButtonWithTooltip>
-              </div>
-            </div>
+      <div className="space-y-8">
+        {/* Stats Grid — 2+2 layout with size variation */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatsCard
+              title="Registered Patients"
+              value={stats.totalPatients.toLocaleString()}
+              subValue={`${stats.todayAppointments} seen today`}
+              icon={Users}
+              color="green"
+              trend="up"
+              trendValue="+12% this month"
+              tooltip="Total registered patients in the system"
+              onClick={() => navigate('/patients')}
+              className="md:col-span-1"
+            />
+            <StatsCard
+              title="Bed Occupancy"
+              value={`${stats.occupancyRate}%`}
+              subValue={`${stats.occupiedBeds} of ${stats.totalBeds} occupied`}
+              icon={Bed}
+              color="gold"
+              trend={stats.occupancyRate > 80 ? 'up' : 'neutral'}
+              trendValue={stats.occupancyRate > 80 ? 'Nearing capacity' : 'Capacity available'}
+              tooltip="Current bed occupancy rate"
+              onClick={() => navigate('/bed-allocation')}
+              className="md:col-span-1"
+            />
           </div>
-        )} */}
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatsCard
-            title="Total Patients"
-            value={stats.totalPatients}
-            subValue={`${stats.todayAppointments} today`}
-            icon={Users}
-            color="bg-blue-500"
-            trend="up"
-            trendValue="12% from last month"
-            tooltip="Total registered patients in the system"
-            onClick={() => navigate('/patients')}
-          />
-          <StatsCard
-            title="Revenue"
-            value={`₦${(stats.totalRevenue / 1000000).toFixed(1)}M`}
-            subValue={`₦${stats.totalRevenue.toLocaleString()}`}
-            icon={DollarSign}
-            color="bg-green-500"
-            trend="up"
-            trendValue="8% from last month"
-            tooltip="Total revenue generated"
-            onClick={() => navigate('/billing')}
-          />
-          <StatsCard
-            title="Bed Occupancy"
-            value={`${stats.occupancyRate}%`}
-            subValue={`${stats.occupiedBeds}/${stats.totalBeds} beds`}
-            icon={Bed}
-            color="bg-purple-500"
-            trend={stats.occupancyRate > 80 ? 'up' : 'neutral'}
-            trendValue={stats.occupancyRate > 80 ? 'High occupancy' : 'Normal'}
-            tooltip="Current bed occupancy rate"
-            onClick={() => navigate('/bed-allocation')}
-          />
-          <StatsCard
-            title="Critical Alerts"
-            value={stats.criticalAlerts}
-            subValue={`${stats.lowStockItems} low stock items`}
-            icon={AlertCircle}
-            color="bg-red-500"
-            trend={stats.criticalAlerts > 0 ? 'up' : 'neutral'}
-            trendValue={stats.criticalAlerts > 0 ? 'Requires attention' : 'All clear'}
-            tooltip="Alerts requiring immediate attention"
-            onClick={() => setActiveTab('alerts')}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatsCard
+              title="Revenue"
+              value={`₦${(stats.totalRevenue / 1000000).toFixed(1)}M`}
+              subValue={`₦${stats.totalRevenue.toLocaleString()} total`}
+              icon={DollarSign}
+              color="green"
+              trend="up"
+              trendValue="+8% this month"
+              tooltip="Total revenue generated"
+              onClick={() => navigate('/billing')}
+              className="md:col-span-1"
+            />
+            <StatsCard
+              title="Critical Alerts"
+              value={stats.criticalAlerts}
+              subValue={`${stats.lowStockItems} low stock items`}
+              icon={AlertCircle}
+              color="terracotta"
+              trend={stats.criticalAlerts > 0 ? 'up' : 'neutral'}
+              trendValue={stats.criticalAlerts > 0 ? 'Requires attention' : 'All clear'}
+              tooltip="Alerts requiring immediate attention"
+              onClick={() => setActiveTab('alerts')}
+              className="md:col-span-1"
+            />
+          </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
-            {quickActions.map((action, index) => {
+        {/* Waveform divider — signature motif (Nigerian green) */}
+        <div className="flex items-center gap-3 py-1">
+          <div className="h-px flex-1 bg-[#D8D4CD]"></div>
+          <svg width="40" height="12" viewBox="0 0 40 12" className="text-[#008751]">
+            <path d="M2 6 L8 6 L10 2 L14 10 L18 4 L22 10 L26 4 L30 8 L32 6 L38 6" 
+                  stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div className="h-px flex-1 bg-[#D8D4CD]"></div>
+        </div>
+
+        {/* Quick Actions — using Nigerian brand colors */}
+        <div>
+          <h2 className="text-sm font-display font-semibold text-[#1A1A1A] mb-3">Quick Actions</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {quickActions.slice(0, 4).map((action, index) => {
               const Icon = action.icon;
               return (
                 <Tooltip key={index} text={`Go to ${action.label}`}>
                   <button
                     onClick={() => navigate(action.action)}
-                    className={`${action.color} text-white p-3 rounded-lg hover:opacity-90 transition-opacity flex flex-col items-center justify-center h-16 sm:h-20`}
+                    className={`${action.color} text-white p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
                   >
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
-                    <span className="text-[10px] sm:text-xs font-medium text-center">{action.label}</span>
+                    <Icon className="w-5 h-5 mb-1.5" />
+                    <span className="text-xs font-medium">{action.label}</span>
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            {quickActions.slice(4).map((action, index) => {
+              const Icon = action.icon;
+              return (
+                <Tooltip key={index} text={`Go to ${action.label}`}>
+                  <button
+                    onClick={() => navigate(action.action)}
+                    className={`${action.color} text-white p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
+                  >
+                    <Icon className="w-5 h-5 mb-1.5" />
+                    <span className="text-xs font-medium">{action.label}</span>
                   </button>
                 </Tooltip>
               );
@@ -2315,65 +2327,80 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900">Revenue Trend</h3>
-              <div className="flex items-center gap-2">
-                <ButtonWithTooltip
-                  onClick={() => setShowDateRangePicker(!showDateRangePicker)}
-                  tooltip="Change date range"
-                  variant="secondary"
-                  className="text-xs"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  {dateRange.start} - {dateRange.end}
-                </ButtonWithTooltip>
-                <IconButton
-                  icon={RefreshCw}
-                  onClick={handleRefresh}
-                  tooltip="Refresh data"
-                  variant="default"
-                />
+        {/* Charts & Activity — asymmetric layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <div className="bg-white border border-[#E8E3DC] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Revenue Trend</h3>
+                <div className="flex items-center gap-2">
+                  <ButtonWithTooltip
+                    onClick={() => setShowDateRangePicker(!showDateRangePicker)}
+                    tooltip="Change date range"
+                    variant="secondary"
+                    className="text-xs"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    {dateRange.start} — {dateRange.end}
+                  </ButtonWithTooltip>
+                  <IconButton
+                    icon={RefreshCw}
+                    onClick={handleRefresh}
+                    tooltip="Refresh data"
+                    variant="default"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="h-48 sm:h-64 flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg">
-              <div className="text-center">
-                <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm">Revenue chart placeholder</p>
-                <p className="text-xs text-gray-400">Daily revenue data visualization</p>
+              <div className="h-48 sm:h-56 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
+                <div className="text-center">
+                  <BarChart3 className="w-10 h-10 text-[#D8D4CD] mx-auto mb-2" />
+                  <p className="text-sm">Revenue chart</p>
+                  <p className="text-xs text-[#B0A89E]">Daily revenue data</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900">Key Performance Indicators</h3>
-              <ButtonWithTooltip
-                onClick={handleExportReport}
-                tooltip="Export KPI report"
-                variant="secondary"
-                className="text-xs"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Export
-              </ButtonWithTooltip>
-            </div>
-            <div className="h-48 sm:h-64 flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg">
-              <div className="text-center">
-                <PieChart className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm">KPI chart placeholder</p>
-                <p className="text-xs text-gray-400">Department performance metrics</p>
+          <div className="lg:col-span-1">
+            <div className="bg-white border border-[#E8E3DC] p-5 h-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Key Metrics</h3>
+                <ButtonWithTooltip
+                  onClick={handleExportReport}
+                  tooltip="Export report"
+                  variant="secondary"
+                  className="text-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export
+                </ButtonWithTooltip>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-[#F0EDE8]">
+                  <span className="text-xs text-[#5A5A5A]">Staff on duty</span>
+                  <span className="text-sm font-display font-semibold text-[#1A1A1A]">{stats.staffCount}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-[#F0EDE8]">
+                  <span className="text-xs text-[#5A5A5A]">Pending bills</span>
+                  <span className="text-sm font-display font-semibold text-[#C87D3D]">{stats.pendingBills}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-[#F0EDE8]">
+                  <span className="text-xs text-[#5A5A5A]">Low stock items</span>
+                  <span className="text-sm font-display font-semibold text-[#C8553D]">{stats.lowStockItems}</span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs text-[#5A5A5A]">Departments</span>
+                  <span className="text-sm font-display font-semibold text-[#1A1A1A]">{departments.length}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
+        <div className="bg-white border border-[#E8E3DC] p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-900">Recent Activity</h2>
+            <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Recent Activity</h2>
             <ButtonWithTooltip
               onClick={() => navigate('/activity')}
               tooltip="View all activity"
@@ -2388,34 +2415,35 @@ const AdminDashboard = () => {
             {recentActivities.map((activity) => {
               const Icon = activity.icon;
               const colorMap = {
-                blue: 'text-blue-500 bg-blue-50',
-                green: 'text-green-500 bg-green-50',
-                purple: 'text-purple-500 bg-purple-50',
-                orange: 'text-orange-500 bg-orange-50'
+                green: 'text-[#008751] bg-[#E8F5EF]',
+                gold: 'text-[#FFC107] bg-[#FFF8E1]',
+                warm: 'text-[#C87D3D] bg-[#F5F0EA]',
+                terracotta: 'text-[#C8553D] bg-[#F5EDEA]'
               };
               return (
-                <div key={activity.id} className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className={`w-8 h-8 ${colorMap[activity.color]} rounded-lg flex items-center justify-center mr-3 flex-shrink-0`}>
+                <div key={activity.id} className="flex items-center p-3 bg-[#F7F5F2] hover:bg-[#F0EDE8] transition-colors border border-[#F0EDE8]">
+                  <div className={`w-8 h-8 ${colorMap[activity.color] || colorMap.green} flex items-center justify-center mr-3 flex-shrink-0`}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                    <p className="text-xs text-gray-500 truncate">{activity.details}</p>
+                    <p className="text-sm font-medium text-[#1A1A1A]">{activity.message}</p>
+                    <p className="text-xs text-[#5A5A5A] truncate">{activity.details}</p>
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
-      </>
+      </div>
     );
   };
 
+  // ==================== RENDER PATIENTS CONTENT ====================
   const renderPatientsContent = () => {
     return (
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <h2 className="text-sm font-semibold text-gray-900">Patient Management</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Patient Management</h2>
           <div className="flex flex-wrap items-center gap-2">
             <ButtonWithTooltip
               tooltip="Add new patient"
@@ -2483,42 +2511,42 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
 
-        {/* Bulk Upload Progress/Result */}
+        {/* Bulk Upload Progress/Result — using Nigerian green accent */}
         {(bulkUploadProgress || bulkUploadResult) && (
-          <div className={`mb-4 p-3 sm:p-4 rounded-lg border ${bulkUploadResult?.status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className={`mb-4 p-4 border ${bulkUploadResult?.status === 'failed' ? 'bg-[#F5EDEA] border-[#E8D6D0]' : 'bg-[#E8F5EF] border-[#C8E0D5]'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {bulkUploading ? (
-                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#008751] animate-spin" />
                 ) : bulkUploadResult?.status === 'completed' ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <CheckCircle className="w-5 h-5 text-[#2D7D46]" />
                 ) : bulkUploadResult?.status === 'failed' ? (
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                  <AlertTriangle className="w-5 h-5 text-[#C8553D]" />
                 ) : (
-                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#008751] animate-spin" />
                 )}
-                <span className="text-xs sm:text-sm font-medium text-gray-900">
+                <span className="text-xs sm:text-sm font-medium text-[#1A1A1A]">
                   {bulkUploadProgress?.message || bulkUploadResult?.message}
                 </span>
               </div>
               {!bulkUploading && (
                 <button
                   onClick={resetBulkUpload}
-                  className="p-1 hover:bg-gray-200 rounded"
+                  className="p-1 hover:bg-[#E8E3DC] rounded"
                 >
-                  <X className="w-4 h-4 text-gray-600" />
+                  <X className="w-4 h-4 text-[#5A5A5A]" />
                 </button>
               )}
             </div>
             {bulkUploadResult && (
-              <div className="mt-2 text-xs sm:text-sm text-gray-700">
+              <div className="mt-2 text-xs sm:text-sm text-[#1A1A1A]">
                 <p>Total: {bulkUploadResult.total_records} | Success: {bulkUploadResult.success_count} | Failed: {bulkUploadResult.failure_count}</p>
                 {bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-red-700 font-medium">View errors ({bulkUploadResult.errors.length})</summary>
-                    <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded border border-red-100 p-2">
+                    <summary className="cursor-pointer text-[#C8553D] font-medium">View errors ({bulkUploadResult.errors.length})</summary>
+                    <div className="mt-1 max-h-40 overflow-y-auto bg-white border border-[#E8D6D0] p-2">
                       {bulkUploadResult.errors.map((err, idx) => (
-                        <div key={idx} className="text-xs text-red-800 py-1 border-b border-red-50 last:border-0">
+                        <div key={idx} className="text-xs text-[#C8553D] py-1 border-b border-[#F0EDE8] last:border-0">
                           Row {err.row}: {err.error}
                         </div>
                       ))}
@@ -2532,66 +2560,66 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
         {patientsLoading ? (
           <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-500 text-sm mt-2">Loading patients...</p>
+            <div className="w-8 h-8 border-2 border-[#008751] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-[#5A5A5A] text-sm mt-2">Loading patients...</p>
           </div>
         ) : patientsList.length === 0 ? (
           <div className="text-center py-8">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No patients found</p>
-            <p className="text-xs text-gray-400 mt-1">Start by registering your first patient</p>
+            <Users className="w-12 h-12 text-[#D8D4CD] mx-auto mb-2" />
+            <p className="text-[#5A5A5A] text-sm">No patients found</p>
+            <p className="text-xs text-[#B0A89E] mt-1">Start by registering your first patient</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Condition</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <tr className="border-b border-[#E8E3DC]">
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Name</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Condition</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-[#F0EDE8]">
                 {patientsList.map((patient) => {
                   const status = getStatusBadge(patient.status);
                   return (
-                    <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={patient.id} className="hover:bg-[#F7F5F2] transition-colors">
                       <td className="py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-[#E8F5EF] flex items-center justify-center text-[#008751] font-display font-medium text-sm flex-shrink-0">
                             {patient.name && patient.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <span className="text-sm font-medium text-gray-900">{patient.name || 'Unnamed Patient'}</span>
+                            <span className="text-sm font-medium text-[#1A1A1A]">{patient.name || 'Unnamed Patient'}</span>
                             {patient.age && (
-                              <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>
+                              <span className="text-xs text-[#5A5A5A] ml-1">({patient.age}y)</span>
                             )}
                             {patient.hospital_number && (
-                              <div className="text-[10px] text-gray-400">HN: {patient.hospital_number}</div>
+                              <div className="text-[10px] text-[#B0A89E]">HN: {patient.hospital_number}</div>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="py-3 hidden sm:table-cell">
-                        <div className="text-xs text-gray-600">{patient.phone || 'No phone'}</div>
-                        <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
+                        <div className="text-xs text-[#5A5A5A]">{patient.phone || 'No phone'}</div>
+                        <div className="text-[10px] text-[#B0A89E]">{patient.email || 'No email'}</div>
                       </td>
                       <td className="py-3 hidden md:table-cell">
-                        <span className="text-xs text-gray-600">{getPatientCondition(patient)}</span>
+                        <span className="text-xs text-[#5A5A5A]">{getPatientCondition(patient)}</span>
                         {patient.bloodType && (
-                          <div className="text-[10px] text-gray-400">Blood: {patient.bloodType}</div>
+                          <div className="text-[10px] text-[#B0A89E]">Blood: {patient.bloodType}</div>
                         )}
                       </td>
                       <td className="py-3">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${status.color}`}>
                           {status.label}
                         </span>
                       </td>
                       <td className="py-3 hidden lg:table-cell">
-                        <span className="text-xs text-gray-600">
+                        <span className="text-xs text-[#5A5A5A]">
                           {formatDate(patient.last_visit || patient.lastVisit || patient.registration_date)}
                         </span>
                       </td>
@@ -2623,7 +2651,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                           <button
                             type="button"
                             onClick={() => handleCreateAdmissionForPatient(patient)}
-                            className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[10px] font-semibold text-green-700 hover:bg-green-100"
+                            className="inline-flex items-center gap-1 border border-[#D0E3D8] bg-[#EAF3EE] px-2 py-1 text-[10px] font-medium text-[#2D7D46] hover:bg-[#D0E3D8]"
                           >
                             <Plus className="w-3 h-3" />
                             Admit
@@ -2643,8 +2671,8 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               </tbody>
             </table>
             {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 gap-2 sm:gap-0">
-              <div className="text-[10px] sm:text-xs text-gray-500">
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
+              <div className="text-[10px] sm:text-xs text-[#5A5A5A]">
                 Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
@@ -2656,7 +2684,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   disabled={!patientsPreviousPage || patientsLoading}
                   size="sm"
                 />
-                <span className="text-[10px] sm:text-xs text-gray-600">
+                <span className="text-[10px] sm:text-xs text-[#5A5A5A]">
                   Page {patientsList.length > 0 ? Math.ceil((totalItems - patientsList.length + 1) / 20) : 0} of {totalPages || 1}
                 </span>
                 <IconButton
@@ -2701,11 +2729,12 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     );
   };
 
+  // ==================== RENDER BILLING CONTENT ====================
   const renderBillingContent = () => {
     return (
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-gray-900">Billing Overview</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Billing Overview</h2>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
               onClick={() => navigate('/billing/create')}
@@ -2727,38 +2756,38 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-xs text-gray-500">Total Revenue</p>
-            <p className="text-xl font-bold text-gray-900">₦{stats.totalRevenue.toLocaleString()}</p>
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-4">
+            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Total Revenue</p>
+            <p className="text-xl font-display font-bold text-[#1A1A1A]">₦{stats.totalRevenue.toLocaleString()}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-xs text-gray-500">Pending Bills</p>
-            <p className="text-xl font-bold text-orange-600">{stats.pendingBills}</p>
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-4">
+            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Pending Bills</p>
+            <p className="text-xl font-display font-bold text-[#C87D3D]">{stats.pendingBills}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-xs text-gray-500">Today's Transactions</p>
-            <p className="text-xl font-bold text-green-600">₦245,000</p>
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-4">
+            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Today's Transactions</p>
+            <p className="text-xl font-display font-bold text-[#2D7D46]">₦245,000</p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Amount</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Date</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-[#E8E3DC]">
+                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
+                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Amount</th>
+                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Date</th>
+                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
+                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              <tr className="hover:bg-gray-50 transition-colors">
-                <td className="py-3 text-sm font-medium text-gray-900">John Doe</td>
-                <td className="py-3 text-sm text-gray-600 hidden sm:table-cell">₦45,000</td>
-                <td className="py-3 text-sm text-gray-600 hidden md:table-cell">2024-01-15</td>
+            <tbody className="divide-y divide-[#F0EDE8]">
+              <tr className="hover:bg-[#F7F5F2] transition-colors">
+                <td className="py-3 text-sm font-medium text-[#1A1A1A]">John Doe</td>
+                <td className="py-3 text-sm text-[#5A5A5A] hidden sm:table-cell">₦45,000</td>
+                <td className="py-3 text-sm text-[#5A5A5A] hidden md:table-cell">2024-01-15</td>
                 <td className="py-3">
-                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Paid</span>
+                  <span className="inline-flex px-2 py-0.5 text-xs font-medium border border-[#D0E3D8] bg-[#EAF3EE] text-[#2D7D46]">Paid</span>
                 </td>
                 <td className="py-3">
                   <div className="flex items-center gap-1">
@@ -2767,12 +2796,12 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   </div>
                 </td>
               </tr>
-              <tr className="hover:bg-gray-50 transition-colors">
-                <td className="py-3 text-sm font-medium text-gray-900">Jane Smith</td>
-                <td className="py-3 text-sm text-gray-600 hidden sm:table-cell">₦78,500</td>
-                <td className="py-3 text-sm text-gray-600 hidden md:table-cell">2024-01-14</td>
+              <tr className="hover:bg-[#F7F5F2] transition-colors">
+                <td className="py-3 text-sm font-medium text-[#1A1A1A]">Jane Smith</td>
+                <td className="py-3 text-sm text-[#5A5A5A] hidden sm:table-cell">₦78,500</td>
+                <td className="py-3 text-sm text-[#5A5A5A] hidden md:table-cell">2024-01-14</td>
                 <td className="py-3">
-                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                  <span className="inline-flex px-2 py-0.5 text-xs font-medium border border-[#F5F0EA] bg-[#F5F0EA] text-[#C87D3D]">Pending</span>
                 </td>
                 <td className="py-3">
                   <div className="flex items-center gap-1">
@@ -2788,11 +2817,12 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     );
   };
 
+  // ==================== RENDER DEPARTMENTS CONTENT ====================
   const renderDepartmentsContent = () => {
     return (
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-gray-900">Department Overview</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Department Overview</h2>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
               onClick={() => setShowAddDeptForm(prev => !prev)}
@@ -2807,38 +2837,38 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
         {/* Add Department Form */}
         {showAddDeptForm && (
-          <form onSubmit={handleAddDepartment} className="mb-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">New Department</h3>
+          <form onSubmit={handleAddDepartment} className="mb-6 bg-[#F7F5F2] border border-[#E8E3DC] p-5">
+            <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-3">New Department</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Name *</label>
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Name *</label>
                 <input
                   type="text"
                   required
                   value={deptForm.name}
                   onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
                   placeholder="e.g. Cardiology"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Code</label>
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Code</label>
                 <input
                   type="text"
                   value={deptForm.code}
                   onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
                   placeholder="e.g. CARD"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-gray-700">Description</label>
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Description</label>
                 <input
                   type="text"
                   value={deptForm.description}
                   onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
                   placeholder="Optional description"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
               <div className="sm:col-span-2 flex items-center gap-2">
@@ -2847,9 +2877,9 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   type="checkbox"
                   checked={deptForm.is_clinical}
                   onChange={(e) => setDeptForm({ ...deptForm, is_clinical: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-[#D8D4CD] text-[#008751] focus:ring-0 focus:ring-offset-0"
                 />
-                <label htmlFor="is_clinical" className="text-xs font-medium text-gray-700">Clinical department</label>
+                <label htmlFor="is_clinical" className="text-xs font-medium text-[#1A1A1A]">Clinical department</label>
               </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
@@ -2874,9 +2904,9 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
         {/* Edit Department Form */}
         {showEditDeptForm && (
-          <form onSubmit={handleUpdateDepartment} className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-sm">
+          <form onSubmit={handleUpdateDepartment} className="mb-6 bg-[#E8F5EF] border border-[#C8E0D5] p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900">Edit Department</h3>
+              <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Edit Department</h3>
               <IconButton
                 icon={X}
                 onClick={() => {
@@ -2890,34 +2920,34 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Name *</label>
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Name *</label>
                 <input
                   type="text"
                   required
                   value={editDeptForm.name}
                   onChange={(e) => setEditDeptForm({ ...editDeptForm, name: e.target.value })}
                   placeholder="e.g. Cardiology"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Code</label>
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Code</label>
                 <input
                   type="text"
                   value={editDeptForm.code}
                   onChange={(e) => setEditDeptForm({ ...editDeptForm, code: e.target.value.toUpperCase() })}
                   placeholder="e.g. CARD"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-gray-700">Description</label>
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Description</label>
                 <input
                   type="text"
                   value={editDeptForm.description}
                   onChange={(e) => setEditDeptForm({ ...editDeptForm, description: e.target.value })}
                   placeholder="Optional description"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500"
+                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
               <div className="sm:col-span-2 flex items-center gap-2">
@@ -2926,9 +2956,9 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   type="checkbox"
                   checked={editDeptForm.is_clinical}
                   onChange={(e) => setEditDeptForm({ ...editDeptForm, is_clinical: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-[#D8D4CD] text-[#008751] focus:ring-0 focus:ring-offset-0"
                 />
-                <label htmlFor="edit_is_clinical" className="text-xs font-medium text-gray-700">Clinical department</label>
+                <label htmlFor="edit_is_clinical" className="text-xs font-medium text-[#1A1A1A]">Clinical department</label>
               </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
@@ -2958,25 +2988,25 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         {/* Department Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {departments.map((dept) => (
-            <div key={dept.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div key={dept.id} className="bg-white border border-[#E8E3DC] p-5 hover:border-[#D8D4CD] transition-colors">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">{dept.name}</h4>
+                <h4 className="font-display font-semibold text-[#1A1A1A]">{dept.name}</h4>
                 <div className="flex items-center gap-1">
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${dept.is_clinical ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`text-[10px] px-2 py-0.5 border ${dept.is_clinical ? 'border-[#C8E0D5] bg-[#E8F5EF] text-[#008751]' : 'border-[#E8E3DC] bg-[#F0EDE8] text-[#5A5A5A]'}`}>
                     {dept.is_clinical ? 'Clinical' : 'Support'}
                   </span>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Code</span>
-                  <span className="font-medium">{dept.code || '—'}</span>
+                  <span className="text-[#5A5A5A]">Code</span>
+                  <span className="font-medium text-[#1A1A1A]">{dept.code || '—'}</span>
                 </div>
                 {dept.description && (
-                  <p className="text-xs text-gray-500">{dept.description}</p>
+                  <p className="text-xs text-[#5A5A5A]">{dept.description}</p>
                 )}
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end gap-1">
+              <div className="mt-3 pt-3 border-t border-[#F0EDE8] flex justify-end gap-1">
                 <IconButton
                   icon={Edit}
                   onClick={() => handleEditDepartment(dept)}
@@ -2996,7 +3026,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             </div>
           ))}
           {departments.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-500 text-sm">
+            <div className="col-span-full text-center py-12 text-[#5A5A5A] text-sm">
               No departments found. Add your first department above.
             </div>
           )}
@@ -3005,14 +3035,15 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     );
   };
 
+  // ==================== RENDER ALERTS CONTENT ====================
   const renderAlertsContent = () => {
     const criticalAlerts = alerts.filter(a => a.type === 'critical' && !a.read);
     const otherAlerts = alerts.filter(a => a.type !== 'critical' || a.read);
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-gray-900">Alert Management</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Alert Management</h2>
           <div className="flex items-center gap-2">
             {alerts.filter(a => !a.read).length > 0 && (
               <ButtonWithTooltip
@@ -3038,15 +3069,15 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         {/* Critical Alerts */}
         {criticalAlerts.length > 0 && (
           <div className="mb-4">
-            <h3 className="text-xs font-medium text-red-600 uppercase tracking-wider mb-2">Critical Alerts</h3>
+            <h3 className="text-[10px] font-medium text-[#C8553D] uppercase tracking-wider mb-2">Critical Alerts</h3>
             <div className="space-y-2">
               {criticalAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-3">
+                <div key={alert.id} className="flex items-center justify-between bg-[#F5EDEA] border border-[#E8D6D0] p-3">
                   <div className="flex items-center flex-1 min-w-0">
-                    <AlertCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0" />
+                    <AlertCircle className="w-5 h-5 text-[#C8553D] mr-3 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-red-800">{alert.message}</p>
-                      <p className="text-xs text-red-600">{alert.time}</p>
+                      <p className="text-sm font-medium text-[#1A1A1A]">{alert.message}</p>
+                      <p className="text-xs text-[#5A5A5A]">{alert.time}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -3074,23 +3105,23 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         {/* Other Alerts */}
         {otherAlerts.length > 0 && (
           <div>
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Other Alerts</h3>
+            <h3 className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-2">Other Alerts</h3>
             <div className="space-y-2">
               {otherAlerts.map((alert) => (
-                <div key={alert.id} className={`flex items-center justify-between border rounded-lg p-3 ${
-                  alert.read ? 'bg-gray-50 border-gray-200 opacity-60' :
-                  alert.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                  'bg-blue-50 border-blue-200'
+                <div key={alert.id} className={`flex items-center justify-between border p-3 ${
+                  alert.read ? 'bg-[#F7F5F2] border-[#E8E3DC] opacity-60' :
+                  alert.type === 'warning' ? 'bg-[#F5F0EA] border-[#F0E8DC]' :
+                  'bg-[#E8F5EF] border-[#C8E0D5]'
                 }`}>
                   <div className="flex items-center flex-1 min-w-0">
                     {alert.type === 'warning' ? (
-                      <AlertTriangle className="w-5 h-5 text-yellow-500 mr-3 flex-shrink-0" />
+                      <AlertTriangle className="w-5 h-5 text-[#C87D3D] mr-3 flex-shrink-0" />
                     ) : (
-                      <Info className="w-5 h-5 text-blue-500 mr-3 flex-shrink-0" />
+                      <Info className="w-5 h-5 text-[#008751] mr-3 flex-shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">{alert.message}</p>
-                      <p className="text-xs text-gray-500">{alert.time}</p>
+                      <p className="text-sm font-medium text-[#1A1A1A]">{alert.message}</p>
+                      <p className="text-xs text-[#5A5A5A]">{alert.time}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -3119,22 +3150,23 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
         {alerts.length === 0 && (
           <div className="text-center py-12">
-            <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No alerts</p>
-            <p className="text-sm text-gray-400">All clear!</p>
+            <Bell className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+            <p className="text-[#5A5A5A]">No alerts</p>
+            <p className="text-sm text-[#B0A89E]">All clear!</p>
           </div>
         )}
       </div>
     );
   };
 
+  // ==================== MAIN RENDER ====================
   return (
-    <div className="dashboard min-h-screen bg-gray-50 p-4 sm:p-6">
+    <div className="dashboard min-h-screen bg-[#F7F5F2] p-4 sm:p-8 font-sans">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden flex-shrink-0">
               {dashboardProfilePicture ? (
                 <img
                   key={dashboardProfilePicture}
@@ -3149,14 +3181,14 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 />
               ) : null}
               <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: dashboardProfilePicture ? 'none' : 'flex' }}>
-                <UserIcon className="w-5 h-5 text-gray-400" />
+                <UserIcon className="w-6 h-6 text-[#5A5A5A]" />
               </div>
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
                 Welcome back, {displayUserName}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-[#5A5A5A]">
                 {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
               </p>
             </div>
@@ -3166,6 +3198,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               onClick={handleRefresh}
               tooltip="Refresh dashboard"
               variant="secondary"
+              className="text-xs"
             >
               <RefreshCw className={`w-4 h-4 ${patientsLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -3174,6 +3207,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               onClick={handleOpenProfile}
               tooltip="My Profile"
               variant="secondary"
+              className="text-xs"
             >
               <UserIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -3182,6 +3216,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               onClick={handleOpenChangePassword}
               tooltip="Change Password"
               variant="secondary"
+              className="text-xs"
             >
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Change Password</span>
@@ -3190,9 +3225,9 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6 overflow-x-auto">
-        <nav className="flex gap-4 min-w-max" aria-label="Tabs">
+      {/* Tabs with Nigerian green active state */}
+      <div className="border-b border-[#E8E3DC] mb-8 overflow-x-auto">
+        <nav className="flex gap-6 min-w-max" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -3202,16 +3237,16 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                     setActiveTab(tab.id);
                     setCurrentPage(1);
                   }}
-                  className={`flex items-center gap-1.5 px-1 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-[#008751] text-[#008751]'
+                      : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A] hover:border-[#D8D4CD]'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
                   {tab.id === 'alerts' && alerts.filter(a => !a.read).length > 0 && (
-                    <span className="w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                    <span className="w-5 h-5 bg-[#C8553D] text-white text-[10px] flex items-center justify-center">
                       {alerts.filter(a => !a.read).length}
                     </span>
                   )}
@@ -3223,7 +3258,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
+      <div className="bg-white border border-[#E8E3DC] p-5 sm:p-8">
         {renderTabContent()}
       </div>
 
