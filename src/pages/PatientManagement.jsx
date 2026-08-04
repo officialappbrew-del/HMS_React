@@ -1604,7 +1604,7 @@ const PatientManagement = () => {
     const search = overrides.search !== undefined ? overrides.search : searchTermLocal;
     const status = overrides.status !== undefined ? overrides.status : statusFilter;
     const stateFilter = overrides.state !== undefined ? overrides.state : filterByLocal;
-    const pageSize = overrides.page_size;
+    const pageSize = overrides.page_size || 20;
     const page = overrides.page;
 
     const params = new URLSearchParams();
@@ -1671,7 +1671,14 @@ const PatientManagement = () => {
     loadPatients(buildPatientsUrl(), { silent: true });
   }, []);
 
+  const searchEffectInitialized = useRef(false);
+
   useEffect(() => {
+    if (!searchEffectInitialized.current) {
+      searchEffectInitialized.current = true;
+      return;
+    }
+
     const handler = setTimeout(() => {
       loadPatients(buildPatientsUrl(), { silent: true });
     }, 350);
@@ -1688,20 +1695,23 @@ const PatientManagement = () => {
       let nextUrl = url;
       let data;
 
-      const fetchPage = async (pageUrl) => {
-        return await apiRequest(pageUrl);
+      const fetchWithTimeout = async (pageUrl) => {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out after 15 seconds')), 15000)
+        );
+        return await Promise.race([apiRequest(pageUrl), timeoutPromise]);
       };
 
       if (fetchAll) {
         while (nextUrl) {
-          data = await fetchPage(nextUrl);
+          data = await fetchWithTimeout(nextUrl);
           const patientsList = Array.isArray(data) ? data : (data.results || []);
           const normalizedPatients = patientsList.map(normalizePatient);
           combinedPatients = combinedPatients.concat(normalizedPatients);
           nextUrl = data.next || null;
         }
       } else {
-        data = await fetchPage(url);
+        data = await fetchWithTimeout(url);
         const patientsList = Array.isArray(data) ? data : (data.results || []);
         combinedPatients = patientsList.map(normalizePatient);
         nextUrl = data.next || null;

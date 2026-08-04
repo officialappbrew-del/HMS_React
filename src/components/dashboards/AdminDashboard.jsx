@@ -1365,24 +1365,23 @@ const AdminDashboard = () => {
     criticalAlerts: 0,
     staffCount: 0,
     lowStockItems: 0,
-    totalBeds: 120,
+    totalBeds: 0,
     occupiedBeds: 0,
     todayAppointments: 0,
     pendingBills: 0
   });
 
-  const [alerts, setAlerts] = useState([
-    { id: 1, type: 'critical', message: 'Oxygen concentrator #3 needs maintenance', time: '2 min ago', read: false },
-    { id: 2, type: 'warning', message: 'Low stock: Paracetamol (50 tablets remaining)', time: '15 min ago', read: false },
-    { id: 3, type: 'info', message: 'Monthly revenue target achieved', time: '1 hour ago', read: false }
-  ]);
+  const [alerts, setAlerts] = useState([]);
+  const [dashboardInsights, setDashboardInsights] = useState(null);
+  const [dashboardInsightsLoading, setDashboardInsightsLoading] = useState(false);
+  const [billingInvoices, setBillingInvoices] = useState([]);
+  const [billingSummary, setBillingSummary] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [revenueTrendData, setRevenueTrendData] = useState([]);
+  const [revenueTrendLoading, setRevenueTrendLoading] = useState(false);
 
-  const [recentActivities, setRecentActivities] = useState([
-    { id: 1, type: 'patient', message: 'New patient registered', details: 'John Doe — 2 minutes ago', icon: Users, color: 'green' },
-    { id: 2, type: 'billing', message: 'Bill generated', details: '₦45,000 — 15 minutes ago', icon: FileText, color: 'gold' },
-    { id: 3, type: 'bed', message: 'Bed allocated', details: 'Ward A, Room 203 — 1 hour ago', icon: Bed, color: 'warm' },
-    { id: 4, type: 'pharmacy', message: 'Stock alert', details: 'Paracetamol running low — 2 hours ago', icon: Pill, color: 'terracotta' }
-  ]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [activityLogsLoading, setActivityLogsLoading] = useState(false);
 
   const [departments, setDepartments] = useState([]);
   const [showAddDeptForm, setShowAddDeptForm] = useState(false);
@@ -1447,21 +1446,21 @@ const AdminDashboard = () => {
   });
 
   useEffect(() => {
-    const lowStockItems = drugs.filter(drug => drug.quantityInStock <= drug.reorderLevel).length;
-    const totalRevenue = (patientsCount || patientsList.length || patients.length || 0) * 500000;
-    const occupancyRate = wardStats.occupiedBeds ? Math.round((wardStats.occupiedBeds / wardStats.totalBeds) * 100) : 0;
+    const lowStockItems = drugs.filter(drug => (drug.quantityInStock || 0) <= (drug.reorderLevel || 0)).length;
+    const totalRevenue = billingSummary?.total_revenue || billingSummary?.total_revenue || (patientsCount || patientsList.length || patients.length || 0) * 500000;
+    const occupancyRate = wardStats.totalBeds ? Math.round((wardStats.occupiedBeds / wardStats.totalBeds) * 100) : 0;
 
     setStats({
       totalPatients: patientsCount || patientsList.length || patients.length || 0,
-      totalRevenue: totalRevenue || 7800000,
-      occupancyRate: occupancyRate || 75,
+      totalRevenue: totalRevenue || 0,
+      occupancyRate: occupancyRate || 0,
       criticalAlerts: alerts.filter(a => a.type === 'critical' && !a.read).length,
-      staffCount: staff.length || 48,
-      lowStockItems: lowStockItems || 5,
-      totalBeds: wardStats.totalBeds || 120,
-      occupiedBeds: wardStats.occupiedBeds || 90,
-      todayAppointments: 24,
-      pendingBills: 18
+      staffCount: staff.length || 0,
+      lowStockItems: lowStockItems || 0,
+      totalBeds: wardStats.totalBeds || 0,
+      occupiedBeds: wardStats.occupiedBeds || 0,
+      todayAppointments: dashboardInsights?.summary?.waiting_visits || dashboardInsights?.summary?.today_appointments || 0,
+      pendingBills: billingSummary?.total_pending || 0
     });
   }, [patients, patientsList, patientsCount, drugs, staff, wardStats, alerts]);
 
@@ -1488,7 +1487,28 @@ const AdminDashboard = () => {
 
   // Handlers
   const handleExportReport = () => {
-    alert('Report exported successfully!');
+    const csvRows = [
+      'Metric,Value',
+      `Total Patients,${stats.totalPatients}`,
+      `Total Revenue,₦${stats.totalRevenue.toLocaleString()}`,
+      `Bed Occupancy,${stats.occupancyRate}%`,
+      `Staff Count,${stats.staffCount}`,
+      `Low Stock Items,${stats.lowStockItems}`,
+      `Total Beds,${stats.totalBeds}`,
+      `Occupied Beds,${stats.occupiedBeds}`,
+      `Today's Appointments,${stats.todayAppointments}`,
+      `Pending Bills,₦${(stats.pendingBills || 0).toLocaleString()}`,
+    ];
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dashboard_report_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleMarkAlertRead = (id) => {
@@ -1726,6 +1746,113 @@ const AdminDashboard = () => {
     }
   };
 
+  // Dashboard insights, alerts, and activity loading from API
+  const loadDashboardInsights = async () => {
+    setDashboardInsightsLoading(true);
+    try {
+      const data = await apiRequest('/api/v1/core/dashboard-insights/');
+      setDashboardInsights(data || null);
+
+      if (data?.alerts) {
+        const normalizedAlerts = (Array.isArray(data.alerts) ? data.alerts : []).map(alert => ({
+          id: alert.id || Math.random(),
+          type: alert.type || (alert.priority === 'high' ? 'critical' : 'info'),
+          message: alert.title || alert.message || '',
+          time: alert.time || alert.priority || '',
+          read: false,
+        }));
+        setAlerts(normalizedAlerts);
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard insights:', err);
+    } finally {
+      setDashboardInsightsLoading(false);
+    }
+  };
+
+ const loadActivityLogs = async () => {
+  setActivityLogsLoading(true);
+  try {
+    const data = await apiRequest('/api/v1/core/audit-logs/?limit=10');
+    const results = Array.isArray(data) ? data : (data.results || []);
+    const normalized = results.map(log => {
+      const actionLabel = log.title || log.action || 'Activity';
+      const actor = log.actor || 'Unknown user';
+      const details = `${actor} ${log.action || 'performed an action'} — ${new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      return {
+        id: log.id,
+        type: log.severity === 'error' ? 'pharmacy' : log.severity === 'warning' ? 'bed' : log.severity === 'critical' ? 'pharmacy' : 'patient',
+        message: actionLabel,
+        details: details,
+        icon: getActivityIcon(log.action || ''),
+        color: getActivityColor(log.severity || 'info'),
+      };
+    });
+    // 👇 Only keep the last 3 activities
+    setRecentActivities(normalized.slice(0, 3));
+  } catch (err) {
+    console.error('Failed to load activity logs:', err);
+  } finally {
+    setActivityLogsLoading(false);
+  }
+};
+  const getActivityIcon = (action) => {
+    if (action.includes('patient')) return Users;
+    if (action.includes('invoice') || action.includes('bill')) return FileText;
+    if (action.includes('bed')) return Bed;
+    if (action.includes('drug') || action.includes('prescription')) return Pill;
+    return Activity;
+  };
+
+  const getActivityColor = (severity) => {
+    if (severity === 'error') return 'terracotta';
+    if (severity === 'warning') return 'warm';
+    if (severity === 'critical') return 'terracotta';
+    return 'green';
+  };
+
+  const loadBillingData = async () => {
+    setBillingLoading(true);
+    try {
+      const [invoicesData, summaryData] = await Promise.all([
+        apiRequest('/api/v1/billing/invoices/').catch(() => ({ results: [] })),
+        apiRequest('/api/v1/billing/invoices/summary/').catch(() => null),
+      ]);
+
+      const invoices = Array.isArray(invoicesData) ? invoicesData : (invoicesData?.results || []);
+      setBillingInvoices(invoices);
+      setBillingSummary(summaryData || null);
+    } catch (err) {
+      console.error('Failed to load billing data:', err);
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  const loadRevenueTrend = async () => {
+    setRevenueTrendLoading(true);
+    try {
+      const data = await apiRequest('/api/v1/billing/invoices/?limit=30');
+      const invoices = Array.isArray(data) ? data : (data.results || []);
+      const dailyMap = {};
+      invoices.forEach(inv => {
+        const date = (inv.invoice_date || inv.created_at || '').split('T')[0];
+        if (date) {
+          dailyMap[date] = (dailyMap[date] || 0) + (parseFloat(inv.total_amount || inv.amount || 0) || 0);
+        }
+      });
+      const trend = Object.entries(dailyMap)
+        .map(([date, amount]) => ({ date, amount }))
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 7);
+      setRevenueTrendData(trend);
+    } catch (err) {
+      console.error('Failed to load revenue trend:', err);
+    } finally {
+      setRevenueTrendLoading(false);
+    }
+  };
+
   // Department CRUD Operations
   const loadDepartments = async () => {
     try {
@@ -1739,6 +1866,10 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadDepartments();
+    loadDashboardInsights();
+    loadActivityLogs();
+    loadBillingData();
+    loadRevenueTrend();
   }, []);
 
   const handleAddDepartment = async (e) => {
@@ -1936,8 +2067,13 @@ const AdminDashboard = () => {
     loadPatients('/api/v1/patients/patients/?status=all');
   }, []);
 
-  // Refresh handler - refreshes current tab data
+  // Refresh handler - refreshes current tab data and dashboard API data
   const handleRefresh = () => {
+    loadDashboardInsights();
+    loadActivityLogs();
+    loadBillingData();
+    loadRevenueTrend();
+    loadDepartments();
     switch(activeTab) {
       case 'patients':
         loadPatients('/api/v1/patients/patients/?status=all');
@@ -1946,10 +2082,11 @@ const AdminDashboard = () => {
         loadDepartments();
         break;
       case 'overview':
-        loadPatients('/api/v1/patients/patients/?status=all');
-        break;
+      case 'billing':
+      case 'alerts':
       default:
         loadPatients('/api/v1/patients/patients/?status=all');
+        break;
     }
   };
 
@@ -2181,10 +2318,10 @@ const AdminDashboard = () => {
   // ==================== RENDER OVERVIEW CONTENT ====================
   const renderOverviewContent = () => {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Stats Grid — 2+2 layout with size variation */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <StatsCard
               title="Registered Patients"
               value={stats.totalPatients.toLocaleString()}
@@ -2195,7 +2332,6 @@ const AdminDashboard = () => {
               trendValue="+12% this month"
               tooltip="Total registered patients in the system"
               onClick={() => navigate('/patients')}
-              className="md:col-span-1"
             />
             <StatsCard
               title="Bed Occupancy"
@@ -2207,13 +2343,12 @@ const AdminDashboard = () => {
               trendValue={stats.occupancyRate > 80 ? 'Nearing capacity' : 'Capacity available'}
               tooltip="Current bed occupancy rate"
               onClick={() => navigate('/bed-allocation')}
-              className="md:col-span-1"
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <StatsCard
               title="Revenue"
-              value={`₦${(stats.totalRevenue / 1000000).toFixed(1)}M`}
+              value={stats.totalRevenue > 999999 ? `₦${(stats.totalRevenue / 1000000).toFixed(1)}M` : `₦${stats.totalRevenue.toLocaleString()}`}
               subValue={`₦${stats.totalRevenue.toLocaleString()} total`}
               icon={DollarSign}
               color="green"
@@ -2221,7 +2356,6 @@ const AdminDashboard = () => {
               trendValue="+8% this month"
               tooltip="Total revenue generated"
               onClick={() => navigate('/billing')}
-              className="md:col-span-1"
             />
             <StatsCard
               title="Critical Alerts"
@@ -2233,7 +2367,6 @@ const AdminDashboard = () => {
               trendValue={stats.criticalAlerts > 0 ? 'Requires attention' : 'All clear'}
               tooltip="Alerts requiring immediate attention"
               onClick={() => setActiveTab('alerts')}
-              className="md:col-span-1"
             />
           </div>
         </div>
@@ -2251,32 +2384,32 @@ const AdminDashboard = () => {
         {/* Quick Actions — using Nigerian brand colors */}
         <div>
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A] mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             {quickActions.slice(0, 4).map((action, index) => {
               const Icon = action.icon;
               return (
                 <Tooltip key={index} text={`Go to ${action.label}`}>
                   <button
                     onClick={() => navigate(action.action)}
-                    className={`${action.color} text-white p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
+                    className={`${action.color} text-white p-3 sm:p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
                   >
-                    <Icon className="w-5 h-5 mb-1.5" />
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />
                     <span className="text-xs font-medium">{action.label}</span>
                   </button>
                 </Tooltip>
               );
             })}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-2 sm:mt-3">
             {quickActions.slice(4).map((action, index) => {
               const Icon = action.icon;
               return (
                 <Tooltip key={index} text={`Go to ${action.label}`}>
                   <button
                     onClick={() => navigate(action.action)}
-                    className={`${action.color} text-white p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
+                    className={`${action.color} text-white p-3 sm:p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
                   >
-                    <Icon className="w-5 h-5 mb-1.5" />
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />
                     <span className="text-xs font-medium">{action.label}</span>
                   </button>
                 </Tooltip>
@@ -2286,12 +2419,12 @@ const AdminDashboard = () => {
         </div>
 
         {/* Charts & Activity — asymmetric layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="lg:col-span-2">
-            <div className="bg-white border border-[#E8E3DC] p-5">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Revenue Trend</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <ButtonWithTooltip
                     onClick={() => setShowDateRangePicker(!showDateRangePicker)}
                     tooltip="Change date range"
@@ -2299,29 +2432,60 @@ const AdminDashboard = () => {
                     className="text-xs"
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    {dateRange.start} — {dateRange.end}
+                    <span className="hidden sm:inline">{dateRange.start} — {dateRange.end}</span>
                   </ButtonWithTooltip>
                   <IconButton
                     icon={RefreshCw}
-                    onClick={handleRefresh}
+                    onClick={loadRevenueTrend}
                     tooltip="Refresh data"
                     variant="default"
                   />
                 </div>
               </div>
-              <div className="h-48 sm:h-56 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
-                <div className="text-center">
-                  <BarChart3 className="w-10 h-10 text-[#D8D4CD] mx-auto mb-2" />
-                  <p className="text-sm">Revenue chart</p>
-                  <p className="text-xs text-[#B0A89E]">Daily revenue data</p>
+              {revenueTrendLoading ? (
+                <div className="h-40 sm:h-48 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 text-[#008751] animate-spin mx-auto mb-2" />
+                    <p className="text-xs">Loading revenue data...</p>
+                  </div>
                 </div>
-              </div>
+              ) : revenueTrendData.length > 0 ? (
+                <div className="h-40 sm:h-48 flex items-end justify-between gap-1 border-b border-[#E8E3DC] pb-1 overflow-x-auto">
+                  {revenueTrendData.map((item, idx) => {
+                    const maxAmount = Math.max(...revenueTrendData.map(d => d.amount), 1);
+                    const barHeight = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
+                    return (
+                      <div key={idx} className="flex flex-col items-center flex-shrink-0">
+                        <span className="text-[8px] text-[#5A5A5A] mb-1">
+                          ₦{(item.amount / 1000000).toFixed(1)}M
+                        </span>
+                        <div
+                          className="w-8 sm:w-10 bg-[#008751] hover:bg-[#006B40] transition-colors min-h-[2px]"
+                          style={{ height: `${Math.max(barHeight, 4)}%` }}
+                          title={`${new Date(item.date).toLocaleDateString('en-GB')} - ₦${item.amount.toLocaleString()}`}
+                        />
+                        <span className="text-[8px] text-[#B0A89E] mt-1">
+                          {new Date(item.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="h-40 sm:h-48 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
+                  <div className="text-center">
+                    <BarChart3 className="w-10 h-10 text-[#D8D4CD] mx-auto mb-2" />
+                    <p className="text-sm">No revenue data available</p>
+                    <p className="text-xs text-[#B0A89E]">Data will appear once invoices are generated</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="lg:col-span-1">
-            <div className="bg-white border border-[#E8E3DC] p-5 h-full">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5 h-full">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Key Metrics</h3>
                 <ButtonWithTooltip
                   onClick={handleExportReport}
@@ -2356,19 +2520,25 @@ const AdminDashboard = () => {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white border border-[#E8E3DC] p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
             <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Recent Activity</h2>
             <ButtonWithTooltip
-              onClick={() => navigate('/activity')}
+              onClick={() => navigate('/activity-log')}
               tooltip="View all activity"
               variant="secondary"
               className="text-xs"
             >
               <Eye className="w-3.5 h-3.5" />
-              View All
+              <span className="hidden sm:inline">View All</span>
             </ButtonWithTooltip>
           </div>
+          {activityLogsLoading ? (
+            <div className="text-center py-6">
+              <Loader2 className="w-6 h-6 text-[#008751] animate-spin mx-auto mb-2" />
+              <p className="text-xs text-[#5A5A5A]">Loading activity...</p>
+            </div>
+          ) : (
           <div className="space-y-2">
             {recentActivities.map((activity) => {
               const Icon = activity.icon;
@@ -2379,9 +2549,9 @@ const AdminDashboard = () => {
                 terracotta: 'text-[#C8553D] bg-[#F5EDEA]'
               };
               return (
-                <div key={activity.id} className="flex items-center p-3 bg-[#F7F5F2] hover:bg-[#F0EDE8] transition-colors border border-[#F0EDE8]">
-                  <div className={`w-8 h-8 ${colorMap[activity.color] || colorMap.green} flex items-center justify-center mr-3 flex-shrink-0`}>
-                    <Icon className="w-4 h-4" />
+                <div key={activity.id} className="flex items-center p-3 bg-[#F7F5F2] hover:bg-[#F0EDE8] transition-colors border border-[#F0EDE8] gap-3">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 ${colorMap[activity.color] || colorMap.green} flex items-center justify-center mr-2 sm:mr-3 flex-shrink-0`}>
+                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[#1A1A1A]">{activity.message}</p>
@@ -2391,6 +2561,7 @@ const AdminDashboard = () => {
               );
             })}
           </div>
+          )}
         </div>
       </div>
     );
@@ -2400,7 +2571,7 @@ const AdminDashboard = () => {
   const renderPatientsContent = () => {
     return (
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Patient Management</h2>
           <div className="flex flex-wrap items-center gap-2">
             <ButtonWithTooltip
@@ -2691,20 +2862,39 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     );
   };
 
-  // ==================== RENDER BILLING CONTENT ====================
+   // ==================== RENDER BILLING CONTENT ====================
   const renderBillingContent = () => {
+    const getInvoiceStatusBadge = (status) => {
+      const statusMap = {
+        'paid': { label: 'Paid', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+        'partially_paid': { label: 'Partial', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+        'pending': { label: 'Pending', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+        'overdue': { label: 'Overdue', color: 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]' },
+        'cancelled': { label: 'Cancelled', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' },
+        'issued': { label: 'Issued', color: 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]' },
+      };
+      return statusMap[status] || { label: status || 'Unknown', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' };
+    };
+
+    const todayTransactions = billingInvoices
+      .filter(inv => {
+        const invDate = (inv.invoice_date || inv.created_at || '').split('T')[0];
+        return invDate === new Date().toISOString().split('T')[0];
+      })
+      .reduce((sum, inv) => sum + parseFloat(inv.total_amount || inv.amount || 0), 0);
+
     return (
       <div>
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Billing Overview</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <ButtonWithTooltip
               onClick={() => navigate('/billing/create')}
               tooltip="Create new bill"
               variant="primary"
             >
               <Plus className="w-3.5 h-3.5" />
-              Create Bill
+              <span className="hidden sm:inline">Create Bill</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
               onClick={handleExportReport}
@@ -2712,69 +2902,94 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               variant="secondary"
             >
               <Download className="w-3.5 h-3.5" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </ButtonWithTooltip>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 sm:p-4">
             <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Total Revenue</p>
-            <p className="text-xl font-display font-bold text-[#1A1A1A]">₦{stats.totalRevenue.toLocaleString()}</p>
+            <p className="text-lg sm:text-xl font-display font-bold text-[#1A1A1A]">
+              ₦{(billingSummary?.total_revenue || 0).toLocaleString()}
+            </p>
           </div>
-          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-4">
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 sm:p-4">
             <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Pending Bills</p>
-            <p className="text-xl font-display font-bold text-[#C87D3D]">{stats.pendingBills}</p>
+            <p className="text-lg sm:text-xl font-display font-bold text-[#C87D3D]">
+              {billingSummary?.total_invoices || 0}
+            </p>
+            <p className="text-xs text-[#5A5A5A] mt-0.5">₦{(billingSummary?.total_pending || 0).toLocaleString()} due</p>
           </div>
-          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-4">
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 sm:p-4">
             <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Today's Transactions</p>
-            <p className="text-xl font-display font-bold text-[#2D7D46]">₦245,000</p>
+            <p className="text-lg sm:text-xl font-display font-bold text-[#2D7D46]">
+              ₦{todayTransactions.toLocaleString()}
+            </p>
+            <p className="text-xs text-[#5A5A5A] mt-0.5">{billingSummary?.collection_rate || 0}% collection rate</p>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#E8E3DC]">
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Amount</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Date</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#F0EDE8]">
-              <tr className="hover:bg-[#F7F5F2] transition-colors">
-                <td className="py-3 text-sm font-medium text-[#1A1A1A]">John Doe</td>
-                <td className="py-3 text-sm text-[#5A5A5A] hidden sm:table-cell">₦45,000</td>
-                <td className="py-3 text-sm text-[#5A5A5A] hidden md:table-cell">2024-01-15</td>
-                <td className="py-3">
-                  <span className="inline-flex px-2 py-0.5 text-xs font-medium border border-[#D0E3D8] bg-[#EAF3EE] text-[#2D7D46]">Paid</span>
-                </td>
-                <td className="py-3">
-                  <div className="flex items-center gap-1">
-                    <IconButton icon={Eye} tooltip="View bill" variant="primary" size="sm" />
-                    <IconButton icon={Printer} tooltip="Print bill" variant="default" size="sm" />
-                  </div>
-                </td>
-              </tr>
-              <tr className="hover:bg-[#F7F5F2] transition-colors">
-                <td className="py-3 text-sm font-medium text-[#1A1A1A]">Jane Smith</td>
-                <td className="py-3 text-sm text-[#5A5A5A] hidden sm:table-cell">₦78,500</td>
-                <td className="py-3 text-sm text-[#5A5A5A] hidden md:table-cell">2024-01-14</td>
-                <td className="py-3">
-                  <span className="inline-flex px-2 py-0.5 text-xs font-medium border border-[#F5F0EA] bg-[#F5F0EA] text-[#C87D3D]">Pending</span>
-                </td>
-                <td className="py-3">
-                  <div className="flex items-center gap-1">
-                    <IconButton icon={Eye} tooltip="View bill" variant="primary" size="sm" />
-                    <IconButton icon={Edit} tooltip="Edit bill" variant="primary" size="sm" />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {billingLoading ? (
+          <div className="text-center py-8">
+            <div className="w-8 h-8 border-2 border-[#008751] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-[#5A5A5A] text-sm mt-2">Loading billing data...</p>
+          </div>
+        ) : billingInvoices.length === 0 ? (
+          <div className="text-center py-8">
+            <CreditCard className="w-12 h-12 text-[#D8D4CD] mx-auto mb-2" />
+            <p className="text-[#5A5A5A] text-sm">No billing records found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#E8E3DC]">
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Amount</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Date</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EDE8]">
+                {billingInvoices.map((invoice) => {
+                  const status = getInvoiceStatusBadge(invoice.status);
+                  const patientName = invoice.patient_name || invoice.patient?.full_name || invoice.patient_name || 'Unknown';
+                  return (
+                    <tr key={invoice.id} className="hover:bg-[#F7F5F2] transition-colors">
+                      <td className="py-3">
+                        <div className="flex flex-col min-[480px]:flex-row 480px:items-center gap-1">
+                          <span className="text-sm font-medium text-[#1A1A1A]">{patientName}</span>
+                          <span className="text-xs text-[#5A5A5A] min-[480px]:ml-1 min-[480px]:hidden sm:table-cell">
+                            {invoice.invoice_number || ''}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-sm text-[#5A5A5A] hidden sm:table-cell">
+                        ₦{parseFloat(invoice.total_amount || invoice.amount || 0).toLocaleString()}
+                      </td>
+                      <td className="py-3 text-sm text-[#5A5A5A] hidden md:table-cell">
+                        {formatDate(invoice.invoice_date || invoice.created_at || '')}
+                      </td>
+                      <td className="py-3">
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${status.color}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <IconButton icon={Eye} onClick={() => navigate('/billing')} tooltip="View bill" variant="primary" size="sm" />
+                          <IconButton icon={Printer} tooltip="Print bill" variant="default" size="sm" />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     );
   };
@@ -2783,7 +2998,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
   const renderDepartmentsContent = () => {
     return (
       <div>
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Department Overview</h2>
           <div className="flex items-center gap-2">
             <ButtonWithTooltip
@@ -2948,11 +3163,11 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         )}
 
         {/* Department Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {departments.map((dept) => (
-            <div key={dept.id} className="bg-white border border-[#E8E3DC] p-5 hover:border-[#D8D4CD] transition-colors">
+            <div key={dept.id} className="bg-white border border-[#E8E3DC] p-4 sm:p-5 hover:border-[#D8D4CD] transition-colors">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-display font-semibold text-[#1A1A1A]">{dept.name}</h4>
+                <h4 className="font-display font-semibold text-[#1A1A1A] text-sm sm:text-base truncate max-w-[70%]">{dept.name}</h4>
                 <div className="flex items-center gap-1">
                   <span className={`text-[10px] px-2 py-0.5 border ${dept.is_clinical ? 'border-[#C8E0D5] bg-[#E8F5EF] text-[#008751]' : 'border-[#E8E3DC] bg-[#F0EDE8] text-[#5A5A5A]'}`}>
                     {dept.is_clinical ? 'Clinical' : 'Support'}
@@ -2962,10 +3177,10 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#5A5A5A]">Code</span>
-                  <span className="font-medium text-[#1A1A1A]">{dept.code || '—'}</span>
+                  <span className="font-medium text-[#1A1A1A] truncate max-w-[50%]">{dept.code || '—'}</span>
                 </div>
                 {dept.description && (
-                  <p className="text-xs text-[#5A5A5A]">{dept.description}</p>
+                  <p className="text-xs text-[#5A5A5A] truncate">{dept.description}</p>
                 )}
               </div>
               <div className="mt-3 pt-3 border-t border-[#F0EDE8] flex justify-end gap-1">
@@ -3004,7 +3219,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Alert Management</h2>
           <div className="flex items-center gap-2">
             {alerts.filter(a => !a.read).length > 0 && (
@@ -3034,7 +3249,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             <h3 className="text-[10px] font-medium text-[#C8553D] uppercase tracking-wider mb-2">Critical Alerts</h3>
             <div className="space-y-2">
               {criticalAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between bg-[#F5EDEA] border border-[#E8D6D0] p-3">
+                <div key={alert.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#F5EDEA] border border-[#E8D6D0] p-3 gap-2">
                   <div className="flex items-center flex-1 min-w-0">
                     <AlertCircle className="w-5 h-5 text-[#C8553D] mr-3 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -3042,7 +3257,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                       <p className="text-xs text-[#5A5A5A]">{alert.time}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <IconButton
                       icon={CheckCircle}
                       onClick={() => handleMarkAlertRead(alert.id)}
@@ -3070,7 +3285,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             <h3 className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-2">Other Alerts</h3>
             <div className="space-y-2">
               {otherAlerts.map((alert) => (
-                <div key={alert.id} className={`flex items-center justify-between border p-3 ${
+                <div key={alert.id} className={`flex flex-col sm:flex-row sm:items-center justify-between border p-3 gap-2 ${
                   alert.read ? 'bg-[#F7F5F2] border-[#E8E3DC] opacity-60' :
                   alert.type === 'warning' ? 'bg-[#F5F0EA] border-[#F0E8DC]' :
                   'bg-[#E8F5EF] border-[#C8E0D5]'
@@ -3086,7 +3301,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                       <p className="text-xs text-[#5A5A5A]">{alert.time}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     {!alert.read && (
                       <IconButton
                         icon={CheckCircle}
@@ -3123,12 +3338,12 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
   // ==================== MAIN RENDER ====================
   return (
-    <div className="dashboard min-h-screen bg-[#F7F5F2] p-4 sm:p-8 font-sans">
+    <div className="dashboard min-h-screen bg-[#F7F5F2] p-3 sm:p-4 md:p-8 font-sans">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden flex-shrink-0">
+      <div className="mb-4 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden flex-shrink-0">
               {dashboardProfilePicture ? (
                 <img
                   key={dashboardProfilePicture}
@@ -3143,26 +3358,26 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 />
               ) : null}
               <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: dashboardProfilePicture ? 'none' : 'flex' }}>
-                <UserIcon className="w-6 h-6 text-[#5A5A5A]" />
+                <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-[#5A5A5A]" />
               </div>
             </div>
             <div>
-              <h1 className="text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
                 Welcome back, {displayUserName}
               </h1>
-              <p className="text-sm text-[#5A5A5A]">
+              <p className="text-xs sm:text-sm text-[#5A5A5A]">
                 {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
             <ButtonWithTooltip
               onClick={handleRefresh}
               tooltip="Refresh dashboard"
               variant="secondary"
               className="text-xs"
             >
-              <RefreshCw className={`w-4 h-4 ${patientsLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${patientsLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
@@ -3171,7 +3386,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               variant="secondary"
               className="text-xs"
             >
-              <UserIcon className="w-4 h-4" />
+              <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Profile</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
@@ -3180,7 +3395,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               variant="secondary"
               className="text-xs"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Change Password</span>
             </ButtonWithTooltip>
           </div>
@@ -3188,8 +3403,8 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
       </div>
 
       {/* Tabs with Nigerian green active state */}
-      <div className="border-b border-[#E8E3DC] mb-8 overflow-x-auto">
-        <nav className="flex gap-6 min-w-max" aria-label="Tabs">
+      <div className="border-b border-[#E8E3DC] mb-3 sm:mb-8 overflow-x-auto">
+        <nav className="flex gap-3 sm:gap-6 min-w-max" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -3199,16 +3414,16 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                     setActiveTab(tab.id);
                     setCurrentPage(1);
                   }}
-                  className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-[#008751] text-[#008751]'
                       : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A] hover:border-[#D8D4CD]'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {tab.label}
                   {tab.id === 'alerts' && alerts.filter(a => !a.read).length > 0 && (
-                    <span className="w-5 h-5 bg-[#C8553D] text-white text-[10px] flex items-center justify-center">
+                    <span className="w-4 h-4 sm:w-5 sm:h-5 bg-[#C8553D] text-white text-[10px] flex items-center justify-center">
                       {alerts.filter(a => !a.read).length}
                     </span>
                   )}
@@ -3220,7 +3435,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white border border-[#E8E3DC] p-5 sm:p-8">
+      <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5 md:p-8">
         {renderTabContent()}
       </div>
 

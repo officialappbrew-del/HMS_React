@@ -3010,6 +3010,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('table');
+  const [errorMessage, setErrorMessage] = useState(null);
   const itemsPerPage = 10;
 
   const [stats, setStats] = useState({
@@ -3022,25 +3023,11 @@ const displayTenantName = authTenant?.name || 'Hospital';
     totalSuppliers: 0,
   });
 
-  const [lowStockAlerts, setLowStockAlerts] = useState([
-    { id: 1, drug: 'Paracetamol', current: 45, reorder: 50, supplier: 'MediCorp', status: 'critical' },
-    { id: 2, drug: 'Amoxicillin', current: 12, reorder: 20, supplier: 'PharmaPlus', status: 'warning' },
-    { id: 3, drug: 'Insulin', current: 8, reorder: 15, supplier: 'MediCorp', status: 'critical' },
-    { id: 4, drug: 'Metformin', current: 18, reorder: 25, supplier: 'HealthCare Ltd', status: 'warning' }
-  ]);
+  const [lowStockAlerts, setLowStockAlerts] = useState([]);
 
-  const [pendingPrescriptions, setPendingPrescriptions] = useState([
-    { id: 1, patient: 'John Doe', medication: 'Amoxicillin 500mg', priority: 'High', time: '2 hours ago', status: 'pending' },
-    { id: 2, patient: 'Jane Smith', medication: 'Paracetamol', priority: 'Normal', time: '4 hours ago', status: 'pending' },
-    { id: 3, patient: 'Bob Johnson', medication: 'Insulin', priority: 'High', time: '1 hour ago', status: 'pending' },
-    { id: 4, patient: 'Alice Brown', medication: 'Metformin', priority: 'Normal', time: '3 hours ago', status: 'pending' }
-  ]);
+  const [pendingPrescriptions, setPendingPrescriptions] = useState([]);
 
-  const [prescriptionHistory] = useState([
-    { id: 1, patient: 'Mary Williams', medication: 'Amoxicillin', date: '2024-01-15', status: 'dispensed' },
-    { id: 2, patient: 'Peter Obi', medication: 'Paracetamol', date: '2024-01-14', status: 'dispensed' },
-    { id: 3, patient: 'Grace Adeyemi', medication: 'Insulin', date: '2024-01-13', status: 'dispensed' }
-  ]);
+  const [prescriptionHistory, setPrescriptionHistory] = useState([]);
 
   const [apiSuppliers, setApiSuppliers] = useState([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
@@ -3072,17 +3059,9 @@ const displayTenantName = authTenant?.name || 'Hospital';
     licenseNumber: '', rating: 0, notes: ''
   });
 
-  const [alerts, setAlerts] = useState([
-    { id: 1, type: 'critical', message: 'Amoxicillin stock critically low - 12 units remaining', time: '30 min ago', read: false },
-    { id: 2, type: 'warning', message: '5 drugs expiring in 30 days', time: '1 hour ago', read: false },
-    { id: 3, type: 'info', message: 'New prescription for John Doe ready for dispensing', time: '2 hours ago', read: false }
-  ]);
+  const [alerts, setAlerts] = useState([]);
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'success', message: 'Inventory updated successfully', time: '1 hour ago', read: false },
-    { id: 2, type: 'info', message: 'Supplier order #1234 delivered', time: '2 hours ago', read: false },
-    { id: 3, type: 'warning', message: 'Scheduled maintenance tonight at 2 AM', time: '4 hours ago', read: false }
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     const fetchSuppliers = async () => {
@@ -3099,7 +3078,38 @@ const displayTenantName = authTenant?.name || 'Hospital';
     };
 
     fetchSuppliers();
+    loadDashboardInsights();
   }, []);
+
+  const loadDashboardInsights = async () => {
+    try {
+      const data = await apiRequest('/api/v1/core/dashboard-insights/');
+      if (data?.alerts) {
+        const normalizedAlerts = (Array.isArray(data.alerts) ? data.alerts : []).map(alert => ({
+          id: alert.id || Math.random(),
+          type: alert.type || (alert.priority === 'high' ? 'critical' : 'info'),
+          message: alert.title || alert.message || '',
+          time: alert.time || '',
+          read: false,
+        }));
+        setAlerts(normalizedAlerts);
+        setNotifications(normalizedAlerts.slice(0, 3));
+      }
+      if (data?.tasks) {
+        const normalizedPrescriptions = (Array.isArray(data.tasks) ? data.tasks : []).map(task => ({
+          id: task.id || Math.random(),
+          patient: '',
+          medication: task.title || '',
+          priority: task.priority || 'Normal',
+          time: task.time || '',
+          status: 'pending',
+        }));
+        setPendingPrescriptions(normalizedPrescriptions.slice(0, 4));
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard insights:', err);
+    }
+  };
 
   useEffect(() => {
     const allDrugs = apiDrugs.length > 0 ? apiDrugs : [];
@@ -3820,14 +3830,14 @@ const displayTenantName = authTenant?.name || 'Hospital';
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-[#e5e7eb]">
                 <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Medication</th>
-                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Date</th>
-                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Status</th>
+                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Medication</th>
+                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden md:table-cell">Date</th>
+                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Status</th>
                 <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -3891,15 +3901,15 @@ const displayTenantName = authTenant?.name || 'Hospital';
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-[#e5e7eb]">
                 <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Item</th>
-                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Category</th>
-                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Stock</th>
-                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Price (₦)</th>
-                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Status</th>
+                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Category</th>
+                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Stock</th>
+                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden md:table-cell">Price (₦)</th>
+                <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Status</th>
                 <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -3973,15 +3983,15 @@ const displayTenantName = authTenant?.name || 'Hospital';
         ) : apiSuppliers.length === 0 ? (
           <div className="text-center py-8 text-[#6b7280] font-sans">No suppliers found</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-[#e5e7eb]">
                   <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Supplier</th>
-                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Contact</th>
-                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Phone</th>
-                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Email</th>
-                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Phone</th>
+                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden md:table-cell">Email</th>
+                  <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider hidden sm:table-cell">Status</th>
                   <th className="pb-2 text-left text-xs font-medium font-sans text-[#6b7280] uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>

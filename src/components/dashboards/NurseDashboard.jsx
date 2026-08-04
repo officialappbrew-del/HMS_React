@@ -2803,7 +2803,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                       if (file) {
                         if (file.size > 5 * 1024 * 1024) {
                           onProfilePictureChange('profile_picture_file', null);
-                          alert('Image must be less than 5MB');
+                          setErrorMessage('Image must be less than 5MB');
                           return;
                         }
                         onProfilePictureChange('profile_picture_file', file);
@@ -3422,6 +3422,7 @@ const NurseDashboard = () => {
   const [viewMode, setViewMode] = useState('table');
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
   const itemsPerPage = 10;
 
   const [stats, setStats] = useState({
@@ -3431,25 +3432,11 @@ const NurseDashboard = () => {
     bedChecks: 0,
   });
 
-  const [alerts, setAlerts] = useState([
-    { id: 1, type: 'warning', message: 'Medication due — Room 203, 2pm', time: '10 min ago', read: false },
-    { id: 2, type: 'info', message: 'Vital signs check completed — Room 105', time: '30 min ago', read: false },
-    { id: 3, type: 'critical', message: 'Patient alert — Room 301', time: '5 min ago', read: false }
-  ]);
+  const [alerts, setAlerts] = useState([]);
 
-  const [assignedPatients, setAssignedPatients] = useState([
-    { id: 1, name: 'John Doe', room: '203', status: 'Stable', nextCheck: '14:00', vitals: 'Normal' },
-    { id: 2, name: 'Jane Smith', room: '105', status: 'Critical', nextCheck: '13:30', vitals: 'Abnormal' },
-    { id: 3, name: 'Bob Johnson', room: '301', status: 'Improving', nextCheck: '15:00', vitals: 'Stable' },
-    { id: 4, name: 'Alice Brown', room: '204', status: 'Stable', nextCheck: '16:00', vitals: 'Normal' }
-  ]);
+  const [assignedPatients, setAssignedPatients] = useState([]);
 
-  const [tasks, setTasks] = useState([
-    { id: 1, patient: 'John Doe', room: '203', task: 'Administer medication', due: '14:00', status: 'pending', priority: 'high' },
-    { id: 2, patient: 'Jane Smith', room: '105', task: 'Vital signs check', due: '13:30', status: 'in-progress', priority: 'critical' },
-    { id: 3, patient: 'Bob Johnson', room: '301', task: 'Bed check', due: '15:00', status: 'completed', priority: 'medium' },
-    { id: 4, patient: 'Alice Brown', room: '204', task: 'Medication administration', due: '16:00', status: 'pending', priority: 'medium' }
-  ]);
+  const [tasks, setTasks] = useState([]);
 
   const [taskForm, setTaskForm] = useState({
     patient: '',
@@ -3623,10 +3610,47 @@ const NurseDashboard = () => {
     }
   };
 
+  const loadDashboardInsights = async () => {
+    try {
+      const data = await apiRequest('/api/v1/core/dashboard-insights/');
+      if (data?.alerts) {
+        const normalizedAlerts = (Array.isArray(data.alerts) ? data.alerts : []).map(alert => ({
+          id: alert.id || Math.random(),
+          type: alert.type || (alert.priority === 'high' ? 'critical' : 'info'),
+          message: alert.title || alert.message || '',
+          time: alert.time || '',
+          read: false,
+        }));
+        setAlerts(normalizedAlerts);
+      }
+      if (data?.tasks) {
+        const normalizedTasks = (Array.isArray(data.tasks) ? data.tasks : []).map(task => ({
+          id: task.id || Math.random(),
+          patient: task.description || '',
+          room: '',
+          task: task.title || '',
+          due: '',
+          status: 'pending',
+          priority: task.priority || 'medium',
+        }));
+        setTasks(normalizedTasks.slice(0, 4));
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard insights:', err);
+    }
+  };
+
   // Load patients when component mounts
   useEffect(() => {
-    loadPatients('/api/v1/patients/patients/?status=all');
+    loadPatients('/api/v1/patients/patients/?status=all&page_size=20');
+    loadDashboardInsights();
   }, []);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    loadDashboardInsights();
+     loadPatients('/api/v1/patients/patients/?page_size=20');
+  };
 
   // Update stats when patients or tasks change
   useEffect(() => {
@@ -3637,20 +3661,6 @@ const NurseDashboard = () => {
       bedChecks: tasks.filter(t => t.task.includes('Bed') && t.status === 'pending').length,
     });
   }, [patientsList, assignedPatients, tasks]);
-
-  // Refresh handler
-  const handleRefresh = () => {
-    switch(activeTab) {
-      case 'patients':
-        loadPatients('/api/v1/patients/patients/');
-        break;
-      case 'overview':
-        loadPatients('/api/v1/patients/patients/');
-        break;
-      default:
-        loadPatients('/api/v1/patients/patients/');
-    }
-  };
 
   // Profile Handlers
   const handleOpenProfile = async () => {
@@ -3893,7 +3903,7 @@ const NurseDashboard = () => {
       const normalized = { ...updated, status: statusMap[updated.status] || updated.status || 'scheduled' };
       setTodaysSchedule(prev => prev.map(apt => apt.id === id ? normalized : apt));
     } catch (err) {
-      alert(err.message || 'Failed to update status');
+      setErrorMessage(err.message || 'Failed to update status');
     }
     setShowStatusMenu(null);
   };
@@ -3922,7 +3932,7 @@ const NurseDashboard = () => {
 
   const handleSaveTask = () => {
     if (!taskForm.patient || !taskForm.task) {
-      alert('Please fill in patient and task fields');
+      setErrorMessage('Please fill in patient and task fields');
       return;
     }
 
@@ -3997,7 +4007,7 @@ const NurseDashboard = () => {
       await loadPatients('/api/v1/patients/patients/');
     } catch (err) {
       console.error('Failed to restore patient:', err);
-      alert(err.message || 'Failed to restore patient');
+      setErrorMessage(err.message || 'Failed to restore patient');
     }
   };
 
@@ -4266,16 +4276,16 @@ const NurseDashboard = () => {
             <p className="text-[#5A5A5A] text-sm">No patients found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-[#E8E3DC]">
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Contact</th>
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Condition</th>
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
+                  <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
+                  <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                  <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Condition</th>
+                  <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
+                  <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0EDE8]">
@@ -4526,16 +4536,16 @@ const NurseDashboard = () => {
         )}
 
         {/* Tasks List */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-[#E8E3DC]">
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Task</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Due</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Priority</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Task</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Due</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Priority</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Status</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0EDE8]">
@@ -4642,17 +4652,17 @@ const NurseDashboard = () => {
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-[#E8E3DC]">
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">BP</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">HR</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Temp</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">SpO₂</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Recorded</th>
-                <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">BP</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">HR</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Temp</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">SpO₂</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Recorded</th>
+                <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0EDE8]">

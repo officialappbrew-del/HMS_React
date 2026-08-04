@@ -65,6 +65,8 @@ const StaffManagement = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const itemsPerPage = 10;
+  const currentUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
+  const currentUserIsRootAdmin = typeof window !== 'undefined' ? localStorage.getItem('userIsRootAdmin') === 'true' : false;
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -163,6 +165,7 @@ const StaffManagement = () => {
     designation: member.designation || '',
     status: member.employment_status || (member.is_active === false ? 'inactive' : 'active'),
     lastLogin: member.last_login || '',
+    isRootAdmin: Boolean(member.is_root_admin),
   });
 
   const loadStaff = async () => {
@@ -171,8 +174,12 @@ const StaffManagement = () => {
       dispatch(setLoading(true));
       const data = await apiRequest('/api/v1/tenants/users/?page_size=200');
       const results = Array.isArray(data) ? data : (data.results || []);
-      const count = data.count ?? results.length;
-      const normalizedUsers = dedupeStaffById(results.map(normalizeStaff));
+      const filteredResults = results.filter((user) => {
+        if (!user.is_root_admin) return true;
+        return currentUserIsRootAdmin && String(user.id) === String(currentUserId);
+      });
+      const count = filteredResults.length;
+      const normalizedUsers = dedupeStaffById(filteredResults.map(normalizeStaff));
       dispatch(setStaffList(normalizedUsers));
       setTotalCount(count);
     } catch (error) {
@@ -251,6 +258,10 @@ const StaffManagement = () => {
   };
 
   const handleEditClick = (staff) => {
+    if (staff.isRootAdmin && !currentUserIsRootAdmin) {
+      alert('Only the root admin can view or edit this user.');
+      return;
+    }
     setOriginalStaff({ ...staff });
     setFormData({
       name: staff.name || '',
@@ -809,7 +820,7 @@ const StaffManagement = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200/60">
-                        {displayedStaff.map((staff) => (
+                        {displayedStaff.filter((staff) => !staff.isRootAdmin || currentUserIsRootAdmin).map((staff) => (
                           <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors duration-150">
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
@@ -854,23 +865,23 @@ const StaffManagement = () => {
                                   onClick={() => handleEditClick(staff)}
                                   className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
                                   title="Edit"
-                                  disabled={isLoading}
+                                  disabled={isLoading || (staff.isRootAdmin && !currentUserIsRootAdmin)}
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleArchiveClick(staff)}
-                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all duration-200"
-                                  title="Archive"
-                                  disabled={isLoading}
+                                  onClick={() => currentUserIsRootAdmin ? handleArchiveClick(staff) : null}
+                                  className={`p-1.5 text-slate-400 rounded-lg transition-all duration-200 ${currentUserIsRootAdmin ? 'hover:text-amber-600 hover:bg-amber-50' : 'opacity-50 cursor-not-allowed'}`}
+                                  title={currentUserIsRootAdmin ? 'Archive' : 'Not allowed'}
+                                  disabled={isLoading || !currentUserIsRootAdmin}
                                 >
                                   <Archive className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteClick(staff)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200"
-                                  title="Delete"
-                                  disabled={isLoading}
+                                  onClick={() => currentUserIsRootAdmin ? handleDeleteClick(staff) : null}
+                                  className={`p-1.5 text-slate-400 rounded-lg transition-all duration-200 ${currentUserIsRootAdmin ? 'hover:text-rose-600 hover:bg-rose-50' : 'opacity-50 cursor-not-allowed'}`}
+                                  title={currentUserIsRootAdmin ? 'Delete' : 'Not allowed'}
+                                  disabled={isLoading || !currentUserIsRootAdmin}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -1278,7 +1289,7 @@ const StaffManagement = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60">
-                    {displayedStaff.map((staff) => (
+                    {displayedStaff.filter((staff) => !staff.isRootAdmin || currentUserIsRootAdmin).map((staff) => (
                       <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors duration-150">
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
@@ -1323,20 +1334,23 @@ const StaffManagement = () => {
                               onClick={() => handleEditClick(staff)}
                               className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
                               title="Edit"
+                              disabled={staff.isRootAdmin && !currentUserIsRootAdmin}
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleArchiveClick(staff)}
-                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all duration-200"
-                              title="Archive"
+                              onClick={() => currentUserIsRootAdmin ? handleArchiveClick(staff) : null}
+                              className={`p-1.5 text-slate-400 rounded-lg transition-all duration-200 ${currentUserIsRootAdmin ? 'hover:text-amber-600 hover:bg-amber-50' : 'opacity-50 cursor-not-allowed'}`}
+                              title={currentUserIsRootAdmin ? 'Archive' : 'Not allowed'}
+                              disabled={!currentUserIsRootAdmin}
                             >
                               <Archive className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteClick(staff)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200"
-                              title="Delete"
+                              onClick={() => currentUserIsRootAdmin ? handleDeleteClick(staff) : null}
+                              className={`p-1.5 text-slate-400 rounded-lg transition-all duration-200 ${currentUserIsRootAdmin ? 'hover:text-rose-600 hover:bg-rose-50' : 'opacity-50 cursor-not-allowed'}`}
+                              title={currentUserIsRootAdmin ? 'Delete' : 'Not allowed'}
+                              disabled={!currentUserIsRootAdmin}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

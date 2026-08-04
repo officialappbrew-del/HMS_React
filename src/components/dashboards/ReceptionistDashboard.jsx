@@ -225,7 +225,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                       if (file) {
                         if (file.size > 5 * 1024 * 1024) {
                           onProfilePictureChange('profile_picture_file', null);
-                          alert('Image must be less than 5MB');
+                          setErrorMessage('Image must be less than 5MB');
                           return;
                         }
                         onProfilePictureChange('profile_picture_file', file);
@@ -836,6 +836,24 @@ const displayTenantName = authTenant?.name || 'Hospital';
   const [scheduleError, setScheduleError] = useState(null);
   const [showStatusMenu, setShowStatusMenu] = useState(null);
 
+  const loadDashboardInsights = async () => {
+    try {
+      const data = await apiRequest('/api/v1/core/dashboard-insights/');
+      if (data?.alerts) {
+        const normalizedComms = (Array.isArray(data.alerts) ? data.alerts : []).map(alert => ({
+          id: alert.id || Math.random(),
+          type: alert.type === 'critical' ? 'alert' : (alert.type === 'warning' ? 'referral' : 'phone'),
+          message: alert.title || alert.message || '',
+          time: alert.time || '',
+          read: alert.read || false,
+        }));
+        setCommunications(normalizedComms);
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard insights:', err);
+    }
+  };
+
   const [activeTab, setActiveTab] = useState('overview');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -849,30 +867,15 @@ const displayTenantName = authTenant?.name || 'Hospital';
     checkIns: 0,
     referrals: 0,
   });
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  const [queue, setQueue] = useState([
-    { id: 1, name: 'John Doe', type: 'Consultation', waitTime: '15 min', status: 'Waiting', priority: 'normal' },
-    { id: 2, name: 'Jane Smith', type: 'Follow-up', waitTime: '8 min', status: 'In Room', priority: 'normal' },
-    { id: 3, name: 'Bob Johnson', type: 'Emergency', waitTime: '2 min', status: 'Waiting', priority: 'high' }
-  ]);
+  const [queue, setQueue] = useState([]);
 
-  const [upcomingAppointments, setUpcomingAppointments] = useState([
-    { id: 1, time: '14:00', patient: 'Alice Brown', type: 'Consultation', doctor: 'Dr. Smith', status: 'confirmed' },
-    { id: 2, time: '14:30', patient: 'Charlie Wilson', type: 'Follow-up', doctor: 'Dr. Johnson', status: 'confirmed' },
-    { id: 3, time: '15:00', patient: 'Diana Davis', type: 'New Patient', doctor: 'Dr. Smith', status: 'pending' }
-  ]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
 
-  const [communications, setCommunications] = useState([
-    { id: 1, type: 'phone', message: 'Incoming call from Dr. Smith', time: '2 minutes ago', read: false },
-    { id: 2, type: 'referral', message: 'Referral request received from General Hospital', time: '15 minutes ago', read: false },
-    { id: 3, type: 'alert', message: 'Appointment reminder sent to 5 patients', time: '30 minutes ago', read: true }
-  ]);
+  const [communications, setCommunications] = useState([]);
 
-  const [recentCheckIns] = useState([
-    { id: 1, patient: 'John Doe', time: '09:30', doctor: 'Dr. Smith', status: 'checked-in' },
-    { id: 2, patient: 'Jane Smith', time: '09:45', doctor: 'Dr. Johnson', status: 'in-room' },
-    { id: 3, patient: 'Bob Johnson', time: '10:00', doctor: 'Dr. Williams', status: 'completed' }
-  ]);
+  const [recentCheckIns] = useState([]);
 
   // Format time helper
   const formatTime = (timeStr) => {
@@ -943,6 +946,10 @@ const displayTenantName = authTenant?.name || 'Hospital';
       }
     };
     fetchTodaysSchedule();
+  }, []);
+
+  useEffect(() => {
+    loadDashboardInsights();
   }, []);
 
   // Normalize patient for display
@@ -1029,7 +1036,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
 
   // Load patients when component mounts
   useEffect(() => {
-    loadPatients('/api/v1/patients/patients/?status=all');
+    loadPatients('/api/v1/patients/patients/?status=all&page_size=20');
   }, []);
 
   // Update stats when data changes
@@ -1312,7 +1319,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
   };
 
   const handleCheckInPatient = (patientId) => {
-    alert(`Patient ${patientId} checked in successfully`);
+    setErrorMessage(`Patient ${patientId} checked in successfully`);
   };
 
   const handleScheduleAppointment = () => {
@@ -1349,7 +1356,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
       await loadPatients('/api/v1/patients/patients/');
     } catch (err) {
       console.error('Failed to restore patient:', err);
-      alert(err.message || 'Failed to restore patient');
+      setErrorMessage(err.message || 'Failed to restore patient');
     }
   };
 
@@ -1539,7 +1546,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
                 Mark All Read
               </ButtonWithTooltip>
               <ButtonWithTooltip
-                onClick={() => navigate('/communications')}
+                onClick={() => navigate('/patient-feedback')}
                 tooltip="View all communications"
                 variant="primary"
                 className="text-xs"
@@ -1609,15 +1616,15 @@ const displayTenantName = authTenant?.name || 'Hospital';
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Type</th>
+                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Wait Time</th>
+                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Priority</th>
+                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Status</th>
                 <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -1713,15 +1720,15 @@ const displayTenantName = authTenant?.name || 'Hospital';
             <p className="text-gray-500 text-sm">Loading appointments...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                   <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Type</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Doctor</th>
+                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Status</th>
                   <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -1809,14 +1816,14 @@ const displayTenantName = authTenant?.name || 'Hospital';
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
-                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Time</th>
+                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Doctor</th>
+                <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Status</th>
                 <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -1910,8 +1917,8 @@ const displayTenantName = authTenant?.name || 'Hospital';
             <p className="text-gray-500 text-sm">No patients found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
@@ -1939,7 +1946,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
                               <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>
                             )}
                             {(patient.mrn || patient.hospital_number) && (
-                              <div className="text-[10px] text-gray-400">
+                              <div className="text-[10px] sm:text-xs text-gray-400">
                                 {patient.mrn ? `MRN: ${patient.mrn}` : ''}
                                 {patient.mrn && patient.hospital_number ? ' • ' : ''}
                                 {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
@@ -1979,7 +1986,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
                           <button
                             type="button"
                             onClick={() => handleCreateAdmissionForPatient(patient)}
-                            className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[10px] font-semibold text-green-700 hover:bg-green-100"
+                            className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[10px] sm:text-xs font-semibold text-green-700 hover:bg-green-100"
                           >
                             <Plus className="w-3 h-3" />
                             Admit

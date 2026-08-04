@@ -3161,10 +3161,10 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (file.size > 5 * 1024 * 1024) {
-                          onProfilePictureChange('profile_picture_file', null);
-                          alert('Image must be less than 5MB');
-                          return;
+                          if (file.size > 5 * 1024 * 1024) {
+                           onProfilePictureChange('profile_picture_file', null);
+                           setErrorMessage('Image must be less than 5MB');
+                           return;
                         }
                         onProfilePictureChange('profile_picture_file', file);
                       }
@@ -3357,6 +3357,7 @@ const DoctorDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('table');
+  const [errorMessage, setErrorMessage] = useState(null);
   const itemsPerPage = 10;
 
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -3401,11 +3402,7 @@ const DoctorDashboard = () => {
   const [editingConsultationId, setEditingConsultationId] = useState(null);
   const [consultationPatientSearch, setConsultationPatientSearch] = useState('');
 
-  const [alerts, setAlerts] = useState([
-    { id: 1, type: 'critical', message: 'Critical patient alert — Immediate attention needed', time: '5 min ago', read: false },
-    { id: 2, type: 'warning', message: 'Ward round overdue — Room 203', time: '15 min ago', read: false },
-    { id: 3, type: 'info', message: 'New lab results available', time: '1 hour ago', read: false }
-  ]);
+  const [alerts, setAlerts] = useState([]);
 
   const [todaysSchedule, setTodaysSchedule] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -3539,10 +3536,10 @@ const DoctorDashboard = () => {
         body: JSON.stringify({ patient_status: 'active', is_active: true }),
       });
       await loadDashboardPatients('/api/v1/patients/patients/');
-    } catch (err) {
-      console.error('Failed to restore patient:', err);
-      alert(err.message || 'Failed to restore patient');
-    }
+     } catch (err) {
+       console.error('Failed to restore patient:', err);
+       setErrorMessage(err.message || 'Failed to restore patient');
+     }
   };
 
   const handleClosePatientModal = () => {
@@ -3655,8 +3652,27 @@ const DoctorDashboard = () => {
     }
   };
 
+  const loadDashboardInsights = async () => {
+    try {
+      const data = await apiRequest('/api/v1/core/dashboard-insights/');
+      if (data?.alerts) {
+        const normalizedAlerts = (Array.isArray(data.alerts) ? data.alerts : []).map(alert => ({
+          id: alert.id || Math.random(),
+          type: alert.type || (alert.priority === 'high' ? 'critical' : 'info'),
+          message: alert.title || alert.message || '',
+          time: alert.time || '',
+          read: false,
+        }));
+        setAlerts(normalizedAlerts);
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard insights:', err);
+    }
+  };
+
   useEffect(() => {
-    loadDashboardPatients('/api/v1/patients/patients/?status=all');
+    loadDashboardPatients('/api/v1/patients/patients/?status=all&page_size=20');
+    loadDashboardInsights();
   }, []);
 
   const totalItems = patientsCount || dashboardPatients.length;
@@ -3747,7 +3763,7 @@ const DoctorDashboard = () => {
 
   const handleSaveConsultation = () => {
     if (!consultationForm.patientName || !consultationForm.presentingComplaints) {
-      alert('Please fill in patient name and presenting complaints');
+      setErrorMessage('Please fill in patient name and presenting complaints');
       return;
     }
 
@@ -4063,9 +4079,9 @@ const DoctorDashboard = () => {
       };
       const normalized = { ...updated, status: statusMap[updated.status] || updated.status || 'scheduled' };
       setTodaysSchedule(prev => prev.map(apt => apt.id === id ? normalized : apt));
-    } catch (err) {
-      alert(err.message || 'Failed to update status');
-    }
+     } catch (err) {
+       setErrorMessage(err.message || 'Failed to update status');
+     }
     setShowStatusMenu(null);
   };
 
@@ -4445,12 +4461,12 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             <p className="text-xs text-[#B0A89E] mt-1">Start by adding your first patient</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#E8E3DC]">
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Name</th>
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Contact</th>
+            <div className="overflow-x-auto -mx-3 sm:mx-0">
+              <table className="w-full min-w-[640px]">
+                <thead>
+                  <tr className="border-b border-[#E8E3DC]">
+                    <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Name</th>
+                  <th className="pb-2 text-left text-[10px] sm:text-xs font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Contact</th>
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Condition</th>
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
