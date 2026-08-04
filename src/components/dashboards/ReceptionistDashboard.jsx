@@ -469,6 +469,12 @@ const PatientDetailModal = ({ patient, onClose }) => {
                         {patient.age} years
                       </span>
                     )}
+                    {patient.mrn && (
+                      <span className="flex items-center gap-1">
+                        <IdCard className="w-3.5 h-3.5" />
+                        MRN: {patient.mrn}
+                      </span>
+                    )}
                     {patient.hospital_number && (
                       <span className="flex items-center gap-1">
                         <IdCard className="w-3.5 h-3.5" />
@@ -967,6 +973,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
       createdAt: patient.registration_date || patient.createdAt || new Date().toISOString(),
       updatedAt: patient.updated_at || patient.updatedAt || new Date().toISOString(),
       hospital_number: patient.hospital_number || '',
+      mrn: patient.mrn || patient.mrn_number || patient.medical_record_number || '',
       login_id: patient.login_id || '',
       age: patient.age || '',
       full_name: patient.full_name || '',
@@ -1161,25 +1168,10 @@ const displayTenantName = authTenant?.name || 'Hospital';
         formData.append('qualification', profileData.qualification.trim());
         formData.append('profile_picture', profilePictureFile);
 
-        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/v1/tenants/users/me/`, {
+        await apiRequest('/api/v1/tenants/users/me/', {
           method: 'PATCH',
-          headers: {
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
           body: formData,
         });
-
-        if (!response.ok) {
-          const contentType = response.headers.get('content-type') || '';
-          const isJson = contentType.includes('application/json');
-          const data = isJson ? await response.json().catch(() => ({})) : await response.text();
-          const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Request failed with status ${response.status}`;
-          const error = new Error(message);
-          error.data = data;
-          error.status = response.status;
-          throw error;
-        }
       } else {
         const payload = {
           first_name: profileData.first_name.trim(),
@@ -1946,8 +1938,12 @@ const displayTenantName = authTenant?.name || 'Hospital';
                             {patient.age && (
                               <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>
                             )}
-                            {patient.hospital_number && (
-                              <div className="text-[10px] text-gray-400">HN: {patient.hospital_number}</div>
+                            {(patient.mrn || patient.hospital_number) && (
+                              <div className="text-[10px] text-gray-400">
+                                {patient.mrn ? `MRN: ${patient.mrn}` : ''}
+                                {patient.mrn && patient.hospital_number ? ' • ' : ''}
+                                {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
+                              </div>
                             )}
                           </div>
                         </div>

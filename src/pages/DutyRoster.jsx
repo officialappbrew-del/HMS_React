@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   Calendar,
@@ -17,16 +17,180 @@ import {
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { apiRequest, parseListResponse } from '../utils/api';
-import { addLeaveRequest, approveLeave, rejectLeave, addOvertimeRecord, addDutyRoster, addDutyAssignment } from '../features/rosterSlice';
+import { addLeaveRequest, approveLeave, rejectLeave, addOvertimeRecord, approveOvertime, rejectOvertime, addDutyRoster, addDutyAssignment, removeDutyRoster, removeLeaveRequest, removeOvertimeRecord } from '../features/rosterSlice';
+import { setStaffList, setLoading } from '../features/staffSlice.jsx';
+
+const StaffSelector = ({ staff, value, onChange, placeholder = 'Search staff...', showLeaveBalance = false, getLeaveBalance }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setShowDropdown(false);
+        setSearchQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getStaffName = (s) => s.name || s.full_name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown';
+  const getStaffId = (s) => s.staffId || s.employee_id || s.employeeId || String(s.id);
+  const getStaffRole = (s) => s.role || s.category || 'Staff';
+  const getStaffDept = (s) => s.department || s.department_name || '';
+
+  const selectedName = value
+    ? (staff.find(s => getStaffId(s) === String(value)) ? getStaffName(staff.find(s => getStaffId(s) === String(value))) : 'Unknown')
+    : '';
+
+  const displayValue = searchQuery || selectedName;
+
+  const filteredStaff = staff.filter(member => {
+    const query = searchQuery.toLowerCase();
+    if (!query) return true;
+    const name = getStaffName(member).toLowerCase();
+    const role = getStaffRole(member).toLowerCase();
+    const id = getStaffId(member).toLowerCase();
+    const dept = getStaffDept(member).toLowerCase();
+    const email = (member.email || '').toLowerCase();
+    return (
+      name.includes(query) ||
+      role.includes(query) ||
+      id.includes(query) ||
+      dept.includes(query) ||
+      email.includes(query)
+    );
+  });
+
+  const categoryColor = (cat) => {
+    const c = cat.toLowerCase();
+    if (c.includes('doctor')) return 'bg-blue-100 text-blue-800';
+    if (c.includes('nurse')) return 'bg-green-100 text-green-800';
+    if (c.includes('pharmacist')) return 'bg-purple-100 text-purple-800';
+    if (c.includes('laboratory') || c.includes('lab')) return 'bg-orange-100 text-orange-800';
+    if (c.includes('radi')) return 'bg-teal-100 text-teal-800';
+    if (c.includes('admin')) return 'bg-indigo-100 text-indigo-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div className="relative">
+        <input
+          type="text"
+          value={displayValue}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setShowDropdown(true)}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent text-sm md:text-base bg-white cursor-text"
+        />
+        <Search className="absolute right-2 md:right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+      </div>
+      {showDropdown && (
+        <div className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-xl">
+          {filteredStaff.length > 0 ? (
+            filteredStaff.map(member => {
+              const sid = getStaffId(member);
+              return (
+                <button
+                  key={sid}
+                  type="button"
+                  onClick={() => {
+                    onChange(sid, getStaffName(member));
+                    setSearchQuery('');
+                    setShowDropdown(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 md:w-8 md:h-8 bg-nigerian-green bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-3.5 h-3.5 md:w-4 md:h-4 text-nigerian-green" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">{getStaffName(member)}</p>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${categoryColor(getStaffRole(member))}`}>
+                          {getStaffRole(member)}
+                        </span>
+                        {getStaffDept(member) && (
+                          <>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-xs text-gray-500 truncate">{getStaffDept(member)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {showLeaveBalance && getLeaveBalance && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                        {getLeaveBalance(sid)}d
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          ) : (
+            <p className="px-3 py-2 text-xs text-gray-500">No staff found</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const DutyRoster = () => {
   const rosterState = useSelector(state => state.roster) || {};
   const dutyRosters = rosterState.dutyRosters || [];
   const leaves = rosterState.leaves || [];
   const overtime = rosterState.overtime || [];
-  const staffState = useSelector(state => state.staff || {});
+const staffState = useSelector(state => state.staff || {});
   const staff = staffState.staff || [];
+  const staffLoading = staffState.loading || false;
   const dispatch = useDispatch();
+
+  const getCurrentUserName = () => {
+    if (typeof window === 'undefined') return '';
+    return (
+      localStorage.getItem('userFullName') ||
+      localStorage.getItem('userName') ||
+      `${localStorage.getItem('userFirstName') || ''} ${localStorage.getItem('userLastName') || ''}`.trim() ||
+      ''
+    );
+  };
+
+  const currentUserName = getCurrentUserName();
+
+  const loadStaff = async () => {
+    if (staff.length > 0) return;
+    try {
+      dispatch(setLoading(true));
+      const data = await apiRequest('/api/v1/tenants/users/?page_size=200');
+      const results = Array.isArray(data) ? data : (data.results || []);
+      const normalized = results.map(member => ({
+        id: member.id,
+        employeeId: member.employee_id || '',
+        name: member.full_name || `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown',
+        email: member.email || '',
+        phone: member.phone || '',
+        role: member.role || member.role_name || 'Staff',
+        department: member.department_name || member.department || '',
+        designation: member.designation || '',
+        status: member.employment_status || (member.is_active === false ? 'inactive' : 'active'),
+        lastLogin: member.last_login || '',
+      }));
+      dispatch(setStaffList(normalized));
+    } catch (error) {
+      console.error('Failed to load staff:', error);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
+  useEffect(() => {
+    loadStaff();
+  }, [dispatch]);
 
   const [activeTab, setActiveTab] = useState('roster');
   const [showAddLeaveModal, setShowAddLeaveModal] = useState(false);
@@ -36,8 +200,9 @@ const DutyRoster = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [staffSearchQuery, setStaffSearchQuery] = useState('');
-  const [showStaffDropdown, setShowStaffDropdown] = useState(false);
+  const [onCallDate, setOnCallDate] = useState(new Date().toISOString().split('T')[0]);
+  const [onCallData, setOnCallData] = useState(null);
+  const [onCallLoading, setOnCallLoading] = useState(false);
 
   const [leaveFormData, setLeaveFormData] = useState({
     staffId: '',
@@ -71,8 +236,106 @@ const DutyRoster = () => {
     notes: ''
   });
 
+  const [draggedStaff, setDraggedStaff] = useState(null);
+  const [quickAssignDate, setQuickAssignDate] = useState(null);
+  const [quickAssignData, setQuickAssignData] = useState({
+    dutyType: 'Call Duty',
+    startTime: '',
+    endTime: '',
+    notes: ''
+  });
+
   const leaveTypes = ['Annual', 'Sick', 'Maternity', 'Paternity', 'Study', 'Compassionate', 'Conference'];
   const dutyTypes = ['Call Duty', 'Night Duty', 'Weekend', 'Emergency', 'Clinic'];
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const monthNumber = (name) => {
+    const idx = monthNames.indexOf(name);
+    return idx >= 0 ? idx + 1 : null;
+  };
+
+  const generateCalendarDays = (year, monthName) => {
+    const month = monthNumber(monthName);
+    if (!month || !year) return [];
+
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days = [];
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push({ date: '', day: '', isCurrentMonth: false });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateObj = new Date(year, month - 1, d);
+      days.push({
+        date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+        day: d,
+        dayName: dateObj.toLocaleDateString('en-US', { weekday: 'short' }),
+        isCurrentMonth: true
+      });
+    }
+    while (days.length % 7 !== 0) {
+      days.push({ date: '', day: '', isCurrentMonth: false });
+    }
+    return days;
+  };
+
+  const calendarDays = useMemo(() => {
+    return generateCalendarDays(rosterFormData.year, rosterFormData.month);
+  }, [rosterFormData.year, rosterFormData.month]);
+
+  const handleStaffDragStart = (member) => {
+    setDraggedStaff(member);
+  };
+
+  const handleDateDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDateDrop = (dateStr) => {
+    if (!draggedStaff) return;
+    setQuickAssignDate(dateStr);
+    setQuickAssignData({
+      dutyType: 'Call Duty',
+      startTime: '',
+      endTime: '',
+      notes: ''
+    });
+  };
+
+  const handleQuickAssign = () => {
+    if (!draggedStaff || !quickAssignDate || !quickAssignData.dutyType) return;
+
+    const staffMember = draggedStaff;
+    const displayName = staffMember?.name ||
+      staffMember?.full_name ||
+      `${staffMember?.first_name || ''} ${staffMember?.last_name || ''}`.trim() || 'Unknown Staff';
+
+    const newAssignment = {
+      assignmentId: `ASSIGN${Date.now()}`,
+      staffId: staffMember.staffId || staffMember.employeeId || staffMember.employee_id || String(staffMember.id),
+      staffName: displayName,
+      date: quickAssignDate,
+      dutyType: quickAssignData.dutyType,
+      startTime: quickAssignData.startTime || '',
+      endTime: quickAssignData.endTime || '',
+      notes: quickAssignData.notes || ''
+    };
+
+    setRosterFormData(prev => ({
+      ...prev,
+      assignments: [...prev.assignments, newAssignment]
+    }));
+
+    setDraggedStaff(null);
+    setQuickAssignDate(null);
+  };
 
   const rosterSummary = useMemo(() => ({
     published: dutyRosters.length,
@@ -80,7 +343,6 @@ const DutyRoster = () => {
     overtimeHours: overtime.reduce((sum, r) => sum + (parseFloat(r.hoursWorked || r.hours || 0)), 0)
   }), [dutyRosters, leaves, overtime]);
 
- useEffect(() => {
   const loadRosterData = async () => {
     setIsLoading(true);
     setErrorMessage('');
@@ -119,18 +381,42 @@ const DutyRoster = () => {
     }
   };
 
-  loadRosterData();
-}, [dispatch]);
+  useEffect(() => {
+    loadRosterData();
+  }, [dispatch]);
+
+  const loadOnCallData = async (date = onCallDate, department = null) => {
+    setOnCallLoading(true);
+    setErrorMessage('');
+    try {
+      const qs = new URLSearchParams();
+      if (date) qs.append('date', date);
+      if (department) qs.append('department', department);
+      const response = await apiRequest(`/api/v1/ward-rounds/duty-rosters/on-call/?${qs.toString()}`);
+      setOnCallData(response);
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to load on-call data.');
+      setOnCallData(null);
+    } finally {
+      setOnCallLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'oncall') {
+      loadOnCallData(onCallDate);
+    }
+  }, [activeTab, onCallDate]);
 
   const getStaffName = (sid) => {
     if (!sid) return 'Unknown Staff';
-    const member = staff.find(s => (s.employee_id || String(s.id)) === String(sid));
-    return member?.full_name || `${member?.first_name || ''} ${member?.last_name || ''}`.trim() || 'Unknown Staff';
+    const member = staff.find(s => (s.staffId || s.employeeId || s.employee_id || String(s.id)) === String(sid));
+    return member?.name || member?.full_name || `${member?.first_name || ''} ${member?.last_name || ''}`.trim() || 'Unknown Staff';
   };
 
   const getStaffById = (sid) => {
     if (!sid) return null;
-    return staff.find(s => (s.employee_id || String(s.id)) === String(sid));
+    return staff.find(s => (s.staffId || s.employeeId || s.employee_id || String(s.id)) === String(sid));
   };
 
   const filteredLeaves = searchQuery 
@@ -144,13 +430,13 @@ const DutyRoster = () => {
       })
     : leaves;
 
-  const handleApproveLeave = async (leaveId) => {
+const handleApproveLeave = async (leaveId) => {
     try {
       await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/approve/`, { 
         method: 'POST', 
-        body: JSON.stringify({ approvedBy: 'System' }) 
+        body: JSON.stringify({ approvedBy: currentUserName || 'System' }) 
       });
-      dispatch(approveLeave({ leaveId, approvedBy: 'System' }));
+      dispatch(approveLeave({ leaveId, approvedBy: currentUserName || 'System' }));
     } catch (error) {
       setErrorMessage(error.message || 'Unable to approve leave.');
     }
@@ -160,9 +446,9 @@ const DutyRoster = () => {
     try {
       await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/reject/`, { 
         method: 'POST', 
-        body: JSON.stringify({ approvedBy: 'System' }) 
+        body: JSON.stringify({ approvedBy: currentUserName || 'System' }) 
       });
-      dispatch(rejectLeave({ leaveId, approvedBy: 'System' }));
+      dispatch(rejectLeave({ leaveId, approvedBy: currentUserName || 'System' }));
     } catch (error) {
       setErrorMessage(error.message || 'Unable to reject leave.');
     }
@@ -222,7 +508,8 @@ const DutyRoster = () => {
 
     try {
       const matchedStaff = getStaffById(leaveFormData.staffId);
-      const displayName = matchedStaff?.full_name || 
+      const displayName = matchedStaff?.name ||
+        matchedStaff?.full_name ||
         `${matchedStaff?.first_name || ''} ${matchedStaff?.last_name || ''}`.trim() || '';
       
       const payload = {
@@ -266,7 +553,8 @@ const DutyRoster = () => {
 
     try {
       const matchedStaff = getStaffById(overtimeFormData.staffId);
-      const displayName = matchedStaff?.full_name || 
+      const displayName = matchedStaff?.name ||
+        matchedStaff?.full_name ||
         `${matchedStaff?.first_name || ''} ${matchedStaff?.last_name || ''}`.trim() || '';
       
       const payload = {
@@ -298,6 +586,48 @@ const DutyRoster = () => {
     }
   };
 
+  const handleDeleteRoster = async (roster) => {
+    const rosterId = roster.rosterId || roster.id;
+    if (!window.confirm(`Delete roster for ${roster.month} ${roster.year} - ${roster.department}?`)) return;
+
+    try {
+      await apiRequest(`/api/v1/ward-rounds/duty-rosters/${rosterId}/`, {
+        method: 'DELETE'
+      });
+      dispatch(removeDutyRoster(rosterId));
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to delete roster.');
+    }
+  };
+
+  const handleDeleteLeave = async (leave) => {
+    const leaveId = leave.leaveId || leave.id;
+    if (!window.confirm('Delete this leave request?')) return;
+
+    try {
+      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/`, {
+        method: 'DELETE'
+      });
+      dispatch(removeLeaveRequest(leaveId));
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to delete leave request.');
+    }
+  };
+
+  const handleDeleteOvertime = async (overtime) => {
+    const overtimeId = overtime.overtimeId || overtime.id;
+    if (!window.confirm('Delete this overtime record?')) return;
+
+    try {
+      await apiRequest(`/api/v1/ward-rounds/overtime-records/${overtimeId}/`, {
+        method: 'DELETE'
+      });
+      dispatch(removeOvertimeRecord(overtimeId));
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to delete overtime record.');
+    }
+  };
+
   const handleAddAssignment = () => {
     if (!assignmentFormData.staffId || !assignmentFormData.date || !assignmentFormData.dutyType) {
       setErrorMessage('Please fill in staff, date, and duty type.');
@@ -315,7 +645,8 @@ const DutyRoster = () => {
     }
 
     const staffMember = getStaffById(assignmentFormData.staffId);
-    const displayName = staffMember?.full_name || 
+    const displayName = staffMember?.name ||
+      staffMember?.full_name ||
       `${staffMember?.first_name || ''} ${staffMember?.last_name || ''}`.trim() || 'Unknown Staff';
     
     const newAssignment = {
@@ -343,8 +674,6 @@ const DutyRoster = () => {
       endTime: '',
       notes: ''
     });
-    setStaffSearchQuery('');
-    setShowStaffDropdown(false);
     setErrorMessage('');
   };
 
@@ -401,39 +730,15 @@ const DutyRoster = () => {
       
       setShowCreateRosterModal(false);
       setRosterFormData({ month: '', year: '', department: '', assignments: [] });
-      setStaffSearchQuery('');
-      setShowStaffDropdown(false);
+      setDraggedStaff(null);
+      setQuickAssignDate(null);
+      setQuickAssignData({ dutyType: 'Call Duty', startTime: '', endTime: '', notes: '' });
+      setAssignmentFormData({ staffId: '', staffName: '', date: '', dutyType: '', startTime: '', endTime: '', notes: '' });
       setErrorMessage('');
     } catch (error) {
       setErrorMessage(error.message || 'Unable to create roster.');
     }
   };
-
-  const selectStaff = (member) => {
-    const displayName = member.full_name || 
-      `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown';
-    
-    setAssignmentFormData(prev => ({
-      ...prev,
-      staffId: member.employee_id || String(member.id),
-      staffName: displayName
-    }));
-    setStaffSearchQuery(displayName);
-    setShowStaffDropdown(false);
-  };
-
-  const filteredStaff = staff.filter(member => {
-    const query = staffSearchQuery.toLowerCase();
-    const fullName = `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase();
-    const displayName = (member.full_name || fullName || '').toLowerCase();
-    return (
-      displayName.includes(query) ||
-      (member.role || '').toLowerCase().includes(query) ||
-      (member.employee_id || '').toLowerCase().includes(query) ||
-      (member.department_name || '').toLowerCase().includes(query) ||
-      (member.email || '').toLowerCase().includes(query)
-    );
-  });
 
   return (
     <div className="duty-roster p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -618,6 +923,14 @@ const DutyRoster = () => {
               >
                 Overtime ({overtime.length})
               </button>
+              <button
+                onClick={() => { setActiveTab('oncall'); setShowMobileMenu(false); }}
+                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
+                  activeTab === 'oncall' ? 'bg-nigerian-green/10 text-nigerian-green' : 'text-gray-700'
+                }`}
+              >
+                On-Call Coverage
+              </button>
             </div>
           </div>
         </div>
@@ -655,6 +968,16 @@ const DutyRoster = () => {
         >
           Overtime ({overtime.length})
         </button>
+        <button
+          onClick={() => setActiveTab('oncall')}
+          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
+            activeTab === 'oncall'
+              ? 'text-nigerian-green border-b-2 border-nigerian-green'
+              : 'text-gray-600 hover:text-gray-800'
+          }`}
+        >
+          On-Call Coverage
+        </button>
       </div>
 
       {/* Mobile Tab Indicator */}
@@ -691,24 +1014,33 @@ const DutyRoster = () => {
       {activeTab === 'roster' && (
         <div className="space-y-4 md:space-y-6">
           {dutyRosters.length === 0 ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
+            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-6 md:p-8 text-center">
               <Calendar className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
               <p className="text-gray-600 font-medium text-sm md:text-base">No rosters published yet</p>
             </div>
           ) : (
             dutyRosters.map(roster => (
-              <div key={roster.rosterId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
-                <div className="mb-3 md:mb-4">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800">
-                    {roster.month || 'Unnamed Roster'} - {roster.department || 'No Department'}
-                  </h3>
-                  <p className="text-xs md:text-sm text-gray-600 mt-1">
-                    Status: 
-                    <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-green-100 text-green-800 rounded-full font-semibold text-xs md:text-sm ml-2">
-                      {roster.status || 'Draft'}
-                    </span>
-                  </p>
-                </div>
+              <div key={roster.rosterId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 overflow-hidden">
+                 <div className="bg-gray-50 px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 flex justify-between items-start">
+                   <div className="flex-1">
+                   <h3 className="text-lg md:text-xl font-bold text-gray-800">
+                     {roster.month || 'Unnamed Roster'} - {roster.department || 'No Department'}
+                   </h3>
+                   <p className="text-xs md:text-sm text-gray-600 mt-1">
+                     Year: {roster.year || 'N/A'} • Status:
+                     <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-green-100 text-green-800 rounded-full font-semibold text-xs md:text-sm ml-2">
+                       {roster.status || 'Draft'}
+                     </span>
+                   </p>
+                   </div>
+                   <button
+                     onClick={() => handleDeleteRoster(roster)}
+                     className="ml-2 text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                     title="Delete Roster"
+                   >
+                     <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                   </button>
+                 </div>
                 
                 <div className="overflow-x-auto -mx-4 md:mx-0">
                   <div className="min-w-full">
@@ -724,7 +1056,7 @@ const DutyRoster = () => {
                       {roster.assignments && roster.assignments.map(assignment => (
                         <div key={assignment.assignmentId} className="table-row border-b hover:bg-gray-50">
                           <div className="table-cell py-3 px-4 font-medium">
-                            {assignment.staffName || 'Unknown Staff'}
+                            {assignment.staffName || getStaffName(assignment.staffId) || 'Unknown Staff'}
                           </div>
                           <div className="table-cell py-3 px-4">
                             {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
@@ -750,7 +1082,7 @@ const DutyRoster = () => {
                         <div key={assignment.assignmentId} className="border border-gray-200 rounded-lg p-3">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <p className="font-medium text-sm">{assignment.staffName || 'Unknown Staff'}</p>
+                              <p className="font-medium text-sm">{assignment.staffName || getStaffName(assignment.staffId) || 'Unknown Staff'}</p>
                               <p className="text-xs text-gray-600">
                                 {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
                               </p>
@@ -785,7 +1117,7 @@ const DutyRoster = () => {
       {activeTab === 'leaves' && (
         <div className="space-y-3 md:space-y-4">
           {filteredLeaves.length === 0 ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
+            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-6 md:p-8 text-center">
               <AlertCircle className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
               <p className="text-gray-600 font-medium text-sm md:text-base">No leave requests</p>
               {searchQuery && (
@@ -800,7 +1132,7 @@ const DutyRoster = () => {
                 : 'N/A';
               
               return (
-                <div key={leave.leaveId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
+                <div key={leave.leaveId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 items-start">
                     <div className="sm:col-span-2 lg:col-span-1">
                       <p className="text-xs md:text-sm text-gray-600">Staff Member</p>
@@ -862,15 +1194,23 @@ const DutyRoster = () => {
                         </div>
                       )}
                     </div>
-                  </div>
-                  {leave.reason && (
-                    <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs md:text-sm text-gray-700">
-                        <strong>Reason:</strong> {leave.reason}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                     </div>
+                     {leave.reason && (
+                       <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
+                         <p className="text-xs md:text-sm text-gray-700">
+                           <strong>Reason:</strong> {leave.reason}
+                         </p>
+                       </div>
+                     )}
+                     <button
+                       onClick={() => handleDeleteLeave(leave)}
+                       className="mt-2 md:mt-3 text-red-600 hover:text-red-800 text-xs md:text-sm flex items-center gap-1"
+                       title="Delete Leave Request"
+                     >
+                       <Trash2 className="w-3.5 h-3.5" />
+                       Delete Request
+                     </button>
+                   </div>
               );
             })
           )}
@@ -881,7 +1221,7 @@ const DutyRoster = () => {
       {activeTab === 'overtime' && (
         <div className="space-y-3 md:space-y-4">
           {overtime.length === 0 ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
+            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-6 md:p-8 text-center">
               <Clock className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
               <p className="text-gray-600 font-medium text-sm md:text-base">No overtime records</p>
             </div>
@@ -889,7 +1229,7 @@ const DutyRoster = () => {
             overtime.map(overtimeRecord => {
               const staffName = getStaffName(overtimeRecord.staffId);
               return (
-                <div key={overtimeRecord.overtimeId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
+                <div key={overtimeRecord.overtimeId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 items-start">
                     <div className="sm:col-span-2 lg:col-span-1">
                       <p className="text-xs md:text-sm text-gray-600">Staff Member</p>
@@ -920,16 +1260,222 @@ const DutyRoster = () => {
                       <p className="font-bold text-xs md:text-sm">1.5x</p>
                     </div>
                   </div>
-                  {overtimeRecord.reason && (
-                    <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs md:text-sm text-gray-700">
-                        <strong>Reason:</strong> {overtimeRecord.reason}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                   {overtimeRecord.reason && (
+                     <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
+                       <p className="text-xs md:text-sm text-gray-700">
+                         <strong>Reason:</strong> {overtimeRecord.reason}
+                       </p>
+                     </div>
+                   )}
+                   <button
+                     onClick={() => handleDeleteOvertime(overtimeRecord)}
+                     className="mt-2 md:mt-3 text-red-600 hover:text-red-800 text-xs md:text-sm flex items-center gap-1"
+                     title="Delete Overtime Record"
+                   >
+                     <Trash2 className="w-3.5 h-3.5" />
+                     Delete Record
+                   </button>
+                 </div>
               );
             })
+          )}
+        </div>
+      )}
+
+      {/* On-Call Coverage Tab */}
+      {activeTab === 'oncall' && (
+        <div className="space-y-4 md:space-y-6">
+          {/* Date Picker */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div>
+              <label className="block text-xs md:text-sm text-gray-600 mb-1">Select Date</label>
+              <input
+                type="date"
+                value={onCallDate}
+                onChange={(e) => setOnCallDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent text-sm"
+              />
+            </div>
+            <button
+              onClick={() => loadOnCallData(onCallDate)}
+              disabled={onCallLoading}
+              className="px-4 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium text-sm transition-colors disabled:opacity-50"
+            >
+              {onCallLoading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+
+          {onCallLoading && (
+            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6 text-center">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                <Clock className="w-4 h-4 animate-spin" />
+                Loading on-call coverage...
+              </div>
+            </div>
+          )}
+
+          {!onCallLoading && onCallData && (
+            <>
+              {/* On-Call Staff (ER Coverage) */}
+              <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4 flex items-center">
+                  <User className="w-5 h-5 mr-2 text-red-500" />
+                  Who Is Covering the ER Tonight
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({onCallData.date})
+                  </span>
+                </h3>
+
+                {onCallData.on_call_staff.length === 0 ? (
+                  <div className="text-center py-6 md:py-8">
+                    <User className="w-10 h-10 md:w-12 md:h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-600 font-medium text-sm md:text-base">
+                      No on-call staff scheduled for this date
+                    </p>
+                    <p className="text-xs md:text-sm text-gray-400 mt-1">
+                      All shifts for this date will appear below
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 md:space-y-4">
+                    {onCallData.on_call_staff.map((staff, idx) => {
+                      const staffDetails = getStaffById(staff.staffId);
+                      const displayName = staff.staffName ||
+                        (staffDetails?.name || staffDetails?.full_name ||
+                          `${staffDetails?.first_name || ''} ${staffDetails?.last_name || ''}`.trim() ||
+                          'Unknown Staff');
+                      const role = staff.role || staffDetails?.category || staffDetails?.role || staffDetails?.staff_category || '';
+                      const isEmergency = staff.dutyType &&
+                        ['Emergency', 'Emergency Cover', 'er', 'ER'].includes(staff.dutyType);
+                      return (
+                        <div
+                          key={staff.id || idx}
+                          className={`border rounded-lg p-3 md:p-4 ${
+                            isEmergency
+                              ? 'border-red-200 bg-red-50'
+                              : 'border-blue-200 bg-blue-50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                                isEmergency
+                                  ? 'bg-red-100 text-red-600'
+                                  : 'bg-blue-100 text-blue-600'
+                              }`}>
+                                {displayName.charAt(0) || '?'}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm md:text-base text-gray-900">{displayName}</p>
+                                {role && (
+                                  <p className="text-xs md:text-sm text-gray-500">{role}</p>
+                                )}
+                                {staff.email && (
+                                  <p className="text-xs text-gray-400 truncate max-w-xs">
+                                    {staff.email}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`inline-block px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${
+                              isEmergency
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {staff.dutyType || 'On Call'}
+                            </span>
+                          </div>
+                          {(staff.startTime || staff.endTime) && (
+                            <div className="mt-2 text-sm text-gray-600 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {staff.startTime || '--:--'} – {staff.endTime || '--:--'}
+                            </div>
+                          )}
+                          {staff.notes && (
+                            <p className="mt-1 text-xs text-gray-500">{staff.notes}</p>
+                          )}
+                          {staff.department && (
+                            <p className="mt-1 text-xs text-gray-400">
+                              Department: {staff.department}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* All Shifts for Selected Date */}
+              {onCallData.all_shifts.length > 0 && (
+                <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4">
+                    All Shifts for {onCallData.date}
+                  </h3>
+                  <div className="overflow-x-auto -mx-4 md:mx-0">
+                    <div className="min-w-full">
+                      {/* Desktop Table */}
+                      <div className="hidden md:table w-full">
+                        <div className="table-row-group">
+                          <div className="table-row border-b bg-gray-50">
+                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Staff Member</div>
+                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Department</div>
+                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Duty Type</div>
+                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Time</div>
+                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Notes</div>
+                          </div>
+                          {onCallData.all_shifts.map((shift, idx) => (
+                            <div key={shift.id || idx} className="table-row border-b hover:bg-gray-50">
+                              <div className="table-cell py-2 px-4 font-medium text-sm">
+                                {shift.staffName || getStaffName(shift.staffId) || 'Unknown Staff'}</div>
+                              <div className="table-cell py-2 px-4 text-sm text-gray-600">{shift.department || '-'}</div>
+                              <div className="table-cell py-2 px-4">
+                                <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
+                                  {shift.dutyType || 'N/A'}
+                                </span>
+                              </div>
+                              <div className="table-cell py-2 px-4 text-sm text-gray-600">
+                                {shift.startTime || '--'} – {shift.endTime || '--'}
+                              </div>
+                              <div className="table-cell py-2 px-4 text-xs text-gray-500 truncate max-w-xs">
+                                {shift.notes || '-'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Mobile Cards */}
+                      <div className="md:hidden space-y-2">
+                        {onCallData.all_shifts.map((shift, idx) => (
+                          <div key={shift.id || idx} className="border border-gray-200 rounded-lg p-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-sm">{shift.staffName || getStaffName(shift.staffId) || 'Unknown Staff'}</p>
+                                <p className="text-xs text-gray-500">{shift.department || '-'}</p>
+                              </div>
+                              <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
+                                {shift.dutyType || 'N/A'}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              {shift.startTime || '--'} – {shift.endTime || '--'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {!onCallLoading && !onCallData && !errorMessage && (
+            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6 text-center">
+              <p className="text-gray-600 text-sm">
+                Select a date and click Refresh to view on-call coverage.
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -946,23 +1492,15 @@ const DutyRoster = () => {
         size="lg"
       >
         <div className="space-y-3 md:space-y-4">
-          <select
+          <StaffSelector
+            staff={staff}
             value={leaveFormData.staffId}
-            onChange={(e) => setLeaveFormData({ ...leaveFormData, staffId: e.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
-          >
-            <option value="">Select Staff Member</option>
-            {staff.map(s => {
-              const sid = s.employee_id || String(s.id);
-              const name = s.full_name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown';
-              return (
-                <option key={sid} value={sid}>
-                  {name} (Balance: {getLeaveBalance(sid)} days)
-                </option>
-              );
-            })}
-          </select>
-          
+            onChange={(sid) => setLeaveFormData({ ...leaveFormData, staffId: sid })}
+            placeholder="Select staff member"
+            showLeaveBalance={true}
+            getLeaveBalance={getLeaveBalance}
+          />
+
           <select
             value={leaveFormData.leaveType}
             onChange={(e) => setLeaveFormData({ ...leaveFormData, leaveType: e.target.value })}
@@ -1043,21 +1581,13 @@ const DutyRoster = () => {
         size="lg"
       >
         <div className="space-y-3 md:space-y-4">
-          <select
+          <StaffSelector
+            staff={staff}
             value={overtimeFormData.staffId}
-            onChange={(e) => setOvertimeFormData({ ...overtimeFormData, staffId: e.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nigerian-green text-sm md:text-base"
-          >
-            <option value="">Select Staff Member</option>
-            {staff.map(s => {
-              const sid = s.employee_id || String(s.id);
-              const name = s.full_name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown';
-              return (
-                <option key={sid} value={sid}>{name}</option>
-              );
-            })}
-          </select>
-          
+            onChange={(sid) => setOvertimeFormData({ ...overtimeFormData, staffId: sid })}
+            placeholder="Select staff member"
+          />
+
           <div>
             <label className="block text-xs md:text-sm text-gray-600 mb-1">Date</label>
             <input
@@ -1123,8 +1653,10 @@ const DutyRoster = () => {
         onClose={() => {
           setShowCreateRosterModal(false);
           setRosterFormData({ month: '', year: '', department: '', assignments: [] });
-          setStaffSearchQuery('');
-          setShowStaffDropdown(false);
+          setDraggedStaff(null);
+          setQuickAssignDate(null);
+          setQuickAssignData({ dutyType: 'Call Duty', startTime: '', endTime: '', notes: '' });
+          setAssignmentFormData({ staffId: '', staffName: '', date: '', dutyType: '', startTime: '', endTime: '', notes: '' });
           setErrorMessage('');
         }}
         title="Create Duty Roster"
@@ -1141,18 +1673,9 @@ const DutyRoster = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
               >
                 <option value="">Select Month</option>
-                <option value="January">January</option>
-                <option value="February">February</option>
-                <option value="March">March</option>
-                <option value="April">April</option>
-                <option value="May">May</option>
-                <option value="June">June</option>
-                <option value="July">July</option>
-                <option value="August">August</option>
-                <option value="September">September</option>
-                <option value="October">October</option>
-                <option value="November">November</option>
-                <option value="December">December</option>
+                {monthNames.map(month => (
+                  <option key={month} value={month}>{month}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -1177,115 +1700,268 @@ const DutyRoster = () => {
             </div>
           </div>
 
-          {/* Add Assignment Form */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Duty Assignments</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Staff Member</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={staffSearchQuery}
-                    onChange={(e) => {
-                      setStaffSearchQuery(e.target.value);
-                      setShowStaffDropdown(e.target.value.length > 0);
-                    }}
-                    placeholder="Search staff by name, role, or department..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
-                  />
-                  {showStaffDropdown && staffSearchQuery && (
-                    <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
-                      {filteredStaff.slice(0, 8).map(member => {
-                        const displayName = member.full_name || 
-                          `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown';
+          {/* Drag & Drop Calendar */}
+          {rosterFormData.month && rosterFormData.year && (
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Drag &amp; Drop Assignments</h3>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Staff List (Draggable) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Staff Members</label>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {staff.length === 0 ? (
+                      <div className="text-center py-6 text-gray-500">
+                        {staffLoading ? 'Loading staff...' : 'No staff available'}
+                      </div>
+                    ) : (
+                      staff.map(member => {
+                        const displayName = member.name || member.full_name || 'Unknown';
+                        const role = member.role || member.category || 'Staff';
+                        const roleClass = role.toLowerCase();
+                        const categoryColor =
+                          roleClass.includes('doctor') ? 'bg-blue-100 text-blue-800' :
+                          roleClass.includes('nurse') ? 'bg-green-100 text-green-800' :
+                          roleClass.includes('pharmacist') ? 'bg-purple-100 text-purple-800' :
+                          roleClass.includes('lab') || roleClass.includes('laboratory') ? 'bg-orange-100 text-orange-800' :
+                          roleClass.includes('radi') ? 'bg-teal-100 text-teal-800' :
+                          roleClass.includes('admin') ? 'bg-indigo-100 text-indigo-800' :
+                          'bg-gray-100 text-gray-800';
                         return (
-                          <button
-                            key={member.id}
-                            type="button"
-                            onClick={() => selectStaff(member)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-0"
+                          <div
+                            key={member.staffId || member.id}
+                            draggable
+                            onDragStart={() => handleStaffDragStart(member)}
+                            className="p-3 bg-white border border-gray-200 rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
                           >
-                            <span className="font-medium text-gray-900">{displayName}</span>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <span>{member.role}</span>
-                              {member.department_name && (
-                                <>
-                                  <span>•</span>
-                                  <span>{member.department_name}</span>
-                                </>
-                              )}
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-nigerian-green bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0">
+                                <User className="w-4 h-4 text-nigerian-green" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{displayName}</p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${categoryColor}`}>
+                                  {role}
+                                </span>
+                                {member.department && (
+                                  <p className="text-xs text-gray-500 truncate">{member.department}</p>
+                                )}
+                              </div>
                             </div>
-                          </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Calendar Grid (Drop Targets) */}
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {rosterFormData.month} {rosterFormData.year} Calendar
+                  </label>
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <div className="grid grid-cols-7 gap-px bg-gray-200 text-xs font-medium text-gray-500 uppercase">
+                      {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+                        <div key={d} className="bg-gray-50 px-2 py-1.5 text-center">{d}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-px bg-gray-200">
+                      {calendarDays.map((day, idx) => {
+                        const dayAssignments = day.isCurrentMonth
+                          ? rosterFormData.assignments.filter(a => a.date === day.date)
+                          : [];
+                        return (
+                          <div
+                            key={idx}
+                            onDragOver={day.isCurrentMonth ? handleDateDragOver : undefined}
+                            onDrop={day.isCurrentMonth ? () => handleDateDrop(day.date) : undefined}
+                            className={`min-h-[60px] p-1 transition-colors ${
+                              day.isCurrentMonth
+                                ? (dayAssignments.length > 0 ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-blue-50')
+                                : 'bg-gray-50'
+                            }`}
+                          >
+                            {day.day && (
+                              <span className={`text-xs font-medium ${
+                                day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
+                              }`}>
+                                {day.day}
+                              </span>
+                            )}
+                            {dayAssignments.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {dayAssignments.slice(0, 2).map((a, i) => (
+                                  <div key={i} className="text-xs bg-nigerian-green text-white px-1 py-0.5 rounded truncate">
+                                    {(a.staffName || 'Unknown').split(' ').slice(-1)[0]}
+                                  </div>
+                                ))}
+                                {dayAssignments.length > 2 && (
+                                  <div className="text-xs text-gray-500">+{dayAssignments.length - 2} more</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
-                      {filteredStaff.length === 0 && (
-                        <p className="px-3 py-2 text-xs text-gray-500">No staff found</p>
-                      )}
                     </div>
-                  )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Assignment Modal */}
+              {draggedStaff && quickAssignDate && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                      Assign {draggedStaff.name || 'Unknown'} to {quickAssignDate}
+                    </h4>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Duty Type</label>
+                        <select
+                          value={quickAssignData.dutyType}
+                          onChange={(e) => setQuickAssignData(prev => ({ ...prev, dutyType: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                        >
+                          {dutyTypes.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                          <input
+                            type="time"
+                            value={quickAssignData.startTime}
+                            onChange={(e) => setQuickAssignData(prev => ({ ...prev, startTime: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                          <input
+                            type="time"
+                            value={quickAssignData.endTime}
+                            onChange={(e) => setQuickAssignData(prev => ({ ...prev, endTime: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea
+                          value={quickAssignData.notes}
+                          onChange={(e) => setQuickAssignData(prev => ({ ...prev, notes: e.target.value }))}
+                          placeholder="Additional notes..."
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-3 pt-4 border-t">
+                      <button
+                        onClick={() => { setDraggedStaff(null); setQuickAssignDate(null); }}
+                        className="flex-1 px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleQuickAssign}
+                        className="flex-1 px-4 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium"
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Traditional Form (fallback when month/year not set) */}
+          {(!rosterFormData.month || !rosterFormData.year) && (
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Duty Assignments</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Staff Member</label>
+                  <StaffSelector
+                    staff={staff}
+                    value={assignmentFormData.staffId}
+                    onChange={(sid, sname) => {
+                      const member = staff.find(s => (s.staffId || s.employeeId || s.employee_id || String(s.id)) === String(sid));
+                      setAssignmentFormData(prev => ({
+                        ...prev,
+                        staffId: sid,
+                        staffName: sname || member?.name || member?.full_name || 'Unknown Staff'
+                      }));
+                    }}
+                    placeholder="Search staff by name, role, department..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                  <input
+                    type="date"
+                    value={assignmentFormData.date}
+                    onChange={(e) => setAssignmentFormData(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Duty Type</label>
+                  <select
+                    value={assignmentFormData.dutyType}
+                    onChange={(e) => setAssignmentFormData(prev => ({ ...prev, dutyType: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                  >
+                    <option value="">Select Duty Type</option>
+                    {dutyTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                  <input
+                    type="time"
+                    value={assignmentFormData.startTime}
+                    onChange={(e) => setAssignmentFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                  <input
+                    type="time"
+                    value={assignmentFormData.endTime}
+                    onChange={(e) => setAssignmentFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleAddAssignment}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  >
+                    Add Assignment
+                  </button>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                <input
-                  type="date"
-                  value={assignmentFormData.date}
-                  onChange={(e) => setAssignmentFormData(prev => ({ ...prev, date: e.target.value }))}
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <textarea
+                  value={assignmentFormData.notes}
+                  onChange={(e) => setAssignmentFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional notes for this assignment"
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Duty Type</label>
-                <select
-                  value={assignmentFormData.dutyType}
-                  onChange={(e) => setAssignmentFormData(prev => ({ ...prev, dutyType: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
-                >
-                  <option value="">Select Duty Type</option>
-                  {dutyTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
-                <input
-                  type="time"
-                  value={assignmentFormData.startTime}
-                  onChange={(e) => setAssignmentFormData(prev => ({ ...prev, startTime: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
-                <input
-                  type="time"
-                  value={assignmentFormData.endTime}
-                  onChange={(e) => setAssignmentFormData(prev => ({ ...prev, endTime: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleAddAssignment}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  Add Assignment
-                </button>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-              <textarea
-                value={assignmentFormData.notes}
-                onChange={(e) => setAssignmentFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Additional notes for this assignment"
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Assignments List */}
           {rosterFormData.assignments.length > 0 && (
@@ -1294,22 +1970,41 @@ const DutyRoster = () => {
                 Current Assignments ({rosterFormData.assignments.length})
               </h3>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {rosterFormData.assignments.map((assignment, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{assignment.staffName}</p>
-                      <p className="text-sm text-gray-600">
-                        {assignment.date} - {assignment.dutyType} ({assignment.startTime} - {assignment.endTime})
-                      </p>
+                {rosterFormData.assignments.map((assignment, index) => {
+                  const dutyTypeColor =
+                    assignment.dutyType === 'Night Duty' ? 'bg-purple-100 text-purple-800' :
+                    assignment.dutyType === 'Emergency' ? 'bg-red-100 text-red-800' :
+                    assignment.dutyType === 'Weekend' ? 'bg-orange-100 text-orange-800' :
+                    assignment.dutyType === 'Clinic' ? 'bg-teal-100 text-teal-800' :
+                    'bg-blue-100 text-blue-800';
+                  return (
+                    <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900">{assignment.staffName || 'Unknown Staff'}</p>
+                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                          <span className="inline-block px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs">
+                            {assignment.date}
+                          </span>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${dutyTypeColor}`}>
+                            {assignment.dutyType}
+                          </span>
+                          <span className="text-xs">
+                            {assignment.startTime || '--:--'} – {assignment.endTime || '--:--'}
+                          </span>
+                        </div>
+                        {assignment.notes && (
+                          <p className="text-xs text-gray-500 mt-1 truncate">{assignment.notes}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removeAssignment(index)}
+                        className="ml-2 text-red-600 hover:text-red-800 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => removeAssignment(index)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1319,23 +2014,25 @@ const DutyRoster = () => {
           )}
 
           {/* Modal Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-6 border-t">
             <button
               onClick={() => {
                 setShowCreateRosterModal(false);
                 setRosterFormData({ month: '', year: '', department: '', assignments: [] });
-                setStaffSearchQuery('');
-                setShowStaffDropdown(false);
+                setDraggedStaff(null);
+                setQuickAssignDate(null);
+                setQuickAssignData({ dutyType: 'Call Duty', startTime: '', endTime: '', notes: '' });
+                setAssignmentFormData({ staffId: '', staffName: '', date: '', dutyType: '', startTime: '', endTime: '', notes: '' });
                 setErrorMessage('');
               }}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+              className="w-full sm:w-auto px-4 py-2 text-gray-600 hover:text-gray-800 font-medium border border-gray-300 rounded-lg hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               onClick={handleCreateRoster}
-              disabled={!rosterFormData.month || !rosterFormData.year || !rosterFormData.department}
-              className="px-6 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!rosterFormData.month || !rosterFormData.year || !rosterFormData.department || rosterFormData.assignments.length === 0}
+              className="w-full sm:w-auto px-6 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Create Roster
             </button>

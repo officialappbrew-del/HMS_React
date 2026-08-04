@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
 import { logout } from '../utils/api';
-import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, LogOut } from 'lucide-react';
+import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, LogOut, BarChart3, Share2 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
@@ -21,6 +21,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Pill, label: 'Pharmacy', path: '/pharmacy' },
       { icon: Activity, label: 'Inventory', path: '/inventory' },
       { icon: Shield, label: 'Compliance', path: '/ndpr-compliance' },
+      { icon: BarChart3, label: 'Reports', path: '/financial-analytics' },
+      { icon: Share2, label: 'External Integrations', path: '/external-integrations' },
       { icon: Settings, label: 'Settings', path: '/settings' }
     ],
     doctor: [
@@ -47,7 +49,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Users, label: 'Patient Registration', path: '/patients' },
       { icon: Calendar, label: 'Appointments', path: '/appointments' },
-      { icon: FileText, label: 'Billing', path: '/billing' },
       { icon: Phone, label: 'Communications', path: '/patient-feedback' },
       { icon: Ambulance, label: 'Referrals', path: '/emergency-dept' }
     ],
@@ -64,6 +65,9 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
   const currentMenu = menuItems[userRole] || menuItems.admin;
   const filteredMenu = currentMenu.filter(item => {
     if (item.path === '/settings' && userRole === 'admin' && !isRootAdmin) {
+      return false;
+    }
+    if (item.path === '/external-integrations' && !['admin', 'super_admin', 'system_admin'].includes(userRole)) {
       return false;
     }
     return true;

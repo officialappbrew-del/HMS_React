@@ -60,7 +60,7 @@ const Settings = () => {
     currency: 'NGN',
     currency_symbol: '₦',
     tax_rate: 7.5,
-    dashboard_refresh_interval: getUserPreferences().refreshInterval || 60,
+    dashboard_refresh_interval: getUserPreferences().refreshInterval || 300,
     billing_cycle: 'monthly',
     email_notifications: true,
     sms_notifications: true,

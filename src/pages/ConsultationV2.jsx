@@ -124,6 +124,7 @@ const ConsultationV2 = () => {
   const [patientVisitsError, setPatientVisitsError] = useState('');
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [checkInError, setCheckInError] = useState('');
+  const [medicationSafetyWarnings, setMedicationSafetyWarnings] = useState([]);
 
   const visitId = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -345,6 +346,10 @@ const ConsultationV2 = () => {
             ...notePayload,
             ...prescriptionsPayload
           }));
+
+          if (visit.patient) {
+            await refreshMedicationSafetyWarnings(visit.patient);
+          }
         }
       } catch (error) {
         setApiError(error.message || 'Unable to load consultation details.');
@@ -411,10 +416,71 @@ const ConsultationV2 = () => {
     dispatch(addAuditLog({ action: `Updated ROS ${section} ${field}` }));
   };
 
+  const refreshMedicationSafetyWarnings = async (patientId, incomingMedication = null) => {
+    if (!patientId) return;
+
+    try {
+      const history = await consultationApi.getMedicationHistory(patientId);
+      const existingDrugNames = (history?.medications || []).map(item => item.drug_name).filter(Boolean);
+      const candidateDrugs = incomingMedication
+        ? [...existingDrugNames, incomingMedication.name]
+        : existingDrugNames;
+
+      let interactionPayload = { patient_id: patientId, drug_names: candidateDrugs };
+      if (candidateDrugs.length === 0) {
+        setMedicationSafetyWarnings(history?.warnings || []);
+        return;
+      }
+
+      const interactionResult = await consultationApi.checkInteractions(interactionPayload);
+      const warnings = [
+        ...(history?.warnings || []),
+        ...(interactionResult?.interactions || []).map(item => ({
+          type: 'drug_interaction',
+          severity: item.severity || 'high',
+          message: item.message,
+          drugs: item.drugs || []
+        }))
+      ];
+
+      setMedicationSafetyWarnings(warnings);
+    } catch (error) {
+      console.warn('Failed to load medication safety data:', error);
+      setMedicationSafetyWarnings([]);
+    }
+  };
+
   const handleAddMedication = async () => {
     if (!newMedication.name || !newMedication.dosage) return;
-    dispatch(addMedication({ ...newMedication, current: true, previous: false, stopped: false }));
+
+    const medicationData = { ...newMedication, current: true, previous: false, stopped: false };
+    dispatch(addMedication(medicationData));
     dispatch(addAuditLog({ action: `Added medication ${newMedication.name}` }));
+
+    const patientId = consultation.patient.patientId || consultation.patient.id;
+    if (patientId) {
+      try {
+        const interactionResult = await consultationApi.checkInteractions({
+          patient_id: patientId,
+          drug_names: [
+            ...((consultation.medications || []).map(item => item.name).filter(Boolean)),
+            newMedication.name
+          ]
+        });
+
+        const interactionWarnings = (interactionResult?.interactions || []).map(item => ({
+          type: 'drug_interaction',
+          severity: item.severity || 'high',
+          message: item.message,
+          drugs: item.drugs || []
+        }));
+
+        setMedicationSafetyWarnings(prev => [...prev, ...interactionWarnings]);
+      } catch (error) {
+        setApiError(error.message || 'Failed to validate medication safety.');
+      }
+    }
+
     setNewMedication({ name: '', dosage: '', frequency: '', duration: '', quantity: '', route: 'Oral', reason: '' });
     if (visitId) {
       try {
@@ -428,6 +494,9 @@ const ConsultationV2 = () => {
           route: newMedication.route,
           instructions: newMedication.reason
         });
+        if (patientId) {
+          await refreshMedicationSafetyWarnings(patientId, medicationData);
+        }
       } catch (error) {
         setApiError(error.message || 'Failed to save medication to server.');
       }
@@ -1162,6 +1231,21 @@ const ConsultationV2 = () => {
                 </select>
                 <button onClick={handleAddMedication} className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700">Add Medication</button>
               </div>
+              {medicationSafetyWarnings.length > 0 && (
+                <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-800">
+                    <AlertTriangle className="h-4 w-4" /> Medication safety review
+                  </div>
+                  <ul className="space-y-2 text-sm text-amber-800">
+                    {medicationSafetyWarnings.map((warning, index) => (
+                      <li key={`${warning.type}-${warning.drug_name || index}`} className="rounded-2xl border border-amber-200 bg-white/60 p-3">
+                        {warning.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 {consultation.medications.length === 0 ? (
                   <p className="text-sm text-slate-600">No current medications documented.</p>

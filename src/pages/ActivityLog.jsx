@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 
@@ -80,7 +82,6 @@ const pickName = (vals) => {
 };
 
 // Field names that differ between old and new snapshots (or all keys on create/delete).
-// Computed/read-only keys are dropped so only meaningful edits are shown.
 const COMPUTED_KEYS = ['full_name', 'age_display', 'waiting_time', 'is_past_due', 'file_size_display', 'created_at', 'updated_at', 'id', 'pk', 'tenant'];
 const computeChanges = (oldV, newV) => {
   let keys;
@@ -95,8 +96,6 @@ const computeChanges = (oldV, newV) => {
 };
 
 // Convert a backend AuditLog entry into the activity shape used by this page.
-// Prefers the server-provided title/severity/actor (single source of truth)
-// and enriches it with patient name, hospital number, device and change summary.
 const normalizeAuditLog = (log) => {
   const action = String(log.action || '').toLowerCase();
   const meta = resolveAuditMeta(action);
@@ -191,15 +190,70 @@ const Spinner = () => (
 
 const SEVERITY_COLOR = { urgent: '#dc2626', warning: '#f59e0b', info: '#3b82f6' };
 
-// Compact labelled data cell used to spread an activity's key facts across the card.
-const DataCell = ({ label, value }) => (
-  <div className="min-w-0 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-    <p className="truncate text-xs font-semibold text-gray-700" title={value}>
-      {value || '—'}
-    </p>
-  </div>
-);
+// Mobile card view for each activity
+const ActivityCard = ({ activity, time, typeLabel }) => {
+  const Icon = activity.icon || Activity;
+  const [expanded, setExpanded] = useState(false);
+  
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 p-4 mb-3 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <span className={`${activity.color} rounded-xl p-2 flex-shrink-0`}>
+            <Icon className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold text-slate-900 text-sm truncate">{activity.title}</p>
+              <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 whitespace-nowrap">
+                {typeLabel}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 truncate">{activity.description}</p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-600">
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {time}
+              </span>
+              {activity.patientName && (
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {activity.patientName}
+                </span>
+              )}
+              <span 
+                className="font-medium cursor-pointer hover:text-slate-800"
+                onClick={() => navigator.clipboard?.writeText(activity.actorName)}
+                title="Click to copy"
+              >
+                {activity.actorName || 'Unknown'}
+              </span>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex-shrink-0 p-1 hover:bg-slate-100 rounded"
+        >
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+      
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <p className="text-slate-500 font-medium">IP Address</p>
+            <p className="text-slate-700">{activity.ipAddress || '—'}</p>
+          </div>
+          <div>
+            <p className="text-slate-500 font-medium">Device</p>
+            <p className="text-slate-700 truncate">{activity.device || '—'}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ActivityLog = ({ onBack }) => {
   const { patients } = useSelector((state) => state.patient || { patients: [] });
@@ -207,9 +261,7 @@ const ActivityLog = ({ onBack }) => {
 
   const AUDIT_PAGE_SIZE = 7;
 
-  const [localActivities, setLocalActivities] = useState([]);
-
-  // Server-paginated audit trail (mirrors PatientManagement's patient table).
+  // Server-paginated audit trail
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditNext, setAuditNext] = useState(null);
   const [auditPrevious, setAuditPrevious] = useState(null);
@@ -235,84 +287,6 @@ const ActivityLog = ({ onBack }) => {
   };
 
   // Build the local, module-derived activity feed (patients / pharmacy).
-  useEffect(() => {
-    const allActivities = [
-      ...patients.map((p) => ({
-        id: p.id,
-        type: 'patient_registration',
-        title: 'Patient Registered',
-        description: `${p.name} registered as a new patient`,
-        details: `NIN: ${p.nin}, Phone: ${p.phone}, State: ${p.state}`,
-        timestamp: p.createdAt,
-        icon: Users,
-        color: 'bg-blue-100 text-blue-600',
-        severity: 'info',
-      })),
-
-      ...drugs
-        .filter((d) => d.quantityInStock <= d.reorderLevel)
-        .map((d) => ({
-          id: `drug-${d.id}`,
-          type: 'low_stock',
-          title: 'Low Stock Alert',
-          description: `${d.name} is running low on stock`,
-          details: `Current stock: ${d.quantityInStock} units, Reorder level: ${d.reorderLevel}`,
-          timestamp: new Date().toISOString(),
-          icon: AlertCircle,
-          color: 'bg-red-100 text-red-600',
-          severity: 'urgent',
-        })),
-
-      ...drugs
-        .filter((d) => {
-          const expiryDate = new Date(d.expiryDate);
-          const today = new Date();
-          const daysToExpiry = (expiryDate - today) / (1000 * 60 * 60 * 24);
-          return daysToExpiry > 0 && daysToExpiry <= 30;
-        })
-        .map((d) => ({
-          id: `expiry-${d.id}`,
-          type: 'expiring_drug',
-          title: 'Drug Expiring Soon',
-          description: `${d.name} will expire soon`,
-          details: `Expiry Date: ${new Date(d.expiryDate).toLocaleDateString('en-NG')}`,
-          timestamp: new Date().toISOString(),
-          icon: Clock,
-          color: 'bg-yellow-100 text-yellow-600',
-          severity: 'warning',
-        })),
-
-      ...salesHistory.map((sale) => ({
-        id: sale.id,
-        type: 'drug_dispensed',
-        title: 'Drug Dispensed',
-        description: `${sale.drugName} dispensed to patient`,
-        details: `Quantity: ${sale.quantity} units, Amount: ₦${(sale.totalPrice || 0).toLocaleString('en-NG')}`,
-        timestamp: sale.timestamp,
-        icon: Pill,
-        color: 'bg-green-100 text-green-600',
-        severity: 'info',
-      })),
-
-      ...patients
-        .filter((p) => p.updatedAt && p.updatedAt !== p.createdAt)
-        .map((p) => ({
-          id: `update-${p.id}`,
-          type: 'patient_updated',
-          title: 'Patient Record Updated',
-          description: `${p.name}'s record was updated`,
-          details: `Last updated: ${new Date(p.updatedAt).toLocaleDateString('en-NG')}`,
-          timestamp: p.updatedAt,
-          icon: FileText,
-          color: 'bg-purple-100 text-purple-600',
-          severity: 'info',
-        })),
-    ];
-
-    allActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    setLocalActivities(allActivities);
-  }, [patients, drugs, salesHistory]);
-
   const buildAuditUrl = (page = 1) => {
     const params = new URLSearchParams();
     params.append('page_size', String(AUDIT_PAGE_SIZE));
@@ -320,7 +294,7 @@ const ActivityLog = ({ onBack }) => {
     return `/api/v1/core/audit-logs/?${params.toString()}`;
   };
 
-  // Paginated, server-driven fetch of the audit trail (same UX as PatientManagement).
+  // Paginated, server-driven fetch of the audit trail
   const loadAuditLogs = async (page = 1, { silent = false } = {}) => {
     try {
       if (silent) setPaging(true);
@@ -336,7 +310,6 @@ const ActivityLog = ({ onBack }) => {
       setAuditTotal(data?.count ?? results.length);
       setAuditPage(page);
     } catch (err) {
-      // Audit access is restricted to admin-level roles; degrade gracefully.
       setAuditError(err.message || 'Unable to load audit trail');
       setAuditLogs([]);
     } finally {
@@ -383,12 +356,10 @@ const ActivityLog = ({ onBack }) => {
   // Merge local + (current page of) audit activities, then apply active filters.
   useEffect(() => {
     const normalized = auditLogs.map(normalizeAuditLog);
-    const merged = [...localActivities, ...normalized].sort(
-      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-    );
+    const merged = normalized.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     setActivities(merged);
     applyFilters(merged, searchTerm, filterType);
-  }, [localActivities, auditLogs, searchTerm, filterType]);
+  }, [auditLogs, searchTerm, filterType]);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -445,15 +416,14 @@ const ActivityLog = ({ onBack }) => {
     return badges[severity] || badges.info;
   };
 
-  const totalActivities = auditTotal + localActivities.length;
+  const totalActivities = auditTotal;
   const alertCount = activities.filter((a) => a.severity !== 'info').length;
   const totalPages = Math.max(1, Math.ceil(filteredActivities.length / AUDIT_PAGE_SIZE));
   const pageStartIndex = (tablePage - 1) * AUDIT_PAGE_SIZE;
   const pageEndIndex = pageStartIndex + AUDIT_PAGE_SIZE;
   const pageActivities = filteredActivities.slice(pageStartIndex, pageEndIndex);
 
-  // Counts activities that a given quick-filter token would show, so each
-  // card's number always matches the rows revealed when it is clicked.
+  // Counts activities that a given quick-filter token would show
   const countForToken = (token) => {
     if (!token || token === 'all') return activities.length;
     if (token === 'audit') return activities.filter((a) => a.isAudit).length;
@@ -463,8 +433,7 @@ const ActivityLog = ({ onBack }) => {
     return activities.filter((a) => a.type === token).length;
   };
 
-  // Clickable quick-filter cards. Selecting one sets the same `filterType`
-  // token the dropdown uses, so they stay in sync; clicking again clears it.
+  // Clickable quick-filter cards
   const statCards = [
     { key: 'all', token: 'all', label: 'Total Activities', value: countForToken('all'), base: 'from-blue-50 to-blue-100 border-blue-200 text-blue-600', ring: 'ring-2 ring-blue-400' },
     { key: 'audit', token: 'audit', label: 'Audit Events', value: countForToken('audit'), base: 'from-emerald-50 to-emerald-100 border-emerald-200 text-emerald-600', ring: 'ring-2 ring-emerald-400' },
@@ -495,9 +464,6 @@ const ActivityLog = ({ onBack }) => {
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">Track all system activities and events</p>
             </div>
-          </div>
-          <div className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-500 shadow-sm border border-slate-200">
-            Use the filters above to narrow results, then page through activity records below.
           </div>
         </div>
 
@@ -568,7 +534,7 @@ const ActivityLog = ({ onBack }) => {
           })}
         </div>
 
-        <div className="bg-white rounded-xl shadow-xl border border-slate-200 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
           {initialLoading && activities.length === 0 ? (
             <div className="p-12">
               <Spinner />
@@ -579,21 +545,72 @@ const ActivityLog = ({ onBack }) => {
               <p className="text-lg">No activities found</p>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Timestamp</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Activity</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Patient</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Performed by</th>
-                  <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">IP Address</th>
-                  <th className="hidden xl:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Device</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
+            <>
+              {/* Desktop Table View - hidden on small screens */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Activity</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden lg:table-cell">Type</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Patient</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Actor</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden xl:table-cell">IP</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white">
+                    {pageActivities.map((activity) => {
+                      const Icon = activity.icon || Activity;
+                      const time = new Date(activity.timestamp).toLocaleDateString('en-NG', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
+                      const typeLabel = typeLabels[activity.type] || capitalize(activity.type.replace(/_/g, ' '));
+
+                      return (
+                        <tr key={activity.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">{time}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`${activity.color} rounded-lg p-1.5 flex-shrink-0`}>
+                                <Icon className="h-3.5 w-3.5" />
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-900 truncate max-w-[120px]">{activity.title}</p>
+                                <p className="text-[11px] text-slate-500 truncate max-w-[120px]">{activity.description}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="hidden lg:table-cell whitespace-nowrap px-3 py-3 text-xs text-slate-600">{typeLabel}</td>
+                          <td className="hidden sm:table-cell whitespace-nowrap px-3 py-3 text-xs text-slate-600 max-w-[100px] truncate">
+                            {activity.patientName || '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyActorName(activity.actorName)}
+                              title="Click to copy actor"
+                              className="font-medium text-slate-900 hover:text-slate-700 focus:outline-none max-w-[100px] truncate block"
+                            >
+                              {activity.actorName || 'Unknown'}
+                            </button>
+                          </td>
+                          <td className="hidden xl:table-cell whitespace-nowrap px-3 py-3 text-xs text-slate-600">
+                            {activity.ipAddress || '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View - shown on small screens */}
+              <div className="md:hidden p-4">
                 {pageActivities.map((activity) => {
-                  const Icon = activity.icon || Activity;
                   const time = new Date(activity.timestamp).toLocaleDateString('en-NG', {
                     year: 'numeric',
                     month: 'short',
@@ -602,45 +619,17 @@ const ActivityLog = ({ onBack }) => {
                     minute: '2-digit',
                   });
                   const typeLabel = typeLabels[activity.type] || capitalize(activity.type.replace(/_/g, ' '));
-
                   return (
-                    <tr key={activity.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">{time}</td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className={`${activity.color} rounded-xl p-2`}>
-                            <Icon className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 truncate">{activity.title}</p>
-                            <p className="text-xs text-slate-500 truncate">{activity.description}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">{typeLabel}</td>
-                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">{activity.patientName || '—'}</td>
-                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">
-                        <button
-                          type="button"
-                          onClick={() => handleCopyActorName(activity.actorName)}
-                          title="Click to copy actor"
-                          className="font-medium text-slate-900 hover:text-slate-700 focus:outline-none"
-                        >
-                          {activity.actorName || 'Unknown user'}
-                        </button>
-                      </td>
-                      <td
-                        className="hidden lg:table-cell whitespace-nowrap px-4 py-4 text-sm text-slate-600"
-                        title={activity.ipAddress || 'No IP available'}
-                      >
-                        {activity.ipAddress || '—'}
-                      </td>
-                      <td className="hidden xl:table-cell whitespace-nowrap px-4 py-4 text-sm text-slate-600">{activity.device || '—'}</td>
-                    </tr>
+                    <ActivityCard 
+                      key={activity.id} 
+                      activity={activity} 
+                      time={time} 
+                      typeLabel={typeLabel} 
+                    />
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
 

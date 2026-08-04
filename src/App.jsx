@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import store from './store';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -95,11 +95,16 @@ const isAuthenticated = () => {
   return Boolean(localStorage.getItem('authToken'));
 };
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
    const location = useLocation();
+   const role = (localStorage.getItem('userRole') || 'admin').toLowerCase();
 
    if (!isAuthenticated()) {
      return <Navigate to="/login" replace state={{ from: location }} />;
+   }
+
+   if (allowedRoles.length && !allowedRoles.includes(role)) {
+     return <Navigate to="/dashboard" replace state={{ from: location }} />;
    }
 
    return children;
@@ -160,8 +165,9 @@ function AppLayout() {
    const isLoginPage = location.pathname === '/login';
    const isSignupPage = location.pathname === '/signup';
    const isInvitationSignupPage = location.pathname === '/invitation-signup' || location.pathname.startsWith('/invitation-signup/');
+   const isPatientPortalPage = location.pathname === '/patient-portal';
    const isInfoPage = publicPaths.includes(location.pathname);
-   const isPublicPage = isLandingPage || isLoginPage || isSignupPage || isInvitationSignupPage || isInfoPage;
+   const isPublicPage = isLandingPage || isLoginPage || isSignupPage || isInvitationSignupPage || isPatientPortalPage || isInfoPage;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
   const [userRole, setUserRole] = useState(getStoredRole);
@@ -171,7 +177,7 @@ function AppLayout() {
   const [rightSidebarData, setRightSidebarData] = useState(null);
   const [rightSidebarLoading, setRightSidebarLoading] = useState(false);
   const [rightSidebarError, setRightSidebarError] = useState(null);
-  const [activeCenterView, setActiveCenterView] = useState(null);
+  const navigate = useNavigate();
 
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLogsLoading, setAuditLogsLoading] = useState(false);
@@ -285,7 +291,7 @@ function AppLayout() {
     let refreshIntervalId;
     if (!isPublicPage && userRole) {
       loadInsights();
-      const intervalMs = Math.max(15000, (refreshInterval || 60) * 1000);
+      const intervalMs = Math.max(60000, (refreshInterval || 300) * 1000);
       refreshIntervalId = window.setInterval(loadInsights, intervalMs);
     }
 
@@ -353,10 +359,7 @@ function AppLayout() {
           <main className={`flex-1 overflow-x-hidden transition-colors duration-300 ${!isPublicPage ? (isDark ? 'bg-slate-950' : 'bg-slate-50') : ''} print:bg-white`}>
             <PageErrorBoundary>
               <Suspense fallback={<Loader />}>
-                {activeCenterView === 'activityLog' ? (
-                  <ActivityLog onBack={() => setActiveCenterView(null)} />
-                ) : (
-                  <Routes>
+                <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
                 <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
@@ -366,11 +369,12 @@ function AppLayout() {
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/activity-log" element={<ProtectedRoute><ActivityLog onBack={() => navigate(-1)} /></ProtectedRoute>} />
                 <Route path="/patients" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
                 <Route path="/patients/add" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
-                <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+                <Route path="/billing" element={<ProtectedRoute allowedRoles={['admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin']}><Billing /></ProtectedRoute>} />
                 <Route path="/pharmacy" element={<ProtectedRoute><Pharmacy /></ProtectedRoute>} />
-                <Route path="/consultation" element={<ProtectedRoute><ConsultationV2 /></ProtectedRoute>} />
+                <Route path="/consultation" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin', 'super_admin', 'system_admin']}><ConsultationV2 /></ProtectedRoute>} />
                 <Route path="/consultation-legacy" element={<ProtectedRoute><Consultation /></ProtectedRoute>} />
                 <Route path="/laboratory" element={<ProtectedRoute><Laboratory /></ProtectedRoute>} />
                 <Route path="/staff" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
@@ -397,13 +401,13 @@ function AppLayout() {
                 <Route path="/central-store" element={<ProtectedRoute><CentralStore /></ProtectedRoute>} />
                 <Route path="/procurement" element={<ProtectedRoute><Procurement /></ProtectedRoute>} />
                 <Route path="/vital-signs" element={<ProtectedRoute><VitalSignsMonitoring /></ProtectedRoute>} />
-                <Route path="/emr" element={<ProtectedRoute><ElectronicMedicalRecords /></ProtectedRoute>} />
+                <Route path="/emr" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'pharmacist', 'admin', 'super_admin', 'system_admin']}><ElectronicMedicalRecords /></ProtectedRoute>} />
                 <Route path="/ussd" element={<ProtectedRoute><USSDSystem /></ProtectedRoute>} />
                 <Route path="/cds" element={<ProtectedRoute><ClinicalDecisionSupport /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><OrderEntrySystem /></ProtectedRoute>} />
                 <Route path="/emergency-dept" element={<ProtectedRoute><EmergencyDepartmentManagement /></ProtectedRoute>} />
                 <Route path="/nhis" element={<ProtectedRoute><NHISManagement /></ProtectedRoute>} />
-                <Route path="/patient-portal" element={<ProtectedRoute><PatientPortal /></ProtectedRoute>} />
+                <Route path="/patient-portal" element={<PublicRoute allowAuthenticated={true}><PatientPortal /></PublicRoute>} />
                 <Route path="/mobile-money" element={<ProtectedRoute><MobileMoneyIntegration /></ProtectedRoute>} />
                 <Route path="/theater-scheduling" element={<ProtectedRoute><TheaterScheduling /></ProtectedRoute>} />
                 <Route path="/pre-operative" element={<ProtectedRoute><PreOperativeAssessment /></ProtectedRoute>} />
@@ -412,8 +416,8 @@ function AppLayout() {
                 <Route path="/theater-analytics" element={<ProtectedRoute><TheaterAnalytics /></ProtectedRoute>} />
                 <Route path="/appointment-reminders" element={<ProtectedRoute><AppointmentReminders /></ProtectedRoute>} />
                 <Route path="/ncdc-surveillance" element={<ProtectedRoute><NCDCDiseaseSurveillance /></ProtectedRoute>} />
-                <Route path="/external-integrations" element={<ProtectedRoute><ExternalIntegrations /></ProtectedRoute>} />
-                <Route path="/financial-analytics" element={<ProtectedRoute><FinancialAnalytics /></ProtectedRoute>} />
+                <Route path="/external-integrations" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'system_admin']}><ExternalIntegrations /></ProtectedRoute>} />
+                <Route path="/financial-analytics" element={<ProtectedRoute allowedRoles={['admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin']}><FinancialAnalytics /></ProtectedRoute>} />
                 <Route path="/clinical-audit" element={<ProtectedRoute><ClinicalAudit /></ProtectedRoute>} />
                 <Route path="/patient-feedback" element={<ProtectedRoute><PatientFeedback /></ProtectedRoute>} />
                 <Route path="/credit-management" element={<ProtectedRoute><CreditManagement /></ProtectedRoute>} />
@@ -422,7 +426,6 @@ function AppLayout() {
                 <Route path="/settings" element={<SettingsRoute><Settings /></SettingsRoute>} />
                  <Route path="/404" element={<NotFoundLayout><NotFound /></NotFoundLayout>} />
                 </Routes>
-                )}
               </Suspense>
             </PageErrorBoundary>
           </main>
@@ -438,7 +441,7 @@ function AppLayout() {
                 auditLogs={auditLogs}
                 auditLogsLoading={auditLogsLoading}
                 auditLogsError={auditLogsError}
-                onOpenActivityLog={() => setActiveCenterView('activityLog')}
+                onOpenActivityLog={() => navigate('/activity-log')}
               />
             </div>
           )}

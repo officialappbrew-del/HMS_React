@@ -3226,25 +3226,10 @@ const displayTenantName = authTenant?.name || 'Hospital';
         formData.append('qualification', profileData.qualification.trim());
         formData.append('profile_picture', profilePictureFile);
 
-        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/v1/tenants/users/me/`, {
+        await apiRequest('/api/v1/tenants/users/me/', {
           method: 'PATCH',
-          headers: {
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
           body: formData,
         });
-
-        if (!response.ok) {
-          const contentType = response.headers.get('content-type') || '';
-          const isJson = contentType.includes('application/json');
-          const data = isJson ? await response.json().catch(() => ({})) : await response.text();
-          const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Request failed with status ${response.status}`;
-          const error = new Error(message);
-          error.data = data;
-          error.status = response.status;
-          throw error;
-        }
       } else {
         const payload = {
           first_name: profileData.first_name.trim(),

@@ -1,5 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Link,
   Shield,
@@ -43,6 +44,15 @@ import {
 import Pagination from '../components/Pagination';
 
 const ExternalIntegrations = () => {
+  const navigate = useNavigate();
+  const userRole = localStorage.getItem('userRole') || 'admin';
+  const SYSTEM_ROLES = ['admin', 'super_admin', 'system_admin'];
+
+  if (!SYSTEM_ROLES.includes(userRole)) {
+    navigate('/dashboard', { replace: true });
+    return null;
+  }
+
   const dispatch = useDispatch();
   const {
     integrations,

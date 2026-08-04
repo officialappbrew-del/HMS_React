@@ -233,7 +233,9 @@ const Appointments = () => {
     doctorId: '',
     status: 'scheduled',
     notes: '',
-    appointment_type: 'consultation'
+    appointment_type: 'consultation',
+    send_reminder: true,
+    reminder_channels: ['email']
   });
 
   const formatTime = (timeStr) => {
@@ -367,6 +369,10 @@ const Appointments = () => {
       notes: formData.notes,
       status: formData.status,
       doctor: formData.doctorId ? parseInt(formData.doctorId, 10) : null,
+      send_reminder: Boolean(formData.send_reminder),
+      reminder_channels: formData.reminder_channels && formData.reminder_channels.length > 0
+        ? formData.reminder_channels
+        : ['email'],
     };
 
     if (formData.patientId) {
@@ -406,7 +412,9 @@ const Appointments = () => {
       doctorId: '',
       status: 'scheduled',
       notes: '',
-      appointment_type: 'consultation'
+      appointment_type: 'consultation',
+      send_reminder: true,
+      reminder_channels: ['email']
     });
     setPatientSearchQuery('');
     setDoctorSearchQuery('');
@@ -900,8 +908,12 @@ const Appointments = () => {
                           className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-0"
                         >
                           <span className="font-medium text-gray-900">{p.name || p.full_name}</span>
-                          {p.hospital_number && (
-                            <span className="text-xs text-gray-500 ml-2">HN: {p.hospital_number}</span>
+                          {(p.mrn || p.hospital_number) && (
+                            <span className="text-xs text-gray-500 ml-2">
+                              {p.mrn ? `MRN: ${p.mrn}` : ''}
+                              {p.mrn && p.hospital_number ? ' • ' : ''}
+                              {p.hospital_number ? `HN: ${p.hospital_number}` : ''}
+                            </span>
                           )}
                         </button>
                       ))}
@@ -1024,6 +1036,35 @@ const Appointments = () => {
                     placeholder="e.g., General Checkup, Follow-up, etc."
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Reminder Delivery</label>
+                  <div className="flex flex-wrap gap-3 mb-2">
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(formData.send_reminder)}
+                        onChange={(e) => setFormData({ ...formData, send_reminder: e.target.checked })}
+                      />
+                      Send reminder
+                    </label>
+                    {['email', 'sms', 'whatsapp'].map((channel) => (
+                      <label key={channel} className="flex items-center gap-2 text-sm text-gray-700 capitalize">
+                        <input
+                          type="checkbox"
+                          checked={formData.reminder_channels.includes(channel)}
+                          onChange={(e) => {
+                            const nextChannels = e.target.checked
+                              ? [...formData.reminder_channels, channel]
+                              : formData.reminder_channels.filter((item) => item !== channel);
+                            setFormData({ ...formData, reminder_channels: nextChannels });
+                          }}
+                        />
+                        {channel}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">Choose one or more reminder channels so the patient receives a confirmation before the visit.</p>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>

@@ -249,6 +249,71 @@ const patientPortalSlice = createSlice({
       console.log('Feedback submitted:', feedback);
     },
 
+    hydratePortalData: (state, action) => {
+      const { patient, appointments = [], lab_orders = [], documents = [], notifications = [] } = action.payload || {};
+      if (patient) {
+        const existingPatientIndex = state.patients.findIndex(item => item.id === patient.id);
+        const profile = {
+          ...patient,
+          id: patient.id,
+          name: patient.full_name || patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+          email: patient.email || '',
+          phone: patient.phone || '',
+          dateOfBirth: patient.date_of_birth || '',
+          gender: patient.gender || '',
+          address: patient.address || '',
+          login_id: patient.login_id || patient.hospital_number || '',
+          mrn: patient.mrn || '',
+          hospital_number: patient.hospital_number || '',
+        };
+
+        if (existingPatientIndex >= 0) {
+          state.patients[existingPatientIndex] = profile;
+        } else {
+          state.patients.push(profile);
+        }
+      }
+
+      state.appointments = (appointments || []).map(appointment => ({
+        id: appointment.id,
+        patientId: appointment.patient || appointment.patient_id,
+        doctor: appointment.doctor_name || appointment.doctor || 'Care Team',
+        department: appointment.department_name || appointment.department || 'General Medicine',
+        dateTime: appointment.scheduled_date && appointment.scheduled_time
+          ? `${appointment.scheduled_date}T${appointment.scheduled_time}`
+          : appointment.date_time || appointment.dateTime || '',
+        reason: appointment.reason || appointment.notes || 'Scheduled visit',
+        status: appointment.status || 'confirmed',
+        reminderSent: appointment.reminder_sent || false,
+      }));
+
+      state.testResults = (lab_orders || []).map(order => ({
+        id: order.id,
+        patientId: order.patient || order.patient_id,
+        title: order.test?.name || order.test_name || 'Lab order',
+        status: order.status || 'ordered',
+        date: order.ordered_date || order.created_at || '',
+      }));
+
+      state.medicalRecords = (documents || []).map(document => ({
+        id: document.id,
+        title: document.title || document.file_name || 'Medical document',
+        type: document.document_type || 'other',
+        date: document.upload_date || document.document_date || '',
+        fileName: document.file_name || '',
+      }));
+
+      state.notifications = (notifications || []).map(notification => ({
+        id: notification.id,
+        patientId: notification.patientId || patient?.id,
+        type: notification.type || 'portal_update',
+        title: notification.title || 'Portal update',
+        message: notification.message || '',
+        read: notification.read ?? true,
+        createdAt: notification.createdAt || new Date().toISOString(),
+      }));
+    },
+
     searchPortal: (state, action) => {
       state.searchTerm = action.payload;
     },
@@ -282,6 +347,7 @@ export const {
   bookTelemedicineSession,
   markNotificationRead,
   submitFeedback,
+  hydratePortalData,
   searchPortal,
   sortPortal,
   filterPortal,

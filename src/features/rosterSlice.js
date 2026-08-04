@@ -90,7 +90,33 @@ const rosterSlice = createSlice({
       if (ot) {
         ot.status = 'Approved';
         ot.approvedBy = action.payload?.approvedBy || 'System';
+        ot.approvalDate = new Date().toISOString().split('T')[0];
       }
+    },
+
+    rejectOvertime: (state, action) => {
+      const overtimeId = action.payload?.overtimeId || action.payload;
+      const ot = state.overtime.find(o => o.overtimeId === overtimeId || o.id === overtimeId);
+      if (ot) {
+        ot.status = 'Rejected';
+        ot.approvedBy = action.payload?.approvedBy || 'System';
+        ot.approvalDate = new Date().toISOString().split('T')[0];
+      }
+    },
+
+    removeDutyRoster: (state, action) => {
+      const rosterId = action.payload?.rosterId || action.payload;
+      state.dutyRosters = state.dutyRosters.filter(r => (r.rosterId || r.id) !== rosterId);
+    },
+
+    removeLeaveRequest: (state, action) => {
+      const leaveId = action.payload?.leaveId || action.payload;
+      state.leaves = state.leaves.filter(l => (l.leaveId || l.id) !== leaveId);
+    },
+
+    removeOvertimeRecord: (state, action) => {
+      const overtimeId = action.payload?.overtimeId || action.payload;
+      state.overtime = state.overtime.filter(o => (o.overtimeId || o.id) !== overtimeId);
     }
   }
 });
@@ -103,7 +129,11 @@ export const {
   approveLeave,
   rejectLeave,
   addOvertimeRecord,
-  approveOvertime
+  approveOvertime,
+  rejectOvertime,
+  removeDutyRoster,
+  removeLeaveRequest,
+  removeOvertimeRecord
 } = rosterSlice.actions;
 
 export default rosterSlice.reducer;

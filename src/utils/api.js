@@ -32,17 +32,61 @@ const PUBLIC_AUTH_PATHS = [
   '/api/v1/tenants/active-tenants/',
   '/api/v1/tenants/invitations/accept/',
   '/api/v1/tenants/invitations/accept',
+  '/api/v1/patients/login/',
+  '/api/v1/patients/login',
 ];
 
 let isRefreshing = false;
 let refreshPromise = null;
+const inFlightRequests = new Map();
+const responseCache = new Map();
 
 const shouldSkipAuthHeader = (requestPath) =>
   PUBLIC_AUTH_PATHS.some((publicPath) => requestPath === publicPath || requestPath.startsWith(publicPath));
 
+const normalizeRequestUrl = (path) => {
+  if (!path) return path;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  return `${API_BASE_URL}${path}`;
+};
+
+const buildRequestKey = (path, options = {}) => {
+  const method = (options.method || 'GET').toUpperCase();
+  const body = options.body instanceof FormData ? '__formdata__' : (typeof options.body === 'string' ? options.body : '');
+  return `${method}:${path}:${body}`;
+};
+
+const getCachedResponse = (requestKey) => {
+  const cached = responseCache.get(requestKey);
+  if (!cached) return null;
+
+  if (Date.now() - cached.timestamp > cached.ttl) {
+    responseCache.delete(requestKey);
+    return null;
+  }
+
+  return cached.data;
+};
+
+const cacheResponse = (requestKey, data, ttl = 5000) => {
+  responseCache.set(requestKey, { data, timestamp: Date.now(), ttl });
+};
+
+const redirectToLogin = () => {
+  if (typeof window === 'undefined') return;
+
+  const isLoginPage = window.location.pathname === '/login' || window.location.pathname.startsWith('/login');
+  if (!isLoginPage) {
+    window.location.href = '/login';
+  }
+};
+
 const clearAuthData = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('authToken');
+  localStorage.removeItem('patientAccessToken');
+  localStorage.removeItem('patientRefreshToken');
+  localStorage.removeItem('isPatientAuthenticated');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('tenantId');
   localStorage.removeItem('tenantDomain');
@@ -120,17 +164,29 @@ export const logout = async () => {
   }
 };
 
-const isTokenErrorMessage = (message = '') =>
-  /token expired|expired token|invalid token|authentication failed|unauthorized|not authenticated|signature has expired|invalid signature/i.test(message);
+const isTokenErrorMessage = (message = '', status = 0) => {
+  const normalized = String(message || '').toLowerCase();
+
+  if (!normalized && status === 403) {
+    return true;
+  }
+
+  return /token expired|expired token|token is expired|invalid token|authentication failed|unauthorized|not authenticated|signature has expired|invalid signature|session expired|forbidden|permission denied|authentication credentials/i.test(normalized);
+};
 
 const refreshAccessToken = async () => {
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
   }
 
+  if (localStorage.getItem('patientAccessToken')) {
+    throw new Error('Patient sessions do not use the staff token refresh flow.');
+  }
+
   const refreshToken = localStorage.getItem('refreshToken');
   if (!refreshToken) {
-    throw new Error('No refresh token available.');
+    clearAuthData();
+    throw new Error('Session expired. Please log in again.');
   }
 
   isRefreshing = true;
@@ -148,13 +204,17 @@ const refreshAccessToken = async () => {
 
       if (!response.ok) {
         const message = extractErrorMessage(data, `Refresh failed with status ${response.status}`);
-        throw new Error(message);
+        clearAuthData();
+        redirectToLogin();
+        throw new Error(message || 'Session expired. Please log in again.');
       }
 
       const newAccessToken = data.access || data.access_token || data.token;
       const newRefreshToken = data.refresh || data.refresh_token;
 
       if (!newAccessToken) {
+        clearAuthData();
+        redirectToLogin();
         throw new Error('No access token returned from refresh endpoint.');
       }
 
@@ -165,6 +225,11 @@ const refreshAccessToken = async () => {
       }
       return newAccessToken;
     })
+    .catch((error) => {
+      clearAuthData();
+      redirectToLogin();
+      throw error;
+    })
     .finally(() => {
       isRefreshing = false;
       refreshPromise = null;
@@ -174,56 +239,100 @@ const refreshAccessToken = async () => {
 };
 
 export const apiRequest = async (path, options = {}) => {
-  const makeRequest = async () => {
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-    const tenantId = localStorage.getItem('tenantId');
+  const method = (options.method || 'GET').toUpperCase();
+  const retryCount = Number(options.__retry || 0);
+  const requestKey = buildRequestKey(path, options);
 
-    const isFormData = options.body instanceof FormData;
-    const headers = {
-      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
-      ...(token && !shouldSkipAuthHeader(path) ? { Authorization: `Bearer ${token}` } : {}),
-      ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
-      ...(options.headers || {}),
-    };
-
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
-      headers,
-      body: options.body ? options.body : undefined,
-    });
-
-    const contentType = response.headers.get('content-type') || '';
-    const isJson = contentType.includes('application/json');
-    const data = isJson ? await response.json().catch(() => ({})) : await response.text();
-
-    if (!response.ok) {
-      const message = extractErrorMessage(data, `Request failed with status ${response.status}`);
-
-      const shouldAttemptRefresh =
-        !shouldSkipAuthHeader(path) &&
-        isTokenErrorMessage(message) &&
-        (response.status === 401 || response.status === 403);
-
-      if (shouldAttemptRefresh) {
-        try {
-          await refreshAccessToken();
-          return apiRequest(path, options);
-        } catch (refreshError) {
-          clearAuthData();
-          throw new Error(refreshError.message || 'Session expired. Please log in again.');
-        }
-      }
-
-      const error = new Error(message);
-      error.status = response.status;
-      error.data = data;
-      throw error;
+  if (method === 'GET') {
+    const cachedResponse = getCachedResponse(requestKey);
+    if (cachedResponse !== null) {
+      return cachedResponse;
     }
 
-    return data;
-  };
+    const inFlight = inFlightRequests.get(requestKey);
+    if (inFlight) {
+      return inFlight;
+    }
+  } else {
+    const inFlight = inFlightRequests.get(requestKey);
+    if (inFlight) {
+      return inFlight;
+    }
+  }
 
-  return makeRequest();
+  const requestPromise = (async () => {
+    const makeRequest = async () => {
+      const patientToken = localStorage.getItem('patientAccessToken');
+      const token = patientToken || localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const tenantId = localStorage.getItem('tenantId');
+      const isPatientSession = Boolean(patientToken);
+
+      const isFormData = options.body instanceof FormData;
+      const headers = {
+        ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...(token && !shouldSkipAuthHeader(path) ? { Authorization: `Bearer ${token}` } : {}),
+        ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
+        ...(options.headers || {}),
+      };
+
+      const requestUrl = normalizeRequestUrl(path);
+      const response = await fetch(requestUrl, {
+        ...options,
+        headers,
+        body: options.body ? options.body : undefined,
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+      const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+
+      if (!response.ok) {
+        const message = extractErrorMessage(data, `Request failed with status ${response.status}`);
+        const isAuthFailure = [401, 403].includes(response.status);
+        const shouldAttemptRefresh =
+          !isPatientSession &&
+          !shouldSkipAuthHeader(path) &&
+          isAuthFailure &&
+          isTokenErrorMessage(message, response.status) &&
+          retryCount < 1;
+
+        if (shouldAttemptRefresh) {
+          try {
+            await refreshAccessToken();
+            return apiRequest(path, { ...options, __retry: retryCount + 1 });
+          } catch (refreshError) {
+            throw new Error(refreshError.message || 'Session expired. Please log in again.');
+          }
+        }
+
+        if (isAuthFailure && !isPatientSession && !shouldSkipAuthHeader(path) && retryCount >= 1) {
+          clearAuthData();
+          redirectToLogin();
+          throw new Error('Session expired. Please log in again.');
+        }
+
+        const error = new Error(message);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+      }
+
+      if (method === 'GET') {
+        cacheResponse(requestKey, data, options.cacheTtl ?? 5000);
+      }
+
+      return data;
+    };
+
+    try {
+      return await makeRequest();
+    } finally {
+      inFlightRequests.delete(requestKey);
+    }
+  })();
+
+  inFlightRequests.set(requestKey, requestPromise);
+  return requestPromise;
 };
 
 export const parseListResponse = (data) => {
@@ -374,6 +483,8 @@ export const consultationApi = {
   createPrescription: (data) => apiRequest('/api/v1/clinical/prescriptions/', { method: 'POST', body: JSON.stringify(data) }),
   updatePrescription: (id, data) => apiRequest(`/api/v1/clinical/prescriptions/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
   deletePrescription: (id) => apiRequest(`/api/v1/clinical/prescriptions/${id}/`, { method: 'DELETE' }),
+  getMedicationHistory: (patientId) => apiRequest(`/api/v1/clinical/prescriptions/history/?patient=${patientId}`),
+  checkInteractions: (data) => apiRequest('/api/v1/clinical/prescriptions/interaction-check/', { method: 'POST', body: JSON.stringify(data) }),
   getLabOrders: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });

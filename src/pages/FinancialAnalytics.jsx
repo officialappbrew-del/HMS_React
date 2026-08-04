@@ -1,5 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
   TrendingDown,
@@ -37,6 +38,15 @@ import {
 import Pagination from '../components/Pagination';
 
 const FinancialAnalytics = () => {
+  const navigate = useNavigate();
+  const userRole = localStorage.getItem('userRole') || 'admin';
+  const FINANCE_ROLES = ['admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin'];
+
+  if (!FINANCE_ROLES.includes(userRole)) {
+    navigate('/dashboard', { replace: true });
+    return null;
+  }
+
   const dispatch = useDispatch();
   const {
     revenueData,

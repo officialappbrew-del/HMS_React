@@ -1,49 +1,31 @@
-import { Link } from 'react-router-dom';
+import PublicPageShell from '../components/PublicPageShell';
 
 const InfoPage = ({ title, summary, highlights = [], bullets = [] }) => {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_35%),linear-gradient(135deg,_#f8fbff_0%,_#f3f6fb_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8 lg:py-12">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 rounded-[32px] border border-slate-200/80 bg-white/90 p-6 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.35)] backdrop-blur sm:p-8 lg:p-10">
-        <div className="flex flex-col gap-5 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
-              SmartCare HMS
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
-            <p className="mt-3 text-base leading-7 text-slate-600">{summary}</p>
+    <PublicPageShell title={title} subtitle={summary}>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {highlights.map((item) => (
+          <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">{item.title}</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
           </div>
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all duration-200 hover:border-blue-500 hover:text-blue-600"
-          >
-            Back home
-          </Link>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          {highlights.map((item) => (
-            <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">{item.title}</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
-            </div>
-          ))}
-        </div>
-
-        {bullets.length > 0 && (
-          <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 sm:p-7">
-            <h2 className="text-lg font-semibold text-slate-900">Key points</h2>
-            <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-600 sm:grid-cols-2">
-              {bullets.map((bullet) => (
-                <li key={bullet} className="flex gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-                  <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-blue-500" />
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        ))}
       </div>
-    </div>
+
+      {bullets.length > 0 && (
+        <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 sm:p-7">
+          <h2 className="text-lg font-semibold text-slate-900">Key points</h2>
+          <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-600 sm:grid-cols-2">
+            {bullets.map((bullet) => (
+              <li key={bullet} className="flex gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-[#0B6E4F]" />
+                <span>{bullet}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </PublicPageShell>
   );
 };
 

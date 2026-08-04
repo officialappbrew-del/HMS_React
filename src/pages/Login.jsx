@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  ShieldCheck, Eye, EyeOff, Mail, Lock, User, ArrowRight, 
-  CheckCircle, AlertCircle, Sparkles, Building2, Users, 
-  Activity, Clock, ChevronLeft, Key, Send, Fingerprint,
-  Globe, Award, Zap
+import {
+  ShieldCheck, Eye, EyeOff, Mail, Lock, User, ArrowRight,
+  CheckCircle, AlertCircle, Building2, Users,
+  Activity, Clock, ChevronLeft, Key, Send,
+  Globe, Award
 } from 'lucide-react';
 import { apiRequest, API_BASE_URL } from '../utils/api';
 
@@ -25,6 +25,31 @@ const parseJwt = (token) => {
   }
 };
 
+// Signature element: a continuously scrolling ECG waveform.
+// The path is tiled twice inside a 2x-wide SVG and translated by -50%,
+// so the loop point is invisible.
+const EcgLine = ({ className = '' }) => (
+  <div className={`relative overflow-hidden ${className}`} aria-hidden="true">
+    <svg
+      className="absolute left-0 top-0 h-full w-[200%] motion-safe:animate-ecg-scroll"
+      viewBox="0 0 800 60"
+      preserveAspectRatio="none"
+      fill="none"
+    >
+      <path
+        d="M0,30 L58,30 L74,30 L84,10 L94,50 L104,30 L120,30 L200,30
+           L258,30 L274,30 L284,10 L294,50 L304,30 L320,30 L400,30
+           L458,30 L474,30 L484,10 L494,50 L504,30 L520,30 L600,30
+           L658,30 L674,30 L684,10 L694,50 L704,30 L720,30 L800,30"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  </div>
+);
+
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -44,20 +69,14 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('rememberMe') === 'true');
   const [tokenSent, setTokenSent] = useState(false);
   const [isFocused, setIsFocused] = useState({ email: false, password: false });
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [now, setNow] = useState(() => new Date());
 
   const navigate = useNavigate();
 
-  // Mouse parallax for background
+  // Live clock — reinforces the "monitoring system" feel with a real value.
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth - 0.5) * 20,
-        y: (e.clientY / window.innerHeight - 0.5) * 20
-      });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
   // Session restore
@@ -274,467 +293,443 @@ const Login = () => {
     }
   };
 
-  // Quick stats for the sidebar
   const stats = [
     { label: 'Hospitals', value: '500+', icon: Building2 },
     { label: 'Patients', value: '2M+', icon: Users },
-    { label: 'Daily Encounters', value: '12K+', icon: Activity },
+    { label: 'Daily encounters', value: '12K+', icon: Activity },
     { label: 'Uptime', value: '99.99%', icon: Clock }
   ];
 
-  return (
-    <div className="min-h-screen bg-white font-['Inter',system-ui,sans-serif] antialiased overflow-hidden">
-      <div className="flex min-h-screen">
-        {/* Left Side - Brand & Info */}
-        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-12 flex-col justify-between">
-          {/* Animated Background Elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div 
-              className="absolute top-20 -right-20 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl animate-float"
-              style={{ transform: `translate(${mousePosition.x * 0.5}px, ${mousePosition.y * 0.5}px)` }}
-            />
-            <div 
-              className="absolute -bottom-20 -left-20 w-80 h-80 bg-indigo-400/20 rounded-full blur-3xl animate-float delay-700"
-              style={{ transform: `translate(${-mousePosition.x * 0.3}px, ${-mousePosition.y * 0.3}px)` }}
-            />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-            
-            {/* Floating Particles */}
-            {[...Array(20)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute rounded-full animate-float"
-                style={{
-                  width: Math.random() * 6 + 2 + 'px',
-                  height: Math.random() * 6 + 2 + 'px',
-                  background: `hsla(210, 100%, 80%, ${0.1 + Math.random() * 0.2})`,
-                  left: Math.random() * 100 + '%',
-                  top: Math.random() * 100 + '%',
-                  animationDelay: Math.random() * 10 + 's',
-                  animationDuration: Math.random() * 20 + 15 + 's',
-                }}
-              />
-            ))}
-          </div>
+  const clockLabel = now.toLocaleTimeString('en-GB', { hour12: false });
 
-          {/* Content */}
-          <div className="relative z-10">
-          <Link to="/" className="inline-flex items-center gap-3 cursor-pointer">
-            <div className="inline-flex rounded-2xl bg-white/10 backdrop-blur-sm p-3 shadow-lg shadow-blue-500/20">
-              <ShieldCheck className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">SmartCare<span className="text-blue-200">HMS</span></h1>
-              <p className="text-xs text-blue-200 font-medium tracking-wider uppercase">Enterprise Healthcare Platform</p>
-            </div>
+  return (
+    <div className="min-h-screen w-full bg-[#F6F2E7] font-['Inter',system-ui,sans-serif] antialiased lg:flex">
+
+      {/* Brand / instrument panel — reflows on top for mobile, side column on desktop */}
+      <aside className="relative flex w-full flex-col justify-between overflow-hidden bg-[#0D1917] px-6 py-8 text-[#EFEBDD] sm:px-10 sm:py-10 lg:min-h-screen lg:w-[44%] lg:px-12 lg:py-12">
+        {/* faint grid texture, restrained */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, #EFEBDD 1px, transparent 1px), linear-gradient(to bottom, #EFEBDD 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10">
+          <Link to="/" className="inline-flex items-center gap-3">
+            <span className="inline-flex rounded-lg border border-[#C79A3D]/40 bg-[#C79A3D]/10 p-2.5">
+              <ShieldCheck className="h-5 w-5 text-[#C79A3D]" />
+            </span>
+            <span className="font-['Lora'] text-lg font-semibold tracking-tight text-[#F6F2E7]">
+              SmartCare<span className="text-[#C79A3D]">HMS</span>
+            </span>
           </Link>
 
-            <div className="mt-16 max-w-md">
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 mb-6">
-                <Zap className="h-4 w-4 text-blue-200 animate-pulse" />
-                <span className="text-xs font-medium text-blue-100">Nigeria's Leading HMS</span>
-              </div>
-              <h2 className="text-4xl font-bold text-white leading-tight">
-                Welcome to the<br />
-                <span className="bg-gradient-to-r from-blue-200 to-teal-200 bg-clip-text text-transparent">
-                  Future of Healthcare
-                </span>
-              </h2>
-              <p className="mt-4 text-blue-100 leading-relaxed">
-                Unified platform for patient care, clinical operations, administration, 
-                billing, diagnostics, and workforce management.
-              </p>
-            </div>
+          <EcgLine className="mt-6 h-10 text-[#C79A3D]/70 sm:mt-8 sm:h-12" />
 
-            <div className="mt-12 grid grid-cols-2 gap-4">
-              {stats.map((stat, index) => {
-                const Icon = stat.icon;
-                return (
-                  <div key={index} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all duration-300 group">
-                    <Icon className="h-5 w-5 text-blue-200 group-hover:scale-110 transition-transform" />
-                    <div className="mt-2 text-xl font-bold text-white">{stat.value}</div>
-                    <div className="text-xs text-blue-200">{stat.label}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.2em] text-[#C79A3D] sm:mt-8">
+            Clinical operating system
+          </p>
+          <h1 className="mt-3 max-w-sm font-['Lora'] text-[28px] font-semibold leading-[1.15] text-[#F6F2E7] sm:text-[34px] lg:text-[36px]">
+            Precision care, coordinated.
+          </h1>
+          <p className="mt-4 max-w-sm text-[13.5px] leading-relaxed text-[#A9C0B6] sm:text-sm">
+            One workspace for records, billing, diagnostics and staffing —
+            built for hospitals and clinics across Nigeria.
+          </p>
 
-          <div className="relative z-10">
-            <div className="flex items-center gap-4 text-xs text-blue-200">
-              <span className="flex items-center gap-1">
-                <Award className="h-4 w-4" />
-                HIPAA Compliant
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <Globe className="h-4 w-4" />
-                NDPR Certified
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <ShieldCheck className="h-4 w-4" />
-                ISO 27001
-              </span>
-            </div>
-          </div>
+          {/* Stat readout — hidden on the smallest screens to keep the login
+              form above the fold; reflows to a full grid from sm: up. */}
+          <dl className="mt-10 hidden grid-cols-2 gap-x-6 gap-y-6 sm:grid lg:mt-12">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="border-l border-[#EFEBDD]/15 pl-3">
+                  <Icon className="h-4 w-4 text-[#A9C0B6]" />
+                  <dd className="mt-2 font-mono text-xl font-medium text-[#F6F2E7]">{stat.value}</dd>
+                  <dt className="mt-0.5 font-mono text-[10.5px] uppercase tracking-wider text-[#A9C0B6]">
+                    {stat.label}
+                  </dt>
+                </div>
+              );
+            })}
+          </dl>
         </div>
 
-        {/* Right Side - Login Form */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12 sm:px-8 lg:px-12 bg-slate-50/50">
-          <div className="w-full max-w-md">
-            {/* Mobile Logo */}
-            <Link to="/" className="lg:hidden text-center mb-8 inline-block">
-              <div className="inline-flex rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 p-3 shadow-lg shadow-blue-600/20">
-                <ShieldCheck className="h-8 w-8 text-white" />
-              </div>
-              <h1 className="mt-3 text-2xl font-bold text-slate-900">SmartCare<span className="text-blue-600">HMS</span></h1>
-            </Link>
+        <div className="relative z-10 mt-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-[#EFEBDD]/10 pt-5 lg:mt-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[10.5px] uppercase tracking-wider text-[#A9C0B6]">
+            <span className="inline-flex items-center gap-1.5">
+              <Award className="h-3.5 w-3.5" /> HIPAA-aligned
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5" /> NDPR certified
+            </span>
+            <span className="hidden items-center gap-1.5 sm:inline-flex">
+              <ShieldCheck className="h-3.5 w-3.5" /> ISO 27001
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-wider text-[#A9C0B6]">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="motion-safe:animate-pulse-dot absolute inline-flex h-full w-full rounded-full bg-[#C79A3D]" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#C79A3D]" />
+            </span>
+            {clockLabel}
+          </div>
+        </div>
+      </aside>
 
-            {/* Header */}
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100 mb-4">
-                <Sparkles className="h-4 w-4 text-blue-600" />
-                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
-                  {showForgotPassword ? 'Password Recovery' : 'Secure Login'}
-                </span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                {showForgotPassword ? (tokenSent ? 'Reset Your Password' : 'Forgot Password?') : 'Welcome Back'}
-              </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {showForgotPassword 
-                  ? tokenSent 
-                    ? 'Enter the reset token sent to your email' 
-                    : 'Enter your email or user ID to receive a reset token'
-                  : 'Sign in to access your healthcare workspace'
-                }
-              </p>
+      {/* Form panel */}
+      <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8 lg:px-12">
+        <div className="w-full max-w-[368px] motion-safe:animate-card-in">
+          <div className="rounded-2xl border border-[#1C2B27]/8 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_28px_-14px_rgba(13,25,23,0.18)] sm:p-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#C79A3D]">
+            {showForgotPassword ? 'Password recovery' : 'Secure sign-in'}
+          </p>
+          <h2 className="mt-1.5 font-['Lora'] text-xl font-semibold leading-snug text-[#1C2B27] sm:text-[22px]">
+            {showForgotPassword ? (tokenSent ? 'Set a new password' : 'Forgot your password?') : 'Welcome back'}
+          </h2>
+          <p className="mt-1.5 text-[13px] leading-snug text-[#5C6D67]">
+            {showForgotPassword
+              ? tokenSent
+                ? 'Enter the reset token sent to your email, then choose a new password.'
+                : 'Enter your email or user ID and we\u2019ll send you a reset token.'
+              : 'Sign in to access your healthcare workspace.'}
+          </p>
+
+          {/* Message Display */}
+          {message && (
+            <div
+              className={`mt-4 flex items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-[13px] ${
+                messageType === 'success'
+                  ? 'border-[#3E6E58]/30 bg-[#3E6E58]/10 text-[#2C5245]'
+                  : 'border-[#A6372E]/30 bg-[#A6372E]/10 text-[#8A2E26]'
+              }`}
+            >
+              {messageType === 'success' ? (
+                <CheckCircle className="mt-0.5 h-4.5 w-4.5 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="mt-0.5 h-4.5 w-4.5 flex-shrink-0" />
+              )}
+              <span>{message}</span>
             </div>
+          )}
 
-            {/* Message Display */}
-            {message && (
-              <div className={`mt-6 rounded-xl p-4 flex items-start gap-3 ${
-                messageType === 'success' 
-                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' 
-                  : 'bg-rose-50 border border-rose-200 text-rose-700'
-              }`}>
-                {messageType === 'success' 
-                  ? <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                  : <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                }
-                <span className="text-sm">{message}</span>
+          {/* Login Form */}
+          {!showForgotPassword ? (
+            <form className="mt-5 space-y-3.5" onSubmit={handleSubmit}>
+              <div>
+                <label htmlFor="email" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
+                  User ID, email, or username
+                </label>
+                <div className="relative">
+                  <User
+                    className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors ${
+                      isFocused.email ? 'text-[#C79A3D]' : 'text-[#9AA6A0]'
+                    }`}
+                  />
+                  <input
+                    id="email"
+                    name="email"
+                    type="text"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    onFocus={() => setIsFocused({ ...isFocused, email: true })}
+                    onBlur={() => setIsFocused({ ...isFocused, email: false })}
+                    placeholder="Enter your user ID or email"
+                    className="w-full rounded-lg border border-[#1C2B27]/12 bg-white py-2.5 pl-10 pr-3.5 text-[13.5px] text-[#1C2B27] outline-none transition-colors placeholder:text-[#9AA6A0] focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                  />
+                </div>
               </div>
-            )}
 
-            {/* Login Form */}
-            {!showForgotPassword ? (
-              <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                    User ID, Email, or Username
-                  </label>
-                  <div className={`relative transition-all duration-300 ${
-                    isFocused.email ? 'ring-2 ring-blue-500/20' : ''
-                  }`}>
-                    <User className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${
-                      isFocused.email ? 'text-blue-600' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="email"
-                      name="email"
-                      type="text"
-                      required
-                      value={formData.email}
-                      onChange={handleChange}
-                      onFocus={() => setIsFocused({ ...isFocused, email: true })}
-                      onBlur={() => setIsFocused({ ...isFocused, email: false })}
-                      placeholder="Enter your user ID or email"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 py-3.5 text-sm outline-none transition-all duration-300 focus:border-blue-500 placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Password
-                  </label>
-                  <div className={`relative transition-all duration-300 ${
-                    isFocused.password ? 'ring-2 ring-blue-500/20' : ''
-                  }`}>
-                    <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300 ${
-                      isFocused.password ? 'text-blue-600' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={formData.password}
-                      onChange={handleChange}
-                      onFocus={() => setIsFocused({ ...isFocused, password: true })}
-                      onBlur={() => setIsFocused({ ...isFocused, password: false })}
-                      placeholder="Enter your password"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 py-3.5 text-sm outline-none transition-all duration-300 focus:border-blue-500 placeholder:text-slate-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
-                    />
-                    <span className="text-sm text-slate-600 group-hover:text-slate-800 transition-colors">Remember me</span>
-                  </label>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowForgotPassword(true)} 
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors hover:underline"
+              <div>
+                <label htmlFor="password" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock
+                    className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors ${
+                      isFocused.password ? 'text-[#C79A3D]' : 'text-[#9AA6A0]'
+                    }`}
+                  />
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    onFocus={() => setIsFocused({ ...isFocused, password: true })}
+                    onBlur={() => setIsFocused({ ...isFocused, password: false })}
+                    placeholder="Enter your password"
+                    className="w-full rounded-lg border border-[#1C2B27]/12 bg-white py-2.5 pl-10 pr-10 text-[13.5px] text-[#1C2B27] outline-none transition-colors placeholder:text-[#9AA6A0] focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA6A0] transition-colors hover:text-[#1C2B27]"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    Forgot password?
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+              </div>
 
-                <button 
-                  type="submit" 
-                  disabled={loading} 
-                  className="group w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-blue-600/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02]"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    {loading ? (
-                      <>
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Signing in...
-                      </>
-                    ) : (
-                      <>
-                        Sign In
-                        <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </span>
-                </button>
-
-                <div className="text-center">
-                  <p className="text-xs text-slate-400">
-                    By signing in, you agree to our Terms of Service and Privacy Policy
-                  </p>
-                </div>
-              </form>
-            ) : tokenSent ? (
-              // Reset Password Form
-              <form className="mt-8 space-y-5" onSubmit={handleResetPassword}>
-                <div>
-                  <label htmlFor="resetToken" className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Reset Token
-                  </label>
-                  <div className="relative">
-                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input
-                      id="resetToken"
-                      name="resetToken"
-                      type="text"
-                      required
-                      value={resetToken}
-                      onChange={(e) => setResetToken(e.target.value)}
-                      placeholder="Enter the reset token"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 py-3.5 text-sm outline-none transition-all duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400"
-                    />
-                  </div>
-                  <p className="mt-1.5 text-xs text-slate-500">Check your email for the reset token</p>
-                </div>
-
-                <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-slate-700 mb-1.5">
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input
-                      id="newPassword"
-                      name="newPassword"
-                      type={showNewPassword ? 'text' : 'password'}
-                      required
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 py-3.5 text-sm outline-none transition-all duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Confirm New Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Re-enter new password"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 py-3.5 text-sm outline-none transition-all duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-blue-600/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02]"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    {loading ? (
-                      <>
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Resetting...
-                      </>
-                    ) : (
-                      <>
-                        Reset Password
-                        <Send className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </span>
-                </button>
-
+              <div className="flex flex-wrap items-center justify-between gap-y-1.5 pt-0.5">
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-[#1C2B27]/25 text-[#C79A3D] focus:ring-[#C79A3D]/40"
+                  />
+                  <span className="text-[13px] text-[#5C6D67]">Remember me</span>
+                </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setTokenSent(false);
-                    setForgotIdentifier('');
-                    setResetToken('');
-                    setNewPassword('');
-                    setConfirmPassword('');
-                  }}
-                  className="w-full text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center justify-center gap-2"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-[13px] font-medium text-[#3E6E58] transition-colors hover:text-[#2C5245] hover:underline"
                 >
-                  <ChevronLeft className="h-4 w-4" />
-                  Back to login
+                  Forgot password?
                 </button>
-              </form>
-            ) : (
-              // Forgot Password Form
-              <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
-                <div>
-                  <label htmlFor="forgotIdentifier" className="block text-sm font-medium text-slate-700 mb-1.5">
-                    User ID or Email
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input
-                      id="forgotIdentifier"
-                      name="forgotIdentifier"
-                      type="text"
-                      required
-                      value={forgotIdentifier}
-                      onChange={(e) => setForgotIdentifier(e.target.value)}
-                      placeholder="Enter your user ID or email"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 py-3.5 text-sm outline-none transition-all duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3.5 text-sm font-semibold text-white hover:shadow-lg hover:shadow-blue-600/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02]"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    {loading ? (
-                      <>
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        Send Reset Token
-                        <Send className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </span>
-                </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="group flex w-full items-center justify-center gap-2 rounded-lg bg-[#16302A] px-4 py-2.5 text-[13.5px] font-semibold text-[#F6F2E7] transition-colors hover:bg-[#1C3B33] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C79A3D] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin text-[#F6F2E7]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Signing in
+                  </>
+                ) : (
+                  <>
+                    Sign in
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </>
+                )}
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPassword(false)}
-                  className="w-full text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Back to login
-                </button>
-              </form>
-            )}
-
-            {/* Footer */}
-            <div className="mt-8 text-center">
-              <p className="text-xs text-slate-400">
-                <span className="block sm:inline">Need help? Contact your system administrator</span>
-                <span className="hidden sm:inline mx-2">•</span>
-                <span className="block sm:inline">© {new Date().getFullYear()} SmartCare HMS</span>
+              <p className="text-center text-[11px] leading-snug text-[#9AA6A0]">
+                By signing in, you agree to our Terms of Service and Privacy Policy.
               </p>
-            </div>
-          </div>
-        </div>
-      </div>
+            </form>
+          ) : tokenSent ? (
+            // Reset Password Form
+            <form className="mt-5 space-y-3.5" onSubmit={handleResetPassword}>
+              <div>
+                <label htmlFor="resetToken" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
+                  Reset token
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA6A0]" />
+                  <input
+                    id="resetToken"
+                    name="resetToken"
+                    type="text"
+                    required
+                    value={resetToken}
+                    onChange={(e) => setResetToken(e.target.value)}
+                    placeholder="Enter the reset token"
+                    className="w-full rounded-lg border border-[#1C2B27]/12 bg-white py-2.5 pl-10 pr-3.5 text-[13.5px] text-[#1C2B27] outline-none transition-colors placeholder:text-[#9AA6A0] focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-[#9AA6A0]">Check your email for the reset token.</p>
+              </div>
 
-      {/* Custom CSS Animations */}
+              <div>
+                <label htmlFor="newPassword" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
+                  New password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA6A0]" />
+                  <input
+                    id="newPassword"
+                    name="newPassword"
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full rounded-lg border border-[#1C2B27]/12 bg-white py-2.5 pl-10 pr-10 text-[13.5px] text-[#1C2B27] outline-none transition-colors placeholder:text-[#9AA6A0] focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA6A0] transition-colors hover:text-[#1C2B27]"
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
+                  Confirm new password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA6A0]" />
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full rounded-lg border border-[#1C2B27]/12 bg-white py-2.5 pl-10 pr-10 text-[13.5px] text-[#1C2B27] outline-none transition-colors placeholder:text-[#9AA6A0] focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA6A0] transition-colors hover:text-[#1C2B27]"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="group flex w-full items-center justify-center gap-2 rounded-lg bg-[#16302A] px-4 py-2.5 text-[13.5px] font-semibold text-[#F6F2E7] transition-colors hover:bg-[#1C3B33] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C79A3D] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin text-[#F6F2E7]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Resetting
+                  </>
+                ) : (
+                  <>
+                    Reset password
+                    <Send className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setTokenSent(false);
+                  setForgotIdentifier('');
+                  setResetToken('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+                className="flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-[#3E6E58] transition-colors hover:text-[#2C5245]"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Back to login
+              </button>
+            </form>
+          ) : (
+            // Forgot Password Form
+            <form className="mt-5 space-y-3.5" onSubmit={handleForgotPassword}>
+              <div>
+                <label htmlFor="forgotIdentifier" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
+                  User ID or email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA6A0]" />
+                  <input
+                    id="forgotIdentifier"
+                    name="forgotIdentifier"
+                    type="text"
+                    required
+                    value={forgotIdentifier}
+                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    placeholder="Enter your user ID or email"
+                    className="w-full rounded-lg border border-[#1C2B27]/12 bg-white py-2.5 pl-10 pr-3.5 text-[13.5px] text-[#1C2B27] outline-none transition-colors placeholder:text-[#9AA6A0] focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="group flex w-full items-center justify-center gap-2 rounded-lg bg-[#16302A] px-4 py-2.5 text-[13.5px] font-semibold text-[#F6F2E7] transition-colors hover:bg-[#1C3B33] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C79A3D] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin text-[#F6F2E7]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Sending
+                  </>
+                ) : (
+                  <>
+                    Send reset token
+                    <Send className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(false)}
+                className="flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-[#3E6E58] transition-colors hover:text-[#2C5245]"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Back to login
+              </button>
+            </form>
+          )}
+          </div>
+
+          <p className="mt-5 text-center text-[11px] leading-snug text-[#9AA6A0]">
+            Need help? Contact your system administrator
+            <span className="mx-2 hidden sm:inline">&middot;</span>
+            <span className="block sm:inline">&copy; {new Date().getFullYear()} SmartCare HMS</span>
+          </p>
+        </div>
+      </main>
+
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(1deg); }
+        @keyframes ecg-scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
         }
-        .animate-float {
-          animation: float 8s ease-in-out infinite;
+        .animate-ecg-scroll {
+          animation: ecg-scroll 6s linear infinite;
         }
-        
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
+
+        @keyframes pulse-dot {
+          0%, 100% { transform: scale(1); opacity: 0.7; }
+          50% { transform: scale(2.2); opacity: 0; }
         }
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 6s ease infinite;
+        .animate-pulse-dot {
+          animation: pulse-dot 1.8s ease-out infinite;
+        }
+
+        @keyframes card-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-card-in {
+          animation: card-in 0.45s ease-out both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .animate-ecg-scroll,
+          .animate-pulse-dot,
+          .animate-card-in {
+            animation: none !important;
+          }
         }
       `}</style>
     </div>

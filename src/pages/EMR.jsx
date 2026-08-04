@@ -35,6 +35,12 @@ const EMR = () => {
   const [showProblemForm, setShowProblemForm] = useState(false);
   const [showAllergyForm, setShowAllergyForm] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [timeline, setTimeline] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [medicationHistory, setMedicationHistory] = useState([]);
+  const [interactionAlerts, setInteractionAlerts] = useState([]);
+  const [medicationLoading, setMedicationLoading] = useState(false);
 
   const [recordForm, setRecordForm] = useState({
     record_type: 'outpatient',
@@ -98,10 +104,56 @@ const EMR = () => {
     }
   };
 
-  const handleSelectPatient = (patient) => {
+  const handleSelectPatient = async (patient) => {
     setSelectedPatient(patient);
     setSearchTerm(patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim());
     setPatientOptions([]);
+    setTimelineLoading(true);
+    setMedicationLoading(true);
+    try {
+      const timelineData = await apiRequest(`/api/v1/emr/medical-records/timeline/?patient_id=${patient.id}`);
+      setTimeline(timelineData.timeline || []);
+      const alertData = await apiRequest(`/api/v1/emr/medical-records/alerts/?patient_id=${patient.id}`);
+      const alertList = [];
+      if (alertData.dnr_order) {
+        alertList.push({
+          id: 'dnr',
+          severity: 'critical',
+          title: 'DNR Order',
+          message: alertData.dnr_order_reason || 'Patient has a documented DNR order.',
+        });
+      }
+      if (alertData.allergies?.length) {
+        alertList.push({
+          id: 'allergy',
+          severity: 'high',
+          title: 'Allergy Alert',
+          message: alertData.allergies.map(item => `${item.allergen} (${item.severity})`).join(', '),
+        });
+      }
+      setAlerts(alertList);
+
+      const historyData = await apiRequest(`/api/v1/clinical/prescriptions/history/?patient=${patient.id}`);
+      const historyItems = historyData.medications || [];
+      setMedicationHistory(historyItems);
+      if (historyItems.length) {
+        const interactionData = await apiRequest('/api/v1/clinical/prescriptions/interaction-check/', {
+          method: 'POST',
+          body: JSON.stringify({ prescription_ids: historyItems.map(item => item.id) }),
+        });
+        setInteractionAlerts(interactionData.interactions || []);
+      } else {
+        setInteractionAlerts([]);
+      }
+    } catch (error) {
+      setTimeline([]);
+      setAlerts([]);
+      setMedicationHistory([]);
+      setInteractionAlerts([]);
+    } finally {
+      setTimelineLoading(false);
+      setMedicationLoading(false);
+    }
   };
 
   const handleCreateRecord = async (e) => {
@@ -334,6 +386,12 @@ const EMR = () => {
             <EMRTabContent
               activeTab={activeTab}
               selectedPatient={selectedPatient}
+              timeline={timeline}
+              alerts={alerts}
+              timelineLoading={timelineLoading}
+              medicationHistory={medicationHistory}
+              interactionAlerts={interactionAlerts}
+              medicationLoading={medicationLoading}
               medicalRecords={medicalRecords}
               progressNotes={progressNotes}
               problems={problems}
@@ -381,6 +439,7 @@ const EMR = () => {
 
 const EMRTabContent = ({
   activeTab, selectedPatient, medicalRecords, progressNotes, problems,
+  timeline, alerts, timelineLoading, medicationHistory, interactionAlerts, medicationLoading,
   allergies, documents, currentRecord, loading,
   showRecordForm, setShowRecordForm, showNoteForm, setShowNoteForm,
   showProblemForm, setShowProblemForm, showAllergyForm, setShowAllergyForm,
@@ -392,6 +451,164 @@ const EMRTabContent = ({
   onLoadRecord, dispatch, apiRequest
 }) => {
   if (activeTab === 'records') {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-red-800">Clinical Alerts</h4>
+              <p className="text-sm text-red-700">Important allergy and DNR information is surfaced here for rapid review.</p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {timelineLoading ? (
+              <div className="text-sm text-red-700">Loading alerts...</div>
+            ) : alerts.length === 0 ? (
+              <div className="text-sm text-red-700">No active allergy or DNR alerts.</div>
+            ) : alerts.map(alert => (
+              <div key={alert.id} className="rounded-lg border border-red-200 bg-white p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">{alert.title}</p>
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-red-600">{alert.severity}</span>
+                </div>
+                <p className="mt-1 text-sm text-gray-700">{alert.message}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-900">Patient Timeline</h3>
+            <span className="text-xs text-gray-500">Chronological EMR history</span>
+          </div>
+          {timelineLoading ? (
+            <div className="text-center py-6 text-gray-400">Loading timeline...</div>
+          ) : timeline.length === 0 ? (
+            <div className="text-center py-6 text-gray-400">No clinical history available yet.</div>
+          ) : (
+            <ol className="space-y-3 border-l border-gray-200 ml-2 pl-4">
+              {timeline.map(item => (
+                <li key={`${item.type}-${item.id}`} className="relative">
+                  <span className="absolute -left-[1.1rem] top-1 h-2.5 w-2.5 rounded-full bg-blue-500 border-2 border-white" />
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                      <span className="text-[11px] uppercase tracking-wide text-gray-500">{item.type}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-700">{item.summary}</p>
+                    <p className="mt-2 text-xs text-gray-500">{new Date(item.timestamp).toLocaleString()}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Medication Safety</h3>
+              <p className="text-sm text-violet-700">Recent prescriptions and possible drug interactions.</p>
+            </div>
+            <Shield className="w-5 h-5 text-violet-600" />
+          </div>
+          {medicationLoading ? (
+            <div className="mt-3 text-sm text-violet-700">Loading medication history...</div>
+          ) : medicationHistory.length === 0 ? (
+            <div className="mt-3 text-sm text-violet-700">No active prescriptions found for this patient.</div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-lg border border-violet-200 bg-white p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">Prescription History</p>
+                <ul className="mt-2 space-y-2 text-sm text-gray-700">
+                  {medicationHistory.map(item => (
+                    <li key={item.id} className="flex items-center justify-between gap-3 rounded border border-gray-200 px-2 py-2">
+                      <span>{item.drug_name} • {item.dosage} • {item.frequency}</span>
+                      <span className="text-xs text-gray-500">{item.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Interaction Warnings</p>
+                {interactionAlerts.length === 0 ? (
+                  <p className="mt-2 text-sm text-amber-700">No known interactions detected in the current prescription list.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2 text-sm text-amber-800">
+                    {interactionAlerts.map((item, index) => (
+                      <li key={`${item.drugs.join('-')}-${index}`} className="rounded border border-amber-200 bg-white px-2 py-2">
+                        {item.drugs.join(' + ')} — {item.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">Medical Records</h3>
+          <button
+            onClick={() => setShowRecordForm(!showRecordForm)}
+            className="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-600"
+          >
+            <Plus className="w-4 h-4 inline mr-1" />New Record
+          </button>
+        </div>
+        {showRecordForm && (
+          <form onSubmit={onCreateRecord} className="space-y-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Record Type</label>
+                <select value={recordForm.record_type} onChange={e => setRecordForm({...recordForm, record_type: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <option value="outpatient">Outpatient</option>
+                  <option value="inpatient">Inpatient</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="day_care">Day Care</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Chief Complaint</label>
+              <textarea value={recordForm.chief_complaint} onChange={e => setRecordForm({...recordForm, chief_complaint: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" rows="2" placeholder="Patient's main complaint..." />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">History of Present Illness</label>
+              <textarea value={recordForm.history_of_present_illness} onChange={e => setRecordForm({...recordForm, history_of_present_illness: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" rows="3" placeholder="Detailed history..." />
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600">Create Record</button>
+              <button type="button" onClick={() => setShowRecordForm(false)} className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
+            </div>
+          </form>
+        )}
+        {loading && medicalRecords.length === 0 ? (
+          <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500 mb-2" />Loading records...</div>
+        ) : medicalRecords.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">No medical records found</div>
+        ) : (
+          <div className="space-y-3">
+            {medicalRecords.map(record => (
+              <div key={record.id} className="p-4 border rounded-xl hover:bg-gray-50 cursor-pointer" onClick={() => onLoadRecord(record)}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">Record #{record.record_number || record.id}</p>
+                    <p className="text-sm text-gray-500">{record.chief_complaint || 'No chief complaint'}</p>
+                    <p className="text-xs text-gray-400 mt-1">{record.record_type} • {new Date(record.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
     return (
       <div>
         <div className="flex items-center justify-between mb-4">

@@ -147,7 +147,7 @@ export const getUserPreferences = () => {
     theme: getCookie(COOKIE_NAMES.THEME) || 'light',
     language: getCookie(COOKIE_NAMES.LANGUAGE) || 'en',
     sidebarCollapsed: getCookie(COOKIE_NAMES.SIDEBAR_COLLAPSED) === 'true',
-    refreshInterval: parseInt(getCookie(COOKIE_NAMES.REFRESH_INTERVAL) || '60', 10) || 60,
+    refreshInterval: parseInt(getCookie(COOKIE_NAMES.REFRESH_INTERVAL) || '300', 10) || 300,
   };
 };
 

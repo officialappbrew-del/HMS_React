@@ -802,23 +802,10 @@ const [credentialsModal, setCredentialsModal] = useState({
         formDataToSend.append('profile_picture', profilePictureFile);
       }
 
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/api/v1/tenants/users/`, {
+      const user = await apiRequest('/api/v1/tenants/users/', {
         method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
         body: formDataToSend,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail || errorData.message || 'Failed to add staff';
-        const errorDetails = errorData;
-        throw { message: errorMessage, details: errorDetails };
-      }
-
-      const user = await response.json();
       
       setStaff(prev => [...prev, {
         id: user.id,

@@ -165,10 +165,10 @@ const BulkUploadModal = ({
   };
 
   const handleDownloadTemplate = () => {
-    const csvContent = `first_name,last_name,date_of_birth,gender,marital_status,phone,email,address,city,state,lga,country,blood_group,genotype,next_of_kin_name,next_of_kin_phone,next_of_kin_address
-John,Smith,1985-03-12,male,single,08012345678,john@example.com,12 Main Street,Lagos,Lagos,Ikeja,Nigeria,O+,AA,Mary Smith,08087654321,45 Church Road
-Jane,Doe,1990-07-25,female,married,09098765432,jane@example.com,34 Park Avenue,Abuja,FCT,Maitama,Nigeria,A-,AS,Richard Doe,08123456789,18 London Street
-Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Road,Enugu,Enugu,Enugu North,Nigeria,AB+,SS,Ngozi Okafor,09065432109,30 Market Square`;
+    const csvContent = `first_name,last_name,date_of_birth,gender,marital_status,phone,email,address,city,state,lga,country,blood_group,genotype,next_of_kin_name,next_of_kin_relationship,next_of_kin_phone,next_of_kin_address
+John,Smith,1985-03-12,male,single,08012345678,john@example.com,12 Main Street,Lagos,Lagos,Ikeja,Nigeria,O+,AA,Mary Smith,Wife,08087654321,45 Church Road
+Jane,Doe,1990-07-25,female,married,09098765432,jane@example.com,34 Park Avenue,Abuja,FCT,Maitama,Nigeria,A-,AS,Richard Doe,Husband,08123456789,18 London Street
+Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Road,Enugu,Enugu,Enugu North,Nigeria,AB+,SS,Ngozi Okafor,Sister,09065432109,30 Market Square`;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -367,6 +367,8 @@ const PatientModal = ({
   useEffect(() => {
     if (patient && mode === 'edit') {
       setFormData({
+        mrn: patient.mrn || '',
+        hospital_number: patient.hospital_number || patient.hospitalNumber || '',
         name: patient.name || patient.full_name || '',
         nin: patient.nin || '',
         phone: patient.phone || '',
@@ -383,8 +385,11 @@ const PatientModal = ({
         maritalStatus: (patient.maritalStatus || patient.marital_status || '').toLowerCase(),
         occupation: patient.occupation || '',
         emergencyContact: patient.emergencyContact || patient.next_of_kin_name || '',
+        next_of_kin_relationship: patient.next_of_kin_relationship || patient.relationship || '',
         emergencyPhone: patient.emergencyPhone || patient.next_of_kin_phone || '',
+        next_of_kin_address: patient.next_of_kin_address || patient.emergencyAddress || '',
         religion: patient.religion || '',
+        preferred_language: patient.preferred_language || patient.language_spoken || 'English',
         patient_status: patient.patient_status || 'active',
         genotype: patient.genotype || '',
         has_insurance: patient.has_insurance || false,
@@ -400,6 +405,8 @@ const PatientModal = ({
       });
     } else if (mode === 'add') {
       setFormData({
+        mrn: '',
+        hospital_number: '',
         name: '',
         nin: '',
         phone: '',
@@ -416,8 +423,11 @@ const PatientModal = ({
         maritalStatus: '',
         occupation: '',
         emergencyContact: '',
+        next_of_kin_relationship: '',
         emergencyPhone: '',
+        next_of_kin_address: '',
         religion: '',
+        preferred_language: 'English',
         patient_status: 'active',
         genotype: '',
         has_insurance: false,
@@ -547,6 +557,13 @@ const PatientModal = ({
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-gray-50 rounded p-2 col-span-2">
+              <p className="text-[10px] text-gray-500 uppercase font-medium">Patient Identifiers</p>
+              <p className="font-medium text-gray-900">
+                {patient?.mrn ? `MRN: ${patient.mrn}` : 'MRN: Pending'}
+                {patient?.hospital_number ? ` • HN: ${patient.hospital_number}` : ''}
+              </p>
+            </div>
             <div className="bg-gray-50 rounded p-2">
               <p className="text-[10px] text-gray-500 uppercase font-medium">Full Name</p>
               <p className="font-medium text-gray-900">{patient?.name || patient?.full_name || 'N/A'}</p>
@@ -599,6 +616,24 @@ const PatientModal = ({
             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
             disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">MRN</label>
+          <input
+            type="text"
+            value={formData.mrn ? formData.mrn : 'Auto-generated after save'}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600"
+            disabled
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Hospital Number</label>
+          <input
+            type="text"
+            value={formData.hospital_number ? formData.hospital_number : 'Auto-generated after save'}
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600"
+            disabled
           />
         </div>
         <div>
@@ -772,6 +807,18 @@ const PatientModal = ({
           />
         </div>
         <div className="col-span-2">
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Preferred Language</label>
+          <input
+            type="text"
+            name="preferred_language"
+            value={formData.preferred_language || ''}
+            onChange={handleChange}
+            placeholder="e.g. English, Hausa, Yoruba"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="col-span-2">
           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Ethnicity / Tribe</label>
           <input
             type="text"
@@ -784,7 +831,7 @@ const PatientModal = ({
           />
         </div>
         <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Emergency Contact</label>
+          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Next of Kin (Emergency Contact)</label>
           <input
             type="text"
             name="emergencyContact"
@@ -795,11 +842,29 @@ const PatientModal = ({
             disabled={isSubmitting}
           />
           <input
+            type="text"
+            name="next_of_kin_relationship"
+            value={formData.next_of_kin_relationship}
+            onChange={handleChange}
+            placeholder="Relationship (e.g. Spouse, Sister)"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+            disabled={isSubmitting}
+          />
+          <input
             type="tel"
             name="emergencyPhone"
             value={formData.emergencyPhone}
             onChange={handleChange}
             placeholder="Phone"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+            disabled={isSubmitting}
+          />
+          <input
+            type="text"
+            name="next_of_kin_address"
+            value={formData.next_of_kin_address}
+            onChange={handleChange}
+            placeholder="Address"
             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={isSubmitting}
           />
@@ -1273,6 +1338,7 @@ const DuplicateWarningModal = ({
   onConfirm,
   existingPatient,
   isSubmitting = false,
+  onMerge = null,
 }) => {
   if (!isOpen) return null;
 
@@ -1371,12 +1437,81 @@ const DuplicateWarningModal = ({
                   </>
                 )}
               </button>
+              {onMerge && existingPatient && (
+                <button
+                  onClick={() => onMerge(existingPatient)}
+                  disabled={isSubmitting}
+                  className="flex-1 py-1.5 px-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs"
+                >
+                  Merge Record
+                </button>
+              )}
               <button
                 onClick={onClose}
                 disabled={isSubmitting}
                 className="flex-1 py-1.5 px-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Compact Print Slip Modal
+const PrintSlipModal = ({ isOpen, onClose, patient }) => {
+  if (!isOpen || !patient) return null;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] overflow-y-auto">
+      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Registration Slip</h3>
+                <p className="text-xs text-gray-500">Printable reception slip</p>
+              </div>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-gray-500">Patient Registration</p>
+                  <p className="text-sm font-bold text-gray-900">{patient.name || patient.full_name || 'Unknown Patient'}</p>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  <p>MRN: {patient.mrn || 'Pending'}</p>
+                  <p>HN: {patient.hospital_number || 'Pending'}</p>
+                </div>
+              </div>
+              <div className="space-y-1 text-sm text-gray-700">
+                <p><span className="font-medium">Phone:</span> {patient.phone || 'N/A'}</p>
+                <p><span className="font-medium">DOB:</span> {patient.dateOfBirth || patient.date_of_birth || 'N/A'}</p>
+                <p><span className="font-medium">Preferred Language:</span> {patient.preferred_language || patient.language_spoken || 'English'}</p>
+                <p><span className="font-medium">Address:</span> {patient.address || 'N/A'}</p>
+              </div>
+              <div className="mt-3 border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-500">
+                <p>Generated at reception desk</p>
+                <p>Scan/verify patient identifiers before consultation</p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button onClick={handlePrint} className="flex-1 py-1.5 px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs">
+                Print Slip
+              </button>
+              <button onClick={onClose} className="flex-1 py-1.5 px-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs">
+                Close
               </button>
             </div>
           </div>
@@ -1405,6 +1540,15 @@ const PatientManagement = () => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicatePatient, setDuplicatePatient] = useState(null);
   const [pendingFormData, setPendingFormData] = useState(null);
+  const [showQuickReg, setShowQuickReg] = useState(false);
+  const [quickRegForm, setQuickRegForm] = useState({
+    name: '',
+    phone: '',
+    dateOfBirth: '',
+    preferred_language: 'English',
+  });
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printPatient, setPrintPatient] = useState(null);
   
   const [statusFilter, setStatusFilter] = useState('all');
   const [localPatients, setLocalPatients] = useState([]);
@@ -1484,11 +1628,30 @@ const PatientManagement = () => {
       full_name: fullName,
       hospital_number: hospitalNumber,
       hospitalNumber,
+      mrn: patient.mrn || patient.mrn_number || '',
       nin: patient.nin || patient.nhis_number || '',
       phone: patient.phone || patient.phone_number || '',
       status: patient.patient_status || patient.status || 'active',
       patient_status: patient.patient_status || patient.status || 'active',
       date_of_birth: patient.date_of_birth || patient.dateOfBirth || '',
+      dateOfBirth: patient.date_of_birth || patient.dateOfBirth || '',
+      first_name: patient.first_name || '',
+      last_name: patient.last_name || '',
+      middle_name: patient.middle_name || '',
+      bloodType: patient.bloodType || patient.blood_group || '',
+      blood_group: patient.blood_group || patient.bloodType || '',
+      maritalStatus: patient.maritalStatus || patient.marital_status || '',
+      marital_status: patient.marital_status || patient.maritalStatus || '',
+      gender: patient.gender || '',
+      ethnicity: patient.ethnicity || patient.tribe || '',
+      tribe: patient.tribe || patient.ethnicity || '',
+      next_of_kin_name: patient.next_of_kin_name || patient.emergencyContact || '',
+      emergencyContact: patient.emergencyContact || patient.next_of_kin_name || '',
+      next_of_kin_relationship: patient.next_of_kin_relationship || patient.relationship || '',
+      next_of_kin_phone: patient.next_of_kin_phone || patient.emergencyPhone || '',
+      emergencyPhone: patient.emergencyPhone || patient.next_of_kin_phone || '',
+      next_of_kin_address: patient.next_of_kin_address || patient.emergencyAddress || '',
+      preferred_language: patient.preferred_language || patient.language_spoken || 'English',
       registration_date: patient.registration_date || patient.createdAt || '',
     };
   };
@@ -1526,17 +1689,6 @@ const PatientManagement = () => {
       let data;
 
       const fetchPage = async (pageUrl) => {
-        if (pageUrl.startsWith('http')) {
-          const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
-          const response = await fetch(pageUrl, {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token && { Authorization: `Bearer ${token}` }),
-            },
-          });
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          return await response.json();
-        }
         return await apiRequest(pageUrl);
       };
 
@@ -1609,42 +1761,78 @@ const PatientManagement = () => {
     setBulkUploading(true);
     setBulkUploadProgress({
       status: 'processing',
-      message: 'Uploading CSV and processing patients...',
+      message: 'Uploading CSV and starting processing...',
     });
 
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const tenantId = localStorage.getItem('tenantId');
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/patients/bulk-uploads/`, {
+      const result = await apiRequest('/api/v1/patients/bulk-uploads/upload/', {
         method: 'POST',
         headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
+          ...(tenantId && { 'X-Tenant-ID': tenantId }),
         },
         body: formData,
       });
-
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type') || '';
-        const isJson = contentType.includes('application/json');
-        const data = isJson ? await response.json().catch(() => ({})) : await response.text();
-        const message = (data && (data.detail || data.error || data.message || data.non_field_errors?.[0])) || `Upload failed with status ${response.status}`;
-        throw new Error(message);
-      }
-
-      const result = await response.json();
-      const isSuccess = response.ok;
       setBulkUploadResult(result);
-      setBulkUploadProgress({
-        status: isSuccess ? 'completed' : 'failed',
-        message: result?.message || (isSuccess ? 'Bulk upload completed successfully.' : 'Bulk upload failed.'),
-      });
-      setBulkUploading(false);
 
-      if (isSuccess) {
-        await loadPatients(buildPatientsUrl(), { silent: true });
+      const uploadId = result?.id || result?.pk;
+
+      if (uploadId) {
+        const pollUploadStatus = async (id, maxAttempts = 60, intervalMs = 1500) => {
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+              const detail = await apiRequest(`/api/v1/patients/bulk-uploads/${id}/`);
+              setBulkUploadResult(detail);
+
+              if (detail?.status === 'completed' || detail?.status === 'failed') {
+                return detail;
+              }
+
+              const processed = detail?.processed_records || 0;
+              const total = detail?.total_records || '?';
+              setBulkUploadProgress({
+                status: 'processing',
+                message: `Processing... ${processed}/${total} records processed`,
+              });
+            } catch (pollErr) {
+              console.error('Bulk upload poll error:', pollErr);
+            }
+
+            await new Promise((r) => setTimeout(r, intervalMs));
+          }
+
+          throw new Error('Bulk upload timed out. Please check the upload history.');
+        };
+
+        const finalResult = await pollUploadStatus(uploadId);
+
+        if (finalResult.status === 'completed') {
+          const msg = finalResult.result_message ||
+            `Processed ${finalResult.total_records} records. ${finalResult.success_count} succeeded, ${finalResult.failure_count} failed.`;
+          setBulkUploadProgress({ status: 'completed', message: msg });
+          await loadPatients(buildPatientsUrl(), { silent: true });
+        } else {
+          setBulkUploadProgress({
+            status: 'failed',
+            message: finalResult.result_message || 'Bulk upload processing failed.',
+          });
+          setBulkUploadError(finalResult.result_message || 'Bulk upload processing failed.');
+        }
+      } else {
+        const isSuccess = response.ok;
+        setBulkUploadProgress({
+          status: isSuccess ? 'completed' : 'failed',
+          message: result?.message || (isSuccess ? 'Bulk upload completed successfully.' : 'Bulk upload failed.'),
+        });
+        if (isSuccess) {
+          await loadPatients(buildPatientsUrl(), { silent: true });
+        }
       }
+
+      setBulkUploading(false);
     } catch (error) {
       console.error('Bulk upload failed:', error);
       setBulkUploadError(error.message);
@@ -1666,6 +1854,11 @@ const PatientManagement = () => {
   const handleDeleteClick = (patient) => {
     setPatientToDelete(patient);
     setShowDeleteModal(true);
+  };
+
+  const handlePrintPatient = (patient) => {
+    setPrintPatient(patient);
+    setShowPrintModal(true);
   };
 
   const handleDeleteConfirm = async () => {
@@ -1717,6 +1910,52 @@ const PatientManagement = () => {
     }
   };
 
+  const buildPatientPayload = (formData, forceDuplicate = false) => {
+    const fullName = (formData.name || '').trim().split(/\s+/);
+    const firstName = fullName.shift() || '';
+    const lastName = fullName.join(' ') || 'Unknown';
+
+    return {
+      first_name: firstName,
+      last_name: lastName,
+      date_of_birth: formData.dateOfBirth || '',
+      gender: formData.gender?.toLowerCase() || 'unknown',
+      phone: formData.phone || '',
+      email: formData.email || '',
+      address: formData.address || '',
+      city: formData.city || '',
+      state: formData.state || 'Rivers',
+      lga: formData.lga || '',
+      country: formData.country || 'Nigeria',
+      blood_group: formData.bloodType || 'unknown',
+      marital_status: formData.maritalStatus?.toLowerCase() || 'single',
+      religion: formData.religion || '',
+      ethnicity: formData.tribe || '',
+      preferred_language: formData.preferred_language || formData.language_spoken || 'English',
+      occupation: formData.occupation || '',
+      next_of_kin_name: formData.emergencyContact || '',
+      next_of_kin_relationship: formData.next_of_kin_relationship || '',
+      next_of_kin_phone: formData.emergencyPhone || '',
+      next_of_kin_address: formData.next_of_kin_address || '',
+      password: 'PatientPass123!',
+      nin: formData.nin || '',
+      patient_status: formData.patient_status || 'active',
+      is_active: formData.patient_status === 'active',
+      genotype: formData.genotype || '',
+      has_insurance: formData.has_insurance || false,
+      insurance_company: formData.insurance_company || '',
+      insurance_policy_number: formData.insurance_policy_number || '',
+      nhis_number: formData.nhis_number || '',
+      known_allergies: formData.known_allergies || '',
+      chronic_conditions: formData.chronic_conditions || '',
+      current_medications: formData.current_medications || '',
+      surgical_history: formData.surgical_history || '',
+      family_history: formData.family_history || '',
+      notes: formData.notes || '',
+      ...(forceDuplicate ? { confirm_duplicate: true } : {}),
+    };
+  };
+
   const handleSavePatient = async (formData, forceDuplicate = false) => {
     setFormError(null);
     setIsSubmitting(true);
@@ -1735,49 +1974,7 @@ const PatientManagement = () => {
     }
     
     try {
-      const fullName = (formData.name || '').trim().split(/\s+/);
-      const firstName = fullName.shift() || '';
-      const lastName = fullName.join(' ') || 'Unknown';
-
-      const payload = {
-        first_name: firstName,
-        last_name: lastName,
-        date_of_birth: formData.dateOfBirth || '',
-        gender: formData.gender?.toLowerCase() || 'unknown',
-        phone: formData.phone,
-        email: formData.email || '',
-        address: formData.address || '',
-        city: formData.city || '',
-        state: formData.state || 'Rivers',
-        lga: formData.lga || '',
-        country: formData.country || 'Nigeria',
-        blood_group: formData.bloodType || 'unknown',
-        marital_status: formData.maritalStatus?.toLowerCase() || 'single',
-        religion: formData.religion || '',
-        ethnicity: formData.tribe || '',
-        occupation: formData.occupation || '',
-        next_of_kin_name: formData.emergencyContact || '',
-        next_of_kin_phone: formData.emergencyPhone || '',
-        password: 'PatientPass123!',
-        nin: formData.nin || '',
-        patient_status: formData.patient_status || 'active',
-        is_active: formData.patient_status === 'active',
-        genotype: formData.genotype || '',
-        has_insurance: formData.has_insurance || false,
-        insurance_company: formData.insurance_company || '',
-        insurance_policy_number: formData.insurance_policy_number || '',
-        nhis_number: formData.nhis_number || '',
-        known_allergies: formData.known_allergies || '',
-        chronic_conditions: formData.chronic_conditions || '',
-        current_medications: formData.current_medications || '',
-        surgical_history: formData.surgical_history || '',
-        family_history: formData.family_history || '',
-        notes: formData.notes || '',
-      };
-
-      if (forceDuplicate) {
-        payload.confirm_duplicate = true;
-      }
+      const payload = buildPatientPayload(formData, forceDuplicate);
 
       if (modalMode === 'edit' && selectedPatient) {
         const updated = await apiRequest(`/api/v1/patients/patients/${selectedPatient.id}/`, {
@@ -1807,6 +2004,84 @@ const PatientManagement = () => {
       await loadPatients(buildPatientsUrl(), { silent: true });
     } catch (err) {
       console.error('Failed to save patient:', err);
+      setApiError(extractApiError(err));
+      setShowApiError(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickRegister = async (e) => {
+    e.preventDefault();
+    if (!quickRegForm.name?.trim() || !quickRegForm.phone?.trim()) {
+      setApiError('Please provide at least the patient name and phone number for a quick walk-in registration.');
+      setShowApiError(true);
+      return;
+    }
+
+    setFormError(null);
+    setIsSubmitting(true);
+    try {
+      const payload = buildPatientPayload({
+        ...quickRegForm,
+        name: quickRegForm.name,
+        phone: quickRegForm.phone,
+        dateOfBirth: quickRegForm.dateOfBirth || '',
+        preferred_language: quickRegForm.preferred_language || 'English',
+        patient_status: 'active',
+      });
+
+      const created = await apiRequest('/api/v1/patients/patients/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      dispatch(addPatient(normalizePatient(created)));
+      setShowQuickReg(false);
+      setQuickRegForm({ name: '', phone: '', dateOfBirth: '', preferred_language: 'English' });
+      await loadPatients(buildPatientsUrl(), { silent: true });
+    } catch (err) {
+      if (err?.data?.duplicate) {
+        setPendingFormData({
+          ...quickRegForm,
+          name: quickRegForm.name,
+          phone: quickRegForm.phone,
+          dateOfBirth: quickRegForm.dateOfBirth || '',
+          preferred_language: quickRegForm.preferred_language || 'English',
+          patient_status: 'active',
+        });
+        setSelectedPatient(null);
+        setModalMode('add');
+        setDuplicatePatient(err.data.existing_patient || null);
+        setShowDuplicateModal(true);
+        setShowQuickReg(false);
+        return;
+      }
+
+      console.error('Quick registration failed:', err);
+      setApiError(extractApiError(err));
+      setShowApiError(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMergeDuplicate = async (existingPatient) => {
+    if (!pendingFormData || !existingPatient) return;
+
+    setIsSubmitting(true);
+    try {
+      const payload = buildPatientPayload(pendingFormData, true);
+      const merged = await apiRequest(`/api/v1/patients/patients/${existingPatient.id}/merge/`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      dispatch(updatePatient(normalizePatient(merged)));
+      setShowDuplicateModal(false);
+      setPendingFormData(null);
+      setDuplicatePatient(null);
+      await loadPatients(buildPatientsUrl(), { silent: true });
+    } catch (err) {
+      console.error('Merge failed:', err);
       setApiError(extractApiError(err));
       setShowApiError(true);
     } finally {
@@ -1942,6 +2217,15 @@ const PatientManagement = () => {
               <span className="hidden sm:inline">Bulk Upload</span>
             </ButtonWithTooltip>
             <ButtonWithTooltip
+              onClick={() => setShowQuickReg((prev) => !prev)}
+              tooltip="Fast walk-in registration"
+              variant="warning"
+              size="sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Quick Walk-In</span>
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
               onClick={handleAddPatient}
               tooltip="Register a new patient"
               variant="primary"
@@ -1952,6 +2236,60 @@ const PatientManagement = () => {
             </ButtonWithTooltip>
           </div>
         </div>
+
+        {showQuickReg && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-blue-900">Fast reception intake</p>
+                <p className="text-xs text-blue-700">Capture a walk-in patient quickly and keep the registration slip ready.</p>
+              </div>
+              <button onClick={() => setShowQuickReg(false)} className="rounded p-1 hover:bg-blue-100">
+                <X className="w-4 h-4 text-blue-700" />
+              </button>
+            </div>
+            <form onSubmit={handleQuickRegister} className="mt-3 grid gap-2 md:grid-cols-4">
+              <input
+                type="text"
+                value={quickRegForm.name}
+                onChange={(e) => setQuickRegForm({ ...quickRegForm, name: e.target.value })}
+                placeholder="Full name"
+                className="px-2.5 py-1.5 text-sm border border-blue-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+              <input
+                type="tel"
+                value={quickRegForm.phone}
+                onChange={(e) => setQuickRegForm({ ...quickRegForm, phone: e.target.value })}
+                placeholder="Phone number"
+                className="px-2.5 py-1.5 text-sm border border-blue-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+              <input
+                type="date"
+                value={quickRegForm.dateOfBirth}
+                onChange={(e) => setQuickRegForm({ ...quickRegForm, dateOfBirth: e.target.value })}
+                className="px-2.5 py-1.5 text-sm border border-blue-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <input
+                type="text"
+                value={quickRegForm.preferred_language}
+                onChange={(e) => setQuickRegForm({ ...quickRegForm, preferred_language: e.target.value })}
+                placeholder="Preferred language"
+                className="px-2.5 py-1.5 text-sm border border-blue-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <div className="md:col-span-4 flex items-center justify-end">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Registering...' : 'Register Walk-In'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Stats - All cards are clickable */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -2157,7 +2495,7 @@ const PatientManagement = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by patient ID or name..."
+                  placeholder="Search by name, phone, MRN, or HN..."
                   value={searchTermLocal}
                   onChange={(e) => setSearchTermLocal(e.target.value)}
                   className="w-full pl-9 pr-9 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -2270,7 +2608,10 @@ const PatientManagement = () => {
                                 <div>
                                   <div className="font-medium text-gray-900 text-sm">{patient.name}</div>
                                   <div className="text-xs text-gray-500">
-                                    {patient.hospital_number || 'No ID'}
+                                    {patient.mrn ? `MRN: ${patient.mrn}` : ''}
+                                    {patient.mrn && patient.hospital_number ? ' • ' : ''}
+                                    {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
+                                    {!patient.mrn && !patient.hospital_number ? 'No ID' : ''}
                                   </div>
                                 </div>
                               </div>
@@ -2325,6 +2666,13 @@ const PatientManagement = () => {
                                     size="sm"
                                   />
                                 )}
+                                <IconButton
+                                  icon={Printer}
+                                  onClick={() => handlePrintPatient(patient)}
+                                  tooltip="Print registration slip"
+                                  variant="info"
+                                  size="sm"
+                                />
                                 <IconButton
                                   icon={Bed}
                                   onClick={() => navigate('/admissions', {
@@ -2436,6 +2784,16 @@ const PatientManagement = () => {
         onConfirm={confirmDuplicateCreate}
         existingPatient={duplicatePatient}
         isSubmitting={isSubmitting}
+        onMerge={handleMergeDuplicate}
+      />
+
+      <PrintSlipModal
+        isOpen={showPrintModal}
+        onClose={() => {
+          setShowPrintModal(false);
+          setPrintPatient(null);
+        }}
+        patient={printPatient}
       />
 
       {/* API Error Modal */}

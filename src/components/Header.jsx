@@ -98,53 +98,71 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     { to: '/procurement', label: 'Procurement' },
   ];
 
-  const analyticsLinks = [
-    { to: '/financial-analytics', label: 'Financial Analytics' },
-    { to: '/external-integrations', label: 'External Integrations' },
-  ];
+  const FINANCE_ROLES = ['admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin'];
+  const SYSTEM_ROLES = ['admin', 'super_admin', 'system_admin'];
 
-  const searchableRoutes = useMemo(() => [
-    { path: '/dashboard', label: 'Dashboard', aliases: ['home', 'overview'] },
-    { path: '/patients', label: 'Patient Management', aliases: ['patients', 'patient records', 'registrations'] },
-    { path: '/appointments', label: 'Appointments', aliases: ['schedule', 'booking', 'visits'] },
-    { path: '/billing', label: 'Billing', aliases: ['payments', 'invoices', 'charges'] },
-    { path: '/pharmacy', label: 'Pharmacy', aliases: ['medication', 'drugs', 'dispensary'] },
-    { path: '/consultation', label: 'Consultation', aliases: ['doctor notes', 'visits', 'clinical'] },
-    { path: '/laboratory', label: 'Laboratory', aliases: ['lab', 'tests', 'results'] },
-    { path: '/staff', label: 'Staff Management', aliases: ['employees', 'staff directory', 'personnel'] },
-    { path: '/inventory', label: 'Inventory', aliases: ['stock', 'supplies'] },
-    { path: '/bed-allocation', label: 'Bed Allocation', aliases: ['beds', 'ward beds'] },
-    { path: '/admissions', label: 'Admissions', aliases: ['admit', 'inpatients'] },
-    { path: '/ward-rounds', label: 'Ward Rounds', aliases: ['rounds'] },
-    { path: '/vital-signs', label: 'Vital Signs', aliases: ['vitals'] },
-    { path: '/emr', label: 'EMR', aliases: ['electronic medical records'] },
-    { path: '/orders', label: 'Order Entry', aliases: ['orders', 'prescriptions'] },
-    { path: '/clinical-audit', label: 'Clinical Audit', aliases: ['quality audit'] },
-    { path: '/staff-directory', label: 'Staff Directory', aliases: ['employees', 'workforce'] },
-    { path: '/license-tracking', label: 'License Tracking', aliases: ['licenses'] },
-    { path: '/duty-roster', label: 'Duty Roster', aliases: ['roster', 'schedule'] },
-    { path: '/performance-management', label: 'Performance Management', aliases: ['performance'] },
-    { path: '/payroll-management', label: 'Payroll Management', aliases: ['payroll'] },
-    { path: '/equipment', label: 'Equipment Management', aliases: ['devices', 'medical equipment'] },
-    { path: '/maintenance', label: 'Maintenance Management', aliases: ['repairs'] },
-    { path: '/generators', label: 'Generator Management', aliases: ['power backup'] },
-    { path: '/oxygen', label: 'Oxygen Management', aliases: ['oxygen supply'] },
-    { path: '/ambulance-tracking', label: 'Ambulance Tracking', aliases: ['ambulance'] },
-    { path: '/fleet-operations', label: 'Fleet Operations', aliases: ['vehicles'] },
-    { path: '/emergency-response', label: 'Emergency Response', aliases: ['emergency'] },
-    { path: '/referral-transport', label: 'Referral Transport', aliases: ['referrals'] },
-    { path: '/pharmacy-inventory', label: 'Pharmacy Inventory', aliases: ['drug inventory'] },
-    { path: '/medical-supplies', label: 'Medical Supplies', aliases: ['supplies'] },
-    { path: '/central-store', label: 'Central Store', aliases: ['store'] },
-    { path: '/procurement', label: 'Procurement', aliases: ['procurement'] },
-    { path: '/financial-analytics', label: 'Financial Analytics', aliases: ['finance', 'revenue', 'analytics'] },
-    { path: '/external-integrations', label: 'External Integrations', aliases: ['integrations'] },
-    { path: '/credit-management', label: 'Credit Management', aliases: ['credit', 'debts'] },
-    { path: '/ndpr-compliance', label: 'NDPR Compliance', aliases: ['compliance', 'privacy'] },
-    { path: '/settings', label: 'Settings', aliases: ['preferences', 'configuration'] },
-    { path: '/patient-portal', label: 'Patient Portal', aliases: ['portal'] },
-    { path: '/mobile-money', label: 'Mobile Money Integration', aliases: ['mobile money'] },
-  ], []);
+  const hasAccess = (roles) => roles.includes(userRole);
+
+  const analyticsLinks = useMemo(() => {
+    const links = [];
+    if (hasAccess(FINANCE_ROLES)) {
+      links.push({ to: '/financial-analytics', label: 'Financial Analytics' });
+    }
+    if (hasAccess(SYSTEM_ROLES)) {
+      links.push({ to: '/external-integrations', label: 'External Integrations' });
+    }
+    return links;
+  }, [userRole]);
+
+  const searchableRoutes = useMemo(() => {
+    const allRoutes = [
+      { path: '/dashboard', label: 'Dashboard', aliases: ['home', 'overview'] },
+      { path: '/patients', label: 'Patient Management', aliases: ['patients', 'patient records', 'registrations'] },
+      { path: '/appointments', label: 'Appointments', aliases: ['schedule', 'booking', 'visits'] },
+      { path: '/billing', label: 'Billing', aliases: ['payments', 'invoices', 'charges'] },
+      { path: '/pharmacy', label: 'Pharmacy', aliases: ['medication', 'drugs', 'dispensary'] },
+      { path: '/consultation', label: 'Consultation', aliases: ['doctor notes', 'visits', 'clinical'] },
+      { path: '/laboratory', label: 'Laboratory', aliases: ['lab', 'tests', 'results'] },
+      { path: '/staff', label: 'Staff Management', aliases: ['employees', 'staff directory', 'personnel'] },
+      { path: '/inventory', label: 'Inventory', aliases: ['stock', 'supplies'] },
+      { path: '/bed-allocation', label: 'Bed Allocation', aliases: ['beds', 'ward beds'] },
+      { path: '/admissions', label: 'Admissions', aliases: ['admit', 'inpatients'] },
+      { path: '/ward-rounds', label: 'Duty Roster', aliases: ['roster', 'schedule'] },
+      { path: '/vital-signs', label: 'Vital Signs', aliases: ['vitals'] },
+      { path: '/emr', label: 'EMR', aliases: ['electronic medical records'] },
+      { path: '/orders', label: 'Order Entry', aliases: ['orders', 'prescriptions'] },
+      { path: '/clinical-audit', label: 'Clinical Audit', aliases: ['quality audit'] },
+      { path: '/staff-directory', label: 'Staff Directory', aliases: ['employees', 'workforce'] },
+      { path: '/license-tracking', label: 'License Tracking', aliases: ['licenses'] },
+      { path: '/performance-management', label: 'Performance Management', aliases: ['performance'] },
+      { path: '/payroll-management', label: 'Payroll Management', aliases: ['payroll'] },
+      { path: '/equipment', label: 'Equipment Management', aliases: ['devices', 'medical equipment'] },
+      { path: '/maintenance', label: 'Maintenance Management', aliases: ['repairs'] },
+      { path: '/generators', label: 'Generator Management', aliases: ['power backup'] },
+      { path: '/oxygen', label: 'Oxygen Management', aliases: ['oxygen supply'] },
+      { path: '/ambulance-tracking', label: 'Ambulance Tracking', aliases: ['ambulance'] },
+      { path: '/fleet-operations', label: 'Fleet Operations', aliases: ['vehicles'] },
+      { path: '/emergency-response', label: 'Emergency Response', aliases: ['emergency'] },
+      { path: '/referral-transport', label: 'Referral Transport', aliases: ['referrals'] },
+      { path: '/pharmacy-inventory', label: 'Pharmacy Inventory', aliases: ['drug inventory'] },
+      { path: '/medical-supplies', label: 'Medical Supplies', aliases: ['supplies'] },
+      { path: '/central-store', label: 'Central Store', aliases: ['store'] },
+      { path: '/procurement', label: 'Procurement', aliases: ['procurement'] },
+      { path: '/credit-management', label: 'Credit Management', aliases: ['credit', 'debts'] },
+      { path: '/ndpr-compliance', label: 'NDPR Compliance', aliases: ['compliance', 'privacy'] },
+      { path: '/financial-analytics', label: 'Financial Analytics', aliases: ['finance', 'revenue', 'analytics'] },
+      { path: '/external-integrations', label: 'External Integrations', aliases: ['integrations'] },
+      { path: '/settings', label: 'Settings', aliases: ['preferences', 'configuration'] },
+      { path: '/patient-portal', label: 'Patient Portal', aliases: ['portal'] },
+      { path: '/mobile-money', label: 'Mobile Money Integration', aliases: ['mobile money'] },
+    ];
+    const filtered = allRoutes.filter(route => {
+      if (route.path === '/financial-analytics' && !hasAccess(FINANCE_ROLES)) return false;
+      if (route.path === '/external-integrations' && !hasAccess(SYSTEM_ROLES)) return false;
+      return true;
+    });
+    return filtered;
+  }, [userRole]);
 
   const updatePreferences = (newPreferences) => {
     setUserPreferencesState(newPreferences);
