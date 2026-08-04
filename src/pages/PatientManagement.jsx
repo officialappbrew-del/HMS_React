@@ -2175,7 +2175,7 @@ const PatientManagement = () => {
   }).length;
 
   const stats = {
-    total: patientSummary.total || activeCount + inactiveCount,
+    total: totalCount,
     active: patientSummary.active || activeCount,
     inactive: patientSummary.inactive || inactiveCount,
     states: new Set(allPatients.map(p => p.state).filter(Boolean)).size,

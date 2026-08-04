@@ -402,10 +402,10 @@ const AdmissionManagement = () => {
 
   const [dischargeData, setDischargeData] = useState({
     lengthOfStay: 0,
-    medications: [],
+    medications: '',
     followUpInstructions: '',
     restrictions: '',
-    appointments: []
+    appointments: ''
   });
 
   const [transferData, setTransferData] = useState({
@@ -457,7 +457,7 @@ const AdmissionManagement = () => {
           toBedId: entry.toBedId,
           transferDate: entry.transferredAt || new Date().toISOString(),
           reason: entry.reason || '',
-          status: 'Completed',
+          status: entry.status || 'Completed',
         }));
       });
 
@@ -469,7 +469,8 @@ const AdmissionManagement = () => {
         summary,
       }));
     } catch (error) {
-      console.warn('Admission data unavailable, falling back to local state.', error);
+      console.error('Failed to load admission data:', error);
+      setNotificationModal({ show: true, message: error.message || 'Unable to load admission data', type: 'error' });
     } finally {
       setIsLoadingSummary(false);
     }
@@ -536,7 +537,7 @@ const AdmissionManagement = () => {
     if (formData.patientName && formData.source && formData.diagnosis) {
       try {
         await admissionApi.createRequest({
-          patientId: formData.patientId || `PAT${Date.now()}`,
+          patientId: formData.patientId || undefined,
           patientName: formData.patientName,
           source: formData.source,
           diagnosis: formData.diagnosis,
