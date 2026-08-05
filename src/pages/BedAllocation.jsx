@@ -63,7 +63,7 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon
 } from 'lucide-react';
-import { fetchWards, fetchBeds, seedDemoBeds, selectWard, occupyBed, releaseBed, reserveBed, markBedAvailable } from '../features/bedSlice.jsx';
+import { fetchWards, fetchBeds, fetchBedStats, selectWard, occupyBed, releaseBed, reserveBed, markBedAvailable, createWard, updateWard, deleteWard, createBed, updateBed, deleteBed } from '../features/bedSlice.jsx';
 import { setPatients, searchPatients } from '../features/patientSlice';
 import { apiRequest, wardRoundApi } from '../utils/api';
 
@@ -189,8 +189,30 @@ const BedAllocation = () => {
   });
   const [feedbackModal, setFeedbackModal] = useState({ open: false, title: '', message: '', type: 'info' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [patientQuery, setPatientQuery] = useState('');
+const [patientQuery, setPatientQuery] = useState('');
   const [selectedPatientOption, setSelectedPatientOption] = useState(null);
+  // Edit/Delete state for wards and beds
+  const [editingWard, setEditingWard] = useState(null);
+  const [showEditWardForm, setShowEditWardForm] = useState(false);
+  const [editWardForm, setEditWardForm] = useState({
+    id: null,
+    wardId: '',
+    wardName: '',
+    wardType: 'General Ward',
+    floor: '1',
+    supervisor: '',
+    staffCount: '4',
+    totalBeds: '4'
+  });
+  const [editingBed, setEditingBed] = useState(null);
+  const [showEditBedForm, setShowEditBedForm] = useState(false);
+  const [editBedForm, setEditBedForm] = useState({
+    id: null,
+    bedId: '',
+    bedNumber: '1',
+    bedType: 'Standard',
+    status: 'Available'
+  });
 
   const getBedStatusColor = (status) => {
     switch (status) {
@@ -251,6 +273,7 @@ const BedAllocation = () => {
       nin: patient.nin || patient.nhis_number || '',
       phone: patient.phone || patient.phone_number || '',
       status: patient.patient_status || patient.status || 'active',
+      patient_status: patient.patient_status || patient.status || 'active',
     };
   };
 
@@ -264,8 +287,9 @@ const BedAllocation = () => {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
     dispatch(fetchWards());
+    dispatch(fetchBedStats());
     loadPatients();
   }, [dispatch]);
 
@@ -434,9 +458,156 @@ const BedAllocation = () => {
       dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
     } catch (err) {
       showFeedback('Unable to create bed', err.message || 'Failed to create bed', 'error');
+} finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Edit/Delete Ward handlers
+  const handleEditWard = (ward) => {
+    setEditingWard(ward);
+    setEditWardForm({
+      id: ward.id ?? null,
+      wardId: ward.wardId || '',
+      wardName: ward.wardName || '',
+      wardType: ward.wardType || 'General Ward',
+      floor: ward.floor || '1',
+      supervisor: ward.supervisor || '',
+      staffCount: String(ward.staffCount || '4'),
+      totalBeds: String(ward.totalBeds || '4')
+    });
+    setShowEditWardForm(true);
+  };
+
+  const handleUpdateWard = async () => {
+    if (!editWardForm.id && !editWardForm.wardId) {
+      showFeedback('Validation required', 'Ward ID and ward name are required.', 'error');
+      return;
+    }
+    if (!editWardForm.wardName) {
+      showFeedback('Validation required', 'Ward name is required.', 'error');
+      return;
+    }
+
+    const payload = {
+      wardId: editWardForm.wardId,
+      wardName: editWardForm.wardName,
+      wardType: editWardForm.wardType,
+      floor: editWardForm.floor,
+      supervisor: editWardForm.supervisor,
+      staffCount: Number(editWardForm.staffCount) || 0,
+      totalBeds: Number(editWardForm.totalBeds) || 0
+    };
+
+    setIsSubmitting(true);
+    try {
+      if (editWardForm.id) {
+        await dispatch(updateWard({ id: editWardForm.id, data: payload })).unwrap();
+      } else {
+        await wardRoundApi.updateWard(editWardForm.wardId, payload);
+      }
+      showFeedback('Ward updated', 'Ward updated successfully.');
+      setShowEditWardForm(false);
+      setEditingWard(null);
+      setEditWardForm({ id: null, wardId: '', wardName: '', wardType: 'General Ward', floor: '1', supervisor: '', staffCount: '4', totalBeds: '4' });
+      dispatch(fetchWards());
+    } catch (err) {
+      showFeedback('Unable to update ward', err?.message || 'Failed to update ward', 'error');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDeleteWard = (ward) => {
+    const wardId = ward?.id ?? ward?.wardId;
+    showFeedback('Confirm delete', `Delete ward "${ward?.wardName}"? This cannot be undone.`, 'error', async () => {
+      setIsSubmitting(true);
+      try {
+        if (ward?.id) {
+          await dispatch(deleteWard(ward.id)).unwrap();
+        } else {
+          await wardRoundApi.deleteWard(wardId);
+        }
+        showFeedback('Ward deleted', 'Ward deleted successfully.');
+        dispatch(fetchWards());
+        if (selectedWard && (selectedWard.id === ward.id || selectedWard.wardId === ward.wardId)) {
+          dispatch(fetchBeds({ ward_id: '' }));
+        }
+      } catch (err) {
+        showFeedback('Unable to delete ward', err?.message || 'Failed to delete ward', 'error');
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+  };
+
+  // Edit/Delete Bed handlers
+  const handleEditBed = (bed) => {
+    setEditingBed(bed);
+    setEditBedForm({
+      id: bed.id ?? null,
+      bedId: bed.bedId || '',
+      bedNumber: String(bed.bedNumber || '1'),
+      bedType: bed.bedType || 'Standard',
+      status: bed.status || 'Available'
+    });
+    setShowEditBedForm(true);
+  };
+
+  const handleUpdateBed = async () => {
+    if (!editBedForm.id && !editBedForm.bedId) {
+      showFeedback('Validation required', 'Bed ID is required.', 'error');
+      return;
+    }
+
+    const payload = {
+      bedId: editBedForm.bedId,
+      bedNumber: Number(editBedForm.bedNumber) || 1,
+      bedType: editBedForm.bedType,
+      status: editBedForm.status
+    };
+
+    setIsSubmitting(true);
+    try {
+      if (editBedForm.id) {
+        await dispatch(updateBed({ id: editBedForm.id, data: payload })).unwrap();
+      } else {
+        await wardRoundApi.updateBed(editBedForm.bedId, payload);
+      }
+      showFeedback('Bed updated', 'Bed updated successfully.');
+      setShowEditBedForm(false);
+      setEditingBed(null);
+      setEditBedForm({ id: null, bedId: '', bedNumber: '1', bedType: 'Standard', status: 'Available' });
+      if (selectedWard?.wardId) {
+        dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
+      }
+    } catch (err) {
+      showFeedback('Unable to update bed', err?.message || 'Failed to update bed', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteBed = (bed) => {
+    const bedId = bed?.id ?? bed?.bedId;
+    showFeedback('Confirm delete', `Delete bed "${bed?.bedId || `Bed ${bed?.bedNumber}`}"? This cannot be undone.`, 'error', async () => {
+      setIsSubmitting(true);
+      try {
+        if (bed?.id) {
+          await dispatch(deleteBed(bed.id)).unwrap();
+        } else {
+          await wardRoundApi.deleteBed(bedId);
+        }
+        showFeedback('Bed deleted', 'Bed deleted successfully.');
+        if (selectedWard?.wardId) {
+          dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
+        }
+      } catch (err) {
+        showFeedback('Unable to delete bed', err?.message || 'Failed to delete bed', 'error');
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
   };
 
   // Stats cards WITHOUT tooltips
@@ -567,24 +738,7 @@ const BedAllocation = () => {
               <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Refresh</span>
             </ButtonWithTooltip>
-            <ButtonWithTooltip
-              onClick={() => {
-                dispatch(seedDemoBeds()).unwrap().then(() => {
-                  dispatch(fetchWards());
-                  if (selectedWard?.wardId) {
-                    dispatch(fetchBeds({ ward_id: selectedWard.wardId }));
-                  } else {
-                    dispatch(fetchBeds());
-                  }
-                });
-              }}
-              tooltip="Seed sample wards and beds"
-              variant="secondary"
-            >
-              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Seed Beds</span>
-            </ButtonWithTooltip>
-            <ButtonWithTooltip
+<ButtonWithTooltip
               onClick={() => setShowCreateForm(!showCreateForm)}
               tooltip="Create a ward or bed"
               variant="success"
@@ -795,12 +949,26 @@ const BedAllocation = () => {
                       <p className="text-sm font-semibold text-gray-900">{selectedWard.supervisor}</p>
                     </div>
                   </Tooltip>
-                  <Tooltip text="Number of staff assigned">
+<Tooltip text="Number of staff assigned">
                     <div className="cursor-help">
                       <p className="text-xs text-gray-600">Staff Count</p>
                       <p className="text-sm font-semibold text-gray-900">{selectedWard.staffCount}</p>
                     </div>
                   </Tooltip>
+                </div>
+                <div className="mt-3 pt-3 border-t border-blue-100 flex justify-end gap-1">
+                  <IconButton
+                    icon={Edit}
+                    onClick={() => handleEditWard(selectedWard)}
+                    tooltip="Edit ward"
+                    variant="warning"
+                  />
+                  <IconButton
+                    icon={Trash2}
+                    onClick={() => handleDeleteWard(selectedWard)}
+                    tooltip="Delete ward"
+                    variant="danger"
+                  />
                 </div>
               </div>
             </div>
@@ -922,13 +1090,25 @@ const BedAllocation = () => {
                           <span className="text-sm text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="py-3">
+<td className="py-3">
                         <div className="flex items-center gap-1">
                           <IconButton
                             icon={Eye}
                             onClick={() => setSelectedBed(bed)}
                             tooltip="View bed details"
                             variant="primary"
+                          />
+                          <IconButton
+                            icon={Edit}
+                            onClick={() => handleEditBed(bed)}
+                            tooltip="Edit bed"
+                            variant="warning"
+                          />
+                          <IconButton
+                            icon={Trash2}
+                            onClick={() => handleDeleteBed(bed)}
+                            tooltip="Delete bed"
+                            variant="danger"
                           />
                           {(bed.status === bedStatus.AVAILABLE || bed.status === bedStatus.RESERVED) && (
                             <>
@@ -1023,9 +1203,36 @@ const BedAllocation = () => {
                     <p className="text-xs text-gray-500">Bed Type</p>
                     <p className="text-sm font-semibold text-gray-900 mt-1">{selectedBed.bedType}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Patient ID</p>
-                    <p className="text-sm font-semibold text-gray-900 mt-1">{selectedBed.patientId || 'N/A'}</p>
+<div className="col-span-2 sm:col-span-3">
+                    <p className="text-xs text-gray-500">Patient</p>
+                    {selectedBed.patientId ? (
+                      <div className="mt-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                        <p className="text-sm font-semibold text-gray-900">{selectedBed.patientName || 'Unknown Patient'}</p>
+                        <p className="text-xs text-blue-700 mt-0.5">
+                          {selectedBed.patientId}
+                          {selectedBed.mrn && selectedBed.mrn !== selectedBed.patientId ? ` • MRN: ${selectedBed.mrn}` : ''}
+                        </p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-gray-600">
+                          {selectedBed.gender && (
+                            <span className="capitalize">Gender: {selectedBed.gender}</span>
+                          )}
+                          {selectedBed.age != null && (
+                            <span>Age: {selectedBed.age}</span>
+                          )}
+                          {selectedBed.bloodGroup && (
+                            <span>Blood: {selectedBed.bloodGroup}</span>
+                          )}
+                          {selectedBed.genotype && (
+                            <span>Genotype: {selectedBed.genotype}</span>
+                          )}
+                          {selectedBed.phone && (
+                            <span>Tel: {selectedBed.phone}</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-semibold text-gray-900 mt-1">N/A</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Cleaning Status</p>
@@ -1115,6 +1322,218 @@ const BedAllocation = () => {
                       Cancel Reservation
                     </ButtonWithTooltip>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* Edit Ward Modal */}
+      {showEditWardForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => {
+              setShowEditWardForm(false);
+              setEditingWard(null);
+            }} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Edit Ward</h3>
+                  <IconButton
+                    icon={X}
+                    onClick={() => {
+                      setShowEditWardForm(false);
+                      setEditingWard(null);
+                    }}
+                    tooltip="Close"
+                    variant="default"
+                  />
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Ward ID</label>
+                      <input
+                        type="text"
+                        value={editWardForm.wardId}
+                        onChange={(e) => setEditWardForm({ ...editWardForm, wardId: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Ward Name</label>
+                      <input
+                        type="text"
+                        value={editWardForm.wardName}
+                        onChange={(e) => setEditWardForm({ ...editWardForm, wardName: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Ward Type</label>
+                      <input
+                        type="text"
+                        value={editWardForm.wardType}
+                        onChange={(e) => setEditWardForm({ ...editWardForm, wardType: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Floor</label>
+                      <input
+                        type="text"
+                        value={editWardForm.floor}
+                        onChange={(e) => setEditWardForm({ ...editWardForm, floor: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Supervisor</label>
+                      <input
+                        type="text"
+                        value={editWardForm.supervisor}
+                        onChange={(e) => setEditWardForm({ ...editWardForm, supervisor: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Staff Count</label>
+                      <input
+                        type="number"
+                        value={editWardForm.staffCount}
+                        onChange={(e) => setEditWardForm({ ...editWardForm, staffCount: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Total Beds</label>
+                      <input
+                        type="number"
+                        value={editWardForm.totalBeds}
+                        onChange={(e) => setEditWardForm({ ...editWardForm, totalBeds: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <ButtonWithTooltip
+                      onClick={handleUpdateWard}
+                      tooltip="Save ward changes"
+                      variant="primary"
+                      className="flex-1"
+                    >
+                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      Update Ward
+                    </ButtonWithTooltip>
+                    <ButtonWithTooltip
+                      onClick={() => {
+                        setShowEditWardForm(false);
+                        setEditingWard(null);
+                      }}
+                      tooltip="Cancel"
+                      variant="secondary"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </ButtonWithTooltip>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Bed Modal */}
+      {showEditBedForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => {
+              setShowEditBedForm(false);
+              setEditingBed(null);
+            }} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Edit Bed</h3>
+                  <IconButton
+                    icon={X}
+                    onClick={() => {
+                      setShowEditBedForm(false);
+                      setEditingBed(null);
+                    }}
+                    tooltip="Close"
+                    variant="default"
+                  />
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Bed ID</label>
+                      <input
+                        type="text"
+                        value={editBedForm.bedId}
+                        onChange={(e) => setEditBedForm({ ...editBedForm, bedId: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Bed Number</label>
+                      <input
+                        type="number"
+                        value={editBedForm.bedNumber}
+                        onChange={(e) => setEditBedForm({ ...editBedForm, bedNumber: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Bed Type</label>
+                      <input
+                        type="text"
+                        value={editBedForm.bedType}
+                        onChange={(e) => setEditBedForm({ ...editBedForm, bedType: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                      <select
+                        value={editBedForm.status}
+                        onChange={(e) => setEditBedForm({ ...editBedForm, status: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      >
+                        <option value="Available">Available</option>
+                        <option value="Reserved">Reserved</option>
+                        <option value="Occupied">Occupied</option>
+                        <option value="Under Cleaning">Under Cleaning</option>
+                        <option value="Maintenance">Maintenance</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <ButtonWithTooltip
+                      onClick={handleUpdateBed}
+                      tooltip="Save bed changes"
+                      variant="primary"
+                      className="flex-1"
+                    >
+                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      Update Bed
+                    </ButtonWithTooltip>
+                    <ButtonWithTooltip
+                      onClick={() => {
+                        setShowEditBedForm(false);
+                        setEditingBed(null);
+                      }}
+                      tooltip="Cancel"
+                      variant="secondary"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </ButtonWithTooltip>
+                  </div>
                 </div>
               </div>
             </div>

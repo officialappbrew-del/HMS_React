@@ -58,6 +58,7 @@ const VitalSignsMonitoring = () => {
   });
   const [ewsResult, setEwsResult] = useState(null);
   const [alertError, setAlertError] = useState('');
+  const [alertSuccess, setAlertSuccess] = useState('');
 
   const [patientOptions, setPatientOptions] = useState(patients || []);
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);

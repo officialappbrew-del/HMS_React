@@ -12,6 +12,7 @@ import {
   setPatients,
 } from '../features/patientSlice';
 import LoadingSpinner from "../components/LoadingSpinner";
+import ConfirmModal from "../components/ConfirmModal";
 import { apiRequest, API_BASE_URL } from '../utils/api';
 import { 
   User, Search, Filter, Plus, Edit, Trash2, 
@@ -1331,6 +1332,97 @@ const DeleteConfirmModal = ({
   );
 };
 
+// Compact Restore Confirmation Modal
+const RestoreConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  patient,
+  isRestoring = false,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+        onClick={onClose}
+      />
+
+      <div className="flex min-h-full items-center justify-center p-3">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm transform transition-all duration-200">
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <RotateCcw className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Restore Patient?</h3>
+                <p className="text-xs text-gray-500">This will reactivate the patient and make them visible in active search results.</p>
+              </div>
+            </div>
+
+            {patient && (
+              <div className="bg-gray-50 rounded-lg p-2.5 mb-3 border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <User className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
+                      {patient.name || patient.full_name}
+                    </p>
+                    <div className="flex gap-2 text-xs text-gray-500">
+                      {patient.phone && <span>📱 {patient.phone}</span>}
+                      {patient.email && <span className="truncate">✉️ {patient.email}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                <p className="text-xs text-green-700">
+                  The patient record will be marked as active and restored to the active patient list.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={onConfirm}
+                disabled={isRestoring}
+                className="flex-1 py-1.5 px-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs"
+              >
+                {isRestoring ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Restoring...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Restore
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={isRestoring}
+                className="flex-1 py-1.5 px-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Compact Duplicate Warning Modal
 const DuplicateWarningModal = ({
   isOpen,
@@ -1547,8 +1639,10 @@ const PatientManagement = () => {
     dateOfBirth: '',
     preferred_language: 'English',
   });
-  const [showPrintModal, setShowPrintModal] = useState(false);
+const [showPrintModal, setShowPrintModal] = useState(false);
   const [printPatient, setPrintPatient] = useState(null);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [patientToRestore, setPatientToRestore] = useState(null);
   
   const [statusFilter, setStatusFilter] = useState('all');
   const [localPatients, setLocalPatients] = useState([]);
@@ -1895,22 +1989,28 @@ const PatientManagement = () => {
     }
   };
 
-  const handleRestorePatient = async (patient) => {
+const handleRestorePatient = (patient) => {
     if (!patient) return;
-    const confirmation = window.confirm(`Restore patient ${patient.name || 'this patient'}?`);
-    if (!confirmation) return;
+    setPatientToRestore(patient);
+    setShowRestoreModal(true);
+  };
+
+  const confirmRestorePatient = async () => {
+    if (!patientToRestore) return;
 
     setIsLoading(true);
     try {
-      await apiRequest(`/api/v1/patients/patients/${patient.id}/`, {
+      await apiRequest(`/api/v1/patients/patients/${patientToRestore.id}/`, {
         method: 'PATCH',
         body: JSON.stringify({
           patient_status: 'active',
           is_active: true,
         }),
       });
-      dispatch(restorePatient(patient.id));
+      dispatch(restorePatient(patientToRestore.id));
       await loadPatients(buildPatientsUrl(), { silent: true });
+      setShowRestoreModal(false);
+      setPatientToRestore(null);
     } catch (error) {
       console.error('Restore failed:', error);
       setApiError(extractApiError(error));
@@ -2619,8 +2719,8 @@ const PatientManagement = () => {
                                   <div className="font-medium text-gray-900 text-sm">{patient.name}</div>
                                   <div className="text-xs text-gray-500">
                                     {patient.mrn ? `MRN: ${patient.mrn}` : ''}
-                                    {patient.mrn && patient.hospital_number ? ' • ' : ''}
-                                    {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
+                                    {/* {patient.mrn && patient.hospital_number ? ' • ' : ''} */}
+                                    {/* {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''} */}
                                     {!patient.mrn && !patient.hospital_number ? 'No ID' : ''}
                                   </div>
                                 </div>
@@ -2797,13 +2897,25 @@ const PatientManagement = () => {
         onMerge={handleMergeDuplicate}
       />
 
-      <PrintSlipModal
+<PrintSlipModal
         isOpen={showPrintModal}
         onClose={() => {
           setShowPrintModal(false);
           setPrintPatient(null);
         }}
         patient={printPatient}
+      />
+
+      {/* Restore Confirmation Modal */}
+      <RestoreConfirmModal
+        isOpen={showRestoreModal}
+        onClose={() => {
+          setShowRestoreModal(false);
+          setPatientToRestore(null);
+        }}
+        onConfirm={confirmRestorePatient}
+        patient={patientToRestore}
+        isRestoring={isLoading}
       />
 
       {/* API Error Modal */}

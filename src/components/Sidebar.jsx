@@ -73,6 +73,10 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
     return true;
   });
 
+  const roleLabel = (userRole === 'system_admin' || userRole === 'super_admin')
+    ? 'Administrator'
+    : (userRole || 'admin').replace(/_/g, ' ');
+
   const handleNavigate = (path) => {
     navigate(path);
     if (onMobileClose) onMobileClose();
@@ -85,58 +89,99 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
     setShowLogoutConfirm(false);
   };
 
-  const sidebarClasses = `fixed left-0 top-0 z-50 h-screen w-80 max-w-[85vw] border-r border-slate-200 bg-white shadow-xl transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-24' : 'lg:w-80'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
+  const sidebarClasses = `fixed left-0 top-0 z-50 flex h-screen w-80 max-w-[85vw] flex-col border-r border-slate-200/60 bg-white transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-20' : 'lg:w-80'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} shadow-xl lg:shadow-none`;
 
   return (
     <>
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden"
           onClick={onMobileClose}
         />
       )}
       <aside className={sidebarClasses}>
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
-          {!isCollapsed && <h2 className="text-base font-semibold text-slate-900">SmartCare HMS</h2>}
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </button>
-        </div>
+        <div className="flex h-full min-h-0 flex-col">
+          {/* Brand + collapse */}
+          <div className="flex items-center justify-between border-b border-slate-200/60 px-4 py-3.5">
+            {!isCollapsed && (
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center justify-center rounded-lg border border-[#C79A3D]/30 bg-[#C79A3D]/10 p-1.5">
+                  <Shield className="h-4.5 w-4.5 text-[#C79A3D]" />
+                </span>
+                <h2 className="font-['Lora'] text-base font-semibold text-[#1C2B27]">
+                  SmartCare<span className="text-[#C79A3D]">HMS</span>
+                </h2>
+              </div>
+            )}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isCollapsed ? <ChevronRight className="h-4.5 w-4.5" /> : <ChevronLeft className="h-4.5 w-4.5" />}
+            </button>
+          </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {filteredMenu.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-            return (
-              <button
-                key={item.path}
-                onClick={() => handleNavigate(item.path)}
-                className={`flex w-full items-center rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                } ${isCollapsed ? 'justify-center' : ''}`}
-                title={isCollapsed ? item.label : ''}
-              >
-                <Icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-                {!isCollapsed && <span>{item.label}</span>}
-              </button>
-            );
-          })}
-        </nav>
+          {/* Role indicator */}
+          {!isCollapsed && (
+            <div className="border-b border-slate-200/60 px-4 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center justify-center rounded-md bg-slate-100 p-1">
+                  <Activity className="h-3.5 w-3.5 text-slate-500" />
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+                  Signed in as:
+                </span>
+                <span className="font-mono text-xs font-medium text-slate-700">
+                  {roleLabel}
+                </span>
+              </div>
+            </div>
+          )}
 
-        <div className="border-t border-slate-200 p-3">
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className={`flex w-full items-center rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${isCollapsed ? 'justify-center' : ''}`}
-          >
-            <LogOut className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-            {!isCollapsed && <span>Logout</span>}
-          </button>
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3">
+            {filteredMenu.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => handleNavigate(item.path)}
+                  className={`relative flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[#F6F2E7] text-[#B8860B]'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  } ${isCollapsed ? 'justify-center' : 'gap-3'}`}
+                  title={item.label}
+                >
+                  {isActive && (
+                    <span className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-[#C79A3D]" />
+                  )}
+                  <Icon
+                    className={`h-5 w-5 shrink-0 ${isCollapsed ? '' : 'mr-3'} ${
+                      isActive ? 'text-[#B8860B]' : 'text-slate-500'
+                    }`}
+                  />
+                  {!isCollapsed && <span>{item.label}</span>}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer / Logout */}
+          <div className="border-t border-slate-200/60 p-3">
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className={`flex w-full items-center rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-red-50 hover:text-red-700 ${isCollapsed ? 'justify-center' : ''}`}
+              title="Logout"
+            >
+              <LogOut className={`h-5 w-5 shrink-0 ${isCollapsed ? '' : 'mr-3'}`} />
+              {!isCollapsed && <span>Logout</span>}
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
 
       <ConfirmModal
         isOpen={showLogoutConfirm}

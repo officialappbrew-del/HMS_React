@@ -4767,6 +4767,22 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     );
   };
 
+  // ==================== RENDER TAB CONTENT ====================
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return renderOverviewContent();
+      case 'consultations':
+        return renderConsultationsContent();
+      case 'patients':
+        return renderPatientsContent();
+      case 'schedule':
+        return renderScheduleContent();
+      default:
+        return renderOverviewContent();
+    }
+  };
+
   // ==================== MAIN RENDER ====================
   return (
     <div className="dashboard min-h-screen bg-[#F7F5F2] p-4 sm:p-8 font-sans">

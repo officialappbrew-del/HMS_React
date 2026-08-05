@@ -1308,7 +1308,6 @@ const AdminDashboard = () => {
   const { patients } = useSelector(state => state.patient || { patients: [] });
   const { drugs } = useSelector(state => state.pharmacy || { drugs: [] });
   const { staff } = useSelector(state => state.staff || { staff: [] });
-  const { wards, stats: wardStats } = useSelector(state => state.ward || { wards: [], stats: {} });
   const { admissions } = useSelector(state => state.admission || { admissions: [] });
 
   const displayTenantName = authTenant?.name || hospitalName || subdomain || 'Hospital';
@@ -1380,6 +1379,11 @@ const AdminDashboard = () => {
   const [revenueTrendData, setRevenueTrendData] = useState([]);
   const [revenueTrendLoading, setRevenueTrendLoading] = useState(false);
 
+  const [bedStats, setBedStats] = useState({ totalBeds: 0, occupiedBeds: 0, availableBeds: 0 });
+  const [lowStockItems, setLowStockItems] = useState(0);
+  const [revenueGrowthText, setRevenueGrowthText] = useState('No revenue yet');
+  const [revenueGrowthTrend, setRevenueGrowthTrend] = useState('neutral');
+
   const [recentActivities, setRecentActivities] = useState([]);
   const [activityLogsLoading, setActivityLogsLoading] = useState(false);
 
@@ -1446,9 +1450,10 @@ const AdminDashboard = () => {
   });
 
   useEffect(() => {
-    const lowStockItems = drugs.filter(drug => (drug.quantityInStock || 0) <= (drug.reorderLevel || 0)).length;
-    const totalRevenue = billingSummary?.total_revenue || billingSummary?.total_revenue || (patientsCount || patientsList.length || patients.length || 0) * 500000;
-    const occupancyRate = wardStats.totalBeds ? Math.round((wardStats.occupiedBeds / wardStats.totalBeds) * 100) : 0;
+    const totalRevenue = billingSummary?.total_revenue || billingSummary?.total_paid || 0;
+    const total = bedStats.totalBeds || 0;
+    const occupied = bedStats.occupiedBeds || 0;
+    const occupancyRate = total ? Math.round((occupied / total) * 100) : 0;
 
     setStats({
       totalPatients: patientsCount || patientsList.length || patients.length || 0,
@@ -1456,13 +1461,14 @@ const AdminDashboard = () => {
       occupancyRate: occupancyRate || 0,
       criticalAlerts: alerts.filter(a => a.type === 'critical' && !a.read).length,
       staffCount: staff.length || 0,
-      lowStockItems: lowStockItems || 0,
-      totalBeds: wardStats.totalBeds || 0,
-      occupiedBeds: wardStats.occupiedBeds || 0,
+      lowStockItems: lowStockItems,
+      totalBeds: total,
+      occupiedBeds: occupied,
+      availableBeds: (bedStats.availableBeds || (total - occupied)) || 0,
       todayAppointments: dashboardInsights?.summary?.waiting_visits || dashboardInsights?.summary?.today_appointments || 0,
       pendingBills: billingSummary?.total_pending || 0
     });
-  }, [patients, patientsList, patientsCount, drugs, staff, wardStats, alerts]);
+  }, [patients, patientsList, patientsCount, drugs, staff, bedStats, alerts, billingSummary, lowStockItems, revenueGrowthText]);
 
   // Tab data
   const tabs = [
@@ -1832,8 +1838,10 @@ const AdminDashboard = () => {
   const loadRevenueTrend = async () => {
     setRevenueTrendLoading(true);
     try {
-      const data = await apiRequest('/api/v1/billing/invoices/?limit=30');
+      const data = await apiRequest('/api/v1/billing/invoices/?limit=100');
       const invoices = Array.isArray(data) ? data : (data.results || []);
+
+      // Daily trend (last 7 days) for the chart
       const dailyMap = {};
       invoices.forEach(inv => {
         const date = (inv.invoice_date || inv.created_at || '').split('T')[0];
@@ -1846,10 +1854,65 @@ const AdminDashboard = () => {
         .sort((a, b) => new Date(a.date) - new Date(b.date))
         .slice(0, 7);
       setRevenueTrendData(trend);
+
+      // Month-over-month growth for the Revenue stat card
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+      const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const prevMonthKey = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}`;
+      let currentMonthRevenue = 0;
+      let previousMonthRevenue = 0;
+      invoices.forEach(inv => {
+        const key = (inv.invoice_date || inv.created_at || '').slice(0, 7);
+        const amt = parseFloat(inv.total_amount || inv.amount || 0) || 0;
+        if (key === currentMonthKey) currentMonthRevenue += amt;
+        if (key === prevMonthKey) previousMonthRevenue += amt;
+      });
+      if (previousMonthRevenue > 0) {
+        const growth = ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100;
+        setRevenueGrowthText(`${growth >= 0 ? '+' : ''}${Math.round(growth)}% this month`);
+        setRevenueGrowthTrend(growth >= 0 ? 'up' : 'down');
+      } else if (currentMonthRevenue > 0) {
+        setRevenueGrowthText('New this month');
+        setRevenueGrowthTrend('up');
+      } else {
+        setRevenueGrowthText('No revenue yet');
+        setRevenueGrowthTrend('neutral');
+      }
     } catch (err) {
       console.error('Failed to load revenue trend:', err);
     } finally {
       setRevenueTrendLoading(false);
+    }
+  };
+
+  const loadBedStats = async () => {
+    try {
+      const data = await apiRequest('/api/v1/ward-rounds/beds/');
+      const beds = Array.isArray(data) ? data : (data.results || []);
+      const totalBeds = beds.length;
+      const occupiedBeds = beds.filter(b => String(b.status || '').toUpperCase() === 'OCCUPIED').length;
+      const availableBeds = beds.filter(b => String(b.status || '').toUpperCase() === 'AVAILABLE').length;
+      setBedStats({
+        totalBeds,
+        occupiedBeds,
+        availableBeds: availableBeds || (totalBeds - occupiedBeds),
+      });
+    } catch (err) {
+      console.error('Failed to load bed stats:', err);
+    }
+  };
+
+  const loadLowStockAlerts = async () => {
+    try {
+      const data = await apiRequest('/api/v1/pharmacy/drugs/reorder_alerts/');
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setLowStockItems(items.length);
+    } catch (err) {
+      console.error('Failed to load low stock alerts:', err);
+      const low = (drugs || []).filter(drug => (drug.quantityInStock || 0) <= (drug.reorderLevel || 0)).length;
+      setLowStockItems(low);
     }
   };
 
@@ -1870,6 +1933,8 @@ const AdminDashboard = () => {
     loadActivityLogs();
     loadBillingData();
     loadRevenueTrend();
+    loadBedStats();
+    loadLowStockAlerts();
   }, []);
 
   const handleAddDepartment = async (e) => {
@@ -2074,6 +2139,8 @@ const AdminDashboard = () => {
     loadBillingData();
     loadRevenueTrend();
     loadDepartments();
+    loadBedStats();
+    loadLowStockAlerts();
     switch(activeTab) {
       case 'patients':
         loadPatients('/api/v1/patients/patients/?status=all');
@@ -2352,8 +2419,8 @@ const AdminDashboard = () => {
               subValue={`₦${stats.totalRevenue.toLocaleString()} total`}
               icon={DollarSign}
               color="green"
-              trend="up"
-              trendValue="+8% this month"
+              trend={revenueGrowthTrend}
+              trendValue={revenueGrowthText}
               tooltip="Total revenue generated"
               onClick={() => navigate('/billing')}
             />
