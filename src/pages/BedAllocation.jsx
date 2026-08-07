@@ -277,9 +277,11 @@ const [patientQuery, setPatientQuery] = useState('');
     };
   };
 
-  const loadPatients = async () => {
+const loadPatients = async () => {
     try {
-      const data = await apiRequest('/api/v1/patients/patients/');
+      // Load all statuses with a larger page size so the bed-reservation
+      // patient search can find matches across the full patient list.
+      const data = await apiRequest('/api/v1/patients/patients/?status=all&page_size=500');
       const list = Array.isArray(data) ? data : data.results || [];
       dispatch(setPatients(list.map(normalizePatient)));
     } catch (err) {

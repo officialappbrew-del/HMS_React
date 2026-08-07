@@ -17,8 +17,6 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 
@@ -193,64 +191,45 @@ const SEVERITY_COLOR = { urgent: '#dc2626', warning: '#f59e0b', info: '#3b82f6' 
 // Mobile card view for each activity
 const ActivityCard = ({ activity, time, typeLabel }) => {
   const Icon = activity.icon || Activity;
-  const [expanded, setExpanded] = useState(false);
   
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-4 mb-3 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <span className={`${activity.color} rounded-xl p-2 flex-shrink-0`}>
-            <Icon className="h-4 w-4" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold text-slate-900 text-sm truncate">{activity.title}</p>
-              <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 whitespace-nowrap">
-                {typeLabel}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 truncate">{activity.description}</p>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-600">
+      <div className="flex items-start gap-3">
+        <span className={`${activity.color} rounded-xl p-2 flex-shrink-0`}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <p className="font-semibold text-slate-900 text-sm truncate">{activity.title}</p>
+            <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 whitespace-nowrap">
+              {typeLabel}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mb-2">{activity.description}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+            <span className="flex items-center gap-1 font-medium text-slate-900">
+              <Users className="h-3 w-3" />
+              {activity.actorName || 'Unknown'}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {time}
+            </span>
+            {activity.ipAddress && activity.ipAddress !== '—' && (
               <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {time}
+                <ShieldCheck className="h-3 w-3" />
+                {activity.ipAddress}
               </span>
-              {activity.patientName && (
-                <span className="flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  {activity.patientName}
-                </span>
-              )}
-              <span 
-                className="font-medium cursor-pointer hover:text-slate-800"
-                onClick={() => navigator.clipboard?.writeText(activity.actorName)}
-                title="Click to copy"
-              >
-                {activity.actorName || 'Unknown'}
+            )}
+            {activity.device && (
+              <span className="flex items-center gap-1 truncate max-w-[200px]">
+                <Activity className="h-3 w-3" />
+                {activity.device}
               </span>
-            </div>
+            )}
           </div>
         </div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex-shrink-0 p-1 hover:bg-slate-100 rounded"
-        >
-          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
       </div>
-      
-      {expanded && (
-        <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <p className="text-slate-500 font-medium">IP Address</p>
-            <p className="text-slate-700">{activity.ipAddress || '—'}</p>
-          </div>
-          <div>
-            <p className="text-slate-500 font-medium">Device</p>
-            <p className="text-slate-700 truncate">{activity.device || '—'}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -557,6 +536,7 @@ const ActivityLog = ({ onBack }) => {
                       <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Patient</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Actor</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden xl:table-cell">IP</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden 2xl:table-cell">Device</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -600,6 +580,9 @@ const ActivityLog = ({ onBack }) => {
                           </td>
                           <td className="hidden xl:table-cell whitespace-nowrap px-3 py-3 text-xs text-slate-600">
                             {activity.ipAddress || '—'}
+                          </td>
+                          <td className="hidden 2xl:table-cell whitespace-nowrap px-3 py-3 text-xs text-slate-600 truncate max-w-[180px]">
+                            {activity.device || '—'}
                           </td>
                         </tr>
                       );

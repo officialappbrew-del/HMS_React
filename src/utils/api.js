@@ -103,6 +103,7 @@ const clearAuthData = () => {
   localStorage.removeItem('userProfilePicture');
   localStorage.removeItem('rememberMe');
   window.dispatchEvent(new Event('authChanged'));
+  
 };
 
 const extractErrorMessage = (data, fallback = 'Request failed') => {
@@ -412,7 +413,7 @@ export const tenantSettingsApi = {
   approveUser: (id) => apiRequest(`/api/v1/tenants/users/${id}/approve/`, { method: 'POST' }),
   rejectUser: (id) => apiRequest(`/api/v1/tenants/users/${id}/reject/`, { method: 'POST' }),
   acceptInvitation: (data) => apiRequest('/api/v1/tenants/invitations/accept/', { method: 'POST', body: JSON.stringify(data) }),
-  updateCurrent: (data) => {
+updateCurrent: (data) => {
     const hasFile = data?.system_logo instanceof File;
     if (hasFile) {
       const formData = new FormData();
@@ -435,7 +436,10 @@ export const tenantSettingsApi = {
       return apiRequest('/api/v1/tenants/settings/current/', { method: 'PATCH', body: formData });
     }
     return apiRequest('/api/v1/tenants/settings/current/', { method: 'PATCH', body: JSON.stringify(data) });
-  }
+  },
+getCommunicationProfile: () => apiRequest('/api/v1/tenants/communication-profile/current/'),
+  createCommunicationProfile: (data) => apiRequest('/api/v1/tenants/communication-profile/', { method: 'POST', body: JSON.stringify(data) }),
+  updateCommunicationProfile: (id, data) => apiRequest(`/api/v1/tenants/communication-profile/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 export const admissionApi = {

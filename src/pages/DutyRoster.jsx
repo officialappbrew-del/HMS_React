@@ -13,12 +13,74 @@ import {
   X,
   Search,
   Filter,
-  User
+  User,
+  Loader2,
+  Check,
+  X as XIcon,
+  Info
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { apiRequest, parseListResponse } from '../utils/api';
 import { addLeaveRequest, approveLeave, rejectLeave, addOvertimeRecord, approveOvertime, rejectOvertime, addDutyRoster, addDutyAssignment, removeDutyRoster, removeLeaveRequest, removeOvertimeRecord } from '../features/rosterSlice';
 import { setStaffList, setLoading } from '../features/staffSlice.jsx';
+
+// Tooltip component
+const Tooltip = ({ children, text }) => {
+  const [show, setShow] = useState(false);
+  
+  return (
+    <div className="relative inline-block">
+      <div
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        className="inline-flex"
+      >
+        {children}
+      </div>
+      {show && (
+        <div className="absolute z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg whitespace-nowrap -top-8 left-1/2 transform -translate-x-1/2">
+          {text}
+          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Confirmation Modal Component
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', cancelText = 'Cancel', confirmColor = 'bg-red-500' }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+            <AlertCircle className="w-6 h-6 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-600 mt-1">{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 transition-colors ${confirmColor}`}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const StaffSelector = ({ staff, value, onChange, placeholder = 'Search staff...', showLeaveBalance = false, getLeaveBalance }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,7 +207,7 @@ const DutyRoster = () => {
   const dutyRosters = rosterState.dutyRosters || [];
   const leaves = rosterState.leaves || [];
   const overtime = rosterState.overtime || [];
-const staffState = useSelector(state => state.staff || {});
+  const staffState = useSelector(state => state.staff || {});
   const staff = staffState.staff || [];
   const staffLoading = staffState.loading || false;
   const dispatch = useDispatch();
@@ -199,10 +261,30 @@ const staffState = useSelector(state => state.staff || {});
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingRoster, setIsCreatingRoster] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [onCallDate, setOnCallDate] = useState(new Date().toISOString().split('T')[0]);
   const [onCallData, setOnCallData] = useState(null);
   const [onCallLoading, setOnCallLoading] = useState(false);
+  
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    confirmColor: 'bg-red-500',
+    onConfirm: null
+  });
+  
+  // Loading states for buttons
+  const [approvingLeaveId, setApprovingLeaveId] = useState(null);
+  const [rejectingLeaveId, setRejectingLeaveId] = useState(null);
+  const [deletingLeaveId, setDeletingLeaveId] = useState(null);
+  const [deletingOvertimeId, setDeletingOvertimeId] = useState(null);
+  const [submittingLeave, setSubmittingLeave] = useState(false);
+  const [submittingOvertime, setSubmittingOvertime] = useState(false);
 
   const [leaveFormData, setLeaveFormData] = useState({
     staffId: '',
@@ -430,27 +512,35 @@ const staffState = useSelector(state => state.staff || {});
       })
     : leaves;
 
-const handleApproveLeave = async (leaveId) => {
+  const handleApproveLeave = async (leaveId) => {
+    setApprovingLeaveId(leaveId);
     try {
       await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/approve/`, { 
         method: 'POST', 
         body: JSON.stringify({ approvedBy: currentUserName || 'System' }) 
       });
       dispatch(approveLeave({ leaveId, approvedBy: currentUserName || 'System' }));
+      setSuccessMessage('Leave request approved successfully.');
     } catch (error) {
       setErrorMessage(error.message || 'Unable to approve leave.');
+    } finally {
+      setApprovingLeaveId(null);
     }
   };
 
   const handleRejectLeave = async (leaveId) => {
+    setRejectingLeaveId(leaveId);
     try {
       await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/reject/`, { 
         method: 'POST', 
         body: JSON.stringify({ approvedBy: currentUserName || 'System' }) 
       });
       dispatch(rejectLeave({ leaveId, approvedBy: currentUserName || 'System' }));
+      setSuccessMessage('Leave request rejected.');
     } catch (error) {
       setErrorMessage(error.message || 'Unable to reject leave.');
+    } finally {
+      setRejectingLeaveId(null);
     }
   };
 
@@ -506,6 +596,7 @@ const handleApproveLeave = async (leaveId) => {
       return;
     }
 
+    setSubmittingLeave(true);
     try {
       const matchedStaff = getStaffById(leaveFormData.staffId);
       const displayName = matchedStaff?.name ||
@@ -516,9 +607,9 @@ const handleApproveLeave = async (leaveId) => {
         staffId: leaveFormData.staffId,
         staffName: displayName,
         leaveType: leaveFormData.leaveType,
-        startDate: leaveFormData.startDate,
-        endDate: leaveFormData.endDate,
-        reason: leaveFormData.reason,
+        startDate: (leaveFormData.startDate || '').trim() || null,
+        endDate: (leaveFormData.endDate || '').trim() || null,
+        reason: (leaveFormData.reason || '').trim() || null,
         status: 'Pending'
       };
       
@@ -535,8 +626,11 @@ const handleApproveLeave = async (leaveId) => {
       setShowAddLeaveModal(false);
       setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
       setErrorMessage('');
+      setSuccessMessage('Leave request submitted successfully.');
     } catch (error) {
       setErrorMessage(error.message || 'Unable to save leave request.');
+    } finally {
+      setSubmittingLeave(false);
     }
   };
 
@@ -551,6 +645,7 @@ const handleApproveLeave = async (leaveId) => {
       return;
     }
 
+    setSubmittingOvertime(true);
     try {
       const matchedStaff = getStaffById(overtimeFormData.staffId);
       const displayName = matchedStaff?.name ||
@@ -560,9 +655,9 @@ const handleApproveLeave = async (leaveId) => {
       const payload = {
         staffId: overtimeFormData.staffId,
         staffName: displayName,
-        date: overtimeFormData.date,
+        date: (overtimeFormData.date || '').trim() || null,
         hoursWorked: overtimeFormData.hours,
-        reason: overtimeFormData.reason,
+        reason: (overtimeFormData.reason || '').trim() || null,
         status: 'Pending',
         rate: '1.5x'
       };
@@ -581,51 +676,87 @@ const handleApproveLeave = async (leaveId) => {
       setShowAddOvertimeModal(false);
       setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
       setErrorMessage('');
+      setSuccessMessage('Overtime record added successfully.');
     } catch (error) {
       setErrorMessage(error.message || 'Unable to save overtime record.');
+    } finally {
+      setSubmittingOvertime(false);
     }
   };
 
-  const handleDeleteRoster = async (roster) => {
-    const rosterId = roster.rosterId || roster.id;
-    if (!window.confirm(`Delete roster for ${roster.month} ${roster.year} - ${roster.department}?`)) return;
-
-    try {
-      await apiRequest(`/api/v1/ward-rounds/duty-rosters/${rosterId}/`, {
-        method: 'DELETE'
-      });
-      dispatch(removeDutyRoster(rosterId));
-    } catch (error) {
-      setErrorMessage(error.message || 'Unable to delete roster.');
-    }
+  const handleDeleteRoster = (roster) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Roster',
+      message: `Are you sure you want to delete the roster for ${roster.month} ${roster.year} - ${roster.department}? This action cannot be undone.`,
+      confirmText: 'Delete Roster',
+      confirmColor: 'bg-red-500',
+      onConfirm: async () => {
+        const rosterId = roster.rosterId || roster.id;
+        try {
+          await apiRequest(`/api/v1/ward-rounds/duty-rosters/${rosterId}/`, {
+            method: 'DELETE'
+          });
+          dispatch(removeDutyRoster(rosterId));
+          setSuccessMessage('Roster deleted successfully.');
+        } catch (error) {
+          setErrorMessage(error.message || 'Unable to delete roster.');
+        }
+        setConfirmModal({ ...confirmModal, isOpen: false });
+      }
+    });
   };
 
-  const handleDeleteLeave = async (leave) => {
-    const leaveId = leave.leaveId || leave.id;
-    if (!window.confirm('Delete this leave request?')) return;
-
-    try {
-      await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/`, {
-        method: 'DELETE'
-      });
-      dispatch(removeLeaveRequest(leaveId));
-    } catch (error) {
-      setErrorMessage(error.message || 'Unable to delete leave request.');
-    }
+  const handleDeleteLeave = (leave) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Leave Request',
+      message: `Are you sure you want to delete the leave request for ${getStaffName(leave.staffId)}? This action cannot be undone.`,
+      confirmText: 'Delete Request',
+      confirmColor: 'bg-red-500',
+      onConfirm: async () => {
+        const leaveId = leave.leaveId || leave.id;
+        setDeletingLeaveId(leaveId);
+        try {
+          await apiRequest(`/api/v1/ward-rounds/leave-requests/${leaveId}/`, {
+            method: 'DELETE'
+          });
+          dispatch(removeLeaveRequest(leaveId));
+          setSuccessMessage('Leave request deleted.');
+        } catch (error) {
+          setErrorMessage(error.message || 'Unable to delete leave request.');
+        } finally {
+          setDeletingLeaveId(null);
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }
+      }
+    });
   };
 
-  const handleDeleteOvertime = async (overtime) => {
-    const overtimeId = overtime.overtimeId || overtime.id;
-    if (!window.confirm('Delete this overtime record?')) return;
-
-    try {
-      await apiRequest(`/api/v1/ward-rounds/overtime-records/${overtimeId}/`, {
-        method: 'DELETE'
-      });
-      dispatch(removeOvertimeRecord(overtimeId));
-    } catch (error) {
-      setErrorMessage(error.message || 'Unable to delete overtime record.');
-    }
+  const handleDeleteOvertime = (overtimeRecord) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Overtime Record',
+      message: `Are you sure you want to delete the overtime record for ${getStaffName(overtimeRecord.staffId)}? This action cannot be undone.`,
+      confirmText: 'Delete Record',
+      confirmColor: 'bg-red-500',
+      onConfirm: async () => {
+        const overtimeId = overtimeRecord.overtimeId || overtimeRecord.id;
+        setDeletingOvertimeId(overtimeId);
+        try {
+          await apiRequest(`/api/v1/ward-rounds/overtime-records/${overtimeId}/`, {
+            method: 'DELETE'
+          });
+          dispatch(removeOvertimeRecord(overtimeId));
+          setSuccessMessage('Overtime record deleted.');
+        } catch (error) {
+          setErrorMessage(error.message || 'Unable to delete overtime record.');
+        } finally {
+          setDeletingOvertimeId(null);
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }
+      }
+    });
   };
 
   const handleAddAssignment = () => {
@@ -690,17 +821,14 @@ const handleApproveLeave = async (leaveId) => {
       return;
     }
 
-    if (rosterFormData.assignments.length === 0) {
-      setErrorMessage('Please add at least one assignment.');
-      return;
-    }
-
     if (isDuplicateRoster(rosterFormData.month, rosterFormData.year, rosterFormData.department)) {
       setErrorMessage('A roster for this month, year, and department already exists.');
       return;
     }
 
     try {
+      setIsCreatingRoster(true);
+      setErrorMessage('');
       const payload = {
         month: rosterFormData.month,
         year: parseInt(rosterFormData.year, 10),
@@ -711,9 +839,9 @@ const handleApproveLeave = async (leaveId) => {
           staffName: assignment.staffName,
           date: assignment.date,
           dutyType: assignment.dutyType,
-          startTime: assignment.startTime,
-          endTime: assignment.endTime,
-          notes: assignment.notes
+          startTime: assignment.startTime || null,
+          endTime: assignment.endTime || null,
+          notes: assignment.notes || ''
         }))
       };
       
@@ -735,13 +863,32 @@ const handleApproveLeave = async (leaveId) => {
       setQuickAssignData({ dutyType: 'Call Duty', startTime: '', endTime: '', notes: '' });
       setAssignmentFormData({ staffId: '', staffName: '', date: '', dutyType: '', startTime: '', endTime: '', notes: '' });
       setErrorMessage('');
+      setSuccessMessage(`Duty roster for ${payload.month} ${payload.year} (${payload.department}) created successfully.`);
     } catch (error) {
       setErrorMessage(error.message || 'Unable to create roster.');
+    } finally {
+      setIsCreatingRoster(false);
     }
   };
 
+  const canCreateRoster =
+    Boolean(rosterFormData.month) &&
+    Boolean(rosterFormData.year) &&
+    Boolean(rosterFormData.department);
+
   return (
-    <div className="duty-roster p-4 md:p-6 bg-gray-50 min-h-screen">
+    <div className="duty-roster px-3 sm:px-4 md:px-6 py-4 sm:py-6 bg-gray-50 min-h-screen">
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmColor={confirmModal.confirmColor}
+      />
+
       {/* Mobile Menu Button */}
       <div className="md:hidden mb-4 flex items-center justify-between">
         <button
@@ -755,19 +902,19 @@ const handleApproveLeave = async (leaveId) => {
       </div>
 
       {/* Header */}
-      <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
-            <Calendar className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3 text-nigerian-green" />
-            Duty Roster Management
+      <div className="mb-4 sm:mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 mr-2 sm:mr-3 text-nigerian-green flex-shrink-0" />
+            <span className="truncate">Duty Roster Management</span>
           </h1>
-          <p className="text-gray-600 mt-1 md:mt-2 text-sm md:text-base">
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             Create and manage staff duty schedules, leave, and overtime
           </p>
         </div>
         
         {/* Search Bar - Mobile */}
-        <div className="md:hidden w-full mb-2">
+        <div className="md:hidden w-full">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -784,7 +931,7 @@ const handleApproveLeave = async (leaveId) => {
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           {activeTab === 'roster' && (
             <button
-              onClick={() => setShowCreateRosterModal(true)}
+              onClick={() => { setSuccessMessage(''); setShowCreateRosterModal(true); }}
               className="flex-1 md:flex-none px-4 py-2.5 md:px-6 md:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium inline-flex items-center justify-center text-sm md:text-base transition-colors duration-200"
             >
               <Plus className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2 flex-shrink-0" />
@@ -796,7 +943,7 @@ const handleApproveLeave = async (leaveId) => {
           )}
           {activeTab === 'leaves' && (
             <button
-              onClick={() => setShowAddLeaveModal(true)}
+              onClick={() => { setSuccessMessage(''); setShowAddLeaveModal(true); }}
               className="flex-1 md:flex-none px-4 py-2.5 md:px-6 md:py-3 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium inline-flex items-center justify-center text-sm md:text-base transition-colors duration-200"
             >
               <Plus className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2 flex-shrink-0" />
@@ -808,7 +955,7 @@ const handleApproveLeave = async (leaveId) => {
           )}
           {activeTab === 'overtime' && (
             <button
-              onClick={() => setShowAddOvertimeModal(true)}
+              onClick={() => { setSuccessMessage(''); setShowAddOvertimeModal(true); }}
               className="flex-1 md:flex-none px-4 py-2.5 md:px-6 md:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium inline-flex items-center justify-center text-sm md:text-base transition-colors duration-200"
             >
               <Plus className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2 flex-shrink-0" />
@@ -838,13 +985,13 @@ const handleApproveLeave = async (leaveId) => {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8">
         <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-nigerian-green">
           <div className="flex items-center">
-            <Calendar className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-nigerian-green mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Published Rosters</p>
-              <p className="text-nigerian-green font-bold text-lg md:text-xl lg:text-2xl">
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-nigerian-green mr-2 md:mr-3 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-gray-600 text-xs sm:text-sm truncate">Published Rosters</p>
+              <p className="text-nigerian-green font-bold text-base sm:text-lg md:text-xl lg:text-2xl">
                 {rosterSummary.published}
               </p>
             </div>
@@ -853,10 +1000,10 @@ const handleApproveLeave = async (leaveId) => {
 
         <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-blue-500">
           <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-blue-500 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Pending Leaves</p>
-              <p className="text-blue-500 font-bold text-lg md:text-xl lg:text-2xl">
+            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-blue-500 mr-2 md:mr-3 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-gray-600 text-xs sm:text-sm truncate">Pending Leaves</p>
+              <p className="text-blue-500 font-bold text-base sm:text-lg md:text-xl lg:text-2xl">
                 {rosterSummary.pendingLeaves}
               </p>
             </div>
@@ -865,10 +1012,10 @@ const handleApproveLeave = async (leaveId) => {
 
         <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-orange-500">
           <div className="flex items-center">
-            <Clock className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-orange-500 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Overtime Hours</p>
-              <p className="text-orange-500 font-bold text-lg md:text-xl lg:text-2xl">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-orange-500 mr-2 md:mr-3 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-gray-600 text-xs sm:text-sm truncate">Overtime Hours</p>
+              <p className="text-orange-500 font-bold text-base sm:text-lg md:text-xl lg:text-2xl">
                 {rosterSummary.overtimeHours.toFixed(1)}
               </p>
             </div>
@@ -877,10 +1024,10 @@ const handleApproveLeave = async (leaveId) => {
 
         <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-green-500">
           <div className="flex items-center">
-            <CheckCircle className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-green-500 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Approved Leaves</p>
-              <p className="text-green-500 font-bold text-lg md:text-xl lg:text-2xl">
+            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-green-500 mr-2 md:mr-3 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-gray-600 text-xs sm:text-sm truncate">Approved Leaves</p>
+              <p className="text-green-500 font-bold text-base sm:text-lg md:text-xl lg:text-2xl">
                 {leaves.filter(l => l.status === 'Approved').length}
               </p>
             </div>
@@ -983,7 +1130,7 @@ const handleApproveLeave = async (leaveId) => {
       {/* Mobile Tab Indicator */}
       <div className="md:hidden mb-4">
         <div className="flex items-center justify-between bg-white rounded-lg shadow-sm p-3">
-          <span className="font-medium text-gray-700">
+          <span className="font-medium text-gray-700 text-sm">
             {activeTab === 'roster' && 'Rosters'}
             {activeTab === 'leaves' && `Leave Requests (${filteredLeaves.length})`}
             {activeTab === 'overtime' && `Overtime (${overtime.length})`}
@@ -997,10 +1144,26 @@ const handleApproveLeave = async (leaveId) => {
         </div>
       </div>
 
-      {/* Error and Loading Messages */}
+      {/* Error, Success and Loading Messages */}
       {errorMessage && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorMessage}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+            {successMessage}
+          </span>
+          <button
+            onClick={() => setSuccessMessage('')}
+            className="text-green-700 hover:text-green-900 p-0.5 rounded hover:bg-green-100 transition-colors"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -1010,275 +1173,245 @@ const handleApproveLeave = async (leaveId) => {
         </div>
       )}
 
-      {/* Rosters Tab */}
+      {/* Rosters Tab - Table View */}
       {activeTab === 'roster' && (
-        <div className="space-y-4 md:space-y-6">
-          {dutyRosters.length === 0 ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-6 md:p-8 text-center">
-              <Calendar className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No rosters published yet</p>
-            </div>
-          ) : (
-            dutyRosters.map(roster => (
-              <div key={roster.rosterId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 overflow-hidden">
-                 <div className="bg-gray-50 px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 flex justify-between items-start">
-                   <div className="flex-1">
-                   <h3 className="text-lg md:text-xl font-bold text-gray-800">
-                     {roster.month || 'Unnamed Roster'} - {roster.department || 'No Department'}
-                   </h3>
-                   <p className="text-xs md:text-sm text-gray-600 mt-1">
-                     Year: {roster.year || 'N/A'} • Status:
-                     <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-green-100 text-green-800 rounded-full font-semibold text-xs md:text-sm ml-2">
-                       {roster.status || 'Draft'}
-                     </span>
-                   </p>
-                   </div>
-                   <button
-                     onClick={() => handleDeleteRoster(roster)}
-                     className="ml-2 text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
-                     title="Delete Roster"
-                   >
-                     <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-                   </button>
-                 </div>
-                
-                <div className="overflow-x-auto -mx-4 md:mx-0">
-                  <div className="min-w-full">
-                    {/* Desktop Table View */}
-                    <div className="hidden md:table w-full">
-                      <div className="table-row border-b">
-                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Staff Member</div>
-                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Date</div>
-                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Duty Type</div>
-                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Time</div>
-                        <div className="table-cell py-3 px-4 font-semibold text-gray-700">Notes</div>
-                      </div>
-                      {roster.assignments && roster.assignments.map(assignment => (
-                        <div key={assignment.assignmentId} className="table-row border-b hover:bg-gray-50">
-                          <div className="table-cell py-3 px-4 font-medium">
-                            {assignment.staffName || getStaffName(assignment.staffId) || 'Unknown Staff'}
-                          </div>
-                          <div className="table-cell py-3 px-4">
-                            {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
-                          </div>
-                          <div className="table-cell py-3 px-4">
-                            <span className="inline-block px-2 py-1 md:px-3 md:py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold">
-                              {assignment.dutyType || 'Unspecified'}
-                            </span>
-                          </div>
-                          <div className="table-cell py-3 px-4">
-                            {assignment.startTime || '--'} - {assignment.endTime || '--'}
-                          </div>
-                          <div className="table-cell py-3 px-4 text-sm text-gray-600 truncate max-w-xs">
-                            {assignment.notes || 'No notes'}
-                          </div>
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roster</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignments</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {dutyRosters.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      <Calendar className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                      <p className="font-medium">No rosters published yet</p>
+                    </td>
+                  </tr>
+                ) : (
+                  dutyRosters.map(roster => (
+                    <tr key={roster.rosterId} className="hover:bg-gray-50">
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{roster.month || 'Unnamed'}</p>
+                          <p className="text-sm text-gray-500">Year: {roster.year || 'N/A'}</p>
                         </div>
-                      ))}
-                    </div>
-                    
-                    {/* Mobile Card View */}
-                    <div className="md:hidden space-y-3">
-                      {roster.assignments && roster.assignments.map(assignment => (
-                        <div key={assignment.assignmentId} className="border border-gray-200 rounded-lg p-3">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <p className="font-medium text-sm">{assignment.staffName || getStaffName(assignment.staffId) || 'Unknown Staff'}</p>
-                              <p className="text-xs text-gray-600">
-                                {assignment.date ? new Date(assignment.date).toLocaleDateString('en-NG') : 'No Date'}
-                              </p>
-                            </div>
-                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                              {assignment.dutyType || 'Unspecified'}
-                            </span>
-                          </div>
-                          <div className="text-sm mb-1">
-                            <span className="text-gray-600">Time: </span>
-                            <span className="font-medium">
-                              {assignment.startTime || '--'} - {assignment.endTime || '--'}
-                            </span>
-                          </div>
-                          {assignment.notes && (
-                            <div className="text-xs text-gray-600 truncate">
-                              {assignment.notes}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">{roster.department || 'No Department'}</td>
+                      <td className="px-4 py-4">
+                        <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                          {roster.status || 'Draft'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">{roster.assignments?.length || 0}</td>
+                      <td className="px-4 py-4">
+                        <Tooltip text="Delete Roster">
+                          <button
+                            onClick={() => handleDeleteRoster(roster)}
+                            className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Leaves Tab */}
+      {/* Leaves Tab - Table View */}
       {activeTab === 'leaves' && (
-        <div className="space-y-3 md:space-y-4">
-          {filteredLeaves.length === 0 ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-6 md:p-8 text-center">
-              <AlertCircle className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No leave requests</p>
-              {searchQuery && (
-                <p className="text-sm text-gray-500 mt-2">No results for "{searchQuery}"</p>
-              )}
-            </div>
-          ) : (
-            filteredLeaves.map(leave => {
-              const staffName = getStaffName(leave.staffId);
-              const days = leave.startDate && leave.endDate 
-                ? Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1
-                : 'N/A';
-              
-              return (
-                <div key={leave.leaveId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 items-start">
-                    <div className="sm:col-span-2 lg:col-span-1">
-                      <p className="text-xs md:text-sm text-gray-600">Staff Member</p>
-                      <p className="font-bold text-sm md:text-base truncate">{staffName}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Leave Type</p>
-                      <p className="font-bold text-xs md:text-sm">{leave.leaveType || 'Unknown'}</p>
-                    </div>
-                    <div className="lg:hidden">
-                      <p className="text-xs md:text-sm text-gray-600">Dates</p>
-                      <p className="font-bold text-xs">
-                        {leave.startDate ? new Date(leave.startDate).toLocaleDateString('en-NG') : 'No start'} - 
-                        {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-NG') : 'No end'}
-                      </p>
-                    </div>
-                    <div className="hidden lg:block">
-                      <p className="text-xs md:text-sm text-gray-600">Dates</p>
-                      <p className="font-bold text-sm">
-                        {leave.startDate ? new Date(leave.startDate).toLocaleDateString('en-NG') : 'No start'}
-                      </p>
-                      <p className="font-bold text-sm">
-                        to {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-NG') : 'No end'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Days</p>
-                      <p className="font-bold text-xs md:text-sm">{days}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Status</p>
-                      <p className={`inline-block px-2 py-1 md:px-3 md:py-1 rounded-full text-xs font-semibold ${
-                        leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                        leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {leave.status || 'Pending'}
-                      </p>
-                    </div>
-                    <div className="sm:col-span-2 lg:col-span-1">
-                      {leave.status === 'Pending' ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApproveLeave(leave.leaveId)}
-                            className="flex-1 px-2 py-1.5 md:px-3 md:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-xs md:text-sm transition-colors"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectLeave(leave.leaveId)}
-                            className="flex-1 px-2 py-1.5 md:px-3 md:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium text-xs md:text-sm transition-colors"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="h-full flex items-center">
-                          <span className="text-xs md:text-sm text-gray-500 italic">Processed</span>
-                        </div>
-                      )}
-                    </div>
-                     </div>
-                     {leave.reason && (
-                       <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
-                         <p className="text-xs md:text-sm text-gray-700">
-                           <strong>Reason:</strong> {leave.reason}
-                         </p>
-                       </div>
-                     )}
-                     <button
-                       onClick={() => handleDeleteLeave(leave)}
-                       className="mt-2 md:mt-3 text-red-600 hover:text-red-800 text-xs md:text-sm flex items-center gap-1"
-                       title="Delete Leave Request"
-                     >
-                       <Trash2 className="w-3.5 h-3.5" />
-                       Delete Request
-                     </button>
-                   </div>
-              );
-            })
-          )}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px]">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredLeaves.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                      <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                      <p className="font-medium">No leave requests</p>
+                      {searchQuery && <p className="text-sm mt-1">No results for "{searchQuery}"</p>}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLeaves.map(leave => {
+                    const leaveId = leave.leaveId || leave.id;
+                    const isPending = leave.status === 'Pending';
+                    const days = leave.startDate && leave.endDate 
+                      ? Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1
+                      : 'N/A';
+                    
+                    return (
+                      <tr key={leaveId} className="hover:bg-gray-50">
+                        <td className="px-4 py-4">
+                          <p className="font-medium text-sm text-gray-900">{getStaffName(leave.staffId)}</p>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">{leave.leaveType || 'Unknown'}</td>
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {leave.startDate ? new Date(leave.startDate).toLocaleDateString('en-NG') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-NG') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-4 text-sm font-medium text-gray-700">{days}</td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                            leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                            leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {leave.status || 'Pending'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1">
+                            {isPending ? (
+                              <>
+                                <Tooltip text="Approve Leave">
+                                  <button
+                                    onClick={() => handleApproveLeave(leaveId)}
+                                    disabled={approvingLeaveId === leaveId}
+                                    className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    {approvingLeaveId === leaveId ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <Check className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </Tooltip>
+                                <Tooltip text="Reject Leave">
+                                  <button
+                                    onClick={() => handleRejectLeave(leaveId)}
+                                    disabled={rejectingLeaveId === leaveId}
+                                    className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    {rejectingLeaveId === leaveId ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <XIcon className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </Tooltip>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic mr-1">Processed</span>
+                            )}
+                            <Tooltip text="Delete Request">
+                              <button
+                                onClick={() => handleDeleteLeave(leave)}
+                                disabled={deletingLeaveId === leaveId}
+                                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {deletingLeaveId === leaveId ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </Tooltip>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Overtime Tab */}
+      {/* Overtime Tab - Table View */}
       {activeTab === 'overtime' && (
-        <div className="space-y-3 md:space-y-4">
-          {overtime.length === 0 ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-6 md:p-8 text-center">
-              <Clock className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No overtime records</p>
-            </div>
-          ) : (
-            overtime.map(overtimeRecord => {
-              const staffName = getStaffName(overtimeRecord.staffId);
-              return (
-                <div key={overtimeRecord.overtimeId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 items-start">
-                    <div className="sm:col-span-2 lg:col-span-1">
-                      <p className="text-xs md:text-sm text-gray-600">Staff Member</p>
-                      <p className="font-bold text-sm md:text-base truncate">{staffName}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Date</p>
-                      <p className="font-bold text-xs md:text-sm">
-                        {overtimeRecord.date ? new Date(overtimeRecord.date).toLocaleDateString('en-NG') : 'No Date'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Hours</p>
-                      <p className="font-bold text-xs md:text-sm">
-                        {overtimeRecord.hoursWorked || overtimeRecord.hours || 0} hours
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Status</p>
-                      <p className={`inline-block px-2 py-1 md:px-3 md:py-1 rounded-full text-xs font-semibold ${
-                        overtimeRecord.approvalStatus === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {overtimeRecord.approvalStatus || 'Pending'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Pay Rate</p>
-                      <p className="font-bold text-xs md:text-sm">1.5x</p>
-                    </div>
-                  </div>
-                   {overtimeRecord.reason && (
-                     <div className="mt-2 md:mt-3 p-2 md:p-3 bg-gray-50 rounded-lg">
-                       <p className="text-xs md:text-sm text-gray-700">
-                         <strong>Reason:</strong> {overtimeRecord.reason}
-                       </p>
-                     </div>
-                   )}
-                   <button
-                     onClick={() => handleDeleteOvertime(overtimeRecord)}
-                     className="mt-2 md:mt-3 text-red-600 hover:text-red-800 text-xs md:text-sm flex items-center gap-1"
-                     title="Delete Overtime Record"
-                   >
-                     <Trash2 className="w-3.5 h-3.5" />
-                     Delete Record
-                   </button>
-                 </div>
-              );
-            })
-          )}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pay Rate</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {overtime.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      <Clock className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                      <p className="font-medium">No overtime records</p>
+                    </td>
+                  </tr>
+                ) : (
+                  overtime.map(record => {
+                    const overtimeId = record.overtimeId || record.id;
+                    
+                    return (
+                      <tr key={overtimeId} className="hover:bg-gray-50">
+                        <td className="px-4 py-4">
+                          <p className="font-medium text-sm text-gray-900">{getStaffName(record.staffId)}</p>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {record.date ? new Date(record.date).toLocaleDateString('en-NG') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-4 text-sm font-medium text-gray-700">
+                          {record.hoursWorked || record.hours || 0} hrs
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">1.5x</td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                            record.approvalStatus === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {record.approvalStatus || 'Pending'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <Tooltip text="Delete Record">
+                            <button
+                              onClick={() => handleDeleteOvertime(record)}
+                              disabled={deletingOvertimeId === overtimeId}
+                              className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {deletingOvertimeId === overtimeId ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </Tooltip>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1287,20 +1420,21 @@ const handleApproveLeave = async (leaveId) => {
         <div className="space-y-4 md:space-y-6">
           {/* Date Picker */}
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-xs md:text-sm text-gray-600 mb-1">Select Date</label>
               <input
                 type="date"
                 value={onCallDate}
                 onChange={(e) => setOnCallDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent text-sm"
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nigerian-green focus:border-transparent text-sm"
               />
             </div>
             <button
               onClick={() => loadOnCallData(onCallDate)}
               disabled={onCallLoading}
-              className="px-4 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium text-sm transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto px-4 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
+              {onCallLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               {onCallLoading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
@@ -1308,7 +1442,7 @@ const handleApproveLeave = async (leaveId) => {
           {onCallLoading && (
             <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6 text-center">
               <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-                <Clock className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Loading on-call coverage...
               </div>
             </div>
@@ -1316,154 +1450,112 @@ const handleApproveLeave = async (leaveId) => {
 
           {!onCallLoading && onCallData && (
             <>
-              {/* On-Call Staff (ER Coverage) */}
-              <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
-                <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4 flex items-center">
-                  <User className="w-5 h-5 mr-2 text-red-500" />
-                  Who Is Covering the ER Tonight
-                  <span className="ml-2 text-sm font-normal text-gray-500">
-                    ({onCallData.date})
-                  </span>
-                </h3>
-
-                {onCallData.on_call_staff.length === 0 ? (
-                  <div className="text-center py-6 md:py-8">
-                    <User className="w-10 h-10 md:w-12 md:h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-600 font-medium text-sm md:text-base">
-                      No on-call staff scheduled for this date
-                    </p>
-                    <p className="text-xs md:text-sm text-gray-400 mt-1">
-                      All shifts for this date will appear below
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 md:space-y-4">
-                    {onCallData.on_call_staff.map((staff, idx) => {
-                      const staffDetails = getStaffById(staff.staffId);
-                      const displayName = staff.staffName ||
-                        (staffDetails?.name || staffDetails?.full_name ||
-                          `${staffDetails?.first_name || ''} ${staffDetails?.last_name || ''}`.trim() ||
-                          'Unknown Staff');
-                      const role = staff.role || staffDetails?.category || staffDetails?.role || staffDetails?.staff_category || '';
-                      const isEmergency = staff.dutyType &&
-                        ['Emergency', 'Emergency Cover', 'er', 'ER'].includes(staff.dutyType);
-                      return (
-                        <div
-                          key={staff.id || idx}
-                          className={`border rounded-lg p-3 md:p-4 ${
-                            isEmergency
-                              ? 'border-red-200 bg-red-50'
-                              : 'border-blue-200 bg-blue-50'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                                isEmergency
-                                  ? 'bg-red-100 text-red-600'
-                                  : 'bg-blue-100 text-blue-600'
-                              }`}>
-                                {displayName.charAt(0) || '?'}
-                              </div>
-                              <div>
-                                <p className="font-bold text-sm md:text-base text-gray-900">{displayName}</p>
-                                {role && (
-                                  <p className="text-xs md:text-sm text-gray-500">{role}</p>
-                                )}
-                                {staff.email && (
-                                  <p className="text-xs text-gray-400 truncate max-w-xs">
-                                    {staff.email}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <span className={`inline-block px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${
-                              isEmergency
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {staff.dutyType || 'On Call'}
-                            </span>
-                          </div>
-                          {(staff.startTime || staff.endTime) && (
-                            <div className="mt-2 text-sm text-gray-600 flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              {staff.startTime || '--:--'} – {staff.endTime || '--:--'}
-                            </div>
-                          )}
-                          {staff.notes && (
-                            <p className="mt-1 text-xs text-gray-500">{staff.notes}</p>
-                          )}
-                          {staff.department && (
-                            <p className="mt-1 text-xs text-gray-400">
-                              Department: {staff.department}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              {/* On-Call Staff - Table View */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <User className="w-5 h-5 text-red-500" />
+                    Who Is Covering the ER Tonight
+                    <span className="text-sm font-normal text-gray-500 ml-2">({onCallData.date})</span>
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px]">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duty Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {onCallData.on_call_staff.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                            <User className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                            <p className="font-medium">No on-call staff scheduled for this date</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        onCallData.on_call_staff.map((staff, idx) => {
+                          const staffDetails = getStaffById(staff.staffId);
+                          const displayName = staff.staffName ||
+                            (staffDetails?.name || staffDetails?.full_name ||
+                              `${staffDetails?.first_name || ''} ${staffDetails?.last_name || ''}`.trim() ||
+                              'Unknown Staff');
+                          const role = staff.role || staffDetails?.category || staffDetails?.role || staffDetails?.staff_category || '';
+                          const isEmergency = staff.dutyType &&
+                            ['Emergency', 'Emergency Cover', 'er', 'ER'].includes(staff.dutyType);
+                          
+                          return (
+                            <tr key={staff.id || idx} className={`hover:bg-gray-50 ${isEmergency ? 'bg-red-50' : ''}`}>
+                              <td className="px-4 py-4">
+                                <p className="font-medium text-sm text-gray-900">{displayName}</p>
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-600">{role || '-'}</td>
+                              <td className="px-4 py-4">
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                  isEmergency ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {staff.dutyType || 'On Call'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-600">
+                                {staff.startTime || '--:--'} – {staff.endTime || '--:--'}
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-600">{staff.department || '-'}</td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {/* All Shifts for Selected Date */}
+              {/* All Shifts - Table View */}
               {onCallData.all_shifts.length > 0 && (
-                <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4">
-                    All Shifts for {onCallData.date}
-                  </h3>
-                  <div className="overflow-x-auto -mx-4 md:mx-0">
-                    <div className="min-w-full">
-                      {/* Desktop Table */}
-                      <div className="hidden md:table w-full">
-                        <div className="table-row-group">
-                          <div className="table-row border-b bg-gray-50">
-                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Staff Member</div>
-                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Department</div>
-                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Duty Type</div>
-                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Time</div>
-                            <div className="table-cell py-2 px-4 font-semibold text-gray-700 text-sm">Notes</div>
-                          </div>
-                          {onCallData.all_shifts.map((shift, idx) => (
-                            <div key={shift.id || idx} className="table-row border-b hover:bg-gray-50">
-                              <div className="table-cell py-2 px-4 font-medium text-sm">
-                                {shift.staffName || getStaffName(shift.staffId) || 'Unknown Staff'}</div>
-                              <div className="table-cell py-2 px-4 text-sm text-gray-600">{shift.department || '-'}</div>
-                              <div className="table-cell py-2 px-4">
-                                <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
-                                  {shift.dutyType || 'N/A'}
-                                </span>
-                              </div>
-                              <div className="table-cell py-2 px-4 text-sm text-gray-600">
-                                {shift.startTime || '--'} – {shift.endTime || '--'}
-                              </div>
-                              <div className="table-cell py-2 px-4 text-xs text-gray-500 truncate max-w-xs">
-                                {shift.notes || '-'}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Mobile Cards */}
-                      <div className="md:hidden space-y-2">
+                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="px-4 py-3 bg-gray-50 border-b">
+                    <h3 className="text-lg font-semibold text-gray-800">All Shifts for {onCallData.date}</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px]">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duty Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
                         {onCallData.all_shifts.map((shift, idx) => (
-                          <div key={shift.id || idx} className="border border-gray-200 rounded-lg p-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium text-sm">{shift.staffName || getStaffName(shift.staffId) || 'Unknown Staff'}</p>
-                                <p className="text-xs text-gray-500">{shift.department || '-'}</p>
-                              </div>
-                              <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
+                          <tr key={shift.id || idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-4">
+                              <p className="font-medium text-sm text-gray-900">
+                                {shift.staffName || getStaffName(shift.staffId) || 'Unknown Staff'}
+                              </p>
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-600">{shift.department || '-'}</td>
+                            <td className="px-4 py-4">
+                              <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
                                 {shift.dutyType || 'N/A'}
                               </span>
-                            </div>
-                            <div className="text-xs text-gray-600 mt-1">
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-600">
                               {shift.startTime || '--'} – {shift.endTime || '--'}
-                            </div>
-                          </div>
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-500 truncate max-w-xs">
+                              {shift.notes || '-'}
+                            </td>
+                          </tr>
                         ))}
-                      </div>
-                    </div>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -1471,10 +1563,8 @@ const handleApproveLeave = async (leaveId) => {
           )}
 
           {!onCallLoading && !onCallData && !errorMessage && (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md border border-gray-200 p-4 md:p-6 text-center">
-              <p className="text-gray-600 text-sm">
-                Select a date and click Refresh to view on-call coverage.
-              </p>
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-600">Select a date and click Refresh to view on-call coverage.</p>
             </div>
           )}
         </div>
@@ -1548,12 +1638,14 @@ const handleApproveLeave = async (leaveId) => {
             <div className="text-red-600 text-sm">{errorMessage}</div>
           )}
           
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button
               onClick={handleAddLeave}
-              className="flex-1 bg-nigerian-green text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-green-700 font-medium text-sm md:text-base transition-colors"
+              disabled={submittingLeave}
+              className="w-full sm:flex-1 bg-nigerian-green text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-green-700 font-medium text-sm md:text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Request Leave
+              {submittingLeave && <Loader2 className="w-4 h-4 animate-spin" />}
+              {submittingLeave ? 'Submitting...' : 'Request Leave'}
             </button>
             <button
               onClick={() => {
@@ -1561,7 +1653,7 @@ const handleApproveLeave = async (leaveId) => {
                 setLeaveFormData({ staffId: '', leaveType: '', startDate: '', endDate: '', reason: '' });
                 setErrorMessage('');
               }}
-              className="flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
+              className="w-full sm:flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
             >
               Cancel
             </button>
@@ -1626,12 +1718,14 @@ const handleApproveLeave = async (leaveId) => {
             <div className="text-red-600 text-sm">{errorMessage}</div>
           )}
           
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button
               onClick={handleAddOvertime}
-              className="flex-1 bg-blue-500 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-600 font-medium text-sm md:text-base transition-colors"
+              disabled={submittingOvertime}
+              className="w-full sm:flex-1 bg-blue-500 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-600 font-medium text-sm md:text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Record Overtime
+              {submittingOvertime && <Loader2 className="w-4 h-4 animate-spin" />}
+              {submittingOvertime ? 'Submitting...' : 'Record Overtime'}
             </button>
             <button
               onClick={() => {
@@ -1639,7 +1733,7 @@ const handleApproveLeave = async (leaveId) => {
                 setOvertimeFormData({ staffId: '', date: '', hours: '', reason: '' });
                 setErrorMessage('');
               }}
-              className="flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
+              className="w-full sm:flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
             >
               Cancel
             </button>
@@ -1981,7 +2075,7 @@ const handleApproveLeave = async (leaveId) => {
                     <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900">{assignment.staffName || 'Unknown Staff'}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1 flex-wrap">
                           <span className="inline-block px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs">
                             {assignment.date}
                           </span>
@@ -1996,12 +2090,14 @@ const handleApproveLeave = async (leaveId) => {
                           <p className="text-xs text-gray-500 mt-1 truncate">{assignment.notes}</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => removeAssignment(index)}
-                        className="ml-2 text-red-600 hover:text-red-800 p-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <Tooltip text="Remove Assignment">
+                        <button
+                          onClick={() => removeAssignment(index)}
+                          className="ml-2 text-red-600 hover:text-red-800 p-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </Tooltip>
                     </div>
                   );
                 })}
@@ -2031,10 +2127,11 @@ const handleApproveLeave = async (leaveId) => {
             </button>
             <button
               onClick={handleCreateRoster}
-              disabled={!rosterFormData.month || !rosterFormData.year || !rosterFormData.department || rosterFormData.assignments.length === 0}
-              className="w-full sm:w-auto px-6 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canCreateRoster || isCreatingRoster}
+              className="w-full sm:w-auto px-6 py-2 bg-nigerian-green text-white rounded-lg hover:bg-green-700 font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              Create Roster
+              {isCreatingRoster && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isCreatingRoster ? 'Creating...' : 'Create Roster'}
             </button>
           </div>
         </div>

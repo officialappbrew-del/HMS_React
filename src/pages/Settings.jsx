@@ -20,14 +20,14 @@ import {
   faExclamationCircle,
   faUser,
   faImage,
-  faPalette,
   faClipboardList,
   faClock,
   faEnvelope,
+  faEnvelopeOpenText,
   faSms,
   faMobileAlt,
+  faCommentDots,
   faShieldAlt,
-  faKey,
   faSync,
   faTrash,
   faFileInvoice,
@@ -35,12 +35,10 @@ import {
   faPercentage,
   faCreditCard,
   faUserShield,
-  faBuilding,
   faMapMarkerAlt,
   faGlobe,
   faUserPlus,
   faCopy,
-  faUsers,
   faCheck,
   faBars,
   faChevronDown,
@@ -48,6 +46,7 @@ import {
   faChevronRight,
   faEllipsisH,
   faArchive,
+  faCircle,
 } from '@fortawesome/free-solid-svg-icons';
 
 const Settings = () => {
@@ -82,6 +81,33 @@ const Settings = () => {
     domain: typeof window !== 'undefined' ? localStorage.getItem('tenantDomain') || '' : '',
     publicId: typeof window !== 'undefined' ? localStorage.getItem('tenantId') || '' : '',
   });
+  const [communication, setCommunication] = useState({
+    id: null,
+    email_enabled: true,
+    sms_enabled: true,
+email_from: '',
+    from_name: '',
+    email_provider: 'default',
+    email_host: '',
+    email_port: '',
+    email_username: '',
+    email_password: '',
+    email_use_tls: true,
+    sms_provider: 'default',
+    sms_sender_id: '',
+    sms_phone_number: '',
+    sms_api_key: '',
+    sms_country_code: 'NG',
+    consent_tracking_enabled: true,
+    opt_out_message: 'Reply STOP to unsubscribe',
+    dnd_enabled: false,
+    message_templates: {
+      email: {},
+      sms: {},
+    },
+    daily_email_limit: 1000,
+    daily_sms_limit: 500,
+  });
   const [logo, setLogo] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -104,7 +130,8 @@ const Settings = () => {
   const [pendingUsersLoading, setPendingUsersLoading] = useState(false);
   const [invitations, setInvitations] = useState([]);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [communicationTab, setCommunicationTab] = useState('email');
 
   // Pagination state for combined table
   const [tablePagination, setTablePagination] = useState({
@@ -283,10 +310,53 @@ const Settings = () => {
       }
     };
 
-    loadSettings();
+loadSettings();
     loadPendingUsers();
     loadInvitations();
+
+    const loadCommunicationProfile = async () => {
+      try {
+        const profile = await tenantSettingsApi.getCommunicationProfile();
+        setCommunication((prev) => ({
+          ...prev,
+          id: profile.id || prev.id,
+          email_enabled: profile.email_enabled ?? prev.email_enabled,
+          sms_enabled: profile.sms_enabled ?? prev.sms_enabled,
+email_from: profile.email_from || prev.email_from,
+          from_name: profile.from_name || prev.from_name,
+          email_provider: profile.email_provider || prev.email_provider,
+          email_host: profile.email_host || prev.email_host,
+          email_port: profile.email_port ?? prev.email_port,
+          email_username: profile.email_username || prev.email_username,
+          email_password: profile.email_password || prev.email_password,
+          email_use_tls: profile.email_use_tls ?? prev.email_use_tls,
+          sms_provider: profile.sms_provider || prev.sms_provider,
+          sms_sender_id: profile.sms_sender_id || prev.sms_sender_id,
+          sms_phone_number: profile.sms_phone_number || prev.sms_phone_number,
+          sms_api_key: profile.sms_api_key || prev.sms_api_key,
+          sms_country_code: profile.sms_country_code || prev.sms_country_code,
+          consent_tracking_enabled: profile.consent_tracking_enabled ?? prev.consent_tracking_enabled,
+          opt_out_message: profile.opt_out_message || prev.opt_out_message,
+          dnd_enabled: profile.dnd_enabled ?? prev.dnd_enabled,
+          message_templates: profile.message_templates || prev.message_templates,
+          daily_email_limit: profile.daily_email_limit ?? prev.daily_email_limit,
+          daily_sms_limit: profile.daily_sms_limit ?? prev.daily_sms_limit,
+        }));
+      } catch (error) {
+        console.error('Unable to load communication profile:', error);
+      }
+    };
+
+    loadCommunicationProfile();
   }, []);
+
+const handleCommunicationChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setCommunication((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -336,12 +406,16 @@ const Settings = () => {
     setLogoUploading(true);
     setMessage('');
     setMessageType('');
-    
+
     try {
-      const formData = new FormData();
-      formData.append('logo', logo);
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await tenantSettingsApi.updateCurrent({ system_logo: logo });
+      if (response?.system_logo) {
+        setSettings((prev) => ({
+          ...prev,
+          system_logo: response.system_logo,
+        }));
+        setLogoPreview(response.system_logo);
+      }
       setMessage('Logo uploaded successfully!');
       setMessageType('success');
     } catch (error) {
@@ -536,7 +610,38 @@ const Settings = () => {
         payload.system_logo = null;
       }
 
-      await tenantSettingsApi.updateCurrent(payload);
+await tenantSettingsApi.updateCurrent(payload);
+
+      const communicationPayload = {
+        email_enabled: communication.email_enabled,
+        sms_enabled: communication.sms_enabled,
+email_from: communication.email_from,
+        from_name: communication.from_name,
+        email_provider: communication.email_provider,
+        email_host: communication.email_host,
+        email_port: communication.email_port,
+        email_username: communication.email_username,
+        email_password: communication.email_password,
+        email_use_tls: communication.email_use_tls,
+        sms_provider: communication.sms_provider,
+        sms_sender_id: communication.sms_sender_id,
+        sms_phone_number: communication.sms_phone_number,
+        sms_api_key: communication.sms_api_key,
+        sms_country_code: communication.sms_country_code,
+        consent_tracking_enabled: communication.consent_tracking_enabled,
+        opt_out_message: communication.opt_out_message,
+        dnd_enabled: communication.dnd_enabled,
+        message_templates: communication.message_templates,
+        daily_email_limit: communication.daily_email_limit,
+        daily_sms_limit: communication.daily_sms_limit,
+      };
+
+      if (communication.id) {
+        await tenantSettingsApi.updateCommunicationProfile(communication.id, communicationPayload);
+      } else {
+        await tenantSettingsApi.createCommunicationProfile(communicationPayload);
+      }
+
       setMessage('Settings saved successfully.');
       setMessageType('success');
       
@@ -553,10 +658,11 @@ const Settings = () => {
     }
   };
 
-  const sections = [
+const sections = [
     { id: 'general', label: 'General', icon: faCog },
     { id: 'billing', label: 'Billing', icon: faMoneyBillWave },
     { id: 'notifications', label: 'Notifications', icon: faBell },
+    { id: 'communication', label: 'Communication', icon: faCommentDots },
     { id: 'security', label: 'Security', icon: faLock },
     { id: 'backup', label: 'Backup', icon: faDatabase },
     { id: 'nhis', label: 'NHIS', icon: faHospital },
@@ -775,7 +881,7 @@ const Settings = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+<form id="settings-form" onSubmit={handleSubmit}>
           <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
             {/* Mobile Navigation Toggle */}
             <div className="lg:hidden">
@@ -1106,6 +1212,284 @@ const Settings = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Communication Section */}
+              {activeSection === 'communication' && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
+                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-teal-50/30">
+                    <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faEnvelopeOpenText} className="text-teal-600" />
+                      Communication Settings
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Configure your hospital's unique email and SMS sender identity</p>
+                  </div>
+                  
+                  <div className="p-3 sm:p-4 md:p-6">
+                    {/* Tab Switcher + Save button - properly responsive */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
+                      <div className="flex gap-1.5 sm:gap-2 p-1 bg-slate-100 rounded-xl w-full sm:w-auto overflow-x-auto">
+                        <button
+                          type="button"
+                          onClick={() => setCommunicationTab('email')}
+                          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none justify-center ${
+                            communicationTab === 'email'
+                              ? 'bg-white text-teal-700 shadow-sm border border-teal-200'
+                              : 'text-slate-600 hover:text-slate-800'
+                          }`}
+                        >
+                          <FontAwesomeIcon icon={faEnvelope} className="text-teal-600 text-xs sm:text-sm" />
+                          <span>Email</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCommunicationTab('sms')}
+                          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none justify-center ${
+                            communicationTab === 'sms'
+                              ? 'bg-white text-teal-700 shadow-sm border border-teal-200'
+                              : 'text-slate-600 hover:text-slate-800'
+                          }`}
+                        >
+                          <FontAwesomeIcon icon={faSms} className="text-teal-600 text-xs sm:text-sm" />
+                          <span>SMS</span>
+                        </button>
+                      </div>
+                      <button
+                        type="submit"
+                        form="settings-form"
+                        className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl font-medium shadow-sm hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                      >
+                        <FontAwesomeIcon icon={faSave} className="text-xs sm:text-sm" />
+                        <span>Save communication settings</span>
+                      </button>
+                    </div>
+
+                    {/* Email Tab */}
+                    {communicationTab === 'email' && (
+                      <div className="space-y-4 sm:space-y-5">
+                        <div className="rounded-xl border border-slate-200 p-3 sm:p-4">
+                          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-3 sm:mb-4">
+                            <FontAwesomeIcon icon={faEnvelope} className="text-teal-600" />
+                            <span>Email Identity</span>
+                          </h3>
+                          
+                          {/* Responsive grid - 1 column on mobile, 2 on tablet/desktop */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                From Email
+                              </label>
+                              <input
+                                type="email"
+                                name="email_from"
+                                value={communication.email_from}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
+                                placeholder="no-reply@hospital.org"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                From Name
+                              </label>
+                              <input
+                                type="text"
+                                name="from_name"
+                                value={communication.from_name}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
+                                placeholder="St. Mary's Hospital"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                Email Provider
+                              </label>
+                              <select
+                                name="email_provider"
+                                value={communication.email_provider}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white"
+                              >
+                                <option value="default">Default</option>
+                                <option value="sendgrid">SendGrid</option>
+                                <option value="ses">Amazon SES</option>
+                                <option value="smtp">Custom SMTP</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                Email Host
+                              </label>
+                              <input
+                                type="text"
+                                name="email_host"
+                                value={communication.email_host}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
+                                placeholder="smtp.hospital.org"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                Email Port
+                              </label>
+                              <input
+                                type="number"
+                                name="email_port"
+                                value={communication.email_port}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
+                                placeholder="587"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                Email Username
+                              </label>
+                              <input
+                                type="text"
+                                name="email_username"
+                                value={communication.email_username}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                Email Password
+                              </label>
+                              <input
+                                type="password"
+                                name="email_password"
+                                value={communication.email_password}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm"
+                              />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
+                              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  name="email_use_tls"
+                                  checked={communication.email_use_tls}
+                                  onChange={handleCommunicationChange}
+                                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
+                                />
+                                <span className="text-xs sm:text-sm">Use TLS</span>
+                              </label>
+                              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  name="email_enabled"
+                                  checked={communication.email_enabled}
+                                  onChange={handleCommunicationChange}
+                                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
+                                />
+                                <span className="text-xs sm:text-sm">Email enabled</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SMS Tab */}
+                    {communicationTab === 'sms' && (
+                      <div className="space-y-4 sm:space-y-5">
+                        <div className="rounded-xl border border-slate-200 p-3 sm:p-4">
+                          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-3 sm:mb-4">
+                            <FontAwesomeIcon icon={faSms} className="text-teal-600" />
+                            <span>SMS Identity</span>
+                          </h3>
+                          
+                          {/* Responsive grid - 1 column on mobile, 2 on tablet/desktop */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                SMS Provider
+                              </label>
+                              <select
+                                name="sms_provider"
+                                value={communication.sms_provider}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white"
+                              >
+                                <option value="default">Default</option>
+                                <option value="twilio">Twilio</option>
+                                <option value="messagebird">MessageBird</option>
+                                <option value="vonage">Vonage</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                Sender ID
+                              </label>
+                              <input
+                                type="text"
+                                name="sms_sender_id"
+                                value={communication.sms_sender_id}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
+                                placeholder="HOSPITAL"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                SMS Phone Number
+                              </label>
+                              <input
+                                type="text"
+                                name="sms_phone_number"
+                                value={communication.sms_phone_number}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
+                                placeholder="+1234567890"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                SMS API Key
+                              </label>
+                              <input
+                                type="password"
+                                name="sms_api_key"
+                                value={communication.sms_api_key}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
+                                Country Code
+                              </label>
+                              <input
+                                type="text"
+                                name="sms_country_code"
+                                value={communication.sms_country_code}
+                                onChange={handleCommunicationChange}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
+                                placeholder="NG"
+                              />
+                            </div>
+                            <div className="flex items-center pt-1">
+                              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  name="sms_enabled"
+                                  checked={communication.sms_enabled}
+                                  onChange={handleCommunicationChange}
+                                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
+                                />
+                                <span className="text-xs sm:text-sm">SMS enabled</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1598,8 +1982,9 @@ const Settings = () => {
               <FontAwesomeIcon icon={faUndo} />
               Discard changes
             </button>
-            <button
+<button
               type="submit"
+              form="settings-form"
               className="px-6 sm:px-8 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-sm hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <FontAwesomeIcon icon={faSave} />

@@ -2670,7 +2670,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               <FileText className="w-3.5 h-3.5" />
               Template
             </ButtonWithTooltip>
-            <ButtonWithTooltip
+            {/* <ButtonWithTooltip
               tooltip="Bulk upload patients from CSV"
               variant="secondary"
               onClick={() => document.getElementById('admin-bulk-upload-input')?.click()}
@@ -2681,7 +2681,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 <Upload className="w-5 h-5" />
               )}
               Bulk Upload
-            </ButtonWithTooltip>
+            </ButtonWithTooltip> */}
             <input
               id="admin-bulk-upload-input"
               type="file"
@@ -3062,95 +3062,132 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
   };
 
   // ==================== RENDER DEPARTMENTS CONTENT ====================
-  const renderDepartmentsContent = () => {
-    return (
-      <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
-          <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Department Overview</h2>
-          <div className="flex items-center gap-2">
-            <ButtonWithTooltip
-              onClick={() => setShowAddDeptForm(prev => !prev)}
-              tooltip={showAddDeptForm ? 'Cancel' : 'Add new department'}
-              variant="primary"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {showAddDeptForm ? 'Cancel' : 'Add Department'}
-            </ButtonWithTooltip>
-          </div>
+const renderDepartmentsContent = () => {
+  return (
+    <div>
+      {/* Header with actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+          <h2 className="text-base font-display font-semibold text-[#1A1A1A]">Department Management</h2>
+          <p className="text-xs text-[#5A5A5A] mt-0.5">Organize and manage your hospital departments</p>
         </div>
+        <div className="flex items-center gap-2">
+          <ButtonWithTooltip
+            onClick={() => setShowAddDeptForm(prev => !prev)}
+            tooltip={showAddDeptForm ? 'Cancel' : 'Add new department'}
+            variant="primary"
+          >
+            {showAddDeptForm ? (
+              <X className="w-3.5 h-3.5" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            {showAddDeptForm ? 'Cancel' : 'Add Department'}
+          </ButtonWithTooltip>
+        </div>
+      </div>
 
-        {/* Add Department Form */}
-        {showAddDeptForm && (
-          <form onSubmit={handleAddDepartment} className="mb-6 bg-[#F7F5F2] border border-[#E8E3DC] p-5">
-            <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-3">New Department</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Add Department Form - Professional Card Style */}
+      {showAddDeptForm && (
+        <div className="mb-6 bg-gradient-to-br from-white to-[#F7F5F2] border border-[#E8E3DC] rounded-lg shadow-sm overflow-hidden">
+          <div className="px-5 py-4 bg-[#008751] bg-opacity-5 border-b border-[#E8E3DC]">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-[#008751] rounded">
+                <Plus className="w-3.5 h-3.5 text-white" />
+              </div>
+              <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Create New Department</h3>
+            </div>
+          </div>
+          
+          <form onSubmit={handleAddDepartment} className="p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Name *</label>
+                <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">
+                  Department Name <span className="text-[#C8553D]">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={deptForm.name}
                   onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
-                  placeholder="e.g. Cardiology"
-                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
+                  placeholder="e.g. Cardiology, Pediatrics, Surgery"
+                  className="w-full border border-[#D8D4CD] bg-white px-3.5 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#B0A89E] focus:border-[#008751] focus:outline-none focus:ring-2 focus:ring-[#008751]/20 transition-all duration-200"
                 />
+                <p className="mt-1 text-[10px] text-[#B0A89E]">Choose a clear, descriptive name for the department</p>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Code</label>
+                <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">Department Code</label>
                 <input
                   type="text"
                   value={deptForm.code}
                   onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
-                  placeholder="e.g. CARD"
-                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
+                  placeholder="e.g. CARD, PED, SURG"
+                  className="w-full border border-[#D8D4CD] bg-white px-3.5 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#B0A89E] uppercase focus:border-[#008751] focus:outline-none focus:ring-2 focus:ring-[#008751]/20 transition-all duration-200"
                 />
+                <p className="mt-1 text-[10px] text-[#B0A89E]">Short, unique identifier (auto-generated if left blank)</p>
               </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Description</label>
+              <div className="md:col-span-2">
+                <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">Description</label>
                 <input
                   type="text"
                   value={deptForm.description}
                   onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
-                  placeholder="Optional description"
-                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
+                  placeholder="Brief description of the department's role and responsibilities"
+                  className="w-full border border-[#D8D4CD] bg-white px-3.5 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#B0A89E] focus:border-[#008751] focus:outline-none focus:ring-2 focus:ring-[#008751]/20 transition-all duration-200"
                 />
               </div>
-              <div className="sm:col-span-2 flex items-center gap-2">
-                <input
-                  id="is_clinical"
-                  type="checkbox"
-                  checked={deptForm.is_clinical}
-                  onChange={(e) => setDeptForm({ ...deptForm, is_clinical: e.target.checked })}
-                  className="h-4 w-4 rounded border-[#D8D4CD] text-[#008751] focus:ring-0 focus:ring-offset-0"
-                />
-                <label htmlFor="is_clinical" className="text-xs font-medium text-[#1A1A1A]">Clinical department</label>
+              <div className="md:col-span-2 flex items-center gap-3 pt-1">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    id="is_clinical"
+                    type="checkbox"
+                    checked={deptForm.is_clinical}
+                    onChange={(e) => setDeptForm({ ...deptForm, is_clinical: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-[#E8E3DC] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D8D4CD] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#008751]"></div>
+                  <span className="ml-3 text-xs font-medium text-[#1A1A1A]">
+                    {deptForm.is_clinical ? 'Clinical Department' : 'Non-Clinical / Support Department'}
+                  </span>
+                </label>
               </div>
             </div>
-            <div className="mt-4 flex justify-end gap-2">
+            
+            <div className="mt-5 pt-4 border-t border-[#F0EDE8] flex flex-wrap justify-end gap-2">
               <ButtonWithTooltip
+                type="button"
                 onClick={() => setShowAddDeptForm(false)}
-                tooltip="Cancel"
+                tooltip="Cancel department creation"
                 variant="secondary"
+                size="sm"
               >
                 Cancel
               </ButtonWithTooltip>
               <ButtonWithTooltip
                 type="submit"
-                tooltip="Save department"
+                tooltip="Create new department"
                 variant="primary"
+                size="sm"
               >
                 <Check className="w-3.5 h-3.5" />
-                Save Department
+                Create Department
               </ButtonWithTooltip>
             </div>
           </form>
-        )}
+        </div>
+      )}
 
-        {/* Edit Department Form */}
-        {showEditDeptForm && (
-          <form onSubmit={handleUpdateDepartment} className="mb-6 bg-[#E8F5EF] border border-[#C8E0D5] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Edit Department</h3>
+      {/* Edit Department Form - Professional Card Style */}
+      {showEditDeptForm && (
+        <div className="mb-6 bg-gradient-to-br from-white to-[#E8F5EF] border border-[#C8E0D5] rounded-lg shadow-sm overflow-hidden">
+          <div className="px-5 py-4 bg-[#008751] bg-opacity-10 border-b border-[#C8E0D5]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-[#008751] rounded">
+                  <Edit className="w-3.5 h-3.5 text-white" />
+                </div>
+                <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Edit Department</h3>
+              </div>
               <IconButton
                 icon={X}
                 onClick={() => {
@@ -3160,60 +3197,74 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 }}
                 tooltip="Close"
                 variant="default"
+                size="sm"
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          </div>
+          
+          <form onSubmit={handleUpdateDepartment} className="p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Name *</label>
+                <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">
+                  Department Name <span className="text-[#C8553D]">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={editDeptForm.name}
                   onChange={(e) => setEditDeptForm({ ...editDeptForm, name: e.target.value })}
-                  placeholder="e.g. Cardiology"
-                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
+                  placeholder="e.g. Cardiology, Pediatrics, Surgery"
+                  className="w-full border border-[#D8D4CD] bg-white px-3.5 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#B0A89E] focus:border-[#008751] focus:outline-none focus:ring-2 focus:ring-[#008751]/20 transition-all duration-200"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Code</label>
+                <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">Department Code</label>
                 <input
                   type="text"
                   value={editDeptForm.code}
                   onChange={(e) => setEditDeptForm({ ...editDeptForm, code: e.target.value.toUpperCase() })}
-                  placeholder="e.g. CARD"
-                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
+                  placeholder="e.g. CARD, PED, SURG"
+                  className="w-full border border-[#D8D4CD] bg-white px-3.5 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#B0A89E] uppercase focus:border-[#008751] focus:outline-none focus:ring-2 focus:ring-[#008751]/20 transition-all duration-200"
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Description</label>
+              <div className="md:col-span-2">
+                <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">Description</label>
                 <input
                   type="text"
                   value={editDeptForm.description}
                   onChange={(e) => setEditDeptForm({ ...editDeptForm, description: e.target.value })}
-                  placeholder="Optional description"
-                  className="w-full border border-[#D8D4CD] bg-white px-3 py-2 text-sm text-[#1A1A1A] focus:border-[#008751] focus:outline-none transition-colors"
+                  placeholder="Brief description of the department's role and responsibilities"
+                  className="w-full border border-[#D8D4CD] bg-white px-3.5 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#B0A89E] focus:border-[#008751] focus:outline-none focus:ring-2 focus:ring-[#008751]/20 transition-all duration-200"
                 />
               </div>
-              <div className="sm:col-span-2 flex items-center gap-2">
-                <input
-                  id="edit_is_clinical"
-                  type="checkbox"
-                  checked={editDeptForm.is_clinical}
-                  onChange={(e) => setEditDeptForm({ ...editDeptForm, is_clinical: e.target.checked })}
-                  className="h-4 w-4 rounded border-[#D8D4CD] text-[#008751] focus:ring-0 focus:ring-offset-0"
-                />
-                <label htmlFor="edit_is_clinical" className="text-xs font-medium text-[#1A1A1A]">Clinical department</label>
+              <div className="md:col-span-2 flex items-center gap-3 pt-1">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    id="edit_is_clinical"
+                    type="checkbox"
+                    checked={editDeptForm.is_clinical}
+                    onChange={(e) => setEditDeptForm({ ...editDeptForm, is_clinical: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-[#E8E3DC] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D8D4CD] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#008751]"></div>
+                  <span className="ml-3 text-xs font-medium text-[#1A1A1A]">
+                    {editDeptForm.is_clinical ? 'Clinical Department' : 'Non-Clinical / Support Department'}
+                  </span>
+                </label>
               </div>
             </div>
-            <div className="mt-4 flex justify-end gap-2">
+            
+            <div className="mt-5 pt-4 border-t border-[#F0EDE8] flex flex-wrap justify-end gap-2">
               <ButtonWithTooltip
+                type="button"
                 onClick={() => {
                   setShowEditDeptForm(false);
                   setEditingDept(null);
                   setEditDeptForm({ id: null, name: '', code: '', description: '', is_clinical: false });
                 }}
-                tooltip="Cancel"
+                tooltip="Cancel changes"
                 variant="secondary"
+                size="sm"
               >
                 Cancel
               </ButtonWithTooltip>
@@ -3221,36 +3272,107 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 type="submit"
                 tooltip="Update department"
                 variant="primary"
+                size="sm"
               >
                 <Check className="w-3.5 h-3.5" />
                 Update Department
               </ButtonWithTooltip>
             </div>
           </form>
-        )}
+        </div>
+      )}
 
-        {/* Department Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      {/* Department Stats Bar */}
+      {departments.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] rounded-lg p-3 text-center">
+            <p className="text-xl font-display font-bold text-[#1A1A1A]">{departments.length}</p>
+            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Total</p>
+          </div>
+          <div className="bg-[#E8F5EF] border border-[#C8E0D5] rounded-lg p-3 text-center">
+            <p className="text-xl font-display font-bold text-[#008751]">
+              {departments.filter(d => d.is_clinical).length}
+            </p>
+            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Clinical</p>
+          </div>
+          <div className="bg-[#F5F0EA] border border-[#F0E8DC] rounded-lg p-3 text-center">
+            <p className="text-xl font-display font-bold text-[#C87D3D]">
+              {departments.filter(d => !d.is_clinical).length}
+            </p>
+            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Support</p>
+          </div>
+          <div className="bg-[#F0EDE8] border border-[#E8E3DC] rounded-lg p-3 text-center">
+            <p className="text-xl font-display font-bold text-[#5A5A5A]">
+              {departments.filter(d => d.head).length}
+            </p>
+            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">With Heads</p>
+          </div>
+        </div>
+      )}
+
+      {/* Department Cards - Professional Grid */}
+      {departments.length === 0 ? (
+        <div className="text-center py-16 bg-[#F7F5F2] border border-[#E8E3DC] rounded-lg">
+          <Building2 className="w-16 h-16 text-[#D8D4CD] mx-auto mb-3" />
+          <p className="text-[#5A5A5A] font-medium">No departments found</p>
+          <p className="text-sm text-[#B0A89E] mt-1">Click "Add Department" to create your first one</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {departments.map((dept) => (
-            <div key={dept.id} className="bg-white border border-[#E8E3DC] p-4 sm:p-5 hover:border-[#D8D4CD] transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-display font-semibold text-[#1A1A1A] text-sm sm:text-base truncate max-w-[70%]">{dept.name}</h4>
-                <div className="flex items-center gap-1">
-                  <span className={`text-[10px] px-2 py-0.5 border ${dept.is_clinical ? 'border-[#C8E0D5] bg-[#E8F5EF] text-[#008751]' : 'border-[#E8E3DC] bg-[#F0EDE8] text-[#5A5A5A]'}`}>
+            <div 
+              key={dept.id} 
+              className="group bg-white border border-[#E8E3DC] rounded-lg hover:border-[#008751] hover:shadow-md transition-all duration-300 overflow-hidden"
+            >
+              {/* Department Header */}
+              <div className={`px-4 py-3 border-b ${dept.is_clinical ? 'bg-[#008751]/5 border-[#C8E0D5]' : 'bg-[#F7F5F2] border-[#E8E3DC]'}`}>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded ${dept.is_clinical ? 'bg-[#008751]' : 'bg-[#5A5A5A]'}`}>
+                        <Building2 className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <h4 className="font-display font-semibold text-[#1A1A1A] text-sm truncate">
+                        {dept.name}
+                      </h4>
+                    </div>
+                    {dept.code && (
+                      <p className="text-[10px] text-[#B0A89E] mt-0.5 ml-7">Code: {dept.code}</p>
+                    )}
+                  </div>
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 mt-0.5 ${
+                    dept.is_clinical 
+                      ? 'bg-[#E8F5EF] text-[#008751] border border-[#C8E0D5]' 
+                      : 'bg-[#F0EDE8] text-[#5A5A5A] border border-[#E8E3DC]'
+                  }`}>
                     {dept.is_clinical ? 'Clinical' : 'Support'}
                   </span>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#5A5A5A]">Code</span>
-                  <span className="font-medium text-[#1A1A1A] truncate max-w-[50%]">{dept.code || '—'}</span>
-                </div>
+
+              {/* Department Body */}
+              <div className="px-4 py-3 space-y-2">
                 {dept.description && (
-                  <p className="text-xs text-[#5A5A5A] truncate">{dept.description}</p>
+                  <p className="text-xs text-[#5A5A5A] leading-relaxed">{dept.description}</p>
+                )}
+                
+                {dept.head && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <UserIcon className="w-3.5 h-3.5 text-[#B0A89E]" />
+                    <span className="text-[#5A5A5A]">Head: <span className="font-medium text-[#1A1A1A]">{dept.head}</span></span>
+                  </div>
+                )}
+                
+                {dept.location && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <MapPin className="w-3.5 h-3.5 text-[#B0A89E]" />
+                    <span className="text-[#5A5A5A]">{dept.location}</span>
+                  </div>
                 )}
               </div>
-              <div className="mt-3 pt-3 border-t border-[#F0EDE8] flex justify-end gap-1">
+
+              {/* Department Footer */}
+              <div className="px-4 py-2.5 border-t border-[#F0EDE8] bg-[#F7F5F2] flex justify-end gap-1">
                 <IconButton
                   icon={Edit}
                   onClick={() => handleEditDepartment(dept)}
@@ -3269,15 +3391,11 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               </div>
             </div>
           ))}
-          {departments.length === 0 && (
-            <div className="col-span-full text-center py-12 text-[#5A5A5A] text-sm">
-              No departments found. Add your first department above.
-            </div>
-          )}
         </div>
-      </div>
-    );
-  };
+      )}
+    </div>
+  );
+};
 
   // ==================== RENDER ALERTS CONTENT ====================
   const renderAlertsContent = () => {

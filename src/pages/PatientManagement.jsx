@@ -137,7 +137,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
 
 // ==================== MODALS ====================
 
-// Compact Bulk Upload Modal
+// Bulk Upload Modal (styled to match Staff Management)
 const BulkUploadModal = ({ 
   isOpen, 
   onClose, 
@@ -147,22 +147,17 @@ const BulkUploadModal = ({
   result = null,
   error = null,
 }) => {
-  const [file, setFile] = useState(null);
   const fileInputRef = useRef(null);
 
   if (!isOpen) return null;
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+    if (selectedFile && onUpload) {
+      onUpload(selectedFile);
     }
-  };
-
-  const handleUpload = () => {
-    if (file && onUpload) {
-      onUpload(file);
-    }
+    // Reset input so selecting the same file again re-triggers the change.
+    e.target.value = '';
   };
 
   const handleDownloadTemplate = () => {
@@ -185,162 +180,126 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div 
-        className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
 
-      <div className="flex min-h-full items-center justify-center p-3">
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-                <Upload className="w-3.5 h-3.5 text-blue-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900">Bulk Upload Patients</h3>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-              disabled={isUploading}
-            >
-              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-            </button>
-          </div>
-
-          <div className="p-4">
-            {/* Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-3">
-              <div className="flex items-start gap-2">
-                <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium text-blue-800">Upload CSV File</p>
-                  <p className="text-xs text-blue-600">Supported format: .csv with patient data</p>
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-xl transform transition-all duration-200">
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 rounded-lg">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
                 </div>
+                <h3 className="text-lg font-semibold text-gray-900">Bulk Upload Patients</h3>
               </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <X className="h-4 w-4 text-slate-500" />
+              </button>
             </div>
 
-            {/* File Input */}
-            <div className="mb-3">
-              <div 
-                className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer ${
-                  file ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-blue-400'
-                }`}
-                onClick={() => fileInputRef.current?.click()}
+            <p className="text-sm text-gray-600 mb-4">
+              Upload a CSV file containing patient records. The system will process them in the background and you'll see the progress here.
+            </p>
+
+            {/* Template download */}
+            <div className="bg-slate-50 rounded-lg p-4 mb-4">
+              <p className="text-xs font-medium text-slate-600 mb-2">CSV Template Columns</p>
+              <code className="text-[11px] text-slate-500 block mb-2 whitespace-pre-wrap break-words">
+                first_name,last_name,date_of_birth,gender,marital_status,phone,email,address,city,state,lga,country,blood_group,genotype,next_of_kin_name,next_of_kin_relationship,next_of_kin_phone,next_of_kin_address
+              </code>
+              <button
+                onClick={handleDownloadTemplate}
+                className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  disabled={isUploading}
-                />
-                {file ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-gray-700">{file.name}</span>
-                    <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
-                  </div>
-                ) : (
-                  <div>
-                    <Upload className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                    <p className="text-sm text-gray-600">Click to select CSV file</p>
-                    <p className="text-xs text-gray-400">or drag and drop</p>
-                  </div>
-                )}
-              </div>
+                <Download className="w-4 h-4" />
+                Download Template
+              </button>
             </div>
+
+            {/* File upload input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFileChange}
+              disabled={isUploading}
+              className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 border border-slate-200 rounded-lg p-2"
+            />
 
             {/* Progress / Result */}
             {(isUploading || progress || result || error) && (
-              <div className={`rounded-lg p-2.5 mb-3 border ${
+              <div className={`mt-4 rounded-lg p-4 border ${
                 error || progress?.status === 'failed' || result?.status === 'failed'
-                  ? 'bg-red-50 border-red-200'
+                  ? 'bg-rose-50 border-rose-200'
                   : result?.status === 'completed' || progress?.status === 'completed' || (!isUploading && !error && (result || progress))
-                    ? 'bg-green-50 border-green-200'
+                    ? 'bg-emerald-50 border-emerald-200'
                     : 'bg-blue-50 border-blue-200'
               }`}>
                 <div className="flex items-center gap-2">
                   {isUploading ? (
-                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
                   ) : error || progress?.status === 'failed' || result?.status === 'failed' ? (
-                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                    <AlertTriangle className="h-4 w-4 text-rose-600" />
                   ) : result?.status === 'completed' || progress?.status === 'completed' || (!isUploading && !error && (result || progress)) ? (
-                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <CheckCircle className="h-4 w-4 text-emerald-600" />
                   ) : (
-                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
                   )}
-                  <span className="text-xs font-medium text-gray-700 flex-1">
+                  <span className="text-sm font-medium text-gray-700 flex-1">
                     {error || progress?.message || result?.message || 'Processing...'}
                   </span>
                 </div>
 
                 {error && (
-                  <p className="mt-1 text-xs text-red-700">{error}</p>
+                  <p className="mt-2 text-sm text-rose-600">{error}</p>
                 )}
 
                 {result && !error && (
-                  <div className="mt-2 text-xs text-gray-700">
-                    <p className="font-medium text-gray-700">
-                      Total: {result.total_records} | Success: {result.success_count} | Failed: {result.failure_count}
-                    </p>
-                    {result.errors && result.errors.length > 0 && (
-                      <details className="mt-1">
-                        <summary className="cursor-pointer text-red-700 font-medium">
-                          View errors ({result.errors.length})
-                        </summary>
-                        <div className="mt-1 max-h-32 overflow-y-auto bg-white rounded border border-red-100 p-2">
-                          {result.errors.slice(0, 10).map((err, idx) => (
-                            <div key={idx} className="text-xs text-red-800 py-0.5 border-b border-red-50 last:border-0">
-                              Row {err.row}: {err.error}
-                            </div>
-                          ))}
-                          {result.errors.length > 10 && (
-                            <div className="text-xs text-gray-500 mt-1">...and {result.errors.length - 10} more</div>
-                          )}
-                        </div>
-                      </details>
-                    )}
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-white rounded-lg p-2">
+                      <p className="text-lg font-bold text-slate-800">{result.total_records ?? 0}</p>
+                      <p className="text-[11px] text-slate-500">Total</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-2">
+                      <p className="text-lg font-bold text-emerald-600">{result.success_count ?? 0}</p>
+                      <p className="text-[11px] text-slate-500">Succeeded</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-2">
+                      <p className="text-lg font-bold text-rose-600">{result.failure_count ?? 0}</p>
+                      <p className="text-[11px] text-slate-500">Failed</p>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Template link */}
-            <button
-              onClick={handleDownloadTemplate}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 mb-3"
-            >
-              <Download className="w-3 h-3" />
-              Download CSV Template
-            </button>
+            {/* Errors list */}
+            {result?.errors && result.errors.length > 0 && !error && (
+              <div className="mt-4 max-h-40 overflow-y-auto">
+                <p className="text-xs font-medium text-slate-600 mb-2">Row Errors</p>
+                <div className="space-y-1">
+                  {result.errors.slice(0, 20).map((err, idx) => (
+                    <div key={idx} className="bg-rose-50 border border-rose-100 rounded p-2">
+                      <span className="text-[11px] text-rose-600">Row {err.row}:</span>
+                      <span className="text-[11px] text-slate-600 ml-1">{err.error}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            {/* Actions */}
-            <div className="flex gap-2">
-              <button
-                onClick={handleUpload}
-                disabled={!file || isUploading}
-                className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-3.5 h-3.5" />
-                    Upload
-                  </>
-                )}
-              </button>
+            <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={onClose}
                 disabled={isUploading}
-                className="flex-1 bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                Close
               </button>
             </div>
           </div>
