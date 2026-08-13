@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
 import ChangePasswordModal from '../ChangePasswordModal';
+import UpcomingRosterWidget from './UpcomingRosterWidget';
+import MyRosterTab from './MyRosterTab';
 import {
   Users,
   Calendar,
@@ -1410,6 +1412,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
     { id: 'appointments', label: 'Appointments', icon: Calendar },
     { id: 'checkins', label: 'Check-ins', icon: UserCheck },
     { id: 'patients', label: 'Patients', icon: Users },
+    { id: 'my-roster', label: 'My Roster', icon: Calendar },
   ];
 
   const getStatusBadge = (status) => {
@@ -1452,6 +1455,8 @@ const displayTenantName = authTenant?.name || 'Hospital';
         return renderCheckInsContent();
       case 'patients':
         return renderPatientsContent();
+      case 'my-roster':
+        return <MyRosterTab />;
       default:
         return renderOverviewContent();
     }
@@ -1530,6 +1535,9 @@ const displayTenantName = authTenant?.name || 'Hospital';
             })}
           </div>
         </div>
+
+        {/* Upcoming Duty Roster */}
+        <UpcomingRosterWidget />
 
         {/* Communications */}
         <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">

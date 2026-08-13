@@ -6,9 +6,13 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PageErrorBoundary from './components/PageErrorBoundary';
 import { getUserPreferences } from './utils/cookies';
 import Loader from './components/Loader';
-import { apiRequest, parseListResponse } from './utils/api';
+import { apiRequest, parseListResponse, checkAuthStatus } from './utils/api';
+import { isAdminSubdomain } from './utils/subdomain';
 
 const RoleInsightPanel = lazy(() => import('./components/dashboards/RoleInsightPanel'));
+
+const SuperAdminDashboard = lazy(() => import('./pages/SuperAdmin/SuperAdminDashboard'));
+const AdminLogin = lazy(() => import('./pages/SuperAdmin/AdminLogin'));
 
 // Lazy-load pages and heavier layout parts to enable code-splitting and faster initial loads
 const Header = lazy(() => import('./components/Header'));
@@ -92,7 +96,7 @@ const getStoredIsRootAdmin = () => {
 
 const isAuthenticated = () => {
   if (typeof window === 'undefined') return false;
-  return Boolean(localStorage.getItem('authToken'));
+  return sessionStorage.getItem('isAuthenticated') === 'true';
 };
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -168,16 +172,18 @@ function AppLayout() {
    const isPatientPortalPage = location.pathname === '/patient-portal';
    const isInfoPage = publicPaths.includes(location.pathname);
    const isPublicPage = isLandingPage || isLoginPage || isSignupPage || isInvitationSignupPage || isPatientPortalPage || isInfoPage;
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
-  const [userRole, setUserRole] = useState(getStoredRole);
-  const [isRootAdmin, setIsRootAdmin] = useState(getStoredIsRootAdmin);
-  const [isDark, setIsDark] = useState(() => getUserPreferences().theme === 'dark');
-  const [refreshInterval, setRefreshInterval] = useState(() => getUserPreferences().refreshInterval || 60);
-  const [rightSidebarData, setRightSidebarData] = useState(null);
-  const [rightSidebarLoading, setRightSidebarLoading] = useState(false);
-  const [rightSidebarError, setRightSidebarError] = useState(null);
-  const navigate = useNavigate();
+   const adminSubdomain = isAdminSubdomain();
+   const isAdminAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
+   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+   const [isSidebarOpenOnMobile, setIsSidebarOpenOnMobile] = useState(false);
+   const [userRole, setUserRole] = useState(getStoredRole);
+   const [isRootAdmin, setIsRootAdmin] = useState(getStoredIsRootAdmin);
+   const [isDark, setIsDark] = useState(() => getUserPreferences().theme === 'dark');
+   const [refreshInterval, setRefreshInterval] = useState(() => getUserPreferences().refreshInterval || 60);
+   const [rightSidebarData, setRightSidebarData] = useState(null);
+   const [rightSidebarLoading, setRightSidebarLoading] = useState(false);
+   const [rightSidebarError, setRightSidebarError] = useState(null);
+   const navigate = useNavigate();
 
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLogsLoading, setAuditLogsLoading] = useState(false);
@@ -250,6 +256,24 @@ function AppLayout() {
   }, [isDark]);
 
   useEffect(() => {
+    if (adminSubdomain) return;
+    let cancelled = false;
+    const verify = async () => {
+      if (sessionStorage.getItem('isAuthenticated') === 'true') return;
+      const result = await checkAuthStatus();
+      if (!cancelled && result.authenticated) {
+        sessionStorage.setItem('isAuthenticated', 'true');
+        if (result.user) {
+          if (result.user.role) localStorage.setItem('userRole', result.user.role);
+          if (result.user.is_root_admin) localStorage.setItem('userIsRootAdmin', 'true');
+        }
+      }
+    };
+    verify();
+    return () => { cancelled = true; };
+  }, [adminSubdomain]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
 
     let cancelled = false;
@@ -274,61 +298,74 @@ function AppLayout() {
     };
   }, []);
 
-  useEffect(() => {
-    const loadInsights = async () => {
-      try {
-        setRightSidebarLoading(true);
-        setRightSidebarError(null);
-        const data = await apiRequest('/api/v1/core/dashboard-insights/');
-        setRightSidebarData(data);
-      } catch (err) {
-        setRightSidebarError(err.message || 'Unable to load role insights');
-      } finally {
-        setRightSidebarLoading(false);
-      }
-    };
+   useEffect(() => {
+     if (adminSubdomain) return;
+     const loadInsights = async () => {
+       try {
+         setRightSidebarLoading(true);
+         setRightSidebarError(null);
+         const data = await apiRequest('/api/v1/core/dashboard-insights/');
+         setRightSidebarData(data);
+       } catch (err) {
+         setRightSidebarError(err.message || 'Unable to load role insights');
+       } finally {
+         setRightSidebarLoading(false);
+       }
+     };
 
-    let refreshIntervalId;
-    if (!isPublicPage && userRole) {
-      loadInsights();
-      const intervalMs = Math.max(60000, (refreshInterval || 300) * 1000);
-      refreshIntervalId = window.setInterval(loadInsights, intervalMs);
-    }
+     let refreshIntervalId;
+     if (!isPublicPage && userRole) {
+       loadInsights();
+       const intervalMs = Math.max(60000, (refreshInterval || 300) * 1000);
+       refreshIntervalId = window.setInterval(loadInsights, intervalMs);
+     }
 
-    return () => {
-      if (refreshIntervalId) {
-        window.clearInterval(refreshIntervalId);
-      }
-    };
-  }, [isPublicPage, userRole, refreshInterval]);
+     return () => {
+       if (refreshIntervalId) {
+         window.clearInterval(refreshIntervalId);
+       }
+     };
+   }, [isPublicPage, userRole, refreshInterval, adminSubdomain]);
 
-  useEffect(() => {
-    if (isPublicPage || !auditAccess.canView) {
-      setAuditLogs([]);
-      return;
-    }
+   useEffect(() => {
+     if (adminSubdomain || isPublicPage || !auditAccess.canView) {
+       setAuditLogs([]);
+       return;
+     }
 
-    let cancelled = false;
-    const loadAuditLogs = async () => {
-      try {
-        setAuditLogsLoading(true);
-        setAuditLogsError(null);
-        const data = await apiRequest('/api/v1/core/audit-logs/?page_size=2');
-        if (!cancelled) setAuditLogs(parseListResponse(data).slice(0, 2));
-      } catch (err) {
-        if (!cancelled) setAuditLogsError(err.message || 'Unable to load audit logs');
-      } finally {
-        if (!cancelled) setAuditLogsLoading(false);
-      }
-    };
+     let cancelled = false;
+     const loadAuditLogs = async () => {
+       try {
+         setAuditLogsLoading(true);
+         setAuditLogsError(null);
+         const data = await apiRequest('/api/v1/core/audit-logs/?page_size=2');
+         if (!cancelled) setAuditLogs(parseListResponse(data).slice(0, 2));
+       } catch (err) {
+         if (!cancelled) setAuditLogsError(err.message || 'Unable to load audit logs');
+       } finally {
+         if (!cancelled) setAuditLogsLoading(false);
+       }
+     };
 
-    loadAuditLogs();
-    return () => {
-      cancelled = true;
-    };
-  }, [isPublicPage, auditAccess.canView]);
+     loadAuditLogs();
+     return () => {
+       cancelled = true;
+     };
+   }, [isPublicPage, auditAccess.canView, adminSubdomain]);
 
-  return (
+   if (adminSubdomain) {
+     return (
+       <div className="app-shell relative flex min-h-screen overflow-x-hidden transition-colors duration-300">
+         <PageErrorBoundary>
+           <Suspense fallback={<Loader />}>
+             {isAdminAuthenticated ? <SuperAdminDashboard /> : <AdminLogin />}
+           </Suspense>
+         </PageErrorBoundary>
+       </div>
+     );
+   }
+
+   return (
     <div className={`app-shell relative flex min-h-screen overflow-x-hidden transition-colors duration-300 ${isDark ? 'dark-theme' : ''}`}>
       {!isPublicPage && (
         <div className="print:hidden">

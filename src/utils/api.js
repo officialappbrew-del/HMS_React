@@ -1,11 +1,25 @@
-const isLocalFrontend = () => {
-  if (typeof window === 'undefined') return false;
-  const hostname = window.location.hostname;
-  return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname);
+import { getSubdomain, isAdminSubdomain } from './subdomain';
+
+const isLocalHostname = (hostname = '') => {
+  const normalized = hostname.toLowerCase();
+  return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(normalized) || normalized.endsWith('.localhost');
 };
 
-const isLocalApiUrl = (url = '') =>
-  /^(http|https):\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)(:|\/|$)/.test(url);
+const isLocalFrontend = () => {
+  if (typeof window === 'undefined') return false;
+  return isLocalHostname(window.location.hostname);
+};
+
+const isLocalApiUrl = (url = '') => {
+  if (!url) return false;
+
+  try {
+    const parsedUrl = new URL(url);
+    return isLocalHostname(parsedUrl.hostname);
+  } catch {
+    return /^(http|https):\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|::1|.*\.localhost)(:|\/|$)/i.test(url);
+  }
+};
 
 const API_BASE_URL = (() => {
   const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -35,6 +49,47 @@ const PUBLIC_AUTH_PATHS = [
   '/api/v1/patients/login/',
   '/api/v1/patients/login',
 ];
+
+const getCsrfToken = () => {
+  if (typeof document === 'undefined') return '';
+  const name = 'csrftoken=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookies = decodedCookie.split(';');
+  for (let c of cookies) {
+    c = c.trim();
+    if (c.indexOf(name) === 0) return c.substring(name.length);
+  }
+  return '';
+};
+
+const shouldUseCookieAuth = () => {
+  if (typeof document === 'undefined') return false;
+  return document.cookie.split(';').some((c) => c.trim().startsWith('access_token='));
+};
+
+export const checkAuthStatus = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/me/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
+      },
+      credentials: 'include',
+    });
+    if (response.ok) {
+      const data = await response.json().catch(() => ({}));
+      if (data.id || data.user_id) {
+        return { authenticated: true, user: data };
+      }
+    }
+    return { authenticated: false };
+  } catch {
+    return { authenticated: false };
+  }
+};
+
+export { getCsrfToken, shouldUseCookieAuth };
 
 let isRefreshing = false;
 let refreshPromise = null;
@@ -75,6 +130,11 @@ const cacheResponse = (requestKey, data, ttl = 5000) => {
 const redirectToLogin = () => {
   if (typeof window === 'undefined') return;
 
+  if (isAdminSubdomain()) {
+    window.location.href = '/';
+    return;
+  }
+
   const isLoginPage = window.location.pathname === '/login' || window.location.pathname.startsWith('/login');
   if (!isLoginPage) {
     window.location.href = '/login';
@@ -82,12 +142,9 @@ const redirectToLogin = () => {
 };
 
 const clearAuthData = () => {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('authToken');
   localStorage.removeItem('patientAccessToken');
   localStorage.removeItem('patientRefreshToken');
   localStorage.removeItem('isPatientAuthenticated');
-  localStorage.removeItem('refreshToken');
   localStorage.removeItem('tenantId');
   localStorage.removeItem('tenantDomain');
   localStorage.removeItem('tenantName');
@@ -102,6 +159,8 @@ const clearAuthData = () => {
   localStorage.removeItem('userId');
   localStorage.removeItem('userProfilePicture');
   localStorage.removeItem('rememberMe');
+  sessionStorage.removeItem('isAuthenticated');
+  sessionStorage.removeItem('adminAuthenticated');
   window.dispatchEvent(new Event('authChanged'));
   
 };
@@ -151,12 +210,15 @@ const extractErrorMessage = (data, fallback = 'Request failed') => {
 };
 
 export const logout = async () => {
-  const refreshToken = localStorage.getItem('refreshToken');
   try {
     await fetch(`${API_BASE_URL}/api/v1/auth/logout/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh: refreshToken }),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
+      },
+      body: JSON.stringify({}),
+      credentials: 'include',
     });
   } catch {
     // Ignore logout API errors; we still clear the client session.
@@ -180,23 +242,15 @@ const refreshAccessToken = async () => {
     return refreshPromise;
   }
 
-  if (localStorage.getItem('patientAccessToken')) {
-    throw new Error('Patient sessions do not use the staff token refresh flow.');
-  }
-
-  const refreshToken = localStorage.getItem('refreshToken');
-  if (!refreshToken) {
-    clearAuthData();
-    throw new Error('Session expired. Please log in again.');
-  }
-
   isRefreshing = true;
   refreshPromise = fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
     },
-    body: JSON.stringify({ refresh: refreshToken }),
+    body: JSON.stringify({}),
+    credentials: 'include',
   })
     .then(async (response) => {
       const contentType = response.headers.get('content-type') || '';
@@ -211,19 +265,12 @@ const refreshAccessToken = async () => {
       }
 
       const newAccessToken = data.access || data.access_token || data.token;
-      const newRefreshToken = data.refresh || data.refresh_token;
-
       if (!newAccessToken) {
         clearAuthData();
         redirectToLogin();
         throw new Error('No access token returned from refresh endpoint.');
       }
 
-      localStorage.setItem('accessToken', newAccessToken);
-      localStorage.setItem('authToken', newAccessToken);
-      if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
-      }
       return newAccessToken;
     })
     .catch((error) => {
@@ -264,15 +311,24 @@ export const apiRequest = async (path, options = {}) => {
   const requestPromise = (async () => {
     const makeRequest = async () => {
       const patientToken = localStorage.getItem('patientAccessToken');
-      const token = patientToken || localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const hasCookie = shouldUseCookieAuth();
+      const token = patientToken || (hasCookie ? null : (localStorage.getItem('accessToken') || localStorage.getItem('authToken')));
       const tenantId = localStorage.getItem('tenantId');
       const isPatientSession = Boolean(patientToken);
+      const method = (options.method || 'GET').toUpperCase();
+      const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
 
+const csrfToken = isMutating ? getCsrfToken() : '';
       const isFormData = options.body instanceof FormData;
+      const currentSubdomain = getSubdomain();
+      const adminAccess = isAdminSubdomain();
       const headers = {
         ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         ...(token && !shouldSkipAuthHeader(path) ? { Authorization: `Bearer ${token}` } : {}),
         ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
+        ...(currentSubdomain ? { 'X-Subdomain': currentSubdomain } : {}),
+        ...(adminAccess ? { 'X-Admin-Access': 'true' } : {}),
         ...(options.headers || {}),
       };
 
@@ -281,6 +337,7 @@ export const apiRequest = async (path, options = {}) => {
         ...options,
         headers,
         body: options.body ? options.body : undefined,
+        credentials: 'include',
       });
 
       const contentType = response.headers.get('content-type') || '';
@@ -885,4 +942,53 @@ createBed: (data) => apiRequest('/api/v1/ward-rounds/beds/', { method: 'POST', b
   },
   createGrandRound: (data) => apiRequest('/api/v1/ward-rounds/grand-rounds/', { method: 'POST', body: JSON.stringify(data) }),
   addCaseStudyToGrandRound: (grandRoundId, caseStudy) => apiRequest(`/api/v1/ward-rounds/grand-rounds/${grandRoundId}/add-case-study/`, { method: 'POST', body: JSON.stringify(caseStudy) }),
+
+  getSupportTickets: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/tenants/support-tickets/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getSupportTicket: (ticketId) => apiRequest(`/api/v1/tenants/support-tickets/${ticketId}/`),
+  createSupportTicket: (data) => apiRequest('/api/v1/tenants/support-tickets/', { method: 'POST', body: JSON.stringify(data) }),
+  updateSupportTicket: (ticketId, data) => apiRequest(`/api/v1/tenants/support-tickets/${ticketId}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  getDutyRosters: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/duty-rosters/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getDutyRoster: (id) => apiRequest(`/api/v1/ward-rounds/duty-rosters/${id}/`),
+  createDutyRoster: (data) => apiRequest('/api/v1/ward-rounds/duty-rosters/', { method: 'POST', body: JSON.stringify(data) }),
+  updateDutyRoster: (id, data) => apiRequest(`/api/v1/ward-rounds/duty-rosters/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteDutyRoster: (id) => apiRequest(`/api/v1/ward-rounds/duty-rosters/${id}/`, { method: 'DELETE' }),
+  publishDutyRoster: (id) => apiRequest(`/api/v1/ward-rounds/duty-rosters/${id}/publish/`, { method: 'POST' }),
+  getMyRosters: () => apiRequest('/api/v1/ward-rounds/duty-rosters/my-rosters/'),
+  getOnCallStaff: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/duty-rosters/on-call/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getLeaveRequests: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/leave-requests/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createLeaveRequest: (data) => apiRequest('/api/v1/ward-rounds/leave-requests/', { method: 'POST', body: JSON.stringify(data) }),
+  approveLeaveRequest: (id) => apiRequest(`/api/v1/ward-rounds/leave-requests/${id}/approve/`, { method: 'POST' }),
+  rejectLeaveRequest: (id) => apiRequest(`/api/v1/ward-rounds/leave-requests/${id}/reject/`, { method: 'POST' }),
+  deleteLeaveRequest: (id) => apiRequest(`/api/v1/ward-rounds/leave-requests/${id}/`, { method: 'DELETE' }),
+  getOvertimeRecords: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/ward-rounds/overtime-records/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createOvertimeRecord: (data) => apiRequest('/api/v1/ward-rounds/overtime-records/', { method: 'POST', body: JSON.stringify(data) }),
+  approveOvertimeRecord: (id) => apiRequest(`/api/v1/ward-rounds/overtime-records/${id}/approve/`, { method: 'POST' }),
+  rejectOvertimeRecord: (id) => apiRequest(`/api/v1/ward-rounds/overtime-records/${id}/reject/`, { method: 'POST' }),
+  deleteOvertimeRecord: (id) => apiRequest(`/api/v1/ward-rounds/overtime-records/${id}/`, { method: 'DELETE' }),
 };

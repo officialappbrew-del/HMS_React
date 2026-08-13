@@ -7,6 +7,8 @@ import LoadingSpinner from '../LoadingSpinner';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
 import ConfirmModal from '../ConfirmModal';
 import ChangePasswordModal from '../ChangePasswordModal';
+import UpcomingRosterWidget from './UpcomingRosterWidget';
+import MyRosterTab from './MyRosterTab';
 import { setPatients } from '../../features/patientSlice';
 import {
   TrendingUp,
@@ -1476,6 +1478,7 @@ const AdminDashboard = () => {
     { id: 'patients', label: 'Patients', icon: Users },
     { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'departments', label: 'Departments', icon: Building2 },
+    { id: 'my-roster', label: 'My Roster', icon: Calendar },
     { id: 'alerts', label: 'Alerts', icon: Bell },
   ];
 
@@ -2375,6 +2378,8 @@ const AdminDashboard = () => {
         return renderBillingContent();
       case 'departments':
         return renderDepartmentsContent();
+      case 'my-roster':
+        return <MyRosterTab />;
       case 'alerts':
         return renderAlertsContent();
       default:
@@ -2484,6 +2489,9 @@ const AdminDashboard = () => {
             })}
           </div>
         </div>
+
+        {/* Upcoming Duty Roster */}
+        <UpcomingRosterWidget />
 
         {/* Charts & Activity — asymmetric layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">

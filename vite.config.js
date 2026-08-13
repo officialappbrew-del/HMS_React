@@ -4,6 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    host: 'localhost',
+    allowedHosts: ['localhost', 'admin.localhost', '.localhost'],
+  },
   plugins: [
     react(),
     VitePWA({

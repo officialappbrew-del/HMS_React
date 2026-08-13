@@ -7,8 +7,6 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  Trash2,
-  Edit,
   Download,
   ArrowRight,
   User,
@@ -18,31 +16,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  Filter,
   Calendar,
   Building2,
-  Users,
   Activity,
-  Heart,
   Clipboard,
-  Printer,
-  MoreVertical,
-  Eye,
-  Send,
   UserPlus,
   Home,
-  Phone,
-  Mail,
-  MapPin,
-  DollarSign,
   Pill,
-  Syringe,
-  Thermometer,
-  Weight,
-  Ruler,
-  HeartPulse
 } from 'lucide-react';
-import GenericModal from '../components/GenericModal';
 import { syncAdmissions } from '../features/admissionSlice';
 import { admissionApi } from '../utils/api';
 

@@ -2477,6 +2477,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
 import ConsultationV2 from '../../pages/ConsultationV2';
 import ChangePasswordModal from '../ChangePasswordModal';
+import MyRosterTab from './MyRosterTab';
 import { setPatients } from '../../features/patientSlice';
 import {
   Users,
@@ -4168,6 +4169,7 @@ const DoctorDashboard = () => {
     { id: 'consultations', label: 'Consultations', icon: Clipboard },
     { id: 'patients', label: 'Patients', icon: Users },
     { id: 'schedule', label: 'Schedule', icon: Calendar },
+    { id: 'my-roster', label: 'My Roster', icon: Calendar },
   ];
 
   const getStatusBadge = (status) => {
@@ -4778,6 +4780,8 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
         return renderPatientsContent();
       case 'schedule':
         return renderScheduleContent();
+      case 'my-roster':
+        return <MyRosterTab />;
       default:
         return renderOverviewContent();
     }

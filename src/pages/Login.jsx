@@ -6,7 +6,7 @@ import {
   Activity, Clock, ChevronLeft, Key, Send,
   Globe, Award
 } from 'lucide-react';
-import { apiRequest, API_BASE_URL } from '../utils/api';
+import { apiRequest, API_BASE_URL, getCsrfToken } from '../utils/api';
 
 const parseJwt = (token) => {
   try {
@@ -79,20 +79,19 @@ const Login = () => {
     return () => clearInterval(t);
   }, []);
 
-  // Session restore
+  // Session restore via refresh endpoint (backend reads refresh token from cookie)
   useEffect(() => {
-    const remembered = localStorage.getItem('rememberMe') === 'true';
-    const refreshToken = localStorage.getItem('refreshToken');
-
-    if (!remembered || !refreshToken) return;
-
     const restoreSession = async () => {
       setLoading(true);
       try {
         const response = await fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh: refreshToken }),
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getCsrfToken ? { 'X-CSRF-Token': getCsrfToken() } : {}),
+          },
+          body: JSON.stringify({}),
+          credentials: 'include',
         });
 
         const contentType = response.headers.get('content-type') || '';
@@ -108,12 +107,7 @@ const Login = () => {
           throw new Error('No access token returned');
         }
 
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('authToken', accessToken);
-        if (data.refresh || data.refresh_token) {
-          localStorage.setItem('refreshToken', data.refresh || data.refresh_token);
-        }
-
+        sessionStorage.setItem('isAuthenticated', 'true');
         const decoded = parseJwt(accessToken);
         if (decoded) {
           if (decoded.tenant_public_id) localStorage.setItem('tenantId', decoded.tenant_public_id);
@@ -130,27 +124,17 @@ const Login = () => {
         window.dispatchEvent(new Event('authChanged'));
         navigate('/dashboard');
       } catch {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userFirstName');
-        localStorage.removeItem('userLastName');
-        localStorage.removeItem('userFullName');
-        localStorage.removeItem('licenseNumber');
-        localStorage.removeItem('tenantId');
-        localStorage.removeItem('tenantDomain');
-        localStorage.removeItem('tenantName');
+        sessionStorage.removeItem('isAuthenticated');
         setRememberMe(false);
         localStorage.removeItem('rememberMe');
         setLoading(false);
       }
     };
 
-    restoreSession();
+    const remembered = localStorage.getItem('rememberMe') === 'true';
+    if (remembered) {
+      restoreSession();
+    }
   }, [navigate]);
 
   const handleChange = (e) => {
@@ -198,9 +182,6 @@ const Login = () => {
         throw new Error('Two-factor verification is required before you can continue.');
       }
 
-      localStorage.setItem('accessToken', token);
-      localStorage.setItem('refreshToken', refreshToken || '');
-      localStorage.setItem('authToken', token);
       localStorage.setItem('userRole', user.role || '');
       localStorage.setItem('userIsRootAdmin', user.is_root_admin ? 'true' : 'false');
       localStorage.setItem('userEmail', user.email || formData.email);
@@ -223,6 +204,7 @@ const Login = () => {
         localStorage.setItem('tenantName', tenant.name);
       }
       localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+      sessionStorage.setItem('isAuthenticated', 'true');
 
       window.dispatchEvent(new Event('authChanged'));
       setMessage('Login successful!');

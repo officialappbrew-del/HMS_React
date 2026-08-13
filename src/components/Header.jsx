@@ -23,6 +23,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const searchRef = useRef(null);
   const notificationsRef = useRef(null);
@@ -177,9 +178,16 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   };
 
   const confirmLogout = async () => {
-    await logout();
-    navigate('/login');
-    setShowLogoutConfirm(false);
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login');
+      setShowLogoutConfirm(false);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const filteredSearchResults = useMemo(() => {
@@ -458,13 +466,15 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
 
       <ConfirmModal
         isOpen={showLogoutConfirm}
-        onClose={() => setShowLogoutConfirm(false)}
+        onClose={() => !isLoggingOut && setShowLogoutConfirm(false)}
         onConfirm={confirmLogout}
         title="Confirm Logout"
         message="Are you sure you want to sign out of your account?"
         confirmText="Yes, Logout"
         cancelText="Cancel"
         type="edit"
+        isLoading={isLoggingOut}
+        loadingText="Signing out..."
       />
     </>
   );

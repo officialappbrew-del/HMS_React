@@ -23,8 +23,47 @@ import {
   List,
   RefreshCw,
   Ban,
-  Activity
+  Activity,
+  Loader2
 } from 'lucide-react';
+
+// Simple Toast Notification Component
+const Toast = ({ message, type = 'error', onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = {
+    error: 'bg-red-50 border-red-200 text-red-800',
+    success: 'bg-green-50 border-green-200 text-green-800',
+    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800',
+  };
+
+  const iconColor = {
+    error: 'text-red-400',
+    success: 'text-green-400',
+    warning: 'text-yellow-400',
+    info: 'text-blue-400',
+  };
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 max-w-sm w-full p-4 rounded-lg border shadow-lg ${bgColor[type]} animate-slide-in`}>
+      <div className="flex items-start gap-3">
+        <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColor[type]}`} />
+        <div className="flex-1">
+          <p className="text-sm font-medium">{message}</p>
+        </div>
+        <button onClick={onClose} className="flex-shrink-0">
+          <X className="w-4 h-4 opacity-50 hover:opacity-100" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Tooltip Component
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -65,12 +104,12 @@ const Tooltip = ({ children, text, position = 'top' }) => {
 // Icon Button with Tooltip
 const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
   const variantClasses = {
-    default: 'text-gray-400 hover:text-gray-600',
-    primary: 'text-blue-600 hover:text-blue-700',
-    success: 'text-green-600 hover:text-green-700',
-    danger: 'text-red-600 hover:text-red-700',
-    warning: 'text-yellow-600 hover:text-yellow-700',
-    info: 'text-blue-600 hover:text-blue-700',
+    default: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+    primary: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+    success: 'text-green-600 hover:text-green-700 hover:bg-green-50',
+    danger: 'text-red-600 hover:text-red-700 hover:bg-red-50',
+    warning: 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50',
+    info: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
   };
 
   return (
@@ -78,30 +117,31 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
       <button
         onClick={onClick}
         disabled={disabled}
-        className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
+        className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
         }`}
       >
-        <Icon className="w-4 h-4" />
+        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </button>
     </Tooltip>
   );
 };
 
 // Button with Tooltip
-const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '' }) => {
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false }) => {
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
-    secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
-    success: 'bg-green-600 hover:bg-green-700 text-white',
-    danger: 'bg-red-600 hover:bg-red-700 text-white',
-    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400',
+    secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 disabled:opacity-50',
+    success: 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400',
+    danger: 'bg-red-600 hover:bg-red-700 text-white disabled:bg-red-400',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white disabled:bg-yellow-400',
   };
 
   return (
     <Tooltip text={tooltip}>
       <button
         onClick={onClick}
+        disabled={disabled}
         className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
       >
         {children}
@@ -149,9 +189,9 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, appointment }) =>
               <p className="text-sm text-gray-600">
                 <span className="font-medium">Doctor:</span> {appointment?.doctor}
               </p>
-              <p className="text-sm text-gray-600">
+              {/* <p className="text-sm text-gray-600">
                 <span className="font-medium">Reason:</span> {appointment?.reason}
-              </p>
+              </p> */}
               <p className="text-sm text-gray-600">
                 <span className="font-medium">Status:</span> 
                 <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
@@ -190,7 +230,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, appointment }) =>
 
 const Appointments = () => {
   const dispatch = useDispatch();
-  const { patients, loading, error } = useSelector(state => state.patient || { patients: [], loading: false, error: null });
+  const { patients = [] } = useSelector(state => state.patient || { patients: [] });
   
   const [appointments, setAppointments] = useState([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(true);
@@ -199,6 +239,9 @@ const Appointments = () => {
   const [doctorsList, setDoctorsList] = useState([]);
   const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [expandedActions, setExpandedActions] = useState(null); // Track which row has expanded actions
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -208,7 +251,6 @@ const Appointments = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [viewMode, setViewMode] = useState('table');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedAppointments, setSelectedAppointments] = useState([]);
   const itemsPerPage = 5;
   const [showStatusMenu, setShowStatusMenu] = useState(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(null);
@@ -237,6 +279,10 @@ const Appointments = () => {
     send_reminder: true,
     reminder_channels: ['email']
   });
+
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+  };
 
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
@@ -305,6 +351,7 @@ const Appointments = () => {
       setAppointments(normalized);
     } catch (err) {
       setAppointmentsError(err.message || 'Failed to load appointments');
+      showToast(err.message || 'Failed to load appointments', 'error');
     } finally {
       setAppointmentsLoading(false);
     }
@@ -320,8 +367,9 @@ const Appointments = () => {
       const data = await apiRequest('/api/v1/tenants/users/?role=doctor');
       const results = Array.isArray(data) ? data : (data.results || []);
       setDoctorsList(results);
-    } catch {
+    } catch (error) {
       setDoctorsList([]);
+      showToast('Failed to load doctors', 'error');
     } finally {
       setDoctorsLoading(false);
     }
@@ -357,9 +405,11 @@ const Appointments = () => {
   const handleAddAppointment = async (e) => {
     e.preventDefault();
     if (!formData.patientName || !formData.date || !formData.time || !formData.patientId) {
-      alert('Please select a patient, date, and time');
+      showToast('Please select a patient, date, and time', 'error');
       return;
     }
+
+    setIsSubmitting(true);
 
     const payload = {
       appointment_type: formData.appointment_type || 'consultation',
@@ -387,17 +437,21 @@ const Appointments = () => {
         });
         setAppointments(appointments.map(apt => apt.id === editingId ? normalizeAppointment(updated) : apt));
         setEditingId(null);
+        showToast('Appointment updated successfully', 'success');
       } else {
         const created = await apiRequest('/api/v1/patients/appointments/', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
         setAppointments([normalizeAppointment(created), ...appointments]);
+        showToast('Appointment scheduled successfully', 'success');
       }
       resetForm();
       setShowForm(false);
     } catch (err) {
-      alert(err.message || 'Failed to save appointment');
+      showToast(err.message || 'Failed to save appointment', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -429,10 +483,12 @@ const Appointments = () => {
     setEditingId(appointment.id);
     setPatientSearchQuery('');
     setShowForm(true);
+    setExpandedActions(null); // Close expanded actions
   };
 
   const handleDelete = (appointment) => {
     setShowDeleteModal(appointment);
+    setExpandedActions(null);
   };
 
   const confirmDelete = async () => {
@@ -447,8 +503,9 @@ const Appointments = () => {
           'deleted',
           `Appointment deleted: ${showDeleteModal.date} at ${showDeleteModal.time}`
         );
+        showToast('Appointment deleted successfully', 'success');
       } catch (err) {
-        alert(err.message || 'Failed to delete appointment');
+        showToast(err.message || 'Failed to delete appointment', 'error');
       }
       setShowDeleteModal(null);
     }
@@ -461,10 +518,12 @@ const Appointments = () => {
         body: JSON.stringify({ status: newStatus }),
       });
       setAppointments(appointments.map(apt => apt.id === id ? normalizeAppointment(updated) : apt));
+      showToast(`Status updated to ${newStatus}`, 'success');
     } catch (err) {
-      alert(err.message || 'Failed to update status');
+      showToast(err.message || 'Failed to update status', 'error');
     }
     setShowStatusMenu(null);
+    setExpandedActions(null);
   };
 
   const getStatusBadge = (status) => {
@@ -487,12 +546,13 @@ const Appointments = () => {
       time: appointment.timeRaw || formatTimeToBackend(appointment.time),
       reason: ''
     });
+    setExpandedActions(null);
   };
 
   const confirmReschedule = async (e) => {
     e.preventDefault();
     if (!rescheduleData.reason.trim()) {
-      alert('Please provide a reason for rescheduling');
+      showToast('Please provide a reason for rescheduling', 'error');
       return;
     }
 
@@ -519,8 +579,9 @@ const Appointments = () => {
         'rescheduled',
         `Rescheduled from ${oldDate} ${oldTime} to ${rescheduleData.date} ${rescheduleData.time}. Reason: ${rescheduleData.reason}`
       );
+      showToast('Appointment rescheduled successfully', 'success');
     } catch (err) {
-      alert(err.message || 'Failed to reschedule appointment');
+      showToast(err.message || 'Failed to reschedule appointment', 'error');
     }
 
     setShowRescheduleModal(null);
@@ -530,11 +591,12 @@ const Appointments = () => {
   const handleCancel = (appointment) => {
     setShowCancelModal(appointment);
     setCancelReason('');
+    setExpandedActions(null);
   };
 
   const confirmCancel = async () => {
     if (!cancelReason.trim()) {
-      alert('Please provide a reason for cancellation');
+      showToast('Please provide a reason for cancellation', 'error');
       return;
     }
 
@@ -557,8 +619,9 @@ const Appointments = () => {
         'cancelled',
         `Cancelled. Reason: ${cancelReason}`
       );
+      showToast('Appointment cancelled successfully', 'success');
     } catch (err) {
-      alert(err.message || 'Failed to cancel appointment');
+      showToast(err.message || 'Failed to cancel appointment', 'error');
     }
 
     setShowCancelModal(null);
@@ -591,8 +654,27 @@ const Appointments = () => {
     today: appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length,
   };
 
+  // Helper function to truncate text
+  const truncateText = (text, maxLength = 20) => {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  };
+
+  const toggleActions = (id) => {
+    setExpandedActions(expandedActions === id ? null : id);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
@@ -646,7 +728,7 @@ const Appointments = () => {
           </div>
         </div>
 
-        {/* Stats Grid - Tooltips removed */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
           <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
@@ -859,7 +941,7 @@ const Appointments = () => {
             </span>
           </div>
 
-          {/* Add Appointment Form - Improved responsiveness */}
+          {/* Add Appointment Form */}
           {showForm && (
             <div className="p-3 sm:p-4 border-b border-gray-200 bg-blue-50">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -1052,11 +1134,12 @@ const Appointments = () => {
                       <label key={channel} className="flex items-center gap-2 text-sm text-gray-700 capitalize">
                         <input
                           type="checkbox"
-                          checked={formData.reminder_channels.includes(channel)}
+                          checked={formData.reminder_channels && formData.reminder_channels.includes(channel)}
                           onChange={(e) => {
+                            const currentChannels = formData.reminder_channels || [];
                             const nextChannels = e.target.checked
-                              ? [...formData.reminder_channels, channel]
-                              : formData.reminder_channels.filter((item) => item !== channel);
+                              ? [...currentChannels, channel]
+                              : currentChannels.filter((item) => item !== channel);
                             setFormData({ ...formData, reminder_channels: nextChannels });
                           }}
                         />
@@ -1079,9 +1162,17 @@ const Appointments = () => {
                 <div className="sm:col-span-2 flex flex-col sm:flex-row gap-2">
                   <button
                     type="submit"
-                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                    disabled={isSubmitting}
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {editingId ? 'Update Appointment' : 'Schedule Appointment'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {editingId ? 'Updating...' : 'Scheduling...'}
+                      </>
+                    ) : (
+                      editingId ? 'Update Appointment' : 'Schedule Appointment'
+                    )}
                   </button>
                   <button
                     type="button"
@@ -1099,7 +1190,7 @@ const Appointments = () => {
             </div>
           )}
 
-          {/* Appointments List - Improved responsiveness */}
+          {/* Appointments List */}
           <div className="p-3 sm:p-4">
             {appointmentsLoading ? (
               <div className="text-center py-8 sm:py-12">
@@ -1119,7 +1210,7 @@ const Appointments = () => {
               </div>
             ) : displayedAppointments.length > 0 ? (
               <>
-                {/* Mobile Card View - Shows on small screens */}
+                {/* Mobile Card View */}
                 <div className="sm:hidden space-y-3">
                   {displayedAppointments.map((appointment) => (
                     <div key={appointment.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
@@ -1129,8 +1220,8 @@ const Appointments = () => {
                             <User className="w-4 h-4 text-blue-600" />
                           </div>
                           <div className="min-w-0">
-                            <div className="font-medium text-sm text-gray-900 truncate">{appointment.patientName}</div>
-                            <div className="text-xs text-gray-500 truncate">{appointment.reason}</div>
+                            <div className="font-medium text-sm text-gray-900 truncate">{truncateText(appointment.patientName, 15)}</div>
+                            <div className="text-xs text-gray-500 truncate">{truncateText(appointment.reason, 20)}</div>
                           </div>
                         </div>
                         {getStatusBadge(appointment.status)}
@@ -1147,7 +1238,7 @@ const Appointments = () => {
                         </div>
                         <div className="col-span-2 flex items-center gap-1 truncate">
                           <User className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          <span className="truncate">{appointment.doctor}</span>
+                          <span className="truncate">{truncateText(appointment.doctor, 20)}</span>
                         </div>
                       </div>
                       
@@ -1157,7 +1248,6 @@ const Appointments = () => {
                           onClick={() => handleEdit(appointment)}
                           tooltip="Edit appointment"
                           variant="primary"
-                          className="!p-2"
                         />
                         {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                           <>
@@ -1166,14 +1256,12 @@ const Appointments = () => {
                               onClick={() => handleReschedule(appointment)}
                               tooltip="Reschedule appointment"
                               variant="warning"
-                              className="!p-2"
                             />
                             <IconButton
                               icon={Ban}
                               onClick={() => handleCancel(appointment)}
                               tooltip="Cancel appointment"
                               variant="danger"
-                              className="!p-2"
                             />
                           </>
                         )}
@@ -1183,7 +1271,6 @@ const Appointments = () => {
                             onClick={() => setShowStatusMenu(showStatusMenu === appointment.id ? null : appointment.id)}
                             tooltip="Change status"
                             variant="default"
-                            className="!p-2"
                           />
                           {showStatusMenu === appointment.id && (
                             <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 z-10 py-1">
@@ -1216,14 +1303,13 @@ const Appointments = () => {
                           onClick={() => handleDelete(appointment)}
                           tooltip="Delete appointment"
                           variant="danger"
-                          className="!p-2"
                         />
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Table View - Shows on larger screens */}
+                {/* Table View */}
                 <div className="hidden sm:block overflow-x-auto -mx-3 sm:mx-0">
                   <table className="w-full min-w-[640px] lg:min-w-0">
                     <thead>
@@ -1231,7 +1317,7 @@ const Appointments = () => {
                         <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
                         <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Date & Time</th>
                         <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Doctor</th>
-                        <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Reason</th>
+                        {/* <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Reason</th> */}
                         <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
@@ -1245,7 +1331,9 @@ const Appointments = () => {
                                 <User className="w-4 h-4 text-blue-600" />
                               </div>
                               <div className="min-w-0">
-                                <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[200px]">{appointment.patientName}</div>
+                                <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[200px]" title={appointment.patientName}>
+                                  {truncateText(appointment.patientName, 20)}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -1262,80 +1350,99 @@ const Appointments = () => {
                             </div>
                           </td>
                           <td className="py-2 sm:py-3 hidden md:table-cell">
-                            <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[120px] block">{appointment.doctor}</span>
+                            <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[120px] block" title={appointment.doctor}>
+                              {truncateText(appointment.doctor, 20)}
+                            </span>
                           </td>
-                          <td className="py-2 sm:py-3 hidden lg:table-cell">
-                            <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[150px] block">{appointment.reason}</span>
-                          </td>
+                          {/* <td className="py-2 sm:py-3 hidden lg:table-cell">
+                            <span className="text-xs sm:text-sm text-gray-600 truncate max-w-[150px] block" title={appointment.reason}>
+                              {truncateText(appointment.reason, 30)}
+                            </span>
+                          </td> */}
                           <td className="py-2 sm:py-3">
                             <div className="relative">
                               {getStatusBadge(appointment.status)}
                             </div>
                           </td>
                           <td className="py-2 sm:py-3">
-                            <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
-                              <IconButton
-                                icon={Edit2}
-                                onClick={() => handleEdit(appointment)}
-                                tooltip="Edit appointment"
-                                variant="primary"
-                              />
-                              {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                                <>
-                                  <IconButton
-                                    icon={RefreshCw}
-                                    onClick={() => handleReschedule(appointment)}
-                                    tooltip="Reschedule appointment"
-                                    variant="warning"
-                                  />
-                                  <IconButton
-                                    icon={Ban}
-                                    onClick={() => handleCancel(appointment)}
-                                    tooltip="Cancel appointment"
-                                    variant="danger"
-                                  />
-                                </>
-                              )}
-                              <div className="relative">
+                            {expandedActions === appointment.id ? (
+                              <div className="flex flex-wrap items-center gap-1">
                                 <IconButton
-                                  icon={MoreVertical}
-                                  onClick={() => setShowStatusMenu(showStatusMenu === appointment.id ? null : appointment.id)}
-                                  tooltip="Change status"
+                                  icon={Edit2}
+                                  onClick={() => handleEdit(appointment)}
+                                  tooltip="Edit appointment"
+                                  variant="primary"
+                                />
+                                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                                  <>
+                                    <IconButton
+                                      icon={RefreshCw}
+                                      onClick={() => handleReschedule(appointment)}
+                                      tooltip="Reschedule appointment"
+                                      variant="warning"
+                                    />
+                                    <IconButton
+                                      icon={Ban}
+                                      onClick={() => handleCancel(appointment)}
+                                      tooltip="Cancel appointment"
+                                      variant="danger"
+                                    />
+                                  </>
+                                )}
+                                <div className="relative">
+                                  <IconButton
+                                    icon={MoreVertical}
+                                    onClick={() => setShowStatusMenu(showStatusMenu === appointment.id ? null : appointment.id)}
+                                    tooltip="Change status"
+                                    variant="default"
+                                  />
+                                  {showStatusMenu === appointment.id && (
+                                    <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 z-10 py-1">
+                                      <button
+                                        onClick={() => handleStatusChange(appointment.id, 'scheduled')}
+                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <Clock className="w-3 h-3 text-blue-500" />
+                                        Scheduled
+                                      </button>
+                                      <button
+                                        onClick={() => handleStatusChange(appointment.id, 'completed')}
+                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <CheckCircle className="w-3 h-3 text-green-500" />
+                                        Completed
+                                      </button>
+                                      <button
+                                        onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <XCircle className="w-3 h-3 text-red-500" />
+                                        Cancelled
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                <IconButton
+                                  icon={Trash2}
+                                  onClick={() => handleDelete(appointment)}
+                                  tooltip="Delete appointment"
+                                  variant="danger"
+                                />
+                                <IconButton
+                                  icon={X}
+                                  onClick={() => setExpandedActions(null)}
+                                  tooltip="Collapse actions"
                                   variant="default"
                                 />
-                                {showStatusMenu === appointment.id && (
-                                  <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 z-10 py-1">
-                                    <button
-                                      onClick={() => handleStatusChange(appointment.id, 'scheduled')}
-                                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
-                                    >
-                                      <Clock className="w-3 h-3 text-blue-500" />
-                                      Scheduled
-                                    </button>
-                                    <button
-                                      onClick={() => handleStatusChange(appointment.id, 'completed')}
-                                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
-                                    >
-                                      <CheckCircle className="w-3 h-3 text-green-500" />
-                                      Completed
-                                    </button>
-                                    <button
-                                      onClick={() => handleStatusChange(appointment.id, 'cancelled')}
-                                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2"
-                                    >
-                                      <XCircle className="w-3 h-3 text-red-500" />
-                                      Cancelled
-                                    </button>
-                                  </div>
-                                )}
                               </div>
+                            ) : (
                               <IconButton
-                                icon={Trash2}
-                                onClick={() => handleDelete(appointment)}
-                                tooltip="Delete appointment"
-                                variant="danger"
+                                icon={MoreVertical}
+                                onClick={() => toggleActions(appointment.id)}
+                                tooltip="Show actions"
+                                variant="default"
                               />
-                            </div>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1405,7 +1512,7 @@ const Appointments = () => {
         appointment={showDeleteModal}
       />
 
-      {/* Reschedule Modal - Improved responsiveness */}
+      {/* Reschedule Modal */}
       {showRescheduleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -1489,7 +1596,7 @@ const Appointments = () => {
         </div>
       )}
 
-      {/* Cancel Modal - Improved responsiveness */}
+      {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">

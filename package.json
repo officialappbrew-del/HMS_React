@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:admin": "vite --host",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
@@ -15,6 +16,7 @@
     "@fortawesome/react-fontawesome": "^3.3.1",
     "@heroicons/react": "^2.2.0",
     "@reduxjs/toolkit": "^1.9.5",
+    "@sentry/react": "^8.55.2",
     "autoprefixer": "^10.4.14",
     "framer-motion": "^12.42.2",
     "js-cookie": "^3.0.5",
@@ -24,6 +26,7 @@
     "react-dom": "^18.2.0",
     "react-redux": "^8.1.1",
     "react-router-dom": "^6.14.2",
+    "recharts": "^3.10.1",
     "tailwindcss": "^3.3.3"
   },
   "devDependencies": {

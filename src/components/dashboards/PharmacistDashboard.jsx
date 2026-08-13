@@ -2461,6 +2461,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import ChangePasswordModal from '../ChangePasswordModal';
+import UpcomingRosterWidget from './UpcomingRosterWidget';
 import {
   Pill,
   FileText,
@@ -3592,6 +3593,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
     { id: 'prescriptions', label: 'Prescriptions', icon: FileText },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'suppliers', label: 'Suppliers', icon: Building2 },
+    { id: 'my-roster', label: 'My Roster', icon: Calendar },
     { id: 'alerts', label: 'Alerts', icon: Bell },
   ];
 
@@ -3623,6 +3625,8 @@ const displayTenantName = authTenant?.name || 'Hospital';
         return renderInventoryContent();
       case 'suppliers':
         return renderSuppliersContent();
+      case 'my-roster':
+        return <MyRosterTab />;
       case 'alerts':
         return renderAlertsContent();
       default:
@@ -3700,6 +3704,9 @@ const displayTenantName = authTenant?.name || 'Hospital';
             })}
           </div>
         </div>
+
+        {/* Upcoming Duty Roster */}
+        <UpcomingRosterWidget />
 
         {/* Prescriptions & Low Stock */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

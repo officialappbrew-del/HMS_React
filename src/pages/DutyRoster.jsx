@@ -4,11 +4,9 @@ import {
   Plus,
   Calendar,
   Clock,
-  Users,
   CheckCircle,
   AlertCircle,
   Trash2,
-  Edit,
   Menu,
   X,
   Search,
@@ -17,11 +15,10 @@ import {
   Loader2,
   Check,
   X as XIcon,
-  Info
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { apiRequest, parseListResponse } from '../utils/api';
-import { addLeaveRequest, approveLeave, rejectLeave, addOvertimeRecord, approveOvertime, rejectOvertime, addDutyRoster, addDutyAssignment, removeDutyRoster, removeLeaveRequest, removeOvertimeRecord } from '../features/rosterSlice';
+import { addLeaveRequest, approveLeave, rejectLeave, addOvertimeRecord, addDutyRoster, removeDutyRoster, removeLeaveRequest, removeOvertimeRecord } from '../features/rosterSlice';
 import { setStaffList, setLoading } from '../features/staffSlice.jsx';
 
 // Tooltip component
@@ -267,6 +264,8 @@ const DutyRoster = () => {
   const [onCallDate, setOnCallDate] = useState(new Date().toISOString().split('T')[0]);
   const [onCallData, setOnCallData] = useState(null);
   const [onCallLoading, setOnCallLoading] = useState(false);
+  const [myRosters, setMyRosters] = useState([]);
+  const [myRostersLoading, setMyRostersLoading] = useState(false);
   
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -285,6 +284,7 @@ const DutyRoster = () => {
   const [deletingOvertimeId, setDeletingOvertimeId] = useState(null);
   const [submittingLeave, setSubmittingLeave] = useState(false);
   const [submittingOvertime, setSubmittingOvertime] = useState(false);
+  const [publishingRosterId, setPublishingRosterId] = useState(null);
 
   const [leaveFormData, setLeaveFormData] = useState({
     staffId: '',
@@ -489,6 +489,27 @@ const DutyRoster = () => {
       loadOnCallData(onCallDate);
     }
   }, [activeTab, onCallDate]);
+
+  const loadMyRosters = async () => {
+    setMyRostersLoading(true);
+    setErrorMessage('');
+    try {
+      const response = await apiRequest('/api/v1/ward-rounds/duty-rosters/my-rosters/');
+      const results = Array.isArray(response?.results) ? response.results : (Array.isArray(response) ? response : []);
+      setMyRosters(results);
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to load your rosters.');
+      setMyRosters([]);
+    } finally {
+      setMyRostersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'my-rosters') {
+      loadMyRosters();
+    }
+  }, [activeTab]);
 
   const getStaffName = (sid) => {
     if (!sid) return 'Unknown Staff';
@@ -707,6 +728,20 @@ const DutyRoster = () => {
     });
   };
 
+  const handlePublishRoster = async (roster) => {
+    const rosterId = roster.rosterId || roster.id;
+    setPublishingRosterId(rosterId);
+    try {
+      await apiRequest(`/api/v1/ward-rounds/duty-rosters/${rosterId}/publish/`, { method: 'POST' });
+      dispatch(addDutyRoster({ ...roster, status: 'Published' }));
+      setSuccessMessage(`Roster for ${roster.month} ${roster.year} (${roster.department}) published successfully. Notifications sent to assigned staff.`);
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to publish roster.');
+    } finally {
+      setPublishingRosterId(null);
+    }
+  };
+
   const handleDeleteLeave = (leave) => {
     setConfirmModal({
       isOpen: true,
@@ -873,7 +908,7 @@ const DutyRoster = () => {
 
   const canCreateRoster =
     Boolean(rosterFormData.month) &&
-    Boolean(rosterFormData.year) &&
+    Boolean(rosterFormData.year) ||
     Boolean(rosterFormData.department);
 
   return (
@@ -1078,6 +1113,14 @@ const DutyRoster = () => {
               >
                 On-Call Coverage
               </button>
+              <button
+                onClick={() => { setActiveTab('my-rosters'); setShowMobileMenu(false); }}
+                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
+                  activeTab === 'my-rosters' ? 'bg-nigerian-green/10 text-nigerian-green' : 'text-gray-700'
+                }`}
+              >
+                My Rosters
+              </button>
             </div>
           </div>
         </div>
@@ -1125,6 +1168,16 @@ const DutyRoster = () => {
         >
           On-Call Coverage
         </button>
+        <button
+          onClick={() => setActiveTab('my-rosters')}
+          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
+            activeTab === 'my-rosters'
+              ? 'text-nigerian-green border-b-2 border-nigerian-green'
+              : 'text-gray-600 hover:text-gray-800'
+          }`}
+        >
+          My Rosters
+        </button>
       </div>
 
       {/* Mobile Tab Indicator */}
@@ -1134,6 +1187,8 @@ const DutyRoster = () => {
             {activeTab === 'roster' && 'Rosters'}
             {activeTab === 'leaves' && `Leave Requests (${filteredLeaves.length})`}
             {activeTab === 'overtime' && `Overtime (${overtime.length})`}
+            {activeTab === 'oncall' && 'On-Call Coverage'}
+            {activeTab === 'my-rosters' && 'My Rosters'}
           </span>
           <button 
             onClick={() => setShowMobileMenu(true)}
@@ -1212,14 +1267,31 @@ const DutyRoster = () => {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">{roster.assignments?.length || 0}</td>
                       <td className="px-4 py-4">
-                        <Tooltip text="Delete Roster">
-                          <button
-                            onClick={() => handleDeleteRoster(roster)}
-                            className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </Tooltip>
+                        <div className="flex items-center gap-2">
+                          {roster.status !== 'Published' && (
+                            <Tooltip text="Publish Roster">
+                              <button
+                                onClick={() => handlePublishRoster(roster)}
+                                disabled={publishingRosterId === (roster.rosterId || roster.id)}
+                                className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                {publishingRosterId === (roster.rosterId || roster.id) ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                              </button>
+                            </Tooltip>
+                          )}
+                          <Tooltip text="Delete Roster">
+                            <button
+                              onClick={() => handleDeleteRoster(roster)}
+                              className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1567,6 +1639,99 @@ const DutyRoster = () => {
               <p className="text-gray-600">Select a date and click Refresh to view on-call coverage.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* My Rosters Tab */}
+      {activeTab === 'my-rosters' && (
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="px-4 py-3 bg-gray-50 border-b flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800">My Duty Rosters</h3>
+            <button
+              onClick={loadMyRosters}
+              disabled={myRostersLoading}
+              className="px-3 py-1.5 bg-nigerian-green text-white rounded-lg hover:bg-green-700 text-sm font-medium disabled:opacity-50"
+            >
+              {myRostersLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roster</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duty Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {myRosters.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                      <Calendar className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                      <p className="font-medium">No rosters assigned to you yet</p>
+                      <p className="text-sm text-gray-400 mt-1">You will see your duty roster assignments here when a roster is published.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  myRosters.flatMap(roster => 
+                    (roster.assignments || []).map((assignment, idx) => ({
+                      ...assignment,
+                      rosterMonth: roster.month,
+                      rosterYear: roster.year,
+                      rosterDepartment: roster.department,
+                      rosterStatus: roster.status,
+                      rosterId: roster.rosterId,
+                      uniqueKey: `${roster.rosterId || roster.id}-${assignment.assignmentId || assignment.id}-${idx}`,
+                    }))
+                  ).map((item) => {
+                    const dutyTypeColor =
+                      item.dutyType === 'Night Duty' ? 'bg-purple-100 text-purple-800' :
+                      item.dutyType === 'Emergency' ? 'bg-red-100 text-red-800' :
+                      item.dutyType === 'Weekend' ? 'bg-orange-100 text-orange-800' :
+                      item.dutyType === 'Clinic' ? 'bg-teal-100 text-teal-800' :
+                      'bg-blue-100 text-blue-800';
+                    return (
+                      <tr key={item.uniqueKey} className="hover:bg-gray-50">
+                        <td className="px-4 py-4">
+                          <div>
+                            <p className="font-medium text-gray-900">{item.rosterMonth || 'Unnamed'}</p>
+                            <p className="text-sm text-gray-500">Year: {item.rosterYear || 'N/A'}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">{item.rosterDepartment || 'No Department'}</td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                            item.rosterStatus === 'Published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {item.rosterStatus || 'Draft'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {item.date ? new Date(item.date).toLocaleDateString('en-NG') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${dutyTypeColor}`}>
+                            {item.dutyType || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {item.startTime || '--:--'} – {item.endTime || '--:--'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-500 truncate max-w-xs">
+                          {item.notes || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

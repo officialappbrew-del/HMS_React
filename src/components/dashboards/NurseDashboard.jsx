@@ -2526,6 +2526,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, API_BASE_URL } from '../../utils/api';
 import ChangePasswordModal from '../ChangePasswordModal';
+import MyRosterTab from './MyRosterTab';
 import {
   Users,
   Activity,
@@ -4090,6 +4091,7 @@ const NurseDashboard = () => {
     { id: 'tasks', label: 'Tasks', icon: Clipboard },
     { id: 'vitals', label: 'Vital Signs', icon: Activity },
     { id: 'schedule', label: 'Schedule', icon: Calendar },
+    { id: 'my-roster', label: 'My Roster', icon: Calendar },
   ];
 
   const totalItems = patientsCount || patientsList.length;
@@ -4924,6 +4926,25 @@ const NurseDashboard = () => {
         )}
       </div>
     );
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return renderOverviewContent();
+      case 'patients':
+        return renderPatientsContent();
+      case 'tasks':
+        return renderTasksContent();
+      case 'vitals':
+        return renderVitalsContent();
+      case 'schedule':
+        return renderScheduleContent();
+      case 'my-roster':
+        return <MyRosterTab />;
+      default:
+        return renderOverviewContent();
+    }
   };
 
   // ==================== MAIN RENDER ====================

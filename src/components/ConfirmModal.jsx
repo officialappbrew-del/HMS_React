@@ -13,6 +13,8 @@ const ConfirmModal = ({
   patientData = null,
   showSoftDeleteOption = false,
   onSoftDelete = null,
+  isLoading = false,
+  loadingText = null,
 }) => {
   useEffect(() => {
     const handleEscape = (e) => {
@@ -184,14 +186,22 @@ const getIcon = () => {
           <div className="p-6 bg-gray-50 rounded-b-lg">
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={onConfirm}
-                className={`px-4 py-2 text-white font-medium rounded-md ${getButtonColor()}`}
+                onClick={isLoading ? undefined : onConfirm}
+                disabled={isLoading}
+                className={`flex items-center justify-center gap-2 px-4 py-2 text-white font-medium rounded-md ${getButtonColor()} disabled:opacity-70 disabled:cursor-not-allowed`}
               >
-                {confirmText}
+                {isLoading && (
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="4" />
+                    <path d="M4 12a8 8 0 0 1 8-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                  </svg>
+                )}
+                {isLoading ? (loadingText || `${confirmText}...`) : confirmText}
               </button>
               <button
-                onClick={onClose}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50"
+                onClick={isLoading ? undefined : onClose}
+                disabled={isLoading}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {cancelText}
               </button>

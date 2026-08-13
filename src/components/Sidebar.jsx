@@ -8,6 +8,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
   const navigate = useNavigate();
   const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const menuItems = {
     admin: [
@@ -83,13 +84,20 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
   };
 
   const confirmLogout = async () => {
-    await logout();
-    navigate('/login');
-    if (onMobileClose) onMobileClose();
-    setShowLogoutConfirm(false);
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login');
+      if (onMobileClose) onMobileClose();
+      setShowLogoutConfirm(false);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
-  const sidebarClasses = `fixed left-0 top-0 z-50 flex h-screen w-80 max-w-[85vw] flex-col border-r border-slate-200/60 bg-white transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-20' : 'lg:w-80'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} shadow-xl lg:shadow-none`;
+  const sidebarClasses = `fixed left-0 top-0 z-50 flex h-screen w-64 max-w-[85vw] flex-col border-r border-slate-200/60 bg-white transition-all duration-300 lg:shadow-none ${isCollapsed ? 'lg:w-16' : 'lg:w-64'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} shadow-xl lg:shadow-none`;
 
   return (
     <>
@@ -185,13 +193,15 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
 
       <ConfirmModal
         isOpen={showLogoutConfirm}
-        onClose={() => setShowLogoutConfirm(false)}
+        onClose={() => !isLoggingOut && setShowLogoutConfirm(false)}
         onConfirm={confirmLogout}
         title="Confirm Logout"
         message="Are you sure you want to sign out of your account?"
         confirmText="Yes, Logout"
         cancelText="Cancel"
         type="edit"
+        isLoading={isLoggingOut}
+        loadingText="Signing out..."
       />
     </>
   );
