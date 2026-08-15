@@ -21,15 +21,17 @@ export const SuperAdminDataProvider = ({ children }) => {
   const prefetchAll = useCallback(async () => {
     setData(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const [countriesData, facilityTypesData, plansData] = await Promise.all([
+      const [countriesData, statesData, lgasData, facilityTypesData, plansData] = await Promise.all([
         apiRequest('/api/v1/core/countries/'),
+        apiRequest('/api/v1/core/states/'),
+        apiRequest('/api/v1/core/lgas/'),
         apiRequest('/api/v1/core/facility-types/'),
         superAdminApi.getSubscriptionPlans(),
       ]);
       setData({
         countries: parseListResponse(countriesData),
-        states: [],
-        lgas: [],
+        states: parseListResponse(statesData),
+        lgas: parseListResponse(lgasData),
         facilityTypes: parseListResponse(facilityTypesData),
         plans: parseListResponse(plansData),
         loading: false,

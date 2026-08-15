@@ -38,6 +38,11 @@ const ReferenceData = () => {
     }
   }, [showModal]);
 
+  const getModalLabel = (tabKey) => {
+    const map = { countries: 'Country', states: 'State', lgas: 'LGA', facility_types: 'Facility Type' };
+    return map[tabKey] || tabKey;
+  };
+
   const openCreate = (type) => {
     setModalType(type);
     setEditingItem(null);
@@ -278,11 +283,11 @@ const ReferenceData = () => {
           <p className="text-sm text-[#5A5A5A]">Manage countries, states, LGAs, and facility types</p>
         </div>
         <button
-          onClick={() => openCreate(activeTab.slice(0, -1))}
+          onClick={() => openCreate(activeTab)}
           className="inline-flex items-center gap-2 rounded-lg bg-[#008751] px-4 py-2 text-sm font-medium text-white hover:bg-[#006B40] transition-colors"
         >
           <Plus className="w-4 h-4" />
-          New {activeTab.slice(0, -1).replace('_', ' ')}
+          New {getModalLabel(activeTab)}
         </button>
       </div>
 

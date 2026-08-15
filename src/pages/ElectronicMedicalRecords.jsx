@@ -4,19 +4,26 @@ import {
   FileText,
   Plus,
   Search,
-  Filter,
   Clipboard,
-  Stethoscope,
+  RefreshCw ,
   Activity,
   Edit,
   Eye,
   X,
   Loader2,
   AlertTriangle,
-  CheckCircle,
   Shield,
-  Upload,
-  Trash2,
+  User,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  Thermometer,
+  HeartPulse,
+  Brain,
+  Check ,
+  Droplets,
+  Baby
 } from 'lucide-react';
 import {
   fetchMedicalRecords,
@@ -25,7 +32,6 @@ import {
   fetchProgressNotes,
   createProblem,
   createAllergy,
-  createDocument,
   clearError,
   setCurrentRecord,
 } from '../features/emrSlice';
@@ -42,6 +48,276 @@ import HivAidsCarePlans from './../pages/Order/HivAidsCarePlans';
 import HypertensionDiabetesManagement from './../pages/Order/HypertensionDiabetesManagement';
 import MaternalHealthRecords from './../pages/Order/MaternalHealthRecords';
 
+// ==================== TOOLTIP COMPONENT ====================
+const Tooltip = ({ children, text, position = 'top' }) => {
+  const [show, setShow] = useState(false);
+  
+  const positionClasses = {
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
+  };
+
+  return (
+    <div 
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onTouchStart={() => setShow(!show)}
+    >
+      {children}
+      {show && (
+        <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
+          <div className="bg-[#1A1A1A] text-white text-[10px] px-2 py-1 shadow-lg">
+            {text}
+            <div className={`absolute w-1.5 h-1.5 bg-[#1A1A1A] transform rotate-45 ${
+              position === 'top' ? 'bottom-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'bottom' ? 'top-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'left' ? 'right-[-3px] top-1/2 -translate-y-1/2' :
+              'left-[-3px] top-1/2 -translate-y-1/2'
+            }`} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== ICON BUTTON ====================
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
+  const variantClasses = {
+    default: 'text-[#5A5A5A] hover:text-[#1A1A1A] hover:bg-[#F0EDE8]',
+    primary: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+    success: 'text-[#2D7D46] hover:text-[#1E5F33] hover:bg-[#EAF3EE]',
+    danger: 'text-[#C8553D] hover:text-[#A8442E] hover:bg-[#F5EDEA]',
+    warning: 'text-[#C87D3D] hover:text-[#A8662E] hover:bg-[#F5F0EA]',
+    info: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+  };
+
+  const sizeClasses = {
+    sm: 'p-1',
+    md: 'p-1.5',
+    lg: 'p-2',
+  };
+
+  const iconSizes = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-5 h-5',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <Icon className={iconSizes[size]} />
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== BUTTON WITH TOOLTIP ====================
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm', type = 'button' }) => {
+  const variantClasses = {
+    primary: 'bg-[#008751] hover:bg-[#006B40] text-white',
+    secondary: 'bg-white border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+    success: 'bg-[#2D7D46] hover:bg-[#1E5F33] text-white',
+    danger: 'bg-[#C8553D] hover:bg-[#A8442E] text-white',
+    warning: 'bg-[#C87D3D] hover:bg-[#A8662E] text-white',
+    outline: 'border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+  };
+
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3.5 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-sm',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== STATS CARD ====================
+const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, tooltip, onClick, className = '' }) => {
+  const trendColors = {
+    up: 'text-[#2D7D46]',
+    down: 'text-[#C8553D]',
+    neutral: 'text-[#5A5A5A]'
+  };
+
+  const colorMap = {
+    green: 'bg-[#008751]',
+    gold: 'bg-[#FFC107]',
+    terracotta: 'bg-[#C8553D]',
+    warm: 'bg-[#C87D3D]',
+    slate: 'bg-[#4A5A5A]',
+    blue: 'bg-[#008751]',
+    purple: 'bg-[#4A5A5A]',
+    red: 'bg-[#C8553D]',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <div 
+        onClick={onClick}
+        className={`bg-white border border-[#E8E3DC] p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
+            <p className="mt-1 text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">{value}</p>
+            {subValue && (
+              <p className="text-xs text-[#5A5A5A] mt-0.5">{subValue}</p>
+            )}
+            {trend && (
+              <div className={`flex items-center mt-1 text-xs ${trendColors[trend]} font-medium`}>
+                {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5" />}
+                {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5" />}
+                <span>{trendValue}</span>
+              </div>
+            )}
+          </div>
+          <div className={`w-10 h-10 ${colorMap[color]} rounded flex items-center justify-center flex-shrink-0 ml-3`}>
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+        </div>
+      </div>
+    </Tooltip>
+  );
+};
+
+// ==================== STATUS BADGE ====================
+const StatusBadge = ({ status, type = 'default' }) => {
+  const statusMap = {
+    'active': { label: 'Active', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+    'inactive': { label: 'Inactive', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' },
+    'completed': { label: 'Completed', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+    'pending': { label: 'Pending', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+    'resolved': { label: 'Resolved', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+    'outpatient': { label: 'Outpatient', color: 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]' },
+    'emergency': { label: 'Emergency', color: 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]' },
+    'inpatient': { label: 'Inpatient', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+  };
+
+  const config = statusMap[status] || { label: status || 'Unknown', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' };
+
+  return (
+    <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
+// ==================== EMR CARD ====================
+const EMRCard = ({ item, type, patientName, onView, onEdit }) => {
+  const getContentPreview = () => {
+    if (type === 'encounter') {
+      return item.chief_complaint || item.history_of_present_illness || 'No details';
+    }
+    return item.subjective || item.objective || item.assessment || 'No content';
+  };
+
+  return (
+    <div className="bg-white border border-[#E8E3DC] p-4 hover:bg-[#F7F5F2] transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded bg-[#F7F5F2] border border-[#E8E3DC] flex items-center justify-center">
+            {type === 'encounter' ? (
+              <Clipboard className="w-4 h-4 text-[#5A5A5A]" />
+            ) : (
+              <FileText className="w-4 h-4 text-[#5A5A5A]" />
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-[#1A1A1A]">{patientName}</span>
+              <StatusBadge status={type === 'encounter' ? item.record_type : item.note_type} />
+            </div>
+            <p className="text-xs text-[#5A5A5A] truncate max-w-xs">{getContentPreview()}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-[#B0A89E]">
+            {new Date(item.created_at).toLocaleDateString('en-NG')}
+          </span>
+          <IconButton
+            icon={Eye}
+            onClick={() => onView(item)}
+            tooltip="View record"
+            variant="primary"
+            size="sm"
+          />
+          <IconButton
+            icon={Edit}
+            onClick={() => onEdit(item)}
+            tooltip="Edit record"
+            variant="warning"
+            size="sm"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== TEMPLATE CARD ====================
+const TemplateCard = ({ template, onClick }) => {
+  const icons = {
+    malaria: Activity,
+    typhoid: Thermometer,
+    sickle_cell: Droplets,
+    tb: Shield,
+    hiv: HeartPulse,
+    ncd: Brain,
+    maternal: Baby,
+  };
+
+  const Icon = icons[template.id] || FileText;
+
+  return (
+    <div
+      onClick={() => onClick(template.id)}
+      className="bg-white border border-[#E8E3DC] p-6 hover:border-[#008751] hover:bg-[#F7F5F2] cursor-pointer transition-all duration-200 group"
+    >
+      <div className="flex items-start gap-4">
+        <div className="w-10 h-10 rounded bg-[#E8F5EF] flex items-center justify-center flex-shrink-0 group-hover:bg-[#008751] transition-colors">
+          <Icon className="w-5 h-5 text-[#008751] group-hover:text-white transition-colors" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-sm font-display font-semibold text-[#1A1A1A] group-hover:text-[#008751] transition-colors">
+            {template.title}
+          </h3>
+          <p className="text-xs text-[#5A5A5A] mt-1">{template.desc}</p>
+          <div className="mt-3">
+            <span className="text-[10px] font-medium text-[#008751] group-hover:underline">
+              Open Template →
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== MAIN COMPONENT ====================
 const ElectronicMedicalRecords = () => {
   const dispatch = useDispatch();
   const { medicalRecords, progressNotes, currentRecord, loading, error } = useSelector(state => state.emr);
@@ -74,6 +350,8 @@ const ElectronicMedicalRecords = () => {
   const [filterBy, setFilterBy] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const itemsPerPage = 10;
 
   const allCache = useMemo(() => {
@@ -215,10 +493,15 @@ const ElectronicMedicalRecords = () => {
   const handleEncounterSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    setSuccessMessage('');
+    setIsSubmitting(true);
+
     if (!encounterForm.patientId) {
       setFormError('Please select a patient.');
+      setIsSubmitting(false);
       return;
     }
+
     const payload = {
       patient: encounterForm.patientId,
       record_type: encounterForm.recordType,
@@ -228,22 +511,36 @@ const ElectronicMedicalRecords = () => {
       family_history: encounterForm.family_history,
       social_history: encounterForm.social_history,
     };
-    const result = await dispatch(createMedicalRecord(payload));
-    if (createMedicalRecord.fulfilled.match(result)) {
-      setShowEncounterForm(false);
-      resetEncounterForm();
-    } else {
-      setFormError(result.payload || 'Failed to create encounter note.');
+
+    try {
+      const result = await dispatch(createMedicalRecord(payload));
+      if (createMedicalRecord.fulfilled.match(result)) {
+        setSuccessMessage('Encounter note created successfully.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        setShowEncounterForm(false);
+        resetEncounterForm();
+      } else {
+        setFormError(result.payload || 'Failed to create encounter note.');
+      }
+    } catch (err) {
+      setFormError(err.message || 'Failed to create encounter note.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleNoteSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    setSuccessMessage('');
+    setIsSubmitting(true);
+
     if (!noteForm.patientId) {
       setFormError('Please select a patient.');
+      setIsSubmitting(false);
       return;
     }
+
     const payload = {
       patient: noteForm.patientId,
       medical_record: noteForm.medical_record || undefined,
@@ -253,22 +550,36 @@ const ElectronicMedicalRecords = () => {
       assessment: noteForm.assessment,
       plan: noteForm.plan,
     };
-    const result = await dispatch(createProgressNote(payload));
-    if (createProgressNote.fulfilled.match(result)) {
-      setShowNoteForm(false);
-      resetNoteForm();
-    } else {
-      setFormError(result.payload || 'Failed to save clinical note.');
+
+    try {
+      const result = await dispatch(createProgressNote(payload));
+      if (createProgressNote.fulfilled.match(result)) {
+        setSuccessMessage('Clinical note created successfully.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        setShowNoteForm(false);
+        resetNoteForm();
+      } else {
+        setFormError(result.payload || 'Failed to save clinical note.');
+      }
+    } catch (err) {
+      setFormError(err.message || 'Failed to save clinical note.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleProblemSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    setSuccessMessage('');
+    setIsSubmitting(true);
+
     if (!problemForm.patientId || !problemForm.problem) {
       setFormError('Patient and problem description are required.');
+      setIsSubmitting(false);
       return;
     }
+
     const payload = {
       patient: problemForm.patientId,
       medical_record: currentRecord?.id || undefined,
@@ -278,22 +589,36 @@ const ElectronicMedicalRecords = () => {
       status: problemForm.status,
       notes: problemForm.notes,
     };
-    const result = await dispatch(createProblem(payload));
-    if (createProblem.fulfilled.match(result)) {
-      setShowProblemForm(false);
-      setProblemForm({ patientId: '', problem: '', icd10_code: '', onset_date: '', status: 'active', notes: '' });
-    } else {
-      setFormError(result.payload || 'Failed to add problem.');
+
+    try {
+      const result = await dispatch(createProblem(payload));
+      if (createProblem.fulfilled.match(result)) {
+        setSuccessMessage('Problem added successfully.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        setShowProblemForm(false);
+        setProblemForm({ patientId: '', problem: '', icd10_code: '', onset_date: '', status: 'active', notes: '' });
+      } else {
+        setFormError(result.payload || 'Failed to add problem.');
+      }
+    } catch (err) {
+      setFormError(err.message || 'Failed to add problem.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleAllergySubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    setSuccessMessage('');
+    setIsSubmitting(true);
+
     if (!allergyForm.patientId || !allergyForm.allergen || !allergyForm.reaction) {
       setFormError('Patient, allergen, and reaction are required.');
+      setIsSubmitting(false);
       return;
     }
+
     const payload = {
       patient: allergyForm.patientId,
       medical_record: currentRecord?.id || undefined,
@@ -302,88 +627,214 @@ const ElectronicMedicalRecords = () => {
       reaction: allergyForm.reaction,
       severity: allergyForm.severity,
     };
-    const result = await dispatch(createAllergy(payload));
-    if (createAllergy.fulfilled.match(result)) {
-      setShowAllergyForm(false);
-      setAllergyForm({ patientId: '', allergen: '', allergy_type: 'drug', reaction: '', severity: 'moderate' });
-    } else {
-      setFormError(result.payload || 'Failed to add allergy.');
+
+    try {
+      const result = await dispatch(createAllergy(payload));
+      if (createAllergy.fulfilled.match(result)) {
+        setSuccessMessage('Allergy added successfully.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        setShowAllergyForm(false);
+        setAllergyForm({ patientId: '', allergen: '', allergy_type: 'drug', reaction: '', severity: 'moderate' });
+      } else {
+        setFormError(result.payload || 'Failed to add allergy.');
+      }
+    } catch (err) {
+      setFormError(err.message || 'Failed to add allergy.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  // Tabs configuration
+  const tabs = [
+    { id: 'encounters', label: 'Encounter Notes', icon: Clipboard },
+    { id: 'notes', label: 'Clinical Notes', icon: FileText },
+    { id: 'templates', label: 'Disease Templates', icon: Activity },
+  ];
+
+  // Templates configuration
+  const templates = [
+    { id: 'malaria', title: 'Malaria Case', desc: 'Documentation for Malaria cases' },
+    { id: 'typhoid', title: 'Typhoid Fever', desc: 'Management of Typhoid Fever' },
+    { id: 'sickle_cell', title: 'Sickle Cell', desc: 'Tracking for Sickle Cell Disease' },
+    { id: 'tb', title: 'Tuberculosis', desc: 'TB Treatment Cards (DOTS)' },
+    { id: 'hiv', title: 'HIV/AIDS Care', desc: 'ART and Care Plans' },
+    { id: 'ncd', title: 'Hypertension & Diabetes', desc: 'Chronic Disease Management' },
+    { id: 'maternal', title: 'Maternal Health', desc: 'Antenatal Care Records' },
+  ];
+
+  const totalRecords = medicalRecords.length + progressNotes.length;
+
   return (
-    <div className="electronic-medical-records p-4 sm:p-6 bg-gray-50 min-h-screen">
+    <div className="electronic-medical-records min-h-screen bg-[#F7F5F2] p-3 sm:p-4 md:p-8 font-sans">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center">
-          <FileText className="w-6 h-6 sm:w-8 sm:h-8 mr-3 text-blue-500" />
-          Electronic Medical Records (EMR)
-        </h1>
-        <p className="text-gray-600 mt-2">Comprehensive patient clinical documentation</p>
+      <div className="mb-4 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#E8F5EF] flex items-center justify-center flex-shrink-0">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-[#008751]" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
+                Electronic Medical Records (EMR)
+              </h1>
+              <p className="text-xs sm:text-sm text-[#5A5A5A]">
+                Comprehensive patient clinical documentation
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            <ButtonWithTooltip
+              onClick={() => {
+                dispatch(fetchMedicalRecords());
+                dispatch(fetchProgressNotes());
+                setSuccessMessage('Records refreshed.');
+                setTimeout(() => setSuccessMessage(''), 3000);
+              }}
+              tooltip="Refresh records"
+              variant="secondary"
+              size="sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => {
+                if (activeTab === 'encounters') {
+                  setShowEncounterForm(true);
+                } else if (activeTab === 'notes') {
+                  setShowNoteForm(true);
+                }
+              }}
+              tooltip={activeTab === 'encounters' ? 'Add encounter' : 'Add note'}
+              variant="primary"
+              size="sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {activeTab === 'encounters' ? 'Add Encounter' : 'Add Note'}
+              </span>
+              <span className="sm:hidden">Add</span>
+            </ButtonWithTooltip>
+          </div>
+        </div>
       </div>
 
+      {/* Error & Success Messages */}
       {formError && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {formError}
-          <button onClick={() => setFormError('')} className="float-right text-red-500 hover:text-red-700">
+        <div className="mb-4 p-3 bg-[#F5EDEA] border border-[#E8D6D0] text-sm text-[#C8553D] flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {formError}
+          </span>
+          <button onClick={() => setFormError('')} className="text-[#C8553D] hover:text-[#A8442E]">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {error && (
-        <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
-          {error}
-          <button onClick={() => dispatch(clearError())} className="float-right text-orange-500 hover:text-orange-700">
+        <div className="mb-4 p-3 bg-[#F5EDEA] border border-[#E8D6D0] text-sm text-[#C8553D] flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </span>
+          <button onClick={() => dispatch(clearError())} className="text-[#C8553D] hover:text-[#A8442E]">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
+      {successMessage && (
+        <div className="mb-4 p-3 bg-[#EAF3EE] border border-[#D0E3D8] text-sm text-[#2D7D46] flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            {successMessage}
+          </span>
+          <button onClick={() => setSuccessMessage('')} className="text-[#2D7D46] hover:text-[#1E5F33]">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-8">
+        <StatsCard
+          title="Total Records"
+          value={totalRecords}
+          icon={FileText}
+          color="blue"
+          tooltip="Total medical records and clinical notes"
+        />
+        <StatsCard
+          title="Encounter Notes"
+          value={medicalRecords.length}
+          icon={Clipboard}
+          color="green"
+          tooltip="Total encounter notes"
+        />
+        <StatsCard
+          title="Clinical Notes"
+          value={progressNotes.length}
+          icon={FileText}
+          color="purple"
+          tooltip="Total clinical progress notes"
+        />
+        <StatsCard
+          title="Active Patients"
+          value={allCache.length}
+          icon={User}
+          color="gold"
+          tooltip="Active patients in the system"
+        />
+      </div>
+
       {/* Tab Navigation */}
-      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-8">
-        <div className="flex flex-wrap gap-2 mb-6">
-          {[
-            { id: 'encounters', label: 'Encounter Notes', icon: Clipboard },
-            { id: 'notes', label: 'Clinical Notes', icon: FileText },
-            { id: 'templates', label: 'Disease Templates', icon: Activity },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg font-medium flex items-center ${
-                activeTab === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              <tab.icon className="w-4 h-4 mr-2" />
-              {tab.label}
-            </button>
-          ))}
+      <div className="bg-white border border-[#E8E3DC] p-4 sm:p-5 mb-4 sm:mb-6">
+        <div className="flex flex-wrap gap-1 border-b border-[#E8E3DC] mb-4 overflow-x-auto">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <Tooltip key={tab.id} text={`View ${tab.label}`}>
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-1 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'border-[#008751] text-[#008751]'
+                      : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A] hover:border-[#D8D4CD]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              </Tooltip>
+            );
+          })}
         </div>
 
-        {/* Controls */}
+        {/* Controls - only for non-template tabs */}
         {activeTab !== 'templates' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Search</label>
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B0A89E]" />
                 <input
                   type="text"
                   placeholder="Search records..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Patient</label>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Filter by Patient</label>
               <select
                 value={filterBy}
                 onChange={(e) => handleFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               >
                 <option value="all">All Patients</option>
                 {allCache.map(patient => (
@@ -393,193 +844,203 @@ const ElectronicMedicalRecords = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Sort by</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               >
                 <option value="date">Date (Newest First)</option>
               </select>
             </div>
 
             <div className="flex items-end">
-              <button
-                onClick={() => activeTab === 'encounters' ? setShowEncounterForm(true) : setShowNoteForm(true)}
-                className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium flex items-center justify-center"
+              <ButtonWithTooltip
+                onClick={() => {
+                  if (activeTab === 'encounters') {
+                    setShowEncounterForm(true);
+                  } else if (activeTab === 'notes') {
+                    setShowNoteForm(true);
+                  }
+                }}
+                tooltip={activeTab === 'encounters' ? 'Add encounter' : 'Add note'}
+                variant="primary"
+                className="w-full justify-center"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-3.5 h-3.5" />
                 Add {activeTab === 'encounters' ? 'Encounter' : 'Note'}
-              </button>
+              </ButtonWithTooltip>
             </div>
+          </div>
+        )}
+
+        {/* ==================== ENCOUNTERS & NOTES TABS ==================== */}
+        {activeTab !== 'templates' && (
+          <div className="mt-4 space-y-3">
+            {loading && currentData.length === 0 ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 text-[#008751] animate-spin mx-auto mb-3" />
+                <p className="text-[#5A5A5A] text-sm">Loading records...</p>
+              </div>
+            ) : currentData.length === 0 ? (
+              <div className="bg-white border border-[#E8E3DC] p-12 text-center">
+                <FileText className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-[#5A5A5A] font-medium">
+                  No {activeTab === 'encounters' ? 'encounters' : 'clinical notes'} found
+                </p>
+                <p className="text-sm text-[#B0A89E] mt-1">
+                  {searchTerm ? 'Try adjusting your search or filters' : 'Click "Add" to create one'}
+                </p>
+              </div>
+            ) : (
+              currentData.map(item => {
+                const patientName = getPatientName(item.patient);
+                return (
+                  <EMRCard
+                    key={item.id}
+                    item={item}
+                    type={activeTab === 'encounters' ? 'encounter' : 'note'}
+                    patientName={patientName}
+                    onView={(record) => {
+                      dispatch(setCurrentRecord(record));
+                      setShowViewModal(true);
+                    }}
+                    onEdit={(item) => {
+                      setEditingItem(item);
+                      setShowEditModal(true);
+                    }}
+                  />
+                );
+              })
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <div className="text-[10px] text-[#5A5A5A]">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, activeTab === 'encounters' ? filteredEncounters.length : filteredNotes.length)} of {activeTab === 'encounters' ? filteredEncounters.length : filteredNotes.length}
+                </div>
+                <div className="flex items-center gap-1">
+                  <IconButton
+                    icon={ChevronLeft}
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    tooltip="Previous page"
+                    variant="default"
+                    disabled={currentPage === 1}
+                    size="sm"
+                  />
+                  <span className="text-xs text-[#5A5A5A]">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <IconButton
+                    icon={ChevronRight}
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    tooltip="Next page"
+                    variant="default"
+                    disabled={currentPage === totalPages}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== TEMPLATES TAB ==================== */}
+        {activeTab === 'templates' && (
+          <div className="mt-4">
+            {!selectedTemplate ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {templates.map(template => (
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    onClick={setSelectedTemplate}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <ButtonWithTooltip
+                    onClick={() => setSelectedTemplate(null)}
+                    tooltip="Back to templates"
+                    variant="secondary"
+                    size="sm"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    Back to Templates
+                  </ButtonWithTooltip>
+                  <span className="text-sm font-medium text-[#5A5A5A]">
+                    {templates.find(t => t.id === selectedTemplate)?.title}
+                  </span>
+                </div>
+                <div className="bg-white border border-[#E8E3DC] p-5">
+                  {selectedTemplate === 'malaria' && <MalariaCaseDocumentation />}
+                  {selectedTemplate === 'typhoid' && <TyphoidFeverManagement />}
+                  {selectedTemplate === 'sickle_cell' && <SickleCellDiseaseTracking />}
+                  {selectedTemplate === 'tb' && <TuberculosisTreatmentCards />}
+                  {selectedTemplate === 'hiv' && <HivAidsCarePlans />}
+                  {selectedTemplate === 'ncd' && <HypertensionDiabetesManagement />}
+                  {selectedTemplate === 'maternal' && <MaternalHealthRecords />}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Records Table */}
-      {activeTab !== 'templates' && (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {activeTab === 'encounters' ? 'Type' : 'Note Type'}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loading && currentData.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-500" />
-                      Loading records...
-                    </td>
-                  </tr>
-                ) : currentData.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                      No {activeTab === 'encounters' ? 'encounters' : 'clinical notes'} found.
-                    </td>
-                  </tr>
-                ) : (
-                  currentData.map(item => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{getPatientName(item.patient)}</div>
-                          <div className="text-sm text-gray-500">{item.patient}</div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">
-                          {activeTab === 'encounters' ? item.record_type : item.note_type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate">
-                          {activeTab === 'encounters'
-                            ? item.chief_complaint || item.history_of_present_illness || 'No details'
-                            : item.subjective || item.objective || item.assessment || 'No content'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(item.created_at).toLocaleDateString('en-NG')}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => { dispatch(setCurrentRecord(item)); setShowViewModal(true); }}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => { setEditingItem(item); setShowEditModal(true); }}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Disease Templates Tab */}
-      {activeTab === 'templates' && (
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          {!selectedTemplate ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { id: 'malaria', title: 'Malaria Case', desc: 'Documentation for Malaria cases' },
-                { id: 'typhoid', title: 'Typhoid Fever', desc: 'Management of Typhoid Fever' },
-                { id: 'sickle_cell', title: 'Sickle Cell', desc: 'Tracking for Sickle Cell Disease' },
-                { id: 'tb', title: 'Tuberculosis', desc: 'TB Treatment Cards (DOTS)' },
-                { id: 'hiv', title: 'HIV/AIDS Care', desc: 'ART and Care Plans' },
-                { id: 'ncd', title: 'Hypertension & Diabetes', desc: 'Chronic Disease Management' },
-                { id: 'maternal', title: 'Maternal Health', desc: 'Antenatal Care Records' },
-              ].map(template => (
-                <div
-                  key={template.id}
-                  onClick={() => setSelectedTemplate(template.id)}
-                  className="border rounded-lg p-6 hover:shadow-lg cursor-pointer transition-all hover:border-blue-500 group"
-                >
-                  <h3 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 mb-2">{template.title}</h3>
-                  <p className="text-sm text-gray-600">{template.desc}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div>
-              <button
-                onClick={() => setSelectedTemplate(null)}
-                className="mb-6 text-blue-600 hover:text-blue-800 font-medium flex items-center"
-              >
-                &larr; Back to Templates
-              </button>
-              {selectedTemplate === 'malaria' && <MalariaCaseDocumentation />}
-              {selectedTemplate === 'typhoid' && <TyphoidFeverManagement />}
-              {selectedTemplate === 'sickle_cell' && <SickleCellDiseaseTracking />}
-              {selectedTemplate === 'tb' && <TuberculosisTreatmentCards />}
-              {selectedTemplate === 'hiv' && <HivAidsCarePlans />}
-              {selectedTemplate === 'ncd' && <HypertensionDiabetesManagement />}
-              {selectedTemplate === 'maternal' && <MaternalHealthRecords />}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {activeTab !== 'templates' && totalPages > 1 && (
-        <div className="mb-8">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </div>
-      )}
-
-      {/* Encounter Form Modal */}
+      {/* ==================== ENCOUNTER FORM MODAL ==================== */}
       {showEncounterForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                <Clipboard className="w-5 h-5 mr-2" />
-                New Encounter Note
-              </h3>
-              <form onSubmit={handleEncounterSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity"
+            onClick={() => { setShowEncounterForm(false); resetEncounterForm(); }}
+          />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-[#F7F5F2] w-full max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-200">
+              <div className="border-b border-[#E8E3DC] p-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
+                    <h2 className="text-base font-display font-semibold text-[#1A1A1A]">New Encounter Note</h2>
+                    <p className="text-xs text-[#5A5A5A] mt-0.5">Document a patient encounter</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowEncounterForm(false); resetEncounterForm(); }}
+                    className="p-1 hover:bg-[#F0EDE8] rounded transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[#5A5A5A]" />
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleEncounterSubmit} className="p-5 overflow-y-auto max-h-[calc(90vh-180px)] space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Patient <span className="text-[#C8553D]">*</span>
+                    </label>
                     <select
                       value={encounterForm.patientId}
                       onChange={(e) => setEncounterForm({...encounterForm, patientId: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                       required
                     >
                       <option value="">Select patient...</option>
-                       {allCache.map(patient => (
-                         <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
-                       ))}
-                     </select>
-                   </div>
+                      {allCache.map(patient => (
+                        <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">Encounter Type</label>
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Encounter Type
+                    </label>
                     <select
                       value={encounterForm.recordType}
                       onChange={(e) => setEncounterForm({...encounterForm, recordType: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     >
                       <option value="outpatient">Outpatient</option>
                       <option value="emergency">Emergency</option>
@@ -590,76 +1051,106 @@ const ElectronicMedicalRecords = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Chief Complaint</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                    Chief Complaint <span className="text-[#C8553D]">*</span>
+                  </label>
                   <textarea
                     value={encounterForm.chiefComplaint}
                     onChange={(e) => setEncounterForm({...encounterForm, chiefComplaint: e.target.value})}
                     rows="2"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     required
+                    placeholder="e.g., Fever, headache, cough..."
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">History of Present Illness</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      History of Present Illness
+                    </label>
                     <textarea
                       value={encounterForm.history_of_present_illness}
                       onChange={(e) => setEncounterForm({...encounterForm, history_of_present_illness: e.target.value})}
                       rows="3"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      placeholder="Detailed description of the illness..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Past Medical History</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Past Medical History
+                    </label>
                     <textarea
                       value={encounterForm.past_medical_history}
                       onChange={(e) => setEncounterForm({...encounterForm, past_medical_history: e.target.value})}
                       rows="3"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      placeholder="Previous medical conditions, surgeries..."
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Family History</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Family History
+                    </label>
                     <textarea
                       value={encounterForm.family_history}
                       onChange={(e) => setEncounterForm({...encounterForm, family_history: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      placeholder="Family medical history..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Social History</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Social History
+                    </label>
                     <textarea
                       value={encounterForm.social_history}
                       onChange={(e) => setEncounterForm({...encounterForm, social_history: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      placeholder="Lifestyle, occupation, habits..."
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4">
-                  <button
+                {formError && <div className="text-sm text-[#C8553D]">{formError}</div>}
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-[#E8E3DC]">
+                  <ButtonWithTooltip
                     type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
+                    tooltip="Save encounter"
+                    variant="primary"
+                    disabled={isSubmitting}
+                    className="flex-1"
                   >
-                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Save Encounter Note
-                  </button>
-                  <button
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        Save Encounter Note
+                      </>
+                    )}
+                  </ButtonWithTooltip>
+                  <ButtonWithTooltip
                     type="button"
                     onClick={() => { setShowEncounterForm(false); resetEncounterForm(); }}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                    tooltip="Cancel"
+                    variant="secondary"
+                    className="flex-1"
                   >
                     Cancel
-                  </button>
+                  </ButtonWithTooltip>
                 </div>
               </form>
             </div>
@@ -667,38 +1158,57 @@ const ElectronicMedicalRecords = () => {
         </div>
       )}
 
-      {/* Clinical Note Form Modal */}
+      {/* ==================== CLINICAL NOTE FORM MODAL ==================== */}
       {showNoteForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                <FileText className="w-5 h-5 mr-2" />
-                New Clinical Note
-              </h3>
-              <form onSubmit={handleNoteSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity"
+            onClick={() => { setShowNoteForm(false); resetNoteForm(); }}
+          />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-[#F7F5F2] w-full max-w-3xl max-h-[90vh] overflow-hidden transform transition-all duration-200">
+              <div className="border-b border-[#E8E3DC] p-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
+                    <h2 className="text-base font-display font-semibold text-[#1A1A1A]">New Clinical Note</h2>
+                    <p className="text-xs text-[#5A5A5A] mt-0.5">Document a clinical note (SOAP format)</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowNoteForm(false); resetNoteForm(); }}
+                    className="p-1 hover:bg-[#F0EDE8] rounded transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[#5A5A5A]" />
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleNoteSubmit} className="p-5 overflow-y-auto max-h-[calc(90vh-180px)] space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Patient <span className="text-[#C8553D]">*</span>
+                    </label>
                     <select
                       value={noteForm.patientId}
                       onChange={(e) => setNoteForm({...noteForm, patientId: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                       required
                     >
                       <option value="">Select patient...</option>
-                       {allCache.map(patient => (
-                         <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
-                       ))}
-                     </select>
-                   </div>
+                      {allCache.map(patient => (
+                        <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">Note Type</label>
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Note Type
+                    </label>
                     <select
                       value={noteForm.note_type}
                       onChange={(e) => setNoteForm({...noteForm, note_type: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     >
                       <option value="progress">Progress Note</option>
                       <option value="consultation">Consultation Note</option>
@@ -711,67 +1221,90 @@ const ElectronicMedicalRecords = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Subjective</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                    Subjective
+                  </label>
                   <textarea
                     value={noteForm.subjective}
                     onChange={(e) => setNoteForm({...noteForm, subjective: e.target.value})}
                     rows="2"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     placeholder="Chief complaint, HPI, ROS..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Objective</label>
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                    Objective
+                  </label>
                   <textarea
                     value={noteForm.objective}
                     onChange={(e) => setNoteForm({...noteForm, objective: e.target.value})}
                     rows="2"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     placeholder="Physical exam, vital signs, observations..."
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assessment</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Assessment
+                    </label>
                     <textarea
                       value={noteForm.assessment}
                       onChange={(e) => setNoteForm({...noteForm, assessment: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                       placeholder="Diagnosis, impression..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Plan</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Plan
+                    </label>
                     <textarea
                       value={noteForm.plan}
                       onChange={(e) => setNoteForm({...noteForm, plan: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Treatment plan, meds, follow-up..."
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      placeholder="Treatment plan, medications, follow-up..."
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4">
-                  <button
+                {formError && <div className="text-sm text-[#C8553D]">{formError}</div>}
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-[#E8E3DC]">
+                  <ButtonWithTooltip
                     type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
+                    tooltip="Save clinical note"
+                    variant="primary"
+                    disabled={isSubmitting}
+                    className="flex-1"
                   >
-                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Save Clinical Note
-                  </button>
-                  <button
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        Save Clinical Note
+                      </>
+                    )}
+                  </ButtonWithTooltip>
+                  <ButtonWithTooltip
                     type="button"
                     onClick={() => { setShowNoteForm(false); resetNoteForm(); }}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                    tooltip="Cancel"
+                    variant="secondary"
+                    className="flex-1"
                   >
                     Cancel
-                  </button>
+                  </ButtonWithTooltip>
                 </div>
               </form>
             </div>
@@ -779,331 +1312,192 @@ const ElectronicMedicalRecords = () => {
         </div>
       )}
 
-      {/* Problem List Form Modal */}
-      {showProblemForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                <Stethoscope className="w-5 h-5 mr-2" />
-                Add Problem to List
-              </h3>
-              <form onSubmit={handleProblemSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
-                  <select
-                    value={problemForm.patientId}
-                    onChange={(e) => setProblemForm({...problemForm, patientId: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Select patient...</option>
-                    {allCache.map(patient => (
-                      <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Problem</label>
-                  <input
-                    type="text"
-                    value={problemForm.problem}
-                    onChange={(e) => setProblemForm({...problemForm, problem: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Type 2 Diabetes Mellitus"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ICD-10 Code</label>
-                    <input
-                      type="text"
-                      value={problemForm.icd10_code}
-                      onChange={(e) => setProblemForm({...problemForm, icd10_code: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., E11.9"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Onset Date</label>
-                    <input
-                      type="date"
-                      value={problemForm.onset_date}
-                      onChange={(e) => setProblemForm({...problemForm, onset_date: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                  <textarea
-                    value={problemForm.notes}
-                    onChange={(e) => setProblemForm({...problemForm, notes: e.target.value})}
-                    rows="2"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
-                  >
-                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Add Problem
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowProblemForm(false)}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Allergy Form Modal */}
-      {showAllergyForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                <AlertTriangle className="w-5 h-5 mr-2" />
-                Add Allergy Record
-              </h3>
-              <form onSubmit={handleAllergySubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
-                  <select
-                    value={allergyForm.patientId}
-                    onChange={(e) => setAllergyForm({...allergyForm, patientId: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Select patient...</option>
-                    {allCache.map(patient => (
-                      <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Allergen</label>
-                  <input
-                    type="text"
-                    value={allergyForm.allergen}
-                    onChange={(e) => setAllergyForm({...allergyForm, allergen: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Penicillin, Peanuts"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-                    <select
-                      value={allergyForm.allergy_type}
-                      onChange={(e) => setAllergyForm({...allergyForm, allergy_type: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="drug">Drug</option>
-                      <option value="food">Food</option>
-                      <option value="environmental">Environmental</option>
-                      <option value="latex">Latex</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
-                    <select
-                      value={allergyForm.severity}
-                      onChange={(e) => setAllergyForm({...allergyForm, severity: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="mild">Mild</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="severe">Severe</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Reaction</label>
-                  <textarea
-                    value={allergyForm.reaction}
-                    onChange={(e) => setAllergyForm({...allergyForm, reaction: e.target.value})}
-                    rows="2"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Rash, Anaphylaxis"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
-                  >
-                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Add Allergy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAllergyForm(false)}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Record Modal */}
+      {/* ==================== VIEW RECORD MODAL ==================== */}
       {showViewModal && currentRecord && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                <Eye className="w-5 h-5 mr-2" />
-                View {currentRecord.note_type ? 'Clinical Note' : 'Encounter Note'}
-              </h3>
-              <div className="space-y-4">
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity"
+            onClick={() => setShowViewModal(false)}
+          />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-[#F7F5F2] w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-200">
+              <div className="border-b border-[#E8E3DC] p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-display font-semibold text-[#1A1A1A]">
+                      {currentRecord.note_type ? 'Clinical Note' : 'Encounter Note'}
+                    </h2>
+                    <p className="text-xs text-[#5A5A5A] mt-0.5">
+                      {getPatientName(currentRecord.patient)} • {new Date(currentRecord.created_at).toLocaleString('en-NG')}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowViewModal(false)}
+                    className="p-1 hover:bg-[#F0EDE8] rounded transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[#5A5A5A]" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-5 overflow-y-auto max-h-[calc(90vh-180px)] space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Patient</span>
-                    <p className="text-sm text-gray-900">{getPatientName(currentRecord.patient)}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Type</p>
+                    <p className="text-sm text-[#1A1A1A]">{currentRecord.record_type || currentRecord.note_type || 'N/A'}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Date</span>
-                    <p className="text-sm text-gray-900">{new Date(currentRecord.created_at).toLocaleString('en-NG')}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Type</span>
-                    <p className="text-sm text-gray-900">{currentRecord.record_type || currentRecord.note_type || 'N/A'}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Date</p>
+                    <p className="text-sm text-[#1A1A1A]">{new Date(currentRecord.created_at).toLocaleString('en-NG')}</p>
                   </div>
                 </div>
+
                 {currentRecord.chief_complaint && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Chief Complaint</span>
-                    <p className="text-sm text-gray-900 mt-1">{currentRecord.chief_complaint}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Chief Complaint</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1">{currentRecord.chief_complaint}</p>
                   </div>
                 )}
+
                 {currentRecord.history_of_present_illness && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">History of Present Illness</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.history_of_present_illness}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">History of Present Illness</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.history_of_present_illness}</p>
                   </div>
                 )}
+
                 {currentRecord.past_medical_history && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Past Medical History</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.past_medical_history}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Past Medical History</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.past_medical_history}</p>
                   </div>
                 )}
+
                 {currentRecord.family_history && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Family History</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.family_history}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Family History</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.family_history}</p>
                   </div>
                 )}
+
                 {currentRecord.social_history && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Social History</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.social_history}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Social History</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.social_history}</p>
                   </div>
                 )}
+
                 {currentRecord.subjective && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Subjective</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.subjective}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Subjective</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.subjective}</p>
                   </div>
                 )}
+
                 {currentRecord.objective && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Objective</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.objective}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Objective</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.objective}</p>
                   </div>
                 )}
+
                 {currentRecord.assessment && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Assessment</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.assessment}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Assessment</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.assessment}</p>
                   </div>
                 )}
+
                 {currentRecord.plan && (
                   <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase">Plan</span>
-                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{currentRecord.plan}</p>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Plan</p>
+                    <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.plan}</p>
                   </div>
                 )}
               </div>
-              <div className="mt-6 flex justify-end">
-                <button
+
+              <div className="border-t border-[#E8E3DC] p-4 flex justify-end">
+                <ButtonWithTooltip
                   onClick={() => setShowViewModal(false)}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                  tooltip="Close"
+                  variant="secondary"
                 >
                   Close
-                </button>
+                </ButtonWithTooltip>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Record Modal */}
+      {/* ==================== EDIT RECORD MODAL ==================== */}
       {showEditModal && editingItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                <Edit className="w-5 h-5 mr-2" />
-                Edit {editingItem.note_type ? 'Clinical Note' : 'Encounter Note'}
-              </h3>
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity"
+            onClick={() => { setShowEditModal(false); setEditingItem(null); }}
+          />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-[#F7F5F2] w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-200">
+              <div className="border-b border-[#E8E3DC] p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-display font-semibold text-[#1A1A1A]">
+                      Edit {editingItem.note_type ? 'Clinical Note' : 'Encounter Note'}
+                    </h2>
+                    <p className="text-xs text-[#5A5A5A] mt-0.5">
+                      {getPatientName(editingItem.patient)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setShowEditModal(false); setEditingItem(null); }}
+                    className="p-1 hover:bg-[#F0EDE8] rounded transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[#5A5A5A]" />
+                  </button>
+                </div>
+              </div>
+
               <form onSubmit={async (e) => {
                 e.preventDefault();
+                setIsSubmitting(true);
                 const isNote = !!editingItem.note_type;
                 const payload = isNote
                   ? { note_type: editingItem.note_type, subjective: editingItem.subjective || '', objective: editingItem.objective || '', assessment: editingItem.assessment || '', plan: editingItem.plan || '' }
-                  : { recordType: editingItem.record_type || 'outpatient', chiefComplaint: editingItem.chief_complaint || '', history_of_present_illness: editingItem.history_of_present_illness || '', past_medical_history: editingItem.past_medical_history || '', family_history: editingItem.family_history || '', social_history: editingItem.social_history || '' };
+                  : { record_type: editingItem.record_type || 'outpatient', chief_complaint: editingItem.chief_complaint || '', history_of_present_illness: editingItem.history_of_present_illness || '', past_medical_history: editingItem.past_medical_history || '', family_history: editingItem.family_history || '', social_history: editingItem.social_history || '' };
                 const endpoint = isNote ? `/api/v1/emr/progress-notes/${editingItem.id}/` : `/api/v1/emr/medical-records/${editingItem.id}/`;
-                const result = await apiRequest(endpoint, { method: 'PATCH', body: JSON.stringify(payload) });
-                if (result) {
-                  setShowEditModal(false);
-                  setEditingItem(null);
-                  dispatch(fetchMedicalRecords());
-                  dispatch(fetchProgressNotes());
+                try {
+                  const result = await apiRequest(endpoint, { method: 'PATCH', body: JSON.stringify(payload) });
+                  if (result) {
+                    setSuccessMessage('Record updated successfully.');
+                    setTimeout(() => setSuccessMessage(''), 3000);
+                    setShowEditModal(false);
+                    setEditingItem(null);
+                    dispatch(fetchMedicalRecords());
+                    dispatch(fetchProgressNotes());
+                  }
+                } catch (err) {
+                  setFormError(err.message || 'Failed to update record.');
+                } finally {
+                  setIsSubmitting(false);
                 }
-              }} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              }} className="p-5 overflow-y-auto max-h-[calc(90vh-180px)] space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Patient</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Patient</label>
                     <input
                       type="text"
                       value={getPatientName(editingItem.patient)}
                       disabled
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                      className="w-full px-3 py-2 text-sm bg-[#F0EDE8] border border-[#E8E3DC] text-[#5A5A5A] cursor-not-allowed"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Type</label>
                     <select
                       value={editingItem.record_type || editingItem.note_type || 'outpatient'}
                       onChange={(e) => setEditingItem({...editingItem, record_type: e.target.value, note_type: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     >
                       <option value="outpatient">Outpatient</option>
                       <option value="emergency">Emergency</option>
@@ -1115,128 +1509,143 @@ const ElectronicMedicalRecords = () => {
 
                 {editingItem.chief_complaint !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Chief Complaint</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Chief Complaint</label>
                     <textarea
                       value={editingItem.chief_complaint || ''}
                       onChange={(e) => setEditingItem({...editingItem, chief_complaint: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.history_of_present_illness !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">History of Present Illness</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">History of Present Illness</label>
                     <textarea
                       value={editingItem.history_of_present_illness || ''}
                       onChange={(e) => setEditingItem({...editingItem, history_of_present_illness: e.target.value})}
                       rows="3"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.past_medical_history !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Past Medical History</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Past Medical History</label>
                     <textarea
                       value={editingItem.past_medical_history || ''}
                       onChange={(e) => setEditingItem({...editingItem, past_medical_history: e.target.value})}
                       rows="3"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.family_history !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Family History</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Family History</label>
                     <textarea
                       value={editingItem.family_history || ''}
                       onChange={(e) => setEditingItem({...editingItem, family_history: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.social_history !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Social History</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Social History</label>
                     <textarea
                       value={editingItem.social_history || ''}
                       onChange={(e) => setEditingItem({...editingItem, social_history: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.subjective !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Subjective</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Subjective</label>
                     <textarea
                       value={editingItem.subjective || ''}
                       onChange={(e) => setEditingItem({...editingItem, subjective: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.objective !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Objective</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Objective</label>
                     <textarea
                       value={editingItem.objective || ''}
                       onChange={(e) => setEditingItem({...editingItem, objective: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.assessment !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assessment</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Assessment</label>
                     <textarea
                       value={editingItem.assessment || ''}
                       onChange={(e) => setEditingItem({...editingItem, assessment: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
                 {editingItem.plan !== undefined && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Plan</label>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Plan</label>
                     <textarea
                       value={editingItem.plan || ''}
                       onChange={(e) => setEditingItem({...editingItem, plan: e.target.value})}
                       rows="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4">
-                  <button
+                {formError && <div className="text-sm text-[#C8553D]">{formError}</div>}
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-[#E8E3DC]">
+                  <ButtonWithTooltip
                     type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center"
+                    tooltip="Save changes"
+                    variant="primary"
+                    disabled={isSubmitting}
+                    className="flex-1"
                   >
-                    {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Save Changes
-                  </button>
-                  <button
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        Save Changes
+                      </>
+                    )}
+                  </ButtonWithTooltip>
+                  <ButtonWithTooltip
                     type="button"
                     onClick={() => { setShowEditModal(false); setEditingItem(null); }}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+                    tooltip="Cancel"
+                    variant="secondary"
+                    className="flex-1"
                   >
                     Cancel
-                  </button>
+                  </ButtonWithTooltip>
                 </div>
               </form>
             </div>

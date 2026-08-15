@@ -144,6 +144,8 @@ const redirectToLogin = () => {
 const clearAuthData = () => {
   localStorage.removeItem('patientAccessToken');
   localStorage.removeItem('patientRefreshToken');
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('authToken');
   localStorage.removeItem('isPatientAuthenticated');
   localStorage.removeItem('tenantId');
   localStorage.removeItem('tenantDomain');
@@ -162,7 +164,6 @@ const clearAuthData = () => {
   sessionStorage.removeItem('isAuthenticated');
   sessionStorage.removeItem('adminAuthenticated');
   window.dispatchEvent(new Event('authChanged'));
-  
 };
 
 const extractErrorMessage = (data, fallback = 'Request failed') => {
@@ -203,7 +204,7 @@ const extractErrorMessage = (data, fallback = 'Request failed') => {
   for (const [key, value] of Object.entries(data)) {
     if (['detail', 'error', 'message', 'non_field_errors'].includes(key)) continue;
     const message = extractErrorMessage(value, '');
-    if (message) return message;
+    if (message) return `${key}: ${message}`;
   }
 
   return fallback;
@@ -243,13 +244,19 @@ const refreshAccessToken = async () => {
   }
 
   isRefreshing = true;
+  const refreshToken =
+    localStorage.getItem('refreshToken') ||
+    localStorage.getItem('patientRefreshToken') ||
+    '';
+  const body = refreshToken ? JSON.stringify({ refresh: refreshToken }) : JSON.stringify({});
+
   refreshPromise = fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
     },
-    body: JSON.stringify({}),
+    body,
     credentials: 'include',
   })
     .then(async (response) => {
@@ -270,6 +277,9 @@ const refreshAccessToken = async () => {
         redirectToLogin();
         throw new Error('No access token returned from refresh endpoint.');
       }
+
+      localStorage.setItem('accessToken', newAccessToken);
+      localStorage.setItem('authToken', newAccessToken);
 
       return newAccessToken;
     })
@@ -535,6 +545,7 @@ export const consultationApi = {
   },
   createConsultationNote: (data) => apiRequest('/api/v1/clinical/consultation-notes/', { method: 'POST', body: JSON.stringify(data) }),
   updateConsultationNote: (noteId, data) => apiRequest(`/api/v1/clinical/consultation-notes/${noteId}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createAllergy: (data) => apiRequest('/api/v1/emr/allergies/', { method: 'POST', body: JSON.stringify(data) }),
   getPrescriptions: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });

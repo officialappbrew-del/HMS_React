@@ -2462,6 +2462,7 @@ import { apiRequest, API_BASE_URL } from '../../utils/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import ChangePasswordModal from '../ChangePasswordModal';
 import UpcomingRosterWidget from './UpcomingRosterWidget';
+import MyRosterTab from './MyRosterTab';
 import {
   Pill,
   FileText,

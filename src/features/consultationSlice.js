@@ -1,174 +1,161 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const defaultPatient = {
-  patientId: '132920',
-  mrn: 'MRN-2026-0112',
-  name: 'RASHEEDAT SANNI-IDRIS',
-  gender: 'Female',
-  age: '48 yrs',
-  dateOfBirth: '08/02/1978',
-  phone: '+234 803 456 7890',
-  email: 'rasheedat.s@email.com',
-  address: '12, Adeola Street, Lagos',
-  bloodGroup: 'O+',
-  genotype: 'AA',
-  allergies: ['Penicillin'],
-  currentMedications: ['Neurovite Forte', 'Prednisolone'],
-  insurancePlan: 'NHIS Platinum',
-  primaryConsultant: 'Dr. Famba Famba',
-  primaryCareProvider: 'Dr. Famba Famba',
-  emergencyContact: 'Mr. Sanni Idris • +234 808 123 4567',
-  riskFlags: ['Hypertension', 'Previous stroke screening'],
-  chronicConditions: ['Hypertension'],
-  recentAdmissions: ['Jan 2026 - Short stay observation'],
-  outstandingBills: '₦24,500',
-  latestVitals: '136/100 mmHg, 36.7°C, 69 BPM, SpO₂ 99%',
-  bloodType: 'O+',
-  genotypeText: 'AA'
+  patientId: '',
+  mrn: '',
+  name: '',
+  gender: '',
+  age: '',
+  dateOfBirth: '',
+  phone: '',
+  email: '',
+  address: '',
+  bloodGroup: '',
+  genotype: '',
+  allergies: [],
+  currentMedications: [],
+  insurancePlan: '',
+  primaryConsultant: '',
+  primaryCareProvider: '',
+  emergencyContact: '',
+  riskFlags: [],
+  chronicConditions: [],
+  recentAdmissions: [],
+  outstandingBills: '',
+  latestVitals: '',
+  bloodType: '',
+  genotypeText: ''
 };
 
 const initialState = {
   patient: defaultPatient,
   encounter: {
-    encounterNumber: 'ENC-2026-0342',
-    date: '19/06/2026',
-    time: '11:24 AM',
-    doctorName: 'Dr. Famba Famba',
-    clinic: 'Family Medicine',
-    department: 'General Medicine',
-    type: 'Follow-Up',
-    status: 'In Progress',
-    encounterType: 'Follow-Up',
-    location: 'Outpatient Clinic',
-    provider: 'Primary Care',
-    consultationStatus: 'In Progress'
+    encounterNumber: '',
+    date: '',
+    time: '',
+    doctorName: '',
+    clinic: '',
+    department: '',
+    type: '',
+    status: '',
+    encounterType: '',
+    location: '',
+    provider: '',
+    consultationStatus: ''
   },
   hpi: {
-    chiefComplaint: 'Mild deviation of the mouth to the right',
-    duration: '6 months',
-    onset: 'Gradual',
-    location: 'Right facial muscles',
-    severity: 'Moderate',
-    character: 'Intermittent twitching',
-    radiation: 'None',
-    associatedSymptoms: 'Mild headache, facial numbness',
-    aggravatingFactors: 'Stress, fatigue',
-    relievingFactors: 'Rest, hydration',
-    previousTreatment: 'Physiotherapy, antihypertensives',
-    progression: 'Stable with mild fluctuation',
-    freeNotes: 'Patient is concerned about recurrence and wants further evaluation.'
+    chiefComplaint: '',
+    duration: '',
+    onset: '',
+    location: '',
+    severity: '',
+    character: '',
+    radiation: '',
+    associatedSymptoms: '',
+    aggravatingFactors: '',
+    relievingFactors: '',
+    previousTreatment: '',
+    progression: '',
+    freeNotes: ''
+  },
+  ice: {
+    ideas: '',
+    concerns: '',
+    expectations: ''
   },
   ros: {
-    general: { status: 'present', comments: 'Mild fatigue' },
-    cardiovascular: { status: 'absent', comments: '' },
-    respiratory: { status: 'absent', comments: '' },
-    gastrointestinal: { status: 'absent', comments: '' },
-    genitourinary: { status: 'unknown', comments: '' },
-    neurological: { status: 'present', comments: 'Facial motor weakness' },
-    musculoskeletal: { status: 'absent', comments: '' },
-    endocrine: { status: 'absent', comments: '' },
-    psychiatric: { status: 'absent', comments: '' },
-    skin: { status: 'absent', comments: '' },
-    ent: { status: 'absent', comments: '' },
-    eyes: { status: 'absent', comments: '' }
+    general: { status: '', comments: '' },
+    cardiovascular: { status: '', comments: '' },
+    respiratory: { status: '', comments: '' },
+    gastrointestinal: { status: '', comments: '' },
+    genitourinary: { status: '', comments: '' },
+    neurological: { status: '', comments: '' },
+    musculoskeletal: { status: '', comments: '' },
+    endocrine: { status: '', comments: '' },
+    psychiatric: { status: '', comments: '' },
+    skin: { status: '', comments: '' },
+    ent: { status: '', comments: '' },
+    eyes: { status: '', comments: '' }
   },
   pastMedicalHistory: {
-    pastIllnesses: ['Hypertension'],
-    chronicDiseases: ['Hypertension'],
-    pastSurgeries: ['Appendectomy 2015'],
-    hospitalAdmissions: ['Jan 2026 - observation', 'Nov 2024 - hypertensive crisis'],
-    previousDiagnoses: ['Essential hypertension', 'Tension headache'],
-    vaccinations: ['COVID-19', 'Influenza 2025'],
-    familyHistory: 'Mother with diabetes, father with hypertension.',
-    socialHistory: 'Lives with husband, no tobacco, occasional alcohol.',
-    smoking: 'Never',
-    alcohol: 'Occasional',
-    drugUse: 'None',
-    occupation: 'Teacher',
-    lifestyle: 'Moderately active, balanced diet',
-    travelHistory: 'No recent travel'
+    conditions: '',
+    surgeries: '',
+    hospitalizations: '',
+    otherHistory: '',
+    pastIllnesses: [],
+    chronicDiseases: [],
+    pastSurgeries: [],
+    hospitalAdmissions: [],
+    previousDiagnoses: [],
+    vaccinations: []
   },
-  medications: [
-    {
-      id: 1,
-      name: 'Neurovite Forte',
-      current: true,
-      previous: false,
-      stopped: false,
-      dosage: '1 tablet morning, 1 afternoon, 1 night',
-      frequency: 'TDS',
-      startDate: '01/06/2026',
-      endDate: '',
-      reason: 'Vitamin support',
-      route: 'Oral',
-      maxDose: '3 tablets/day'
+  familyHistory: {
+    mother: { alive: false, age: '', conditions: '', causeOfDeath: '' },
+    father: { alive: false, age: '', conditions: '', causeOfDeath: '' },
+    siblings: [],
+    relevantConditions: []
+  },
+  medications: [],
+  allergies: [],
+  socialHistory: {
+    occupation: '',
+    livingSituation: '',
+    maritalStatus: '',
+    children: '',
+    independence: '',
+    smoking: {
+      status: '',
+      startDate: '',
+      packYears: '',
+      quitDate: ''
     },
-    {
-      id: 2,
-      name: 'Prednisolone 5 mg',
-      current: true,
-      previous: false,
-      stopped: false,
-      dosage: '10 mg morning',
-      frequency: 'Once daily',
-      startDate: '10/06/2026',
-      endDate: '17/06/2026',
-      reason: 'Inflammation control',
-      route: 'Oral',
-      maxDose: '60 mg/day'
+    alcohol: {
+      status: '',
+      unitsPerWeek: '',
+      duration: ''
+    },
+    recreationalDrugs: {
+      status: '',
+      substances: '',
+      frequency: ''
     }
-  ],
-  allergies: [
-    {
-      id: 1,
-      type: 'Drug',
-      substance: 'Penicillin',
-      severity: 'Severe',
-      reactionType: 'Anaphylaxis',
-      notes: 'Avoid all penicillin and cephalosporins if possible.'
-    }
-  ],
+  },
+  redFlags: {
+    detected: [],
+    actionRequired: false,
+    recommendedActions: []
+  },
   physicalExam: {
-    generalAppearance: 'Alert and oriented',
-    vitalSigns: 'BP 136/100, HR 69, Temp 36.7°C, RR 16, SpO₂ 99%',
-    cardiovascular: 'Normal S1/S2, no murmurs',
-    respiratory: 'Clear breath sounds bilaterally',
-    abdominal: 'Soft, non-tender',
-    neurological: 'Right facial weakness, sensation intact',
-    musculoskeletal: 'Full range of motion',
-    ent: 'Normal',
-    eye: 'Pupils equal and reactive',
-    skin: 'No rashes',
-    mentalState: 'Cooperative, oriented'
+    generalAppearance: '',
+    vitalSigns: '',
+    cardiovascular: '',
+    respiratory: '',
+    abdominal: '',
+    neurological: '',
+    musculoskeletal: '',
+    ent: '',
+    eye: '',
+    skin: '',
+    mentalState: ''
   },
   assessment: {
-    problemList: ['Hypertension', 'Right facial weakness'],
-    clinicalImpression: 'Likely Bell palsy with hypertensive background',
-    differentialDiagnosis: 'Stroke, Ramsay Hunt syndrome, Lyme disease',
-    primaryDiagnosis: 'Bell palsy',
-    secondaryDiagnosis: 'Essential hypertension',
-    workingDiagnosis: 'Bell palsy under evaluation',
+    problemList: [],
+    clinicalImpression: '',
+    differentialDiagnosis: '',
+    primaryDiagnosis: '',
+    secondaryDiagnosis: '',
+    workingDiagnosis: '',
     finalDiagnosis: '',
-    clinicalReasoning: 'Facial asymmetry without other focal deficits suggests peripheral facial nerve involvement.'
+    clinicalReasoning: ''
   },
   icd10: {
     searchTerm: '',
-    selectedCodes: [
-      { code: 'G51.0', description: 'Bell palsy' }
-    ],
-    favorites: [
-      { code: 'I10', description: 'Essential (primary) hypertension' },
-      { code: 'R51', description: 'Headache' }
-    ],
-    recentDiagnoses: [
-      { code: 'I10', description: 'Essential hypertension' }
-    ]
+    selectedCodes: [],
+    favorites: [],
+    recentDiagnoses: []
   },
   orders: {
-    laboratory: [
-      { id: 1, test: 'Complete Blood Count', status: 'pending', priority: 'normal' },
-      { id: 2, test: 'Lipid Profile', status: 'pending', priority: 'urgent' }
-    ],
+    laboratory: [],
     radiology: [],
     procedures: [],
     medicationOrders: [],
@@ -177,49 +164,36 @@ const initialState = {
   },
   labResults: [],
   radiologyResults: [],
-  prescriptions: [
-    {
-      id: 1,
-      medication: 'Neurovite Forte',
-      dose: '1 tablet',
-      frequency: 'TDS',
-      duration: '14 days',
-      quantity: '28',
-      refills: 2,
-      route: 'Oral',
-      instructions: 'With food',
-      status: 'active'
-    }
-  ],
+  prescriptions: [],
   procedures: [],
   referrals: [],
   treatmentPlan: {
-    managementPlan: 'Continue antihypertensive therapy, monitor blood pressure daily.',
-    medications: 'Neurovite Forte, Prednisolone',
-    lifestyleAdvice: 'Low salt diet, regular exercise, stress reduction.',
-    dietaryAdvice: 'Balanced diet with fruits, vegetables, and lean protein.',
-    patientEducation: 'Educate on medication adherence and warning signs of stroke.',
-    procedurePlan: 'Review if symptoms worsen or new neurological signs appear.',
-    monitoringPlan: 'Follow-up in 2 weeks; repeat BP and facial nerve exam.',
-    safetyNetAdvice: 'Return if sudden weakness, slurred speech, or chest pain.'
+    managementPlan: '',
+    medications: '',
+    lifestyleAdvice: '',
+    dietaryAdvice: '',
+    patientEducation: '',
+    procedurePlan: '',
+    monitoringPlan: '',
+    safetyNetAdvice: ''
   },
   disposition: {
-    type: 'Outpatient',
-    reason: 'Stable for outpatient management',
-    admission: 'No',
-    observation: 'No',
+    type: '',
+    reason: '',
+    admission: '',
+    observation: '',
     transfer: '',
     referral: '',
-    followUpNeeded: true
+    followUpNeeded: false
   },
   followUp: {
-    date: '03/07/2026',
-    time: '09:30 AM',
-    clinic: 'Family Medicine',
-    doctor: 'Dr. Famba Famba',
-    reason: 'Review facial nerve recovery',
-    appointmentGenerated: true,
-    reminderCreated: true
+    date: '',
+    time: '',
+    clinic: '',
+    doctor: '',
+    reason: '',
+    appointmentGenerated: false,
+    reminderCreated: false
   },
   certificates: {
     sickLeave: '',
@@ -229,8 +203,8 @@ const initialState = {
     dischargeSummary: ''
   },
   signature: {
-    doctorName: 'Dr. Famba Famba',
-    licenseNumber: 'LIC-20458',
+    doctorName: '',
+    licenseNumber: '',
     signed: false,
     signedAt: '',
     ipAddress: '',
@@ -238,14 +212,58 @@ const initialState = {
   },
   auditTrail: [],
   billing: {
-    charges: [
-      { id: 1, item: 'Consultation', amount: 5000 },
-      { id: 2, item: 'Lab tests', amount: 12000 }
-    ],
-    total: 17000,
-    generated: true
+    charges: [],
+    total: 0,
+    generated: false,
+    insuranceCovered: false,
+    insuranceAmount: 0
   },
-  clinicalAlerts: []
+  clinicalAlerts: [],
+  completionStatus: {
+    hpi: false,
+    ice: false,
+    ros: false,
+    pmh: false,
+    familyHistory: false,
+    drugHistory: false,
+    socialHistory: false,
+    assessment: false,
+    plan: false
+  }
+};
+
+// Helper function to detect red flags
+const detectRedFlags = (state) => {
+  const detected = [];
+  const recommendedActions = [];
+  let actionRequired = false;
+
+  // Check HPI
+  const hpiText = Object.values(state.hpi || {}).join(' ').toLowerCase();
+  const rosText = Object.values(state.ros || {}).map(s => s.comments || '').join(' ').toLowerCase();
+
+  const redFlagPatterns = [
+    { pattern: /night sweat|night sweats|drenched in sweat/, flag: 'Night Sweats', action: 'Consider malignancy or infection workup' },
+    { pattern: /weight loss|lost weight|unexplained weight loss/, flag: 'Unexplained Weight Loss', action: 'Consider malignancy, chronic disease, or metabolic disorder' },
+    { pattern: /fever|high temperature|pyrexia/, flag: 'Fever', action: 'Consider infection or inflammatory process' },
+    { pattern: /blood in stool|blood in urine|haemoptysis|vomiting blood/, flag: 'Bleeding', action: 'Urgent investigation for source of bleeding' },
+    { pattern: /chest pain|tightness|pressure in chest/, flag: 'Chest Pain', action: 'Consider cardiac or pulmonary embolism' },
+    { pattern: /headache.*vomit|vomiting.*headache/, flag: 'Headache + Vomiting', action: 'Consider raised ICP or intracranial bleed' },
+    { pattern: /shortness of breath|breathlessness|difficulty breathing/, flag: 'Respiratory Distress', action: 'Consider pulmonary embolism, pneumonia, or heart failure' },
+    { pattern: /swollen glands|lymph node/, flag: 'Swollen Glands', action: 'Consider infection or malignancy' },
+    { pattern: /rash|skin lesion/, flag: 'Rash', action: 'Consider allergic reaction, infection, or autoimmune condition' },
+    { pattern: /confusion|disorientation|altered mental state/, flag: 'Altered Mental State', action: 'Consider neurological or metabolic emergency' }
+  ];
+
+  redFlagPatterns.forEach(({ pattern, flag, action }) => {
+    if (pattern.test(hpiText) || pattern.test(rosText)) {
+      detected.push(flag);
+      recommendedActions.push(action);
+      actionRequired = true;
+    }
+  });
+
+  return { detected, actionRequired, recommendedActions };
 };
 
 const consultationSlice = createSlice({
@@ -267,18 +285,93 @@ const consultationSlice = createSlice({
     updateVitals(state, action) {
       state.encounter = { ...state.encounter, ...action.payload };
     },
+    
+    // ===== HPI =====
     updateHPIField(state, action) {
       state.hpi[action.payload.field] = action.payload.value;
+      // Auto-detect red flags
+      state.redFlags = detectRedFlags(state);
     },
+    
+    // ===== ICE (NEW) =====
+    updateICEField(state, action) {
+      state.ice[action.payload.field] = action.payload.value;
+      if (state.ice.ideas || state.ice.concerns || state.ice.expectations) {
+        state.completionStatus.ice = true;
+      }
+    },
+    
+    // ===== ROS =====
     updateROSField(state, action) {
       const { section, field, value } = action.payload;
       state.ros[section][field] = value;
+      state.redFlags = detectRedFlags(state);
     },
+    
+    // ===== Past Medical History =====
     updatePastMedicalField(state, action) {
       state.pastMedicalHistory[action.payload.field] = action.payload.value;
     },
+    // NEW: For PISP-FDS compatibility
+    updatePastMedicalHistory(state, action) {
+      const { field, value } = action.payload;
+      state.pastMedicalHistory[field] = value;
+      if (state.pastMedicalHistory.conditions || state.pastMedicalHistory.surgeries) {
+        state.completionStatus.pmh = true;
+      }
+    },
+    
+    // ===== Family History (NEW) =====
+    updateFamilyHistory(state, action) {
+      const { section, field, value } = action.payload;
+      if (state.familyHistory[section]) {
+        state.familyHistory[section][field] = value;
+      }
+      if (state.familyHistory.mother.conditions || state.familyHistory.father.conditions) {
+        state.completionStatus.familyHistory = true;
+      }
+    },
+    addFamilySibling(state, action) {
+      state.familyHistory.siblings.push({
+        id: Date.now().toString(),
+        name: action.payload.name || '',
+        conditions: action.payload.conditions || ''
+      });
+    },
+    updateFamilySibling(state, action) {
+      const { id, field, value } = action.payload;
+      const sibling = state.familyHistory.siblings.find(s => s.id === id);
+      if (sibling) sibling[field] = value;
+    },
+    removeFamilySibling(state, action) {
+      state.familyHistory.siblings = state.familyHistory.siblings.filter(s => s.id !== action.payload);
+    },
+    addRelevantCondition(state, action) {
+      state.familyHistory.relevantConditions.push(action.payload);
+    },
+    removeRelevantCondition(state, action) {
+      state.familyHistory.relevantConditions = state.familyHistory.relevantConditions.filter(c => c !== action.payload);
+    },
+    
+    // ===== Social History (NEW) =====
+    updateSocialHistory(state, action) {
+      const { field, value } = action.payload;
+      state.socialHistory[field] = value;
+      if (state.socialHistory.occupation || state.socialHistory.livingSituation) {
+        state.completionStatus.socialHistory = true;
+      }
+    },
+    updateSocialHistorySubsection(state, action) {
+      const { section, field, value } = action.payload;
+      if (state.socialHistory[section]) {
+        state.socialHistory[section][field] = value;
+      }
+    },
+    
+    // ===== Medications =====
     addMedication(state, action) {
       state.medications.push({ id: Date.now(), ...action.payload });
+      state.completionStatus.drugHistory = true;
     },
     updateMedication(state, action) {
       const index = state.medications.findIndex(m => m.id === action.payload.id);
@@ -291,9 +384,15 @@ const consultationSlice = createSlice({
     },
     removeMedication(state, action) {
       state.medications = state.medications.filter(m => m.id !== action.payload);
+      if (state.medications.length === 0 && state.allergies.length === 0) {
+        state.completionStatus.drugHistory = false;
+      }
     },
+    
+    // ===== Allergies =====
     addAllergy(state, action) {
       state.allergies.push({ id: Date.now(), ...action.payload });
+      state.completionStatus.drugHistory = true;
     },
     updateAllergy(state, action) {
       const index = state.allergies.findIndex(a => a.id === action.payload.id);
@@ -303,13 +402,33 @@ const consultationSlice = createSlice({
     },
     removeAllergy(state, action) {
       state.allergies = state.allergies.filter(a => a.id !== action.payload);
+      if (state.medications.length === 0 && state.allergies.length === 0) {
+        state.completionStatus.drugHistory = false;
+      }
     },
+    
+    // ===== Physical Exam =====
     updatePhysicalExamField(state, action) {
       state.physicalExam[action.payload.field] = action.payload.value;
     },
+    updatePhysicalExam(state, action) {
+      const { field, value } = action.payload;
+      state.physicalExam[field] = value;
+    },
+    
+    // ===== Assessment =====
     updateAssessmentField(state, action) {
       state.assessment[action.payload.field] = action.payload.value;
     },
+    updateAssessment(state, action) {
+      const { field, value } = action.payload;
+      state.assessment[field] = value;
+      if (state.assessment.clinicalImpression || state.assessment.primaryDiagnosis) {
+        state.completionStatus.assessment = true;
+      }
+    },
+    
+    // ===== ICD-10 =====
     addICD10Code(state, action) {
       if (!state.icd10.selectedCodes.some(code => code.code === action.payload.code)) {
         state.icd10.selectedCodes.push(action.payload);
@@ -321,6 +440,8 @@ const consultationSlice = createSlice({
     updateICD10SearchTerm(state, action) {
       state.icd10.searchTerm = action.payload;
     },
+    
+    // ===== Orders =====
     addLabOrder(state, action) {
       state.orders.laboratory.push({ id: Date.now(), ...action.payload });
     },
@@ -333,15 +454,32 @@ const consultationSlice = createSlice({
     addReferral(state, action) {
       state.orders.referralOrders.push({ id: Date.now(), ...action.payload });
     },
+    removeOrder(state, action) {
+      const { type, id } = action.payload;
+      if (state.orders[type]) {
+        state.orders[type] = state.orders[type].filter(o => o.id !== id);
+      }
+    },
+    
+    // ===== Treatment Plan =====
     updateTreatmentPlan(state, action) {
       state.treatmentPlan[action.payload.field] = action.payload.value;
+      if (state.treatmentPlan.managementPlan) {
+        state.completionStatus.plan = true;
+      }
     },
+    
+    // ===== Disposition =====
     updateDisposition(state, action) {
       state.disposition[action.payload.field] = action.payload.value;
     },
+    
+    // ===== Follow-up =====
     updateFollowUp(state, action) {
       state.followUp[action.payload.field] = action.payload.value;
     },
+    
+    // ===== Signature =====
     signConsultation(state, action) {
       state.signature.signed = true;
       state.signature.doctorName = action.payload.doctorName || state.signature.doctorName;
@@ -358,6 +496,8 @@ const consultationSlice = createSlice({
         ipAddress: state.signature.ipAddress
       });
     },
+    
+    // ===== Audit =====
     addAuditLog(state, action) {
       state.auditTrail.unshift({
         id: Date.now(),
@@ -365,20 +505,58 @@ const consultationSlice = createSlice({
         ...action.payload
       });
     },
+    
+    // ===== Clinical Alerts =====
     addClinicalAlert(state, action) {
       state.clinicalAlerts.push({ id: Date.now(), ...action.payload });
     },
     clearClinicalAlerts(state) {
       state.clinicalAlerts = [];
     },
+    
+    // ===== Billing =====
     generateBillingCharge(state, action) {
       state.billing.charges.push({ id: Date.now(), ...action.payload });
       state.billing.total = state.billing.charges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
       state.billing.generated = true;
+    },
+    removeBillingCharge(state, action) {
+      state.billing.charges = state.billing.charges.filter(c => c.id !== action.payload);
+      state.billing.total = state.billing.charges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
+    },
+    
+    // ===== Completion Status (NEW) =====
+    updateCompletionStatus(state, action) {
+      state.completionStatus = {
+        ...state.completionStatus,
+        ...action.payload
+      };
+    },
+    
+    // ===== Red Flags (NEW) =====
+    updateRedFlags(state, action) {
+      state.redFlags = { ...state.redFlags, ...action.payload };
+    },
+    detectRedFlagsManually(state) {
+      state.redFlags = detectRedFlags(state);
     }
   }
 });
 
+// ===== SELECTORS =====
+export const selectConsultation = (state) => state.consultation;
+export const selectHPI = (state) => state.consultation.hpi;
+export const selectICE = (state) => state.consultation.ice;
+export const selectROS = (state) => state.consultation.ros;
+export const selectMedications = (state) => state.consultation.medications;
+export const selectAllergies = (state) => state.consultation.allergies;
+export const selectICD10 = (state) => state.consultation.icd10;
+export const selectRedFlags = (state) => state.consultation.redFlags;
+export const selectCompletionStatus = (state) => state.consultation.completionStatus;
+export const selectSocialHistory = (state) => state.consultation.socialHistory;
+export const selectFamilyHistory = (state) => state.consultation.familyHistory;
+
+// ===== EXPORTS =====
 export const {
   loadConsultation,
   resetConsultation,
@@ -386,8 +564,18 @@ export const {
   updateEncounterField,
   updateVitals,
   updateHPIField,
+  updateICEField,
   updateROSField,
   updatePastMedicalField,
+  updatePastMedicalHistory,
+  updateFamilyHistory,
+  addFamilySibling,
+  updateFamilySibling,
+  removeFamilySibling,
+  addRelevantCondition,
+  removeRelevantCondition,
+  updateSocialHistory,
+  updateSocialHistorySubsection,
   addMedication,
   updateMedication,
   removeMedication,
@@ -395,7 +583,9 @@ export const {
   updateAllergy,
   removeAllergy,
   updatePhysicalExamField,
+  updatePhysicalExam,
   updateAssessmentField,
+  updateAssessment,
   addICD10Code,
   removeICD10Code,
   updateICD10SearchTerm,
@@ -403,6 +593,7 @@ export const {
   addRadiologyOrder,
   addProcedure,
   addReferral,
+  removeOrder,
   updateTreatmentPlan,
   updateDisposition,
   updateFollowUp,
@@ -410,9 +601,11 @@ export const {
   addAuditLog,
   addClinicalAlert,
   clearClinicalAlerts,
-  generateBillingCharge
+  generateBillingCharge,
+  removeBillingCharge,
+  updateCompletionStatus,
+  updateRedFlags,
+  detectRedFlagsManually
 } = consultationSlice.actions;
-
-export const selectConsultation = (state) => state.consultation;
 
 export default consultationSlice.reducer;

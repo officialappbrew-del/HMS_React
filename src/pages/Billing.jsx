@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   DollarSign,
   Plus,
@@ -21,7 +21,14 @@ import {
   X,
   Printer,
   MoreHorizontal,
-  User
+  User,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  RefreshCw,
+  Info,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 import {
   fetchInvoices,
@@ -45,7 +52,197 @@ import {
 import Pagination from '../components/Pagination';
 import GenericModal from '../components/GenericModal';
 import ConfirmModal from '../components/ConfirmModal';
+import { apiRequest } from '../utils/api';
 
+// ==================== TOOLTIP COMPONENT ====================
+const Tooltip = ({ children, text, position = 'top' }) => {
+  const [show, setShow] = useState(false);
+  
+  const positionClasses = {
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
+  };
+
+  return (
+    <div 
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onTouchStart={() => setShow(!show)}
+    >
+      {children}
+      {show && (
+        <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
+          <div className="bg-[#1A1A1A] text-white text-[10px] px-2 py-1 shadow-lg">
+            {text}
+            <div className={`absolute w-1.5 h-1.5 bg-[#1A1A1A] transform rotate-45 ${
+              position === 'top' ? 'bottom-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'bottom' ? 'top-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'left' ? 'right-[-3px] top-1/2 -translate-y-1/2' :
+              'left-[-3px] top-1/2 -translate-y-1/2'
+            }`} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== ICON BUTTON ====================
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
+  const variantClasses = {
+    default: 'text-[#5A5A5A] hover:text-[#1A1A1A] hover:bg-[#F0EDE8]',
+    primary: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+    success: 'text-[#2D7D46] hover:text-[#1E5F33] hover:bg-[#EAF3EE]',
+    danger: 'text-[#C8553D] hover:text-[#A8442E] hover:bg-[#F5EDEA]',
+    warning: 'text-[#C87D3D] hover:text-[#A8662E] hover:bg-[#F5F0EA]',
+    info: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+  };
+
+  const sizeClasses = {
+    sm: 'p-1',
+    md: 'p-1.5',
+    lg: 'p-2',
+  };
+
+  const iconSizes = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-5 h-5',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <Icon className={iconSizes[size]} />
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== BUTTON WITH TOOLTIP ====================
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm', type = 'button' }) => {
+  const variantClasses = {
+    primary: 'bg-[#008751] hover:bg-[#006B40] text-white',
+    secondary: 'bg-white border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+    success: 'bg-[#2D7D46] hover:bg-[#1E5F33] text-white',
+    danger: 'bg-[#C8553D] hover:bg-[#A8442E] text-white',
+    warning: 'bg-[#C87D3D] hover:bg-[#A8662E] text-white',
+    outline: 'border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+  };
+
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3.5 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-sm',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== STATS CARD ====================
+const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, tooltip, onClick, className = '' }) => {
+  const trendColors = {
+    up: 'text-[#2D7D46]',
+    down: 'text-[#C8553D]',
+    neutral: 'text-[#5A5A5A]'
+  };
+
+  const colorMap = {
+    green: 'bg-[#008751]',
+    gold: 'bg-[#FFC107]',
+    terracotta: 'bg-[#C8553D]',
+    warm: 'bg-[#C87D3D]',
+    slate: 'bg-[#4A5A5A]',
+    blue: 'bg-[#2563EB]',
+    purple: 'bg-[#7C3AED]',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <div 
+        onClick={onClick}
+        className={`bg-white border border-[#E8E3DC] p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
+            <p className="mt-1 text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">{value}</p>
+            {subValue && (
+              <p className="text-xs text-[#5A5A5A] mt-0.5">{subValue}</p>
+            )}
+            {trend && (
+              <div className={`flex items-center mt-1 text-xs ${trendColors[trend]} font-medium`}>
+                {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5" />}
+                {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5" />}
+                <span>{trendValue}</span>
+              </div>
+            )}
+          </div>
+          <div className={`w-10 h-10 ${colorMap[color]} rounded flex items-center justify-center flex-shrink-0 ml-3`}>
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+        </div>
+      </div>
+    </Tooltip>
+  );
+};
+
+// ==================== BADGE COMPONENT ====================
+const StatusBadge = ({ status, type = 'invoice' }) => {
+  const getStatusColor = () => {
+    const colorMap = {
+      'paid': 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]',
+      'issued': 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]',
+      'partially_paid': 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]',
+      'overdue': 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]',
+      'draft': 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]',
+      'cancelled': 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]',
+      'completed': 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]',
+      'pending': 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]',
+      'failed': 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]',
+      'refunded': 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]',
+      'approved': 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]',
+      'submitted': 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]',
+      'under_review': 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]',
+      'rejected': 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]',
+    };
+    const color = colorMap[status] || 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]';
+    const label = status?.replace(/_/g, ' ') || 'Unknown';
+    return { color, label };
+  };
+
+  const { color, label } = getStatusColor();
+
+  return (
+    <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${color}`}>
+      {label}
+    </span>
+  );
+};
+
+// ==================== MAIN BILLING COMPONENT ====================
 const Billing = () => {
   const dispatch = useDispatch();
   const { invoices, payments, claims, auditLogs, summary, loading, error } = useSelector(state => state.billing);
@@ -115,6 +312,7 @@ const Billing = () => {
 
   const [rejectionReason, setRejectionReason] = useState('');
   const [approvedAmount, setApprovedAmount] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-NG', {
@@ -253,42 +451,9 @@ const Billing = () => {
 
   const totalClaimPages = Math.ceil(filteredClaims.length / itemsPerPage);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'issued': return 'bg-blue-100 text-blue-800';
-      case 'partially_paid': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      case 'refunded': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getClaimStatusColor = (status) => {
-    switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'submitted': return 'bg-blue-100 text-blue-800';
-      case 'under_review': return 'bg-yellow-100 text-yellow-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const handleCreateInvoice = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = buildInvoicePayload();
       await dispatch(createInvoice(payload)).unwrap();
@@ -296,6 +461,8 @@ const Billing = () => {
       setShowInvoiceModal(false);
     } catch (err) {
       dispatch(setError(err.message || 'Failed to create invoice.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -341,6 +508,7 @@ const Billing = () => {
 
   const handleCreatePayment = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = {
         ...paymentForm,
@@ -360,11 +528,14 @@ const Billing = () => {
       dispatch(fetchInvoices());
     } catch (err) {
       dispatch(setError(err.message || 'Failed to record payment.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleCreateClaim = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = {
         ...claimForm,
@@ -382,6 +553,8 @@ const Billing = () => {
       setShowClaimModal(false);
     } catch (err) {
       dispatch(setError(err.message || 'Failed to create insurance claim.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -427,6 +600,7 @@ const Billing = () => {
 
   const handleApproveClaim = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     if (selectedClaim) {
       try {
         await dispatch(approveClaim({ id: selectedClaim.id, approved_amount: parseFloat(approvedAmount) || selectedClaim.claimed_amount })).unwrap();
@@ -436,12 +610,15 @@ const Billing = () => {
         dispatch(fetchInsuranceClaims());
       } catch (err) {
         dispatch(setError(err.message || 'Failed to approve claim.'));
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
 
   const handleRejectClaim = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     if (selectedClaim) {
       try {
         await dispatch(rejectClaim({ id: selectedClaim.id, rejection_reason: rejectionReason })).unwrap();
@@ -451,6 +628,8 @@ const Billing = () => {
         dispatch(fetchInsuranceClaims());
       } catch (err) {
         dispatch(setError(err.message || 'Failed to reject claim.'));
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
@@ -459,131 +638,156 @@ const Billing = () => {
   const totalTax = invoiceForm.items.reduce((sum, item) => sum + ((item.lineTotal || 0) * (item.taxRate || 0) / 100), 0);
   const grandTotal = totalInvoiceAmount + totalTax - (invoiceForm.discountAmount || 0);
 
+  // Tabs configuration
+  const tabs = [
+    { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'claims', label: 'Insurance Claims', icon: Shield },
+    { id: 'audit', label: 'Audit Logs', icon: Shield }
+  ];
+
   return (
-    <div className="billing p-4 sm:p-6 bg-gray-50 min-h-screen">
+    <div className="billing min-h-screen bg-[#F7F5F2] p-3 sm:p-4 md:p-8 font-sans">
+      {/* Error Message */}
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-          <button onClick={() => dispatch(clearError())} className="ml-2 text-red-800 font-medium">Dismiss</button>
+        <div className="mb-4 p-3 bg-[#F5EDEA] border border-[#E8D6D0] text-sm text-[#C8553D] flex items-center justify-between">
+          <span>{error}</span>
+          <button 
+            onClick={() => dispatch(clearError())} 
+            className="text-[#C8553D] hover:text-[#A8442E] p-0.5"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center">
-          <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 mr-3 text-green-500" />
-          Billing & Payments
-        </h1>
-        <p className="text-gray-600 mt-2">Invoice management, payments, and insurance claims</p>
+      <div className="mb-4 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#E8F5EF] flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-[#008751]" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
+                Billing & Payments
+              </h1>
+              <p className="text-xs sm:text-sm text-[#5A5A5A]">
+                Invoice management, payments, and insurance claims
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            <ButtonWithTooltip
+              onClick={() => {
+                dispatch(fetchInvoices());
+                dispatch(fetchPayments());
+                dispatch(fetchInsuranceClaims());
+                dispatch(fetchInvoiceSummary());
+                dispatch(fetchAuditLogs());
+              }}
+              tooltip="Refresh data"
+              variant="secondary"
+              size="sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </ButtonWithTooltip>
+          </div>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Total Invoices</p>
-              <p className="text-3xl font-bold mt-2">{summary.total_invoices || 0}</p>
-              <div className="flex items-center mt-1">
-                <FileText className="w-4 h-4 text-blue-600 mr-1" />
-                <span className="text-sm text-blue-600">{formatCurrency(summary.total_revenue)} revenue</span>
-              </div>
-            </div>
-            <FileText className="w-12 h-12 text-blue-500 opacity-70" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Total Paid</p>
-              <p className="text-3xl font-bold mt-2">{formatCurrency(summary.total_paid)}</p>
-              <div className="flex items-center mt-1">
-                <CheckCircle className="w-4 h-4 text-green-600 mr-1" />
-                <span className="text-sm text-green-600">{summary.collection_rate}% collection rate</span>
-              </div>
-            </div>
-            <CreditCard className="w-12 h-12 text-green-500 opacity-70" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-yellow-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Pending Payments</p>
-              <p className="text-3xl font-bold mt-2">{formatCurrency(summary.total_pending)}</p>
-              <div className="flex items-center mt-1">
-                <Clock className="w-4 h-4 text-yellow-600 mr-1" />
-                <span className="text-sm text-yellow-600">Outstanding balance</span>
-              </div>
-            </div>
-            <AlertTriangle className="w-12 h-12 text-yellow-500 opacity-70" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Insurance Claims</p>
-              <p className="text-3xl font-bold mt-2">{claims.length}</p>
-              <div className="flex items-center mt-1">
-                <Shield className="w-4 h-4 text-purple-600 mr-1" />
-                <span className="text-sm text-purple-600">Active claims</span>
-              </div>
-            </div>
-            <Shield className="w-12 h-12 text-purple-500 opacity-70" />
-          </div>
-        </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-8">
+        <StatsCard
+          title="Total Invoices"
+          value={summary.total_invoices || 0}
+          subValue={`${formatCurrency(summary.total_revenue)} revenue`}
+          icon={FileText}
+          color="blue"
+          tooltip="Total number of invoices and revenue generated"
+        />
+        <StatsCard
+          title="Total Paid"
+          value={formatCurrency(summary.total_paid)}
+          subValue={`${summary.collection_rate || 0}% collection rate`}
+          icon={CreditCard}
+          color="green"
+          tooltip="Total amount collected from payments"
+          trend={summary.collection_rate > 70 ? 'up' : 'neutral'}
+          trendValue={summary.collection_rate > 70 ? 'Good collection rate' : 'Needs improvement'}
+        />
+        <StatsCard
+          title="Pending Payments"
+          value={formatCurrency(summary.total_pending)}
+          subValue="Outstanding balance"
+          icon={AlertTriangle}
+          color="warm"
+          tooltip="Total amount pending collection"
+          trend={summary.total_pending > 0 ? 'down' : 'neutral'}
+          trendValue={summary.total_pending > 0 ? 'Requires attention' : 'All cleared'}
+        />
+        <StatsCard
+          title="Insurance Claims"
+          value={claims.length}
+          subValue={`${claims.filter(c => c.status === 'approved').length} approved`}
+          icon={Shield}
+          color="purple"
+          tooltip="Total insurance claims submitted"
+        />
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-8">
-        <div className="flex flex-wrap gap-2 mb-6">
-          {[
-            { id: 'invoices', label: 'Invoices', icon: FileText },
-            { id: 'payments', label: 'Payments', icon: CreditCard },
-            { id: 'claims', label: 'Insurance Claims', icon: Shield },
-            { id: 'audit', label: 'Audit Logs', icon: Shield }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-lg font-medium flex items-center ${
-                activeTab === tab.id
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              <tab.icon className="w-4 h-4 mr-2" />
-              {tab.label}
-            </button>
-          ))}
+      <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5 md:p-8 mb-4 sm:mb-8">
+        <div className="border-b border-[#E8E3DC] mb-4 sm:mb-6 overflow-x-auto">
+          <nav className="flex gap-3 sm:gap-6 min-w-max" aria-label="Tabs">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <Tooltip key={tab.id} text={`View ${tab.label}`}>
+                  <button
+                    onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
+                    className={`flex items-center gap-1.5 px-1 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-[#008751] text-[#008751]'
+                        : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A] hover:border-[#D8D4CD]'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                    {tab.id === 'claims' && (
+                      <span className="w-4 h-4 bg-[#E8F5EF] text-[#008751] text-[10px] flex items-center justify-center border border-[#C8E0D5] ml-0.5">
+                        {claims.filter(c => c.status === 'submitted' || c.status === 'under_review').length}
+                      </span>
+                    )}
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </nav>
         </div>
 
         {/* Invoices Tab */}
         {activeTab === 'invoices' && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="flex-1">
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#B0A89E]" />
                   <input
                     type="text"
-                    placeholder="Search invoices..."
+                    placeholder="Search invoices by patient or invoice number..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                   />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
+              <div className="w-full sm:w-48">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                 >
                   <option value="all">All Status</option>
                   <option value="draft">Draft</option>
@@ -594,289 +798,458 @@ const Billing = () => {
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
-
-              <div className="flex items-end">
-                <button
-                  onClick={() => setShowInvoiceModal(true)}
-                  className="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 font-medium flex items-center justify-center"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Invoice
-                </button>
-              </div>
+              <ButtonWithTooltip
+                onClick={() => setShowInvoiceModal(true)}
+                tooltip="Create a new invoice"
+                variant="primary"
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Create Invoice
+              </ButtonWithTooltip>
             </div>
 
+            {/* Invoices Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <thead>
+                  <tr className="border-b border-[#E8E3DC]">
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Invoice #</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Patient</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Date</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Total</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Paid</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedInvoices.map(invoice => (
-                    <tr key={invoice.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {invoice.invoice_number}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {invoice.patient_name || 'Unknown'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(invoice.invoice_date).toLocaleDateString('en-NG')}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(invoice.total_amount)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatCurrency(invoice.amount_paid)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                          {invoice.status?.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2">
-                          {invoice.status === 'draft' && (
-                            <button
-                              onClick={() => handleIssueInvoice(invoice.id)}
-                              className="text-green-600 hover:text-green-900"
-                              title="Issue Invoice"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleViewInvoice(invoice)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          {invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
-                            <button
-                              onClick={() => { setSelectedInvoice(invoice); setShowCancelModal(true); }}
-                              className="text-yellow-600 hover:text-yellow-900"
-                              title="Cancel Invoice"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true); }}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete Invoice"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                <tbody className="divide-y divide-[#F0EDE8]">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <Loader2 className="w-8 h-8 text-[#008751] animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-[#5A5A5A]">Loading invoices...</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : paginatedInvoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <FileText className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                        <p className="text-[#5A5A5A] font-medium">No invoices found</p>
+                        <p className="text-xs text-[#B0A89E] mt-1">Create your first invoice to get started</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedInvoices.map(invoice => (
+                      <tr key={invoice.id} className="hover:bg-[#F7F5F2] transition-colors">
+                        <td className="px-4 py-4">
+                          <span className="text-sm font-medium text-[#1A1A1A]">{invoice.invoice_number}</span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden sm:table-cell">
+                          {invoice.patient_name || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden md:table-cell">
+                          {invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString('en-NG') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-4 text-sm font-medium text-[#1A1A1A]">
+                          {formatCurrency(invoice.total_amount)}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden lg:table-cell">
+                          {formatCurrency(invoice.amount_paid)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusBadge status={invoice.status} type="invoice" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1">
+                            {invoice.status === 'draft' && (
+                              <IconButton
+                                icon={CheckCircle}
+                                onClick={() => handleIssueInvoice(invoice.id)}
+                                tooltip="Issue Invoice"
+                                variant="success"
+                                size="sm"
+                              />
+                            )}
+                            <IconButton
+                              icon={Eye}
+                              onClick={() => handleViewInvoice(invoice)}
+                              tooltip="View Details"
+                              variant="primary"
+                              size="sm"
+                            />
+                            {invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
+                              <IconButton
+                                icon={XCircle}
+                                onClick={() => { setSelectedInvoice(invoice); setShowCancelModal(true); }}
+                                tooltip="Cancel Invoice"
+                                variant="warning"
+                                size="sm"
+                              />
+                            )}
+                            <IconButton
+                              icon={Trash2}
+                              onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true); }}
+                              tooltip="Delete Invoice"
+                              variant="danger"
+                              size="sm"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
+                <div className="text-[10px] text-[#5A5A5A]">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredInvoices.length)} of {filteredInvoices.length}
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <IconButton
+                    icon={ChevronLeft}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    tooltip="Previous page"
+                    variant="default"
+                    disabled={currentPage === 1}
+                    size="sm"
+                  />
+                  <span className="text-xs text-[#5A5A5A]">Page {currentPage} of {totalPages}</span>
+                  <IconButton
+                    icon={ChevronRight}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    tooltip="Next page"
+                    variant="default"
+                    disabled={currentPage === totalPages}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Payments Tab */}
         {activeTab === 'payments' && (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Payment History</h3>
-              <button
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+              <div className="flex-1 w-full">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#B0A89E]" />
+                  <input
+                    type="text"
+                    placeholder="Search payments by patient or payment number..."
+                    value={paymentSearchQuery}
+                    onChange={(e) => setPaymentSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              <ButtonWithTooltip
                 onClick={() => setShowPaymentModal(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium flex items-center"
+                tooltip="Record a new payment"
+                variant="primary"
+                size="sm"
+                className="w-full sm:w-auto"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-3.5 h-3.5" />
                 Record Payment
-              </button>
+              </ButtonWithTooltip>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <thead>
+                  <tr className="border-b border-[#E8E3DC]">
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Payment #</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Invoice</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Method</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Date</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {payments.map(payment => (
-                    <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {payment.payment_number}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {payment.invoice?.invoice_number || 'N/A'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {payment.patient_name || 'Unknown'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                        {formatCurrency(payment.amount)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                        {payment.payment_method?.replace('_', ' ')}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(payment.payment_date).toLocaleDateString('en-NG')}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(payment.status)}`}>
-                          {payment.status}
-                        </span>
+                <tbody className="divide-y divide-[#F0EDE8]">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <Loader2 className="w-8 h-8 text-[#008751] animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-[#5A5A5A]">Loading payments...</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : paginatedPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <CreditCard className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                        <p className="text-[#5A5A5A] font-medium">No payments recorded</p>
+                        <p className="text-xs text-[#B0A89E] mt-1">Record a payment to get started</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedPayments.map(payment => (
+                      <tr key={payment.id} className="hover:bg-[#F7F5F2] transition-colors">
+                        <td className="px-4 py-4">
+                          <span className="text-sm font-medium text-[#1A1A1A]">{payment.payment_number}</span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden sm:table-cell">
+                          {payment.invoice?.invoice_number || 'N/A'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A]">
+                          {payment.patient_name || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-4 text-sm font-medium text-[#2D7D46]">
+                          {formatCurrency(payment.amount)}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] capitalize hidden md:table-cell">
+                          {payment.payment_method?.replace('_', ' ')}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden lg:table-cell">
+                          {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-NG') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusBadge status={payment.status} type="payment" />
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {totalPaymentPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
+                <div className="text-[10px] text-[#5A5A5A]">
+                  Showing {(paymentCurrentPage - 1) * itemsPerPage + 1} to {Math.min(paymentCurrentPage * itemsPerPage, filteredPayments.length)} of {filteredPayments.length}
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <IconButton
+                    icon={ChevronLeft}
+                    onClick={() => setPaymentCurrentPage(prev => Math.max(prev - 1, 1))}
+                    tooltip="Previous page"
+                    variant="default"
+                    disabled={paymentCurrentPage === 1}
+                    size="sm"
+                  />
+                  <span className="text-xs text-[#5A5A5A]">Page {paymentCurrentPage} of {totalPaymentPages}</span>
+                  <IconButton
+                    icon={ChevronRight}
+                    onClick={() => setPaymentCurrentPage(prev => Math.min(prev + 1, totalPaymentPages))}
+                    tooltip="Next page"
+                    variant="default"
+                    disabled={paymentCurrentPage === totalPaymentPages}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Insurance Claims Tab */}
         {activeTab === 'claims' && (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Insurance Claims</h3>
-              <button
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+              <div className="flex-1 w-full">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#B0A89E]" />
+                  <input
+                    type="text"
+                    placeholder="Search claims by patient, claim number, or provider..."
+                    value={claimSearchQuery}
+                    onChange={(e) => setClaimSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+              <ButtonWithTooltip
                 onClick={() => setShowClaimModal(true)}
-                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium flex items-center"
+                tooltip="Create a new insurance claim"
+                variant="primary"
+                size="sm"
+                className="w-full sm:w-auto"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-3.5 h-3.5" />
                 New Claim
-              </button>
+              </ButtonWithTooltip>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claim #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claimed</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <thead>
+                  <tr className="border-b border-[#E8E3DC]">
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Claim #</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Patient</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Provider</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Claimed</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {claims.map(claim => (
-                    <tr key={claim.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {claim.claim_number}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {claim.patient_name || 'Unknown'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {claim.insurance_provider}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(claim.claimed_amount)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${getClaimStatusColor(claim.status)}`}>
-                          {claim.status?.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2">
-                          {claim.status === 'draft' && (
-                            <button
-                              onClick={() => dispatch(submitInsuranceClaim(claim.id))}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Submit Claim"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          {claim.status === 'submitted' && (
-                            <>
-                              <button
-                                onClick={() => { setSelectedClaim(claim); setApprovedAmount(claim.claimed_amount); setShowApproveClaimModal(true); }}
-                                className="text-green-600 hover:text-green-900"
-                                title="Approve Claim"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => { setSelectedClaim(claim); setShowRejectClaimModal(true); }}
-                                className="text-red-600 hover:text-red-900"
-                                title="Reject Claim"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                          <button className="text-gray-600 hover:text-gray-900" title="View Details">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </div>
+                <tbody className="divide-y divide-[#F0EDE8]">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center">
+                        <Loader2 className="w-8 h-8 text-[#008751] animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-[#5A5A5A]">Loading claims...</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : paginatedClaims.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center">
+                        <Shield className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                        <p className="text-[#5A5A5A] font-medium">No insurance claims</p>
+                        <p className="text-xs text-[#B0A89E] mt-1">Create your first insurance claim to get started</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedClaims.map(claim => (
+                      <tr key={claim.id} className="hover:bg-[#F7F5F2] transition-colors">
+                        <td className="px-4 py-4">
+                          <span className="text-sm font-medium text-[#1A1A1A]">{claim.claim_number}</span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden sm:table-cell">
+                          {claim.patient_name || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden md:table-cell">
+                          {claim.insurance_provider}
+                        </td>
+                        <td className="px-4 py-4 text-sm font-medium text-[#1A1A1A]">
+                          {formatCurrency(claim.claimed_amount)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusBadge status={claim.status} type="claim" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1">
+                            {claim.status === 'draft' && (
+                              <IconButton
+                                icon={CheckCircle}
+                                onClick={() => dispatch(submitInsuranceClaim(claim.id))}
+                                tooltip="Submit Claim"
+                                variant="success"
+                                size="sm"
+                              />
+                            )}
+                            {claim.status === 'submitted' && (
+                              <>
+                                <IconButton
+                                  icon={CheckCircle}
+                                  onClick={() => { setSelectedClaim(claim); setApprovedAmount(claim.claimed_amount); setShowApproveClaimModal(true); }}
+                                  tooltip="Approve Claim"
+                                  variant="success"
+                                  size="sm"
+                                />
+                                <IconButton
+                                  icon={XCircle}
+                                  onClick={() => { setSelectedClaim(claim); setShowRejectClaimModal(true); }}
+                                  tooltip="Reject Claim"
+                                  variant="danger"
+                                  size="sm"
+                                />
+                              </>
+                            )}
+                            <IconButton
+                              icon={Eye}
+                              onClick={() => { setSelectedClaim(claim); setShowInvoiceDetailModal(true); }}
+                              tooltip="View Details"
+                              variant="primary"
+                              size="sm"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {totalClaimPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
+                <div className="text-[10px] text-[#5A5A5A]">
+                  Showing {(claimCurrentPage - 1) * itemsPerPage + 1} to {Math.min(claimCurrentPage * itemsPerPage, filteredClaims.length)} of {filteredClaims.length}
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <IconButton
+                    icon={ChevronLeft}
+                    onClick={() => setClaimCurrentPage(prev => Math.max(prev - 1, 1))}
+                    tooltip="Previous page"
+                    variant="default"
+                    disabled={claimCurrentPage === 1}
+                    size="sm"
+                  />
+                  <span className="text-xs text-[#5A5A5A]">Page {claimCurrentPage} of {totalClaimPages}</span>
+                  <IconButton
+                    icon={ChevronRight}
+                    onClick={() => setClaimCurrentPage(prev => Math.min(prev + 1, totalClaimPages))}
+                    tooltip="Next page"
+                    variant="default"
+                    disabled={claimCurrentPage === totalClaimPages}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Audit Logs Tab */}
         {activeTab === 'audit' && (
           <div>
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+            <div className="mb-4 sm:mb-6">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#B0A89E]" />
                 <input
                   type="text"
                   placeholder="Search audit logs..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full md:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <thead>
+                  <tr className="border-b border-[#E8E3DC]">
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Action</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Description</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">User</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Date</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {auditLogs.slice(0, 50).map(log => (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 capitalize">
-                        {log.action?.replace('_', ' ')}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {log.description}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {log.user || 'System'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(log.created_at).toLocaleString('en-NG')}
+                <tbody className="divide-y divide-[#F0EDE8]">
+                  {auditLogs.slice(0, 50).length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-12 text-center">
+                        <Shield className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                        <p className="text-[#5A5A5A] font-medium">No audit logs available</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    auditLogs.slice(0, 50).map(log => (
+                      <tr key={log.id} className="hover:bg-[#F7F5F2] transition-colors">
+                        <td className="px-4 py-4">
+                          <span className="text-sm font-medium text-[#1A1A1A] capitalize">
+                            {log.action?.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden sm:table-cell">
+                          {log.description}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A] hidden md:table-cell">
+                          {log.user || 'System'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-[#5A5A5A]">
+                          {log.created_at ? new Date(log.created_at).toLocaleString('en-NG') : 'N/A'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -884,34 +1257,7 @@ const Billing = () => {
         )}
       </div>
 
-      {/* Pagination */}
-      {activeTab === 'invoices' && totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      )}
-      {activeTab === 'payments' && totalPaymentPages > 1 && (
-        <Pagination
-          currentPage={paymentCurrentPage}
-          totalPages={totalPaymentPages}
-          onPageChange={setPaymentCurrentPage}
-          totalItems={filteredPayments.length}
-          itemsPerPage={itemsPerPage}
-        />
-      )}
-      {activeTab === 'claims' && totalClaimPages > 1 && (
-        <Pagination
-          currentPage={claimCurrentPage}
-          totalPages={totalClaimPages}
-          onPageChange={setClaimCurrentPage}
-          totalItems={filteredClaims.length}
-          itemsPerPage={itemsPerPage}
-        />
-      )}
-
-      {/* Create Invoice Modal */}
+      {/* ==================== CREATE INVOICE MODAL ==================== */}
       <GenericModal
         isOpen={showInvoiceModal}
         onClose={() => { resetInvoiceForm(); setShowInvoiceModal(false); }}
@@ -921,42 +1267,45 @@ const Billing = () => {
         <form onSubmit={handleCreateInvoice} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Patient *</label>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Patient *</label>
               <div className="relative patient-search-dropdown">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B0A89E]" />
                 <input
                   type="text"
                   value={selectedPatientName || patientSearchQuery}
                   onChange={handlePatientSearch}
                   onFocus={() => setShowPatientDropdown(true)}
-                  placeholder="Search patient by name, email, or hospital number..."
-                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                  placeholder="Search patient by name or hospital number..."
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                   required
                 />
                 {showPatientDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-[#E8E3DC] max-h-60 overflow-y-auto">
                     {isLoadingPatients ? (
-                      <div className="px-4 py-3 text-sm text-gray-500">Loading patients...</div>
+                      <div className="px-4 py-3 text-sm text-[#5A5A5A] flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 text-[#008751] animate-spin" />
+                        Loading patients...
+                      </div>
                     ) : patients.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-gray-500">No patients found</div>
+                      <div className="px-4 py-3 text-sm text-[#B0A89E]">No patients found</div>
                     ) : (
                       patients.map((patient) => (
                         <button
                           key={patient.id}
                           type="button"
                           onClick={() => handleSelectPatient(patient)}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                          className="w-full text-left px-4 py-2 hover:bg-[#F7F5F2] border-b border-[#F0EDE8] last:border-0"
                         >
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-xs flex-shrink-0">
+                            <div className="w-8 h-8 rounded bg-[#E8F5EF] flex items-center justify-center text-[#008751] font-medium text-xs flex-shrink-0">
                               {(patient.name || patient.full_name || '?').charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
+                              <p className="text-sm font-medium text-[#1A1A1A] truncate">
                                 {patient.name || patient.full_name}
                               </p>
-                              <p className="text-xs text-gray-500 truncate">
-                                {patient.hospital_number ? `Hosp: ${patient.hospital_number}` : patient.email || ''}
+                              <p className="text-xs text-[#B0A89E] truncate">
+                                {patient.hospital_number ? `HN: ${patient.hospital_number}` : patient.email || ''}
                                 {patient.phone ? ` • ${patient.phone}` : ''}
                               </p>
                             </div>
@@ -968,40 +1317,40 @@ const Billing = () => {
                 )}
               </div>
               {selectedPatientName && (
-                <p className="mt-1 text-xs text-gray-500">Selected: {selectedPatientName}</p>
+                <p className="mt-1 text-xs text-[#2D7D46]">Selected: {selectedPatientName}</p>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Visit ID (Optional)</label>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Visit ID (Optional)</label>
               <input
                 type="text"
                 value={invoiceForm.visitId}
                 onChange={(e) => setInvoiceForm({ ...invoiceForm, visitId: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Due Date *</label>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Due Date *</label>
               <input
                 type="date"
                 value={invoiceForm.dueDate}
                 onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                 required
               />
             </div>
           </div>
 
           {/* Invoice Items */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Invoice Items</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+          <div className="border-t border-[#E8E3DC] pt-4">
+            <h4 className="text-xs font-medium text-[#5A5A5A] uppercase tracking-wider mb-3">Invoice Items</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-[10px] font-medium text-[#5A5A5A] mb-1">Type</label>
                 <select
                   value={itemForm.itemType}
                   onChange={(e) => setItemForm({ ...itemForm, itemType: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                 >
                   <option value="consultation">Consultation</option>
                   <option value="drug">Drug/Medication</option>
@@ -1013,45 +1362,45 @@ const Billing = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description *</label>
+                <label className="block text-[10px] font-medium text-[#5A5A5A] mb-1">Description *</label>
                 <input
                   type="text"
                   value={itemForm.description}
                   onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price *</label>
+                <label className="block text-[10px] font-medium text-[#5A5A5A] mb-1">Unit Price *</label>
                 <input
                   type="number"
                   value={itemForm.unitPrice}
                   onChange={(e) => setItemForm({ ...itemForm, unitPrice: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                   step="0.01"
                   required
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                <label className="block text-[10px] font-medium text-[#5A5A5A] mb-1">Quantity</label>
                 <input
                   type="number"
                   value={itemForm.quantity}
                   onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                   min="1"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Discount</label>
+                <label className="block text-[10px] font-medium text-[#5A5A5A] mb-1">Discount</label>
                 <input
                   type="number"
                   value={itemForm.discountAmount}
                   onChange={(e) => setItemForm({ ...itemForm, discountAmount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                   step="0.01"
                 />
               </div>
@@ -1059,7 +1408,7 @@ const Billing = () => {
                 <button
                   type="button"
                   onClick={handleAddInvoiceItem}
-                  className="w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium text-sm"
+                  className="w-full px-4 py-2 bg-[#5A5A5A] text-white hover:bg-[#4A4A4A] transition-colors font-medium text-sm"
                 >
                   Add Item
                 </button>
@@ -1069,21 +1418,23 @@ const Billing = () => {
 
           {/* Items Summary */}
           {invoiceForm.items.length > 0 && (
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Current Items ({invoiceForm.items.length})</h4>
+            <div className="border-t border-[#E8E3DC] pt-4">
+              <h4 className="text-xs font-medium text-[#5A5A5A] uppercase tracking-wider mb-2">
+                Current Items ({invoiceForm.items.length})
+              </h4>
               <div className="max-h-40 overflow-y-auto space-y-1">
                 {invoiceForm.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
-                    <span>{item.description} x{item.quantity} @ {formatCurrency(item.unitPrice)}</span>
+                  <div key={index} className="flex justify-between items-center p-2 bg-[#F7F5F2] border border-[#E8E3DC] text-sm">
+                    <span className="text-[#1A1A1A]">{item.description} x{item.quantity} @ {formatCurrency(item.unitPrice)}</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{formatCurrency(item.lineTotal)}</span>
+                      <span className="font-medium text-[#1A1A1A]">{formatCurrency(item.lineTotal)}</span>
                       <button
                         type="button"
                         onClick={() => setInvoiceForm(prev => ({
                           ...prev,
                           items: prev.items.filter((_, i) => i !== index)
                         }))}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-[#C8553D] hover:text-[#A8442E]"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -1091,34 +1442,39 @@ const Billing = () => {
                   </div>
                 ))}
               </div>
-              <div className="mt-2 text-sm text-gray-600">
-                <p>Subtotal: {formatCurrency(totalInvoiceAmount)}</p>
-                <p>Tax: {formatCurrency(totalTax)}</p>
-                <p>Discount: {formatCurrency(invoiceForm.discountAmount)}</p>
-                <p className="font-bold text-gray-900">Grand Total: {formatCurrency(grandTotal)}</p>
+              <div className="mt-2 text-sm">
+                <p className="text-[#5A5A5A]">Subtotal: <span className="font-medium text-[#1A1A1A]">{formatCurrency(totalInvoiceAmount)}</span></p>
+                <p className="text-[#5A5A5A]">Tax: <span className="font-medium text-[#1A1A1A]">{formatCurrency(totalTax)}</span></p>
+                <p className="text-[#5A5A5A]">Discount: <span className="font-medium text-[#1A1A1A]">{formatCurrency(invoiceForm.discountAmount)}</span></p>
+                <p className="font-bold text-[#1A1A1A]">Grand Total: {formatCurrency(grandTotal)}</p>
               </div>
             </div>
           )}
 
-          <div className="flex gap-2 pt-4">
-            <button
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-[#E8E3DC]">
+            <ButtonWithTooltip
               type="submit"
-              className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 font-medium"
+              tooltip="Create invoice"
+              variant="primary"
+              className="flex-1"
+              disabled={isSubmitting}
             >
-              Create Invoice
-            </button>
-            <button
+              {isSubmitting ? 'Creating...' : 'Create Invoice'}
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
               type="button"
               onClick={resetInvoiceForm}
-              className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+              tooltip="Cancel"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </ButtonWithTooltip>
           </div>
         </form>
       </GenericModal>
 
-      {/* Record Payment Modal */}
+      {/* ==================== RECORD PAYMENT MODAL ==================== */}
       <GenericModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
@@ -1127,11 +1483,11 @@ const Billing = () => {
       >
         <form onSubmit={handleCreatePayment} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Invoice *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Invoice *</label>
             <select
               value={paymentForm.invoiceId}
               onChange={(e) => setPaymentForm({ ...paymentForm, invoiceId: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               required
             >
               <option value="">Select Invoice</option>
@@ -1144,23 +1500,23 @@ const Billing = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Amount *</label>
             <input
               type="number"
               value={paymentForm.amount}
               onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               step="0.01"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Payment Method *</label>
             <select
               value={paymentForm.paymentMethod}
               onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               required
             >
               <option value="cash">Cash</option>
@@ -1175,44 +1531,49 @@ const Billing = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Transaction Reference</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Transaction Reference</label>
             <input
               type="text"
               value={paymentForm.transactionReference}
               onChange={(e) => setPaymentForm({ ...paymentForm, transactionReference: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Notes</label>
             <textarea
               value={paymentForm.notes}
               onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              rows="2"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              rows={2}
             />
           </div>
 
-          <div className="flex gap-2 pt-4">
-            <button
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-[#E8E3DC]">
+            <ButtonWithTooltip
               type="submit"
-              className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium"
+              tooltip="Record payment"
+              variant="primary"
+              className="flex-1"
+              disabled={isSubmitting}
             >
-              Record Payment
-            </button>
-            <button
+              {isSubmitting ? 'Recording...' : 'Record Payment'}
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
               type="button"
               onClick={() => setShowPaymentModal(false)}
-              className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+              tooltip="Cancel"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </ButtonWithTooltip>
           </div>
         </form>
       </GenericModal>
 
-      {/* Insurance Claim Modal */}
+      {/* ==================== INSURANCE CLAIM MODAL ==================== */}
       <GenericModal
         isOpen={showClaimModal}
         onClose={() => setShowClaimModal(false)}
@@ -1221,11 +1582,11 @@ const Billing = () => {
       >
         <form onSubmit={handleCreateClaim} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Invoice *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Invoice *</label>
             <select
               value={claimForm.invoiceId}
               onChange={(e) => setClaimForm({ ...claimForm, invoiceId: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               required
             >
               <option value="">Select Invoice</option>
@@ -1238,67 +1599,72 @@ const Billing = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Provider *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Insurance Provider *</label>
             <input
               type="text"
               value={claimForm.insuranceProvider}
               onChange={(e) => setClaimForm({ ...claimForm, insuranceProvider: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Policy Number</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Policy Number</label>
             <input
               type="text"
               value={claimForm.policyNumber}
               onChange={(e) => setClaimForm({ ...claimForm, policyNumber: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Claimed Amount *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Claimed Amount *</label>
             <input
               type="number"
               value={claimForm.claimedAmount}
               onChange={(e) => setClaimForm({ ...claimForm, claimedAmount: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               step="0.01"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Notes</label>
             <textarea
               value={claimForm.notes}
               onChange={(e) => setClaimForm({ ...claimForm, notes: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              rows="2"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              rows={2}
             />
           </div>
 
-          <div className="flex gap-2 pt-4">
-            <button
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-[#E8E3DC]">
+            <ButtonWithTooltip
               type="submit"
-              className="flex-1 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 font-medium"
+              tooltip="Create insurance claim"
+              variant="primary"
+              className="flex-1"
+              disabled={isSubmitting}
             >
-              Create Claim
-            </button>
-            <button
+              {isSubmitting ? 'Creating...' : 'Create Claim'}
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
               type="button"
               onClick={() => setShowClaimModal(false)}
-              className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+              tooltip="Cancel"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </ButtonWithTooltip>
           </div>
         </form>
       </GenericModal>
 
-      {/* Invoice Detail Modal */}
+      {/* ==================== INVOICE DETAIL MODAL ==================== */}
       <GenericModal
         isOpen={showInvoiceDetailModal}
         onClose={() => setShowInvoiceDetailModal(false)}
@@ -1309,75 +1675,73 @@ const Billing = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-500">Invoice Number</p>
-                <p className="font-medium">{selectedInvoice.invoice_number}</p>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Invoice Number</p>
+                <p className="font-medium text-[#1A1A1A]">{selectedInvoice.invoice_number}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Patient</p>
-                <p className="font-medium">{selectedInvoice.patient_name || 'Unknown'}</p>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</p>
+                <p className="font-medium text-[#1A1A1A]">{selectedInvoice.patient_name || 'Unknown'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Date</p>
-                <p className="font-medium">{new Date(selectedInvoice.invoice_date).toLocaleDateString('en-NG')}</p>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Date</p>
+                <p className="text-sm text-[#5A5A5A]">{selectedInvoice.invoice_date ? new Date(selectedInvoice.invoice_date).toLocaleDateString('en-NG') : 'N/A'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Due Date</p>
-                <p className="font-medium">{new Date(selectedInvoice.due_date).toLocaleDateString('en-NG')}</p>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Due Date</p>
+                <p className="text-sm text-[#5A5A5A]">{selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString('en-NG') : 'N/A'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Amount</p>
-                <p className="font-medium">{formatCurrency(selectedInvoice.total_amount)}</p>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Total Amount</p>
+                <p className="font-medium text-[#1A1A1A]">{formatCurrency(selectedInvoice.total_amount)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Amount Paid</p>
-                <p className="font-medium">{formatCurrency(selectedInvoice.amount_paid)}</p>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Amount Paid</p>
+                <p className="font-medium text-[#2D7D46]">{formatCurrency(selectedInvoice.amount_paid)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Balance Due</p>
-                <p className="font-medium">{formatCurrency(selectedInvoice.balance_due)}</p>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Balance Due</p>
+                <p className="font-medium text-[#C87D3D]">{formatCurrency(selectedInvoice.balance_due)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Status</p>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(selectedInvoice.status)}`}>
-                  {selectedInvoice.status?.replace('_', ' ')}
-                </span>
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</p>
+                <StatusBadge status={selectedInvoice.status} type="invoice" />
               </div>
             </div>
             {selectedInvoice.notes && (
-              <div>
-                <p className="text-sm text-gray-500">Notes</p>
-                <p className="text-sm">{selectedInvoice.notes}</p>
+              <div className="border-t border-[#E8E3DC] pt-4">
+                <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Notes</p>
+                <p className="text-sm text-[#5A5A5A]">{selectedInvoice.notes}</p>
               </div>
             )}
           </div>
         )}
       </GenericModal>
 
-      {/* Cancel Invoice Modal */}
+      {/* ==================== CANCEL INVOICE CONFIRMATION ==================== */}
       <ConfirmModal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}
         onConfirm={handleConfirmCancel}
         title="Cancel Invoice"
-        message={`Are you sure you want to cancel invoice ${selectedInvoice?.invoice_number}?`}
+        message={`Are you sure you want to cancel invoice ${selectedInvoice?.invoice_number}? This action cannot be undone.`}
         confirmText="Yes, Cancel"
         cancelText="No"
         type="archive"
       />
 
-      {/* Delete Invoice Modal */}
+      {/* ==================== DELETE INVOICE CONFIRMATION ==================== */}
       <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Invoice"
-        message={`Are you sure you want to delete invoice ${selectedInvoice?.invoice_number}?`}
+        message={`Are you sure you want to delete invoice ${selectedInvoice?.invoice_number}? This action cannot be undone.`}
         confirmText="Yes, Delete"
         cancelText="No"
         type="delete"
       />
 
-      {/* Approve Claim Modal */}
+      {/* ==================== APPROVE CLAIM MODAL ==================== */}
       <GenericModal
         isOpen={showApproveClaimModal}
         onClose={() => setShowApproveClaimModal(false)}
@@ -1386,35 +1750,41 @@ const Billing = () => {
       >
         <form onSubmit={handleApproveClaim} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Approved Amount *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Approved Amount *</label>
             <input
               type="number"
               value={approvedAmount}
               onChange={(e) => setApprovedAmount(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               step="0.01"
               required
             />
+            <p className="mt-1 text-xs text-[#B0A89E]">Original claimed: {formatCurrency(selectedClaim?.claimed_amount)}</p>
           </div>
-          <div className="flex gap-2 pt-4">
-            <button
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-[#E8E3DC]">
+            <ButtonWithTooltip
               type="submit"
-              className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 font-medium"
+              tooltip="Approve claim"
+              variant="success"
+              className="flex-1"
+              disabled={isSubmitting}
             >
-              Approve Claim
-            </button>
-            <button
+              {isSubmitting ? 'Approving...' : 'Approve Claim'}
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
               type="button"
               onClick={() => setShowApproveClaimModal(false)}
-              className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+              tooltip="Cancel"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </ButtonWithTooltip>
           </div>
         </form>
       </GenericModal>
 
-      {/* Reject Claim Modal */}
+      {/* ==================== REJECT CLAIM MODAL ==================== */}
       <GenericModal
         isOpen={showRejectClaimModal}
         onClose={() => setShowRejectClaimModal(false)}
@@ -1423,29 +1793,34 @@ const Billing = () => {
       >
         <form onSubmit={handleRejectClaim} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Rejection Reason *</label>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Rejection Reason *</label>
             <textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-              rows="3"
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              rows={3}
               required
             />
           </div>
-          <div className="flex gap-2 pt-4">
-            <button
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-[#E8E3DC]">
+            <ButtonWithTooltip
               type="submit"
-              className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-medium"
+              tooltip="Reject claim"
+              variant="danger"
+              className="flex-1"
+              disabled={isSubmitting}
             >
-              Reject Claim
-            </button>
-            <button
+              {isSubmitting ? 'Rejecting...' : 'Reject Claim'}
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
               type="button"
               onClick={() => setShowRejectClaimModal(false)}
-              className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 font-medium"
+              tooltip="Cancel"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </ButtonWithTooltip>
           </div>
         </form>
       </GenericModal>

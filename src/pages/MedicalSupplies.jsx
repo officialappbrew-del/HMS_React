@@ -1,8 +1,307 @@
 import { useEffect, useState } from 'react';
-import { Package, Plus, AlertCircle, Droplet, Wrench, Menu, X, Search, Filter } from 'lucide-react';
+import {
+  Package,
+  Plus,
+  AlertCircle,
+  Droplet,
+  Wrench,
+  Menu,
+  X,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Calendar,
+  Eye,
+  Edit,
+  Trash2,
+  RefreshCw,
+  Loader2,
+  Check,
+  ArrowUp,
+  ArrowDown,
+  Heart,
+  Ambulance,
+  Shield,
+  Award,
+  Target,
+  BarChart3,
+  PieChart,
+  LineChart,
+  DollarSign,
+  CreditCard,
+  Banknote,
+  Calculator,
+  Settings,
+  Globe,
+  Mail,
+  Smartphone,
+  Baby,
+  Brain,
+  Bone,
+  EyeOff,
+  Star,
+  Info,
+  Zap,
+  Home,
+  Briefcase,
+  Syringe,
+  Thermometer,
+  Weight,
+  Ruler,
+  HeartPulse,
+  Stethoscope,
+  Building2,
+  Clipboard,
+  MapPin,
+  Clock,
+  Users,
+  TrendingUp,
+  Navigation,
+  Car,
+} from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { apiRequest, parseListResponse } from '../utils/api';
 
+// ==================== TOOLTIP COMPONENT ====================
+const Tooltip = ({ children, text, position = 'top' }) => {
+  const [show, setShow] = useState(false);
+  
+  const positionClasses = {
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
+  };
+
+  return (
+    <div 
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onTouchStart={() => setShow(!show)}
+    >
+      {children}
+      {show && (
+        <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
+          <div className="bg-[#1A1A1A] text-white text-[10px] px-2 py-1 shadow-lg">
+            {text}
+            <div className={`absolute w-1.5 h-1.5 bg-[#1A1A1A] transform rotate-45 ${
+              position === 'top' ? 'bottom-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'bottom' ? 'top-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'left' ? 'right-[-3px] top-1/2 -translate-y-1/2' :
+              'left-[-3px] top-1/2 -translate-y-1/2'
+            }`} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== ICON BUTTON ====================
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
+  const variantClasses = {
+    default: 'text-[#5A5A5A] hover:text-[#1A1A1A] hover:bg-[#F0EDE8]',
+    primary: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+    success: 'text-[#2D7D46] hover:text-[#1E5F33] hover:bg-[#EAF3EE]',
+    danger: 'text-[#C8553D] hover:text-[#A8442E] hover:bg-[#F5EDEA]',
+    warning: 'text-[#C87D3D] hover:text-[#A8662E] hover:bg-[#F5F0EA]',
+    info: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+  };
+
+  const sizeClasses = {
+    sm: 'p-1',
+    md: 'p-1.5',
+    lg: 'p-2',
+  };
+
+  const iconSizes = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-5 h-5',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <Icon className={iconSizes[size]} />
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== BUTTON WITH TOOLTIP ====================
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm', type = 'button' }) => {
+  const variantClasses = {
+    primary: 'bg-[#008751] hover:bg-[#006B40] text-white',
+    secondary: 'bg-white border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+    success: 'bg-[#2D7D46] hover:bg-[#1E5F33] text-white',
+    danger: 'bg-[#C8553D] hover:bg-[#A8442E] text-white',
+    warning: 'bg-[#C87D3D] hover:bg-[#A8662E] text-white',
+    outline: 'border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+  };
+
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3.5 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-sm',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== STATS CARD ====================
+const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, tooltip, onClick, className = '' }) => {
+  const trendColors = {
+    up: 'text-[#2D7D46]',
+    down: 'text-[#C8553D]',
+    neutral: 'text-[#5A5A5A]'
+  };
+
+  const colorMap = {
+    green: 'bg-[#008751]',
+    gold: 'bg-[#FFC107]',
+    terracotta: 'bg-[#C8553D]',
+    warm: 'bg-[#C87D3D]',
+    slate: 'bg-[#4A5A5A]',
+    blue: 'bg-[#008751]',
+    purple: 'bg-[#4A5A5A]',
+    red: 'bg-[#C8553D]',
+    orange: 'bg-[#C87D3D]',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <div 
+        onClick={onClick}
+        className={`bg-white border border-[#E8E3DC] p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
+            <p className="mt-1 text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">{value}</p>
+            {subValue && (
+              <p className="text-xs text-[#5A5A5A] mt-0.5">{subValue}</p>
+            )}
+            {trend && (
+              <div className={`flex items-center mt-1 text-xs ${trendColors[trend]} font-medium`}>
+                {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5" />}
+                {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5" />}
+                <span>{trendValue}</span>
+              </div>
+            )}
+          </div>
+          <div className={`w-10 h-10 ${colorMap[color]} rounded flex items-center justify-center flex-shrink-0 ml-3`}>
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+        </div>
+      </div>
+    </Tooltip>
+  );
+};
+
+// ==================== STATUS BADGE ====================
+const StatusBadge = ({ status, type = 'default' }) => {
+  const statusMap = {
+    'Available': { label: 'Available', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+    'Low Stock': { label: 'Low Stock', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+    'Out of Stock': { label: 'Out of Stock', color: 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]' },
+    'Pending': { label: 'Pending', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+    'Approved': { label: 'Approved', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+    'Good': { label: 'Good', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+    'Fair': { label: 'Fair', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+    'Poor': { label: 'Poor', color: 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]' },
+    'Sterilized': { label: 'Sterilized', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
+    'Need Sterilization': { label: 'Need Sterilization', color: 'bg-[#F5F0EA] text-[#C87D3D] border-[#F0E8DC]' },
+    'Contaminated': { label: 'Contaminated', color: 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]' },
+  };
+
+  const config = statusMap[status] || { label: status || 'Unknown', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' };
+
+  return (
+    <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
+// ==================== SUPPLY CARD ====================
+const SupplyCard = ({ item, type }) => {
+  const getStatusColor = (status) => {
+    if (status === 'Low Stock') return 'text-[#C87D3D]';
+    if (status === 'Out of Stock') return 'text-[#C8553D]';
+    return 'text-[#2D7D46]';
+  };
+
+  const getSectionColor = (section) => {
+    switch(section) {
+      case 'consumables': return 'border-l-4 border-[#008751]';
+      case 'reagents': return 'border-l-4 border-[#008751]';
+      case 'radiology': return 'border-l-4 border-[#008751]';
+      case 'surgical': return 'border-l-4 border-[#4A5A5A]';
+      case 'linen': return 'border-l-4 border-[#008751]';
+      default: return '';
+    }
+  };
+
+  return (
+    <div className={`bg-white border border-[#E8E3DC] p-4 sm:p-5 hover:bg-[#F7F5F2] transition-colors ${getSectionColor(item.section)}`}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Item</p>
+          <p className="text-sm font-medium text-[#1A1A1A] truncate">{item.name || 'Unnamed Item'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Category</p>
+          <p className="text-sm text-[#1A1A1A] truncate">{item.category || 'Uncategorized'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Quantity</p>
+          <p className={`text-sm font-medium ${getStatusColor(item.status)}`}>
+            {item.quantityInStock || item.quantity || 0}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Unit Cost</p>
+          <p className="text-sm text-[#1A1A1A]">₦{(item.unitCost || 0).toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Expiry</p>
+          <p className="text-sm text-[#1A1A1A]">
+            {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-NG') : 'N/A'}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Status</p>
+          <StatusBadge status={item.status} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== MAIN COMPONENT ====================
 const MedicalSupplies = () => {
   const getArray = (value) => Array.isArray(value) ? value : [];
 
@@ -14,6 +313,7 @@ const MedicalSupplies = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     type: '',
     name: '',
@@ -95,18 +395,16 @@ const MedicalSupplies = () => {
   const wasteManagement = getArray([]);
   const donations = getArray([]);
 
-  // Safe filter with null checks
   const lowStockConsumables = consumables.filter(c => {
     if (!c || !c.currentStock || !c.reorderPoint) return false;
     return c.currentStock <= c.reorderPoint;
   });
-  
+
   const pendingWaste = wasteManagement.filter(w => {
     if (!w || !w.status) return false;
     return w.status === 'Pending';
   });
 
-  // Filter items based on search query for active tab
   const getFilteredItems = () => {
     if (!searchQuery) {
       switch(activeTab) {
@@ -161,6 +459,8 @@ const MedicalSupplies = () => {
 
   const handleAddSupply = async (event) => {
     event.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
 
     if (!formData.type || !formData.name || !formData.quantity) {
       setErrorMessage('Please select a supply type, enter a name, and set a quantity.');
@@ -168,7 +468,6 @@ const MedicalSupplies = () => {
     }
 
     setIsSubmitting(true);
-    setErrorMessage('');
 
     try {
       const payload = {
@@ -196,6 +495,9 @@ const MedicalSupplies = () => {
         body: JSON.stringify(payload),
       });
 
+      setSuccessMessage('Supply added successfully.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+
       setFormData({
         type: '',
         name: '',
@@ -214,641 +516,469 @@ const MedicalSupplies = () => {
     }
   };
 
-  return (
-    <div className="medical-supplies p-4 md:p-6 bg-gray-50 min-h-screen">
-      {/* Mobile Menu Button */}
-      <div className="md:hidden mb-4 flex items-center justify-between">
-        <button
-          onClick={() => setShowMobileMenu(!showMobileMenu)}
-          className="p-2 rounded-lg bg-white shadow-md"
-        >
-          {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-        <div className="text-lg font-bold text-gray-800">Medical Supplies</div>
-        <div className="w-10"></div> {/* Spacer for alignment */}
-      </div>
+  const handleRefresh = () => {
+    loadSupplies();
+    setSuccessMessage('Data refreshed.');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
 
+  // Tabs configuration
+  const tabs = [
+    { id: 'consumables', label: 'Consumables', icon: Package, count: consumables.length },
+    { id: 'reagents', label: 'Reagents', icon: Droplet, count: laboratoryReagents.length },
+    { id: 'radiology', label: 'Radiology', icon: Eye, count: radiologySupplies.length },
+    { id: 'surgical', label: 'Surgical', icon: Wrench, count: surgicalInstruments.length },
+    { id: 'linen', label: 'Linen', icon: Home, count: linenAndLaundry.length },
+    { id: 'waste', label: 'Waste', icon: AlertCircle, count: wasteManagement.length },
+  ];
+
+  const totalItems = consumables.length + laboratoryReagents.length + radiologySupplies.length + surgicalInstruments.length + linenAndLaundry.length;
+
+  return (
+    <div className="medical-supplies min-h-screen bg-[#F7F5F2] p-3 sm:p-4 md:p-8 font-sans">
       {/* Header */}
-      <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
-            <Package className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3 text-green-600" />
-            Medical Supplies Management
-          </h1>
-          <p className="text-gray-600 mt-1 md:mt-2 text-sm md:text-base">Consumables, reagents, equipment, and waste tracking</p>
-        </div>
-        
-        {/* Search Bar - Mobile Top */}
-        <div className="md:hidden w-full mb-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder={`Search ${activeTab}...`}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <div className="mb-4 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#E8F5EF] flex items-center justify-center flex-shrink-0">
+              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-[#008751]" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
+                Medical Supplies Management
+              </h1>
+              <p className="text-xs sm:text-sm text-[#5A5A5A]">
+                Consumables, reagents, equipment, and waste tracking
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            <ButtonWithTooltip
+              onClick={handleRefresh}
+              tooltip="Refresh data"
+              variant="secondary"
+              size="sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
+              onClick={() => setShowModal(true)}
+              tooltip="Add new supply"
+              variant="primary"
+              size="sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Add Supply</span>
+              <span className="sm:hidden">Add</span>
+            </ButtonWithTooltip>
           </div>
         </div>
-
-        {/* Responsive Action Button */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="w-full md:w-auto px-4 py-2.5 md:px-6 md:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium inline-flex items-center justify-center text-sm md:text-base transition-colors duration-200"
-        >
-          <Plus className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2 flex-shrink-0" />
-          <span className="truncate">
-            <span className="hidden sm:inline">Add Supply</span>
-            <span className="sm:hidden">Add Supply</span>
-          </span>
-        </button>
       </div>
 
+      {/* Error & Success Messages */}
       {errorMessage && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {errorMessage}
+        <div className="mb-4 p-3 bg-[#F5EDEA] border border-[#E8D6D0] text-sm text-[#C8553D] flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {errorMessage}
+          </span>
+          <button onClick={() => setErrorMessage('')} className="text-[#C8553D] hover:text-[#A8442E]">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
+      {successMessage && (
+        <div className="mb-4 p-3 bg-[#EAF3EE] border border-[#D0E3D8] text-sm text-[#2D7D46] flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            {successMessage}
+          </span>
+          <button onClick={() => setSuccessMessage('')} className="text-[#2D7D46] hover:text-[#1E5F33]">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Loading State */}
       {isLoading && (
-        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-          Loading medical supplies from the API...
+        <div className="mb-4 p-3 bg-[#F7F5F2] border border-[#E8E3DC] text-sm text-[#5A5A5A] flex items-center gap-2">
+          <Loader2 className="w-4 h-4 text-[#008751] animate-spin" />
+          Loading medical supplies...
         </div>
       )}
 
-      {/* Search Bar - Desktop */}
-      <div className="hidden md:block mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-8">
+        <StatsCard
+          title="Total Items"
+          value={totalItems}
+          icon={Package}
+          color="blue"
+          tooltip="Total medical supplies"
+        />
+        <StatsCard
+          title="Consumables"
+          value={consumables.length}
+          icon={Package}
+          color="green"
+          tooltip="Consumable items"
+        />
+        <StatsCard
+          title="Reagents"
+          value={laboratoryReagents.length}
+          icon={Droplet}
+          color="green"
+          tooltip="Laboratory reagents"
+        />
+        <StatsCard
+          title="Low Stock"
+          value={lowStockConsumables.length}
+          icon={AlertCircle}
+          color="red"
+          trend={lowStockConsumables.length > 0 ? 'down' : 'up'}
+          trendValue={lowStockConsumables.length > 0 ? `${lowStockConsumables.length} need restocking` : 'All stocked'}
+          tooltip="Items below reorder level"
+        />
+        <StatsCard
+          title="Donations"
+          value={donations.length}
+          icon={Heart}
+          color="orange"
+          tooltip="Donated supplies"
+        />
+      </div>
+
+      {/* Search Bar */}
+      <div className="bg-white border border-[#E8E3DC] p-4 sm:p-5 mb-4 sm:mb-6">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B0A89E]" />
           <input
             type="text"
-            placeholder={`Search in ${activeTab}...`}
-            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg"
+            placeholder={`Search in ${tabs.find(t => t.id === activeTab)?.label || 'consumables'}...`}
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
-        <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-blue-600">
-          <div className="flex items-center">
-            <Package className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-blue-600 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Consumables</p>
-              <p className="text-blue-600 font-bold text-lg md:text-xl lg:text-2xl">{consumables.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-green-600">
-          <div className="flex items-center">
-            <Droplet className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-green-600 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Lab Reagents</p>
-              <p className="text-green-600 font-bold text-lg md:text-xl lg:text-2xl">{laboratoryReagents.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-purple-600">
-          <div className="flex items-center">
-            <Wrench className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-purple-600 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Surgical</p>
-              <p className="text-purple-600 font-bold text-lg md:text-xl lg:text-2xl">{surgicalInstruments.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-red-600">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-red-600 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Low Stock</p>
-              <p className="text-red-600 font-bold text-lg md:text-xl lg:text-2xl">{lowStockConsumables.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-3 md:p-4 lg:p-6 border-l-4 border-orange-600 col-span-2 sm:col-span-3 lg:col-span-1">
-          <div className="flex items-center">
-            <Package className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-orange-600 mr-2 md:mr-3" />
-            <div>
-              <p className="text-gray-600 text-xs md:text-sm">Donations</p>
-              <p className="text-orange-600 font-bold text-lg md:text-xl lg:text-2xl">{donations.length}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu Overlay */}
-      {showMobileMenu && (
-        <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMobileMenu(false)}>
-          <div className="absolute right-0 top-0 h-full w-64 bg-white shadow-lg p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold">Categories</h2>
-              <button onClick={() => setShowMobileMenu(false)}>
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="space-y-2">
-              <button
-                onClick={() => { setActiveTab('consumables'); setShowMobileMenu(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
-                  activeTab === 'consumables' ? 'bg-green-100 text-green-600' : 'text-gray-700'
-                }`}
-              >
-                Consumables ({consumables.length})
-              </button>
-              <button
-                onClick={() => { setActiveTab('reagents'); setShowMobileMenu(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
-                  activeTab === 'reagents' ? 'bg-green-100 text-green-600' : 'text-gray-700'
-                }`}
-              >
-                Reagents ({laboratoryReagents.length})
-              </button>
-              <button
-                onClick={() => { setActiveTab('radiology'); setShowMobileMenu(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
-                  activeTab === 'radiology' ? 'bg-green-100 text-green-600' : 'text-gray-700'
-                }`}
-              >
-                Radiology ({radiologySupplies.length})
-              </button>
-              <button
-                onClick={() => { setActiveTab('surgical'); setShowMobileMenu(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
-                  activeTab === 'surgical' ? 'bg-green-100 text-green-600' : 'text-gray-700'
-                }`}
-              >
-                Surgical ({surgicalInstruments.length})
-              </button>
-              <button
-                onClick={() => { setActiveTab('linen'); setShowMobileMenu(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
-                  activeTab === 'linen' ? 'bg-green-100 text-green-600' : 'text-gray-700'
-                }`}
-              >
-                Linen ({linenAndLaundry.length})
-              </button>
-              <button
-                onClick={() => { setActiveTab('waste'); setShowMobileMenu(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium ${
-                  activeTab === 'waste' ? 'bg-green-100 text-green-600' : 'text-gray-700'
-                }`}
-              >
-                Waste ({wasteManagement.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Tabs */}
-      <div className="hidden md:flex gap-2 lg:gap-4 mb-4 lg:mb-6 border-b border-gray-200 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('consumables')}
-          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
-            activeTab === 'consumables'
-              ? 'text-green-600 border-b-2 border-green-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Consumables ({consumables.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('reagents')}
-          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
-            activeTab === 'reagents'
-              ? 'text-green-600 border-b-2 border-green-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Reagents ({laboratoryReagents.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('radiology')}
-          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
-            activeTab === 'radiology'
-              ? 'text-green-600 border-b-2 border-green-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Radiology ({radiologySupplies.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('surgical')}
-          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
-            activeTab === 'surgical'
-              ? 'text-green-600 border-b-2 border-green-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Surgical ({surgicalInstruments.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('linen')}
-          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
-            activeTab === 'linen'
-              ? 'text-green-600 border-b-2 border-green-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Linen ({linenAndLaundry.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('waste')}
-          className={`px-3 py-2 lg:px-4 lg:py-3 font-medium transition-colors whitespace-nowrap text-sm lg:text-base ${
-            activeTab === 'waste'
-              ? 'text-green-600 border-b-2 border-green-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Waste ({wasteManagement.length})
-        </button>
+      <div className="bg-white border border-[#E8E3DC] p-4 sm:p-5 mb-4 sm:mb-6">
+        <div className="flex flex-wrap gap-1 border-b border-[#E8E3DC] mb-4 overflow-x-auto">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <Tooltip key={tab.id} text={`View ${tab.label}`}>
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-1 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'border-[#008751] text-[#008751]'
+                      : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A] hover:border-[#D8D4CD]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                  <span className="text-[10px] text-[#B0A89E] ml-0.5">({tab.count})</span>
+                </button>
+              </Tooltip>
+            );
+          })}
+        </div>
+
+        {/* ==================== CONSUMABLES TAB ==================== */}
+        {activeTab === 'consumables' && (
+          <div className="space-y-3">
+            {filteredItems.length === 0 ? (
+              <div className="bg-white border border-[#E8E3DC] p-12 text-center">
+                <Package className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-[#5A5A5A] font-medium">No consumables found</p>
+                {searchQuery && <p className="text-sm text-[#B0A89E] mt-1">No results for "{searchQuery}"</p>}
+              </div>
+            ) : (
+              filteredItems.map(item => (
+                <SupplyCard key={item.id} item={item} type="consumable" />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ==================== REAGENTS TAB ==================== */}
+        {activeTab === 'reagents' && (
+          <div className="space-y-3">
+            {filteredItems.length === 0 ? (
+              <div className="bg-white border border-[#E8E3DC] p-12 text-center">
+                <Droplet className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-[#5A5A5A] font-medium">No laboratory reagents found</p>
+                {searchQuery && <p className="text-sm text-[#B0A89E] mt-1">No results for "{searchQuery}"</p>}
+              </div>
+            ) : (
+              filteredItems.map(item => (
+                <SupplyCard key={item.id} item={item} type="reagent" />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ==================== RADIOLOGY TAB ==================== */}
+        {activeTab === 'radiology' && (
+          <div className="space-y-3">
+            {filteredItems.length === 0 ? (
+              <div className="bg-white border border-[#E8E3DC] p-12 text-center">
+                <Eye className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-[#5A5A5A] font-medium">No radiology supplies found</p>
+                {searchQuery && <p className="text-sm text-[#B0A89E] mt-1">No results for "{searchQuery}"</p>}
+              </div>
+            ) : (
+              filteredItems.map(item => (
+                <SupplyCard key={item.id} item={item} type="radiology" />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ==================== SURGICAL TAB ==================== */}
+        {activeTab === 'surgical' && (
+          <div className="space-y-3">
+            {filteredItems.length === 0 ? (
+              <div className="bg-white border border-[#E8E3DC] p-12 text-center">
+                <Wrench className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-[#5A5A5A] font-medium">No surgical instruments found</p>
+                {searchQuery && <p className="text-sm text-[#B0A89E] mt-1">No results for "{searchQuery}"</p>}
+              </div>
+            ) : (
+              filteredItems.map(item => (
+                <SupplyCard key={item.id} item={item} type="surgical" />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ==================== LINEN TAB ==================== */}
+        {activeTab === 'linen' && (
+          <div className="space-y-3">
+            {filteredItems.length === 0 ? (
+              <div className="bg-white border border-[#E8E3DC] p-12 text-center">
+                <Home className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-[#5A5A5A] font-medium">No linen items found</p>
+                {searchQuery && <p className="text-sm text-[#B0A89E] mt-1">No results for "{searchQuery}"</p>}
+              </div>
+            ) : (
+              filteredItems.map(item => (
+                <SupplyCard key={item.id} item={item} type="linen" />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ==================== WASTE TAB ==================== */}
+        {activeTab === 'waste' && (
+          <div className="space-y-3">
+            {filteredItems.length === 0 ? (
+              <div className="bg-white border border-[#E8E3DC] p-12 text-center">
+                <AlertCircle className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-[#5A5A5A] font-medium">No waste management records found</p>
+                {searchQuery && <p className="text-sm text-[#B0A89E] mt-1">No results for "{searchQuery}"</p>}
+              </div>
+            ) : (
+              filteredItems.map(item => (
+                <div key={item.wasteId} className={`bg-white border border-[#E8E3DC] p-4 sm:p-5 ${item.status === 'Pending' ? 'border-l-4 border-[#C87D3D]' : 'border-l-4 border-[#2D7D46]'}`}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div className="sm:col-span-2 lg:col-span-1">
+                      <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Type</p>
+                      <p className="text-sm font-medium text-[#1A1A1A] truncate">{item.wasteType || 'General Waste'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Date</p>
+                      <p className="text-sm text-[#1A1A1A]">
+                        {item.date ? new Date(item.date).toLocaleDateString('en-NG') : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Quantity</p>
+                      <p className="text-sm font-medium text-[#1A1A1A]">{item.quantity || 0} {item.unit || 'units'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Source</p>
+                      <p className="text-sm text-[#1A1A1A] truncate">{item.source || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider">Status</p>
+                      <StatusBadge status={item.status} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Mobile Tab Indicator */}
-      <div className="md:hidden mb-4">
-        <div className="flex items-center justify-between bg-white rounded-lg shadow-sm p-3">
-          <span className="font-medium text-gray-700">
-            {activeTab === 'consumables' && `Consumables (${filteredItems.length})`}
-            {activeTab === 'reagents' && `Reagents (${filteredItems.length})`}
-            {activeTab === 'radiology' && `Radiology (${filteredItems.length})`}
-            {activeTab === 'surgical' && `Surgical (${filteredItems.length})`}
-            {activeTab === 'linen' && `Linen (${filteredItems.length})`}
-            {activeTab === 'waste' && `Waste (${filteredItems.length})`}
-          </span>
-          <button 
-            onClick={() => setShowMobileMenu(true)}
-            className="p-1 rounded-md bg-gray-100"
-          >
-            <Filter className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
-      </div>
-
-      {/* Empty State Message */}
-      {filteredItems.length === 0 && searchQuery && (
-        <div className="mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-sm text-yellow-800">
-            No {activeTab} found matching "<span className="font-semibold">{searchQuery}</span>"
-          </p>
-        </div>
-      )}
-
-      {/* Consumables Tab */}
-      {activeTab === 'consumables' && (
-        <div className="space-y-3 md:space-y-4">
-          {filteredItems.length === 0 && !searchQuery ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
-              <Package className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No consumables found</p>
-            </div>
-          ) : (
-            filteredItems.map(item => (
-              <div key={item.consumableId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <p className="text-xs md:text-sm text-gray-600">Item</p>
-                    <p className="font-bold text-sm md:text-base truncate">{item.name || 'Unnamed Item'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Category</p>
-                    <p className="font-bold text-xs md:text-sm truncate">{item.category || 'Uncategorized'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">In Stock</p>
-                    <p className={`font-bold text-base md:text-lg ${(item.quantityInStock || 0) <= (item.reorderPoint || 0) ? 'text-red-600' : 'text-green-600'}`}>
-                      {item.quantityInStock || 0}
-                    </p>
-                  </div>
-                  <div className="hidden lg:block">
-                    <p className="text-xs md:text-sm text-gray-600">Unit Cost</p>
-                    <p className="font-bold text-sm">₦{(item.unitCost || 0).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Expiry</p>
-                    <p className="font-bold text-xs md:text-sm">
-                      {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-NG') : 'No Expiry'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Status</p>
-                    <p className="inline-block px-2 py-1 md:px-3 md:py-1 rounded text-xs font-semibold bg-green-100 text-green-800">
-                      {item.status || 'Available'}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 md:hidden text-xs text-gray-600">
-                  <p><strong>Unit Cost:</strong> ₦{(item.unitCost || 0).toLocaleString()}</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Reagents Tab */}
-      {activeTab === 'reagents' && (
-        <div className="space-y-3 md:space-y-4">
-          {filteredItems.length === 0 && !searchQuery ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center border-l-4 border-green-600">
-              <Droplet className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No laboratory reagents found</p>
-            </div>
-          ) : (
-            filteredItems.map(item => (
-              <div key={item.reagentId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6 border-l-4 border-green-600">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <p className="text-xs md:text-sm text-gray-600">Reagent</p>
-                    <p className="font-bold text-sm md:text-base truncate">{item.name || 'Unnamed Reagent'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Test Type</p>
-                    <p className="font-bold text-xs md:text-sm truncate">{item.testType || 'General'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Quantity</p>
-                    <p className="font-bold text-base md:text-lg text-green-600">{item.quantityInStock || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Storage</p>
-                    <p className="font-bold text-xs md:text-sm">{item.storageTemp || 'Room Temp'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Expiry</p>
-                    <p className="font-bold text-xs md:text-sm">
-                      {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-NG') : 'No Expiry'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Radiology Tab */}
-      {activeTab === 'radiology' && (
-        <div className="space-y-3 md:space-y-4">
-          {filteredItems.length === 0 && !searchQuery ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
-              <Package className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No radiology supplies found</p>
-            </div>
-          ) : (
-            filteredItems.map(item => (
-              <div key={item.radiologyId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <p className="text-xs md:text-sm text-gray-600">Supply</p>
-                    <p className="font-bold text-sm md:text-base truncate">{item.name || 'Unnamed Supply'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Category</p>
-                    <p className="font-bold text-xs md:text-sm truncate">{item.category || 'General'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Quantity</p>
-                    <p className="font-bold text-base md:text-lg">{item.quantity || 0}</p>
-                  </div>
-                  <div className="hidden lg:block">
-                    <p className="text-xs md:text-sm text-gray-600">Unit Cost</p>
-                    <p className="font-bold text-sm">₦{(item.unitCost || 0).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Status</p>
-                    <p className="inline-block px-2 py-1 md:px-3 md:py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">
-                      {item.status || 'Available'}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 md:hidden text-xs text-gray-600">
-                  <p><strong>Unit Cost:</strong> ₦{(item.unitCost || 0).toLocaleString()}</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Surgical Tab */}
-      {activeTab === 'surgical' && (
-        <div className="space-y-3 md:space-y-4">
-          {filteredItems.length === 0 && !searchQuery ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center border-l-4 border-purple-600">
-              <Wrench className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No surgical instruments found</p>
-            </div>
-          ) : (
-            filteredItems.map(item => (
-              <div key={item.instrumentId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6 border-l-4 border-purple-600">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <p className="text-xs md:text-sm text-gray-600">Instrument</p>
-                    <p className="font-bold text-sm md:text-base truncate">{item.name || 'Unnamed Instrument'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Type</p>
-                    <p className="font-bold text-xs md:text-sm truncate">{item.type || 'General'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Quantity</p>
-                    <p className="font-bold text-base md:text-lg">{item.quantity || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Sterilization</p>
-                    <p className="font-bold text-xs md:text-sm">{item.sterilizationStatus || 'Unknown'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Status</p>
-                    <p className="inline-block px-2 py-1 md:px-3 md:py-1 rounded text-xs font-semibold bg-green-100 text-green-800">
-                      {item.status || 'Available'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Linen Tab */}
-      {activeTab === 'linen' && (
-        <div className="space-y-3 md:space-y-4">
-          {filteredItems.length === 0 && !searchQuery ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
-              <Package className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No linen items found</p>
-            </div>
-          ) : (
-            filteredItems.map(item => (
-              <div key={item.linenId} className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <p className="text-xs md:text-sm text-gray-600">Item</p>
-                    <p className="font-bold text-sm md:text-base truncate">{item.name || 'Unnamed Item'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Type</p>
-                    <p className="font-bold text-xs md:text-sm truncate">{item.type || 'General'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Quantity</p>
-                    <p className="font-bold text-base md:text-lg">{item.quantity || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Condition</p>
-                    <p className="font-bold text-xs md:text-sm">{item.condition || 'Good'}</p>
-                  </div>
-                  <div className="hidden lg:block">
-                    <p className="text-xs md:text-sm text-gray-600">Last Washed</p>
-                    <p className="font-bold text-sm">
-                      {item.lastWashed ? new Date(item.lastWashed).toLocaleDateString('en-NG') : 'Never'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Status</p>
-                    <p className="inline-block px-2 py-1 md:px-3 md:py-1 rounded text-xs font-semibold bg-green-100 text-green-800">
-                      {item.status || 'Available'}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 md:hidden text-xs text-gray-600">
-                  <p><strong>Last Washed:</strong> {item.lastWashed ? new Date(item.lastWashed).toLocaleDateString('en-NG') : 'Never'}</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Waste Tab */}
-      {activeTab === 'waste' && (
-        <div className="space-y-3 md:space-y-4">
-          {filteredItems.length === 0 && !searchQuery ? (
-            <div className="bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md p-6 md:p-8 text-center">
-              <AlertCircle className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-              <p className="text-gray-600 font-medium text-sm md:text-base">No waste management records found</p>
-            </div>
-          ) : (
-            filteredItems.map(item => (
-              <div key={item.wasteId} className={`rounded-lg md:rounded-xl shadow-sm md:shadow-md p-4 md:p-6 ${item.status === 'Pending' ? 'bg-orange-50 border-l-4 border-orange-600' : 'bg-green-50 border-l-4 border-green-600'}`}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <p className="text-xs md:text-sm text-gray-600">Type</p>
-                    <p className="font-bold text-sm md:text-base truncate">{item.wasteType || 'General Waste'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Date</p>
-                    <p className="font-bold text-xs md:text-sm">
-                      {item.date ? new Date(item.date).toLocaleDateString('en-NG') : 'No Date'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Quantity</p>
-                    <p className="font-bold text-base md:text-lg">{item.quantity || 0} {item.unit || 'units'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Source</p>
-                    <p className="font-bold text-xs md:text-sm truncate">{item.source || 'Unknown'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm text-gray-600">Status</p>
-                    <p className={`inline-block px-2 py-1 md:px-3 md:py-1 rounded text-xs font-semibold ${item.status === 'Pending' ? 'bg-orange-200 text-orange-800' : 'bg-green-200 text-green-800'}`}>
-                      {item.status || 'Pending'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Modal */}
+      {/* ==================== ADD SUPPLY MODAL ==================== */}
       <GenericModal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false);
+          setFormData({
+            type: '',
+            name: '',
+            quantity: '',
+            expiryDate: '',
+            supplier: '',
+            unitCost: '',
+            batchNumber: ''
+          });
+          setErrorMessage('');
+        }}
         title="Add New Supply"
         size="lg"
       >
-        <form onSubmit={handleAddSupply} className="space-y-3 md:space-y-4">
-          <select
-            value={formData.type}
-            onChange={(event) => setFormData({ ...formData, type: event.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
-          >
-            <option value="">Select Supply Type</option>
-            <option value="consumables">Consumable</option>
-            <option value="reagents">Reagent</option>
-            <option value="radiology">Radiology Supply</option>
-            <option value="surgical">Surgical Instrument</option>
-            <option value="linen">Linen</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Item Name"
-            value={formData.name}
-            onChange={(event) => setFormData({ ...formData, name: event.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
-          />
-          <input
-            type="number"
-            placeholder="Quantity"
-            value={formData.quantity}
-            onChange={(event) => setFormData({ ...formData, quantity: event.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
-          />
-          <input
-            type="number"
-            placeholder="Unit Cost"
-            value={formData.unitCost}
-            onChange={(event) => setFormData({ ...formData, unitCost: event.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
-          />
-          <input
-            type="text"
-            placeholder="Supplier"
-            value={formData.supplier}
-            onChange={(event) => setFormData({ ...formData, supplier: event.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
-          />
-          <input
-            type="text"
-            placeholder="Batch Number"
-            value={formData.batchNumber}
-            onChange={(event) => setFormData({ ...formData, batchNumber: event.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
-          />
-          <input
-            type="date"
-            placeholder="Expiry Date"
-            value={formData.expiryDate}
-            onChange={(event) => setFormData({ ...formData, expiryDate: event.target.value })}
-            className="w-full px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg text-sm md:text-base"
-          />
-          <div className="flex gap-2 pt-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 bg-green-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-green-700 font-medium text-sm md:text-base transition-colors disabled:opacity-60"
+        <form onSubmit={handleAddSupply} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+              Supply Type <span className="text-[#C8553D]">*</span>
+            </label>
+            <select
+              value={formData.type}
+              onChange={(event) => setFormData({ ...formData, type: event.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              required
             >
-              {isSubmitting ? 'Saving...' : 'Add Supply'}
-            </button>
-            <button
+              <option value="">Select Supply Type</option>
+              <option value="consumables">Consumable</option>
+              <option value="reagents">Reagent</option>
+              <option value="radiology">Radiology Supply</option>
+              <option value="surgical">Surgical Instrument</option>
+              <option value="linen">Linen</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+              Item Name <span className="text-[#C8553D]">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Item Name"
+              value={formData.name}
+              onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+              Quantity <span className="text-[#C8553D]">*</span>
+            </label>
+            <input
+              type="number"
+              placeholder="Quantity"
+              value={formData.quantity}
+              onChange={(event) => setFormData({ ...formData, quantity: event.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                Unit Cost
+              </label>
+              <input
+                type="number"
+                placeholder="Unit Cost"
+                value={formData.unitCost}
+                onChange={(event) => setFormData({ ...formData, unitCost: event.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                Batch Number
+              </label>
+              <input
+                type="text"
+                placeholder="Batch Number"
+                value={formData.batchNumber}
+                onChange={(event) => setFormData({ ...formData, batchNumber: event.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                Supplier
+              </label>
+              <input
+                type="text"
+                placeholder="Supplier"
+                value={formData.supplier}
+                onChange={(event) => setFormData({ ...formData, supplier: event.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                Expiry Date
+              </label>
+              <input
+                type="date"
+                value={formData.expiryDate}
+                onChange={(event) => setFormData({ ...formData, expiryDate: event.target.value })}
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+              />
+            </div>
+          </div>
+
+          {errorMessage && <div className="text-sm text-[#C8553D]">{errorMessage}</div>}
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-[#E8E3DC]">
+            <ButtonWithTooltip
+              type="submit"
+              tooltip="Add supply"
+              variant="primary"
+              disabled={isSubmitting}
+              className="flex-1"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Supply
+                </>
+              )}
+            </ButtonWithTooltip>
+            <ButtonWithTooltip
               type="button"
-              onClick={() => setShowModal(false)}
-              className="flex-1 bg-gray-300 text-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-gray-400 font-medium text-sm md:text-base transition-colors"
+              onClick={() => {
+                setShowModal(false);
+                setFormData({
+                  type: '',
+                  name: '',
+                  quantity: '',
+                  expiryDate: '',
+                  supplier: '',
+                  unitCost: '',
+                  batchNumber: ''
+                });
+                setErrorMessage('');
+              }}
+              tooltip="Cancel"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </ButtonWithTooltip>
           </div>
         </form>
       </GenericModal>

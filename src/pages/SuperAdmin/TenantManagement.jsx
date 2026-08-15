@@ -173,15 +173,22 @@ const openDetailModal = async (publicId) => {
     setSaveError('');
     setSaveSuccess('');
     try {
+      const dateFields = ['subscription_start_date', 'subscription_end_date', 'established_date', 'nhis_accreditation_date', 'nhis_expiry_date'];
+      const normalizedEdit = { ...editForm };
+      dateFields.forEach(field => {
+        if (normalizedEdit[field] === '' || normalizedEdit[field] === undefined || normalizedEdit[field] === null) {
+          normalizedEdit[field] = null;
+        }
+      });
       const payload = {
-        ...editForm,
-        country: editForm.country ? Number(editForm.country) : null,
-        state: editForm.state ? Number(editForm.state) : null,
-        lga: editForm.lga ? Number(editForm.lga) : null,
-        facility_type: editForm.facility_type ? Number(editForm.facility_type) : null,
-        subscription_plan: editForm.subscription_plan ? Number(editForm.subscription_plan) : null,
-        bed_capacity: editForm.bed_capacity ? Number(editForm.bed_capacity) : null,
-        monthly_fee: editForm.monthly_fee ? Number(editForm.monthly_fee) : null,
+        ...normalizedEdit,
+        country: normalizedEdit.country ? Number(normalizedEdit.country) : null,
+        state: normalizedEdit.state ? Number(normalizedEdit.state) : null,
+        lga: normalizedEdit.lga ? Number(normalizedEdit.lga) : null,
+        facility_type: normalizedEdit.facility_type ? Number(normalizedEdit.facility_type) : null,
+        subscription_plan: normalizedEdit.subscription_plan ? Number(normalizedEdit.subscription_plan) : null,
+        bed_capacity: normalizedEdit.bed_capacity ? Number(normalizedEdit.bed_capacity) : null,
+        monthly_fee: normalizedEdit.monthly_fee ? Number(normalizedEdit.monthly_fee) : null,
       };
       const updated = await superAdminApi.updateTenant(detailTenant.public_id, payload);
       setDetailTenant(updated);
@@ -239,17 +246,24 @@ const openDetailModal = async (publicId) => {
     }
 
     try {
+      const dateFields = ['subscription_start_date', 'subscription_end_date', 'established_date', 'nhis_accreditation_date', 'nhis_expiry_date'];
+      const normalizedForm = { ...formData };
+      dateFields.forEach(field => {
+        if (normalizedForm[field] === '' || normalizedForm[field] === undefined || normalizedForm[field] === null) {
+          normalizedForm[field] = null;
+        }
+      });
       const payload = {
-        ...formData,
+        ...normalizedForm,
         root_admin: {
           ...rootAdmin,
           password: generateTempPassword(),
         },
-        country: formData.country ? Number(formData.country) : null,
-        state: formData.state ? Number(formData.state) : null,
-        lga: formData.lga ? Number(formData.lga) : null,
-        facility_type: formData.facility_type ? Number(formData.facility_type) : null,
-        subscription_plan: formData.subscription_plan ? Number(formData.subscription_plan) : null,
+        country: normalizedForm.country ? Number(normalizedForm.country) : null,
+        state: normalizedForm.state ? Number(normalizedForm.state) : null,
+        lga: normalizedForm.lga ? Number(normalizedForm.lga) : null,
+        facility_type: normalizedForm.facility_type ? Number(normalizedForm.facility_type) : null,
+        subscription_plan: normalizedForm.subscription_plan ? Number(normalizedForm.subscription_plan) : null,
       };
       await superAdminApi.createTenant(payload);
       setShowCreateModal(false);

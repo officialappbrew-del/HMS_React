@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiRequest, consultationApi } from '../utils/api';
@@ -6,7 +6,17 @@ import {
   loadConsultation,
   selectConsultation,
   updateHPIField,
+  updateICEField,
   updateROSField,
+  updatePastMedicalHistory,
+  updateFamilyHistory,
+  addFamilySibling,
+  updateFamilySibling,
+  removeFamilySibling,
+  addRelevantCondition,
+  removeRelevantCondition,
+  updateSocialHistory,
+  updateSocialHistorySubsection,
   addMedication,
   removeMedication,
   addAllergy,
@@ -18,13 +28,19 @@ import {
   addRadiologyOrder,
   addProcedure,
   addReferral,
+  updateAssessment,
   updateTreatmentPlan,
   updateDisposition,
   updateFollowUp,
   signConsultation,
   addAuditLog,
-  generateBillingCharge
+  generateBillingCharge,
+  updatePhysicalExam,
+  updateCompletionStatus,
+  selectRedFlags
 } from '../features/consultationSlice';
+
+// Lucide React Icons
 import {
   Activity,
   AlertCircle,
@@ -32,23 +48,149 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronUp,
+  ClipboardList,
   FileText,
   FileUser,
   Heart,
   HeartPulse,
+  Home,
   IdCard,
+  Info,
   Phone,
   Pill,
   Plus,
   Save,
   Scissors,
   Search,
+  Shield,
   ShieldCheck,
   Trash2,
   User,
   Users,
-  X
+  X,
+  Clock,
+  Calendar,
+  Briefcase,
+  UserCircle,
+  UserPlus,
+  Edit3,
+  AlertOctagon,
+  Eye,
+  File,
+  Settings,
+  HelpCircle,
+  BookOpen,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  Stethoscope,
+  Loader2
 } from 'lucide-react';
+
+// ==================== SUB-COMPONENTS ====================
+
+const SectionHeader = ({ 
+  title, 
+  subtitle, 
+  icon: Icon, 
+  expanded, 
+  onToggle, 
+  onSave, 
+  isSaving,
+  saveLabel = 'Save',
+  showSave = true
+}) => (
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="flex items-center gap-3 min-w-0">
+      {Icon && (
+        <div className="flex h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100">
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="text-[10px] sm:text-xs uppercase tracking-wider text-slate-500">{subtitle}</p>
+        <h2 className="text-sm sm:text-base font-semibold text-slate-900 truncate">{title}</h2>
+      </div>
+    </div>
+    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+      {showSave && onSave && (
+        <button
+          onClick={onSave}
+          disabled={isSaving}
+          className="flex items-center gap-1 rounded-lg bg-slate-900 px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70"
+        >
+          {isSaving ? (
+            <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+          ) : (
+            <Save className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          )}
+          <span className="hidden xs:inline">{isSaving ? 'Saving...' : saveLabel}</span>
+        </button>
+      )}
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1 rounded-lg p-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+        aria-label={expanded ? 'Collapse section' : 'Expand section'}
+      >
+        {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+    </div>
+  </div>
+);
+
+const FormInput = ({ label, value, onChange, placeholder, type = 'text', required, className = '' }) => (
+  <div className={`space-y-1 ${className}`}>
+    <label className="block text-xs font-medium text-slate-700">
+      {label}
+      {required && <span className="ml-0.5 text-red-500">*</span>}
+    </label>
+    <input
+      type={type}
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+    />
+  </div>
+);
+
+const FormTextarea = ({ label, value, onChange, placeholder, rows = 3, required, className = '' }) => (
+  <div className={`space-y-1 ${className}`}>
+    <label className="block text-xs font-medium text-slate-700">
+      {label}
+      {required && <span className="ml-0.5 text-red-500">*</span>}
+    </label>
+    <textarea
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+    />
+  </div>
+);
+
+const FormSelect = ({ label, value, onChange, options, required, className = '' }) => (
+  <div className={`space-y-1 ${className}`}>
+    <label className="block text-xs font-medium text-slate-700">
+      {label}
+      {required && <span className="ml-0.5 text-red-500">*</span>}
+    </label>
+    <select
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+// ==================== PATIENT DETAILS MODAL ====================
 
 const PatientMedicalDetails = ({ patient, onClose }) => {
   if (!patient) return null;
@@ -70,7 +212,6 @@ const PatientMedicalDetails = ({ patient, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-3xl max-h-[85vh] bg-white rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 bg-slate-50/80">
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-900">
@@ -167,7 +308,6 @@ const PatientMedicalDetails = ({ patient, onClose }) => {
 
         <div className="overflow-y-auto max-h-[calc(85vh-200px)] p-3">
           <div className="grid grid-cols-2 gap-2">
-            
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-2">
               <div className="flex items-center gap-1 mb-1.5">
                 <User className="h-3 w-3 text-slate-500 flex-shrink-0" />
@@ -333,70 +473,6 @@ const PatientMedicalDetails = ({ patient, onClose }) => {
                 </div>
               </div>
             </div>
-
-            <div className="col-span-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
-              <div className="flex items-center gap-1 mb-1.5">
-                <Users className="h-3 w-3 text-slate-500 flex-shrink-0" />
-                <h4 className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">Next of Kin</h4>
-              </div>
-              <div className="grid grid-cols-2 gap-1 text-[10px]">
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Name</span>
-                  <span className="font-medium text-slate-800 text-right">{patient.next_of_kin_name}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Relationship</span>
-                  <span className="font-medium text-slate-800 text-right">{patient.next_of_kin_relationship}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Phone</span>
-                  <span className="font-medium text-slate-800 text-right">{patient.next_of_kin_phone}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Address</span>
-                  <span className="font-medium text-slate-800 text-right">{patient.next_of_kin_address}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
-              <div className="flex items-center gap-1 mb-1.5">
-                <FileText className="h-3 w-3 text-slate-500 flex-shrink-0" />
-                <h4 className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">Additional</h4>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 text-[10px]">
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Status</span>
-                  <span className="font-medium text-slate-800 text-right capitalize">{patient.patient_status}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Tenant</span>
-                  <span className="font-medium text-slate-800 text-right">{patient.tenant_name}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Login ID</span>
-                  <span className="font-medium text-slate-800 text-right">{patient.login_id}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Registered</span>
-                  <span className="font-medium text-slate-800 text-right">{formatDate(patient.registration_date)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Last Visit</span>
-                  <span className="font-medium text-slate-800 text-right">{formatDate(patient.last_visit)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-slate-500 flex-shrink-0">Registered By</span>
-                  <span className="font-medium text-slate-800 text-right">{patient.registered_by}</span>
-                </div>
-                {patient.notes && (
-                  <div className="col-span-2 lg:col-span-4 flex justify-between gap-2 border-t border-slate-200/50 pt-1 mt-0.5">
-                    <span className="text-slate-500 flex-shrink-0">Notes</span>
-                    <span className="font-medium text-slate-800 text-right">{patient.notes}</span>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -418,35 +494,37 @@ const PatientMedicalDetails = ({ patient, onClose }) => {
   );
 };
 
-const ORDER_TYPES = [
-  { key: 'laboratory', label: 'Laboratory' },
-  { key: 'radiology', label: 'Radiology' },
-  { key: 'procedures', label: 'Procedure' },
-  { key: 'referralOrders', label: 'Referral' }
-];
+// ==================== MAIN COMPONENT ====================
 
 const ConsultationV2 = () => {
-  const consultation = useSelector(selectConsultation);
   const dispatch = useDispatch();
+  const consultation = useSelector(selectConsultation);
+  const redFlags = useSelector(selectRedFlags);
   const location = useLocation();
   const navigate = useNavigate();
-  
+
+  // State
   const [expandedSections, setExpandedSections] = useState({
     hpi: true,
+    ice: false,
     ros: false,
-    medications: false,
-    allergies: false,
-    icd10: false,
-    orders: false,
+    pmh: false,
+    familyHistory: false,
+    drugHistory: false,
+    socialHistory: false,
+    assessment: false,
     plan: false,
     disposition: false,
-    followUp: false,
+    orders: false,
     billing: false,
-    audit: false
+    physicalExam: false
   });
-  const [icd10SearchLoading, setIcd10SearchLoading] = useState(false);
-  const [icd10SearchError, setIcd10SearchError] = useState('');
-  const [icd10Database, setIcd10Database] = useState([]);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingSection, setIsSavingSection] = useState({});
+  const [apiMessage, setApiMessage] = useState('');
+  const [apiError, setApiError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [newMedication, setNewMedication] = useState({
     name: '',
     dosage: '',
@@ -464,13 +542,10 @@ const ConsultationV2 = () => {
     notes: ''
   });
   const [chargeItem, setChargeItem] = useState({ item: '', amount: '' });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [apiMessage, setApiMessage] = useState('');
-  const [apiError, setApiError] = useState('');
-  const [availableVisits, setAvailableVisits] = useState([]);
-  const [isLoadingVisits, setIsLoadingVisits] = useState(false);
-  const [visitLoadError, setVisitLoadError] = useState('');
+  const [icd10Database, setIcd10Database] = useState([]);
+  const [icd10SearchLoading, setIcd10SearchLoading] = useState(false);
+  const [showPatientDetails, setShowPatientDetails] = useState(false);
+  const [selectedPatientForDetails, setSelectedPatientForDetails] = useState(null);
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
   const [patientResults, setPatientResults] = useState([]);
   const [isSearchingPatients, setIsSearchingPatients] = useState(false);
@@ -479,16 +554,23 @@ const ConsultationV2 = () => {
   const [patientVisits, setPatientVisits] = useState([]);
   const [isLoadingPatientVisits, setIsLoadingPatientVisits] = useState(false);
   const [patientVisitsError, setPatientVisitsError] = useState('');
+  const [allPatientVisits, setAllPatientVisits] = useState([]);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [checkInError, setCheckInError] = useState('');
-  const [medicationSafetyWarnings, setMedicationSafetyWarnings] = useState([]);
-  const [showPatientDetails, setShowPatientDetails] = useState(false);
-  const [selectedPatientForDetails, setSelectedPatientForDetails] = useState(null);
+  const [availableVisits, setAvailableVisits] = useState([]);
+  const [isLoadingVisits, setIsLoadingVisits] = useState(false);
+  const [visitLoadError, setVisitLoadError] = useState('');
+  const [newRelevantCondition, setNewRelevantCondition] = useState('');
+  const [newSiblingName, setNewSiblingName] = useState('');
+  const [newSiblingConditions, setNewSiblingConditions] = useState('');
+  const [showVisitSwitcher, setShowVisitSwitcher] = useState(false);
 
   const visitId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('visit') || location.state?.visitId || null;
   }, [location.search, location.state]);
+
+  // ==================== HELPERS ====================
 
   const parseList = (response) => {
     if (!response) return [];
@@ -496,6 +578,291 @@ const ConsultationV2 = () => {
     if (response.results && Array.isArray(response.results)) return response.results;
     return [];
   };
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const showSuccess = (message) => {
+    setApiMessage(message);
+    setTimeout(() => setApiMessage(''), 3000);
+  };
+
+  const showError = (message) => {
+    setApiError(message);
+    setTimeout(() => setApiError(''), 5000);
+  };
+
+  // ==================== API FUNCTIONS ====================
+
+
+  const handleSaveHPI = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, hpi: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        chief_complaint: consultation.hpi.chiefComplaint,
+        history_of_present_illness: consultation.hpi.freeNotes
+      });
+      dispatch(addAuditLog({ action: 'Saved HPI section' }));
+      showSuccess('HPI saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save HPI.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, hpi: false }));
+    }
+  };
+
+  const handleSaveICE = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, ice: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        ice_ideas: consultation.ice.ideas,
+        ice_concerns: consultation.ice.concerns,
+        ice_expectations: consultation.ice.expectations
+      });
+      dispatch(addAuditLog({ action: 'Saved ICE section' }));
+      showSuccess('ICE saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save ICE.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, ice: false }));
+    }
+  };
+
+  const handleSaveROS = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, ros: true }));
+    try {
+      const rosData = {};
+      Object.entries(consultation.ros).forEach(([section, values]) => {
+        rosData[section] = values;
+      });
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        subjective: JSON.stringify(rosData)
+      });
+      dispatch(addAuditLog({ action: 'Saved ROS section' }));
+      showSuccess('ROS saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save ROS.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, ros: false }));
+    }
+  };
+
+  const handleSavePMH = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, pmh: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        past_medical_history: JSON.stringify({
+          conditions: consultation.pastMedicalHistory.conditions,
+          surgeries: consultation.pastMedicalHistory.surgeries,
+          hospitalizations: consultation.pastMedicalHistory.hospitalizations,
+          other_history: consultation.pastMedicalHistory.otherHistory
+        })
+      });
+      dispatch(addAuditLog({ action: 'Saved Past Medical History' }));
+      showSuccess('PMH saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save PMH.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, pmh: false }));
+    }
+  };
+
+  const handleSaveFamilyHistory = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, familyHistory: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        family_history: JSON.stringify({
+          mother: consultation.familyHistory.mother,
+          father: consultation.familyHistory.father,
+          siblings: consultation.familyHistory.siblings,
+          relevant_conditions: consultation.familyHistory.relevantConditions
+        })
+      });
+      dispatch(addAuditLog({ action: 'Saved Family History' }));
+      showSuccess('Family history saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save family history.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, familyHistory: false }));
+    }
+  };
+
+  const handleSaveSocialHistory = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, socialHistory: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        social_history: JSON.stringify({
+          occupation: consultation.socialHistory.occupation,
+          living_situation: consultation.socialHistory.livingSituation,
+          marital_status: consultation.socialHistory.maritalStatus,
+          children: consultation.socialHistory.children,
+          independence: consultation.socialHistory.independence,
+          smoking: consultation.socialHistory.smoking,
+          alcohol: consultation.socialHistory.alcohol,
+          recreational_drugs: consultation.socialHistory.recreationalDrugs
+        })
+      });
+      dispatch(addAuditLog({ action: 'Saved Social History' }));
+      showSuccess('Social history saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save social history.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, socialHistory: false }));
+    }
+  };
+
+  const handleSaveAssessment = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, assessment: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        assessment: JSON.stringify({
+          clinical_impression: consultation.assessment.clinicalImpression,
+          primary_diagnosis: consultation.assessment.primaryDiagnosis,
+          secondary_diagnosis: consultation.assessment.secondaryDiagnosis,
+          differential_diagnosis: consultation.assessment.differentialDiagnosis
+        })
+      });
+      dispatch(addAuditLog({ action: 'Saved Assessment' }));
+      showSuccess('Assessment saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save assessment.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, assessment: false }));
+    }
+  };
+
+  const handleSaveTreatmentPlan = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, plan: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        plan: JSON.stringify({
+          management_plan: consultation.treatmentPlan.managementPlan,
+          medications: consultation.treatmentPlan.medications,
+          lifestyle_advice: consultation.treatmentPlan.lifestyleAdvice,
+          dietary_advice: consultation.treatmentPlan.dietaryAdvice,
+          patient_education: consultation.treatmentPlan.patientEducation,
+          monitoring_plan: consultation.treatmentPlan.monitoringPlan,
+          safety_net_advice: consultation.treatmentPlan.safetyNetAdvice
+        })
+      });
+      dispatch(addAuditLog({ action: 'Saved Treatment Plan' }));
+      showSuccess('Treatment plan saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save treatment plan.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, plan: false }));
+    }
+  };
+
+  const handleSavePhysicalExam = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, physicalExam: true }));
+    try {
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        objective: JSON.stringify(consultation.physicalExam)
+      });
+      dispatch(addAuditLog({ action: 'Saved Physical Exam' }));
+      showSuccess('Physical exam saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save physical exam.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, physicalExam: false }));
+    }
+  };
+
+  const handleSaveDrugHistory = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, drugHistory: true }));
+    try {
+      const medPromises = consultation.medications.map(med =>
+        consultationApi.createPrescription({
+          visit: visitId,
+          drug_name: med.name,
+          dosage: med.dosage,
+          frequency: med.frequency,
+          duration: med.duration,
+          quantity: med.quantity,
+          route: med.route,
+          instructions: med.reason,
+          status: med.status || 'active'
+        })
+      );
+
+      const allergyPromises = consultation.allergies.map(allergy =>
+        consultationApi.createAllergy({
+          visit: visitId,
+          patient: consultation.patient.patientId,
+          allergen: allergy.substance,
+          allergy_type: allergy.type,
+          reaction: allergy.reactionType,
+          severity: allergy.severity,
+          notes: allergy.notes,
+          status: 'active'
+        })
+      );
+
+      await Promise.all([...medPromises, ...allergyPromises]);
+      dispatch(addAuditLog({ action: 'Saved Drug History' }));
+      showSuccess('Drug history saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save drug history.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, drugHistory: false }));
+    }
+  };
+
+  const handleSaveDisposition = async () => {
+    if (!visitId) return;
+    setIsSavingSection(prev => ({ ...prev, disposition: true }));
+    try {
+      await apiRequest(`/api/v1/patients/visits/${visitId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          disposition_type: consultation.disposition.type,
+          disposition_reason: consultation.disposition.reason,
+          admission_required: consultation.disposition.admission === 'Yes',
+          follow_up_date: consultation.followUp.date || null,
+          follow_up_time: consultation.followUp.time || null,
+          follow_up_reason: consultation.followUp.reason
+        })
+      });
+      dispatch(addAuditLog({ action: 'Saved Disposition' }));
+      showSuccess('Disposition saved successfully.');
+    } catch (error) {
+      showError(error.message || 'Failed to save disposition.');
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, disposition: false }));
+    }
+  };
+
+  // --- Patient Search Functions ---
 
   const searchPatients = async () => {
     const trimmedTerm = patientSearchTerm.trim();
@@ -510,9 +877,18 @@ const ConsultationV2 = () => {
     setPatientResults([]);
 
     try {
-      const response = await apiRequest(`/api/v1/patients/patients/?search=${encodeURIComponent(trimmedTerm)}&page_size=20`);
+      const normalizedSearch = trimmedTerm.replace(/^(mrn[:\s-]+|patient\s+(id|number)[:\s-]+|search[:\s-]+)/i, '').trim() || trimmedTerm;
+      const response = await Promise.race([
+        apiRequest(`/api/v1/patients/patients/?search=${encodeURIComponent(normalizedSearch)}&page_size=20`),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Search timed out after 15 seconds')), 15000)
+        ),
+      ]);
       const patients = parseList(response);
       setPatientResults(patients);
+      if (!patients.length) {
+        setPatientSearchError('No patients found matching your search.');
+      }
     } catch (error) {
       setPatientSearchError(error.message || 'Unable to search patients.');
     } finally {
@@ -520,28 +896,22 @@ const ConsultationV2 = () => {
     }
   };
 
-  useEffect(() => {
-    if (!patientSearchTerm.trim()) {
-      setPatientResults([]);
-      setPatientSearchError('');
-      return;
-    }
-
-    const handler = setTimeout(() => {
-      searchPatients();
-    }, 350);
-
-    return () => clearTimeout(handler);
-  }, [patientSearchTerm]);
-
   const loadPatientVisits = async (patientId) => {
     setPatientVisitsError('');
     setIsLoadingPatientVisits(true);
     setPatientVisits([]);
+    setAllPatientVisits([]);
 
     try {
-      const visits = await consultationApi.getPatientVisits(patientId);
+      const response = await Promise.race([
+        consultationApi.getPatientVisits(patientId),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out after 15 seconds')), 15000)
+        ),
+      ]);
+      const visits = parseList(response);
       setPatientVisits(visits);
+      setAllPatientVisits(visits);
       if (!visits.length) {
         setPatientVisitsError('No visits found for this patient.');
       }
@@ -552,11 +922,33 @@ const ConsultationV2 = () => {
     }
   };
 
+  const loadOtherVisits = () => {
+    const currentId = parseInt(visitId, 10);
+    const others = allPatientVisits.filter(v => v.id !== currentId);
+    setOtherVisits(others);
+    setShowVisitSwitcher(true);
+  };
+
+  const switchToVisit = (visit) => {
+    navigate(`/consultation?visit=${visit.id}`);
+    setShowVisitSwitcher(false);
+  };
+
   const selectPatient = async (patient) => {
     setSelectedPatient(patient);
     setPatientVisits([]);
     setCheckInError('');
     await loadPatientVisits(patient.id);
+  };
+
+  const clearSelectedPatient = () => {
+    setSelectedPatient(null);
+    setPatientVisits([]);
+    setAllPatientVisits([]);
+    setPatientSearchTerm('');
+    setPatientResults([]);
+    setPatientSearchError('');
+    setPatientVisitsError('');
   };
 
   const startNewVisit = async () => {
@@ -583,19 +975,12 @@ const ConsultationV2 = () => {
     }
   };
 
-  const clearSelectedPatient = () => {
-    setSelectedPatient(null);
-    setPatientVisits([]);
-    setPatientSearchTerm('');
-    setPatientResults([]);
-    setPatientSearchError('');
-    setPatientVisitsError('');
-  };
-
   const viewPatientDetails = (patient) => {
     setSelectedPatientForDetails(patient);
     setShowPatientDetails(true);
   };
+
+  // ==================== EFFECTS ====================
 
   useEffect(() => {
     if (visitId || availableVisits.length > 0) return;
@@ -604,7 +989,12 @@ const ConsultationV2 = () => {
       setIsLoadingVisits(true);
       setVisitLoadError('');
       try {
-        const response = await consultationApi.getVisits({ status: 'triaged', page_size: 20 });
+        const response = await Promise.race([
+          consultationApi.getVisits({ status: 'triaged', page_size: 20 }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Loading recent visits timed out after 15 seconds')), 15000)
+          ),
+        ]);
         const visits = parseList(response);
         setAvailableVisits(visits);
       } catch (error) {
@@ -623,10 +1013,15 @@ const ConsultationV2 = () => {
     const loadVisit = async () => {
       setIsLoading(true);
       try {
-        const [visit, noteResponse, prescriptionResponse] = await Promise.all([
-          consultationApi.getVisit(visitId),
-          consultationApi.getConsultationNotes({ visit: visitId }),
-          consultationApi.getPrescriptions({ visit: visitId })
+        const [visit, noteResponse, prescriptionResponse] = await Promise.race([
+          Promise.all([
+            consultationApi.getVisit(visitId),
+            consultationApi.getConsultationNotes({ visit: visitId }),
+            consultationApi.getPrescriptions({ visit: visitId })
+          ]),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Loading visit timed out after 20 seconds')), 20000)
+          ),
         ]);
 
         const notes = parseList(noteResponse);
@@ -661,36 +1056,42 @@ const ConsultationV2 = () => {
         const notePayload = note ? {
           hpi: {
             ...consultation.hpi,
-            freeNotes: note.subjective,
-            chiefComplaint: note.subjective
+            freeNotes: note.subjective || note.history_of_present_illness || '',
+            chiefComplaint: note.chief_complaint || ''
           },
           assessment: {
             ...consultation.assessment,
-            clinicalImpression: note.assessment,
-            differentialDiagnosis: note.differential_diagnosis
+            clinicalImpression: note.assessment || '',
+            differentialDiagnosis: note.differential_diagnosis || ''
           },
           treatmentPlan: {
             ...consultation.treatmentPlan,
-            managementPlan: note.plan
+            managementPlan: note.plan || ''
           },
           icd10: {
             ...consultation.icd10,
             selectedCodes: Array.isArray(note.diagnosis_codes)
               ? note.diagnosis_codes.map(code => ({ code, description: '' }))
               : consultation.icd10.selectedCodes
+          },
+          ice: {
+            ...consultation.ice,
+            ideas: note.ice_ideas || '',
+            concerns: note.ice_concerns || '',
+            expectations: note.ice_expectations || ''
           }
         } : {};
 
         const prescriptionsPayload = prescriptions.length ? {
-          prescriptions: prescriptions.map((prescription) => ({
+          medications: prescriptions.map((prescription) => ({
             id: prescription.id,
-            medication: prescription.drug_name,
-            dose: prescription.dosage,
+            name: prescription.drug_name,
+            dosage: prescription.dosage,
             frequency: prescription.frequency,
             duration: prescription.duration ? String(prescription.duration) : '',
             quantity: prescription.quantity ? String(prescription.quantity) : '',
             route: prescription.route,
-            instructions: prescription.instructions,
+            reason: prescription.instructions || '',
             status: prescription.status || 'active'
           }))
         } : {};
@@ -700,16 +1101,21 @@ const ConsultationV2 = () => {
           encounter: visitPayload,
           hpi: {
             ...consultation.hpi,
-            freeNotes: visit.history_of_present_illness,
-            chiefComplaint: visit.chief_complaint
+            freeNotes: visit.history_of_present_illness || '',
+            chiefComplaint: visit.chief_complaint || ''
           },
           ...notePayload,
           ...prescriptionsPayload
         }));
 
-        if (visit.patient) {
-          await refreshMedicationSafetyWarnings(visit.patient);
-        }
+        const status = {
+          hpi: !!visit.chief_complaint,
+          ice: !!(notePayload.ice?.ideas || notePayload.ice?.concerns || notePayload.ice?.expectations),
+          drugHistory: prescriptions.length > 0,
+          assessment: !!(notePayload.assessment?.clinicalImpression)
+        };
+        dispatch(updateCompletionStatus(status));
+
       } catch (error) {
         setApiError(error.message || 'Unable to load consultation details.');
       } finally {
@@ -720,54 +1126,33 @@ const ConsultationV2 = () => {
     loadVisit();
   }, [visitId, dispatch]);
 
-  const clinicalAlerts = useMemo(() => {
-    const alerts = [];
+  useEffect(() => {
+    const patientId = consultation.patient?.patientId;
+    if (!patientId || !visitId || allPatientVisits.length > 0) return;
 
-    if (consultation.patient.allergies?.length > 0 && consultation.prescriptions?.length > 0) {
-      const allergyTerms = consultation.patient.allergies.map(a => a.toLowerCase());
-      consultation.prescriptions.forEach((prescription) => {
-        const medName = prescription.medication.toLowerCase();
-        allergyTerms.forEach((allergy) => {
-          if (medName.includes(allergy) || prescription.medication.toLowerCase().includes(allergy)) {
-            alerts.push({
-              type: 'allergy',
-              message: `Prescription ${prescription.medication} may trigger patient allergy to ${allergy}.`,
-              severity: 'high'
-            });
-          }
-        });
-      });
-    }
-
-    consultation.medications.forEach((med) => {
-      const info = med.name.toLowerCase();
-      if (info.includes('prednisolone') && consultation.allergies.some(a => a.substance.toLowerCase().includes('penicillin'))) {
-        alerts.push({
-          type: 'interaction',
-          message: `Review use of ${med.name} with patient allergy profile.`,
-          severity: 'moderate'
-        });
+    const preloadOtherVisits = async () => {
+      try {
+        const response = await consultationApi.getPatientVisits(patientId);
+        const visits = parseList(response);
+        setAllPatientVisits(visits);
+      } catch {
+        // Silently fail - other visits will be empty until user searches for patient
       }
-    });
+    };
 
-    if (consultation.encounter.consultationStatus === 'In Progress' && consultation.prescriptions.length === 0) {
-      alerts.push({
-        type: 'action',
-        message: 'No active prescriptions present. Confirm treatment plan or consider medication reconciliation.',
-        severity: 'info'
-      });
-    }
+    preloadOtherVisits();
+  }, [consultation.patient?.patientId, visitId, allPatientVisits.length]);
 
-    return alerts;
-  }, [consultation.patient.allergies, consultation.prescriptions, consultation.medications, consultation.encounter.consultationStatus]);
-
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
+  // ==================== HANDLERS ====================
 
   const handleHPIChange = (field, value) => {
     dispatch(updateHPIField({ field, value }));
     dispatch(addAuditLog({ action: `Updated HPI field ${field}` }));
+  };
+
+  const handleICEChange = (field, value) => {
+    dispatch(updateICEField({ field, value }));
+    dispatch(addAuditLog({ action: `Updated ICE field ${field}` }));
   };
 
   const handleROSChange = (section, field, value) => {
@@ -775,284 +1160,127 @@ const ConsultationV2 = () => {
     dispatch(addAuditLog({ action: `Updated ROS ${section} ${field}` }));
   };
 
-  const refreshMedicationSafetyWarnings = async (patientId, incomingMedication = null) => {
-    if (!patientId) return;
-
-    try {
-      const history = await consultationApi.getMedicationHistory(patientId);
-      const existingDrugNames = (history?.medications || []).map(item => item.drug_name).filter(Boolean);
-      const candidateDrugs = incomingMedication
-        ? [...existingDrugNames, incomingMedication.name]
-        : existingDrugNames;
-
-      let interactionPayload = { patient_id: patientId, drug_names: candidateDrugs };
-      if (candidateDrugs.length === 0) {
-        setMedicationSafetyWarnings(history?.warnings || []);
-        return;
-      }
-
-      const interactionResult = await consultationApi.checkInteractions(interactionPayload);
-      const warnings = [
-        ...(history?.warnings || []),
-        ...(interactionResult?.interactions || []).map(item => ({
-          type: 'drug_interaction',
-          severity: item.severity || 'high',
-          message: item.message,
-          drugs: item.drugs || []
-        }))
-      ];
-
-      setMedicationSafetyWarnings(warnings);
-    } catch (error) {
-      console.warn('Failed to load medication safety data:', error);
-      setMedicationSafetyWarnings([]);
-    }
+  const handlePMHChange = (field, value) => {
+    dispatch(updatePastMedicalHistory({ field, value }));
+    dispatch(addAuditLog({ action: `Updated PMH ${field}` }));
   };
 
-  const handleAddMedication = async () => {
-    if (!newMedication.name || !newMedication.dosage) return;
+  const handleFamilyHistoryChange = (section, field, value) => {
+    dispatch(updateFamilyHistory({ section, field, value }));
+    dispatch(addAuditLog({ action: `Updated Family History ${section}.${field}` }));
+  };
 
-    const medicationData = { ...newMedication, current: true, previous: false, stopped: false };
-    dispatch(addMedication(medicationData));
+  const handleSocialHistoryChange = (field, value) => {
+    dispatch(updateSocialHistory({ field, value }));
+    dispatch(addAuditLog({ action: `Updated Social History ${field}` }));
+  };
+
+  const handleSocialHistorySubsectionChange = (section, field, value) => {
+    dispatch(updateSocialHistorySubsection({ section, field, value }));
+    dispatch(addAuditLog({ action: `Updated Social History ${section}.${field}` }));
+  };
+
+  const handleAddMedication = () => {
+    if (!newMedication.name || !newMedication.dosage) {
+      showError('Please enter medication name and dosage.');
+      return;
+    }
+    dispatch(addMedication(newMedication));
     dispatch(addAuditLog({ action: `Added medication ${newMedication.name}` }));
-
-    const patientId = consultation.patient.patientId || consultation.patient.id;
-    if (patientId) {
-      try {
-        const interactionResult = await consultationApi.checkInteractions({
-          patient_id: patientId,
-          drug_names: [
-            ...((consultation.medications || []).map(item => item.name).filter(Boolean)),
-            newMedication.name
-          ]
-        });
-
-        const interactionWarnings = (interactionResult?.interactions || []).map(item => ({
-          type: 'drug_interaction',
-          severity: item.severity || 'high',
-          message: item.message,
-          drugs: item.drugs || []
-        }));
-
-        setMedicationSafetyWarnings(prev => [...prev, ...interactionWarnings]);
-      } catch (error) {
-        setApiError(error.message || 'Failed to validate medication safety.');
-      }
-    }
-
     setNewMedication({ name: '', dosage: '', frequency: '', duration: '', quantity: '', route: 'Oral', reason: '' });
-    if (visitId) {
-      try {
-        await consultationApi.createPrescription({
-          visit: visitId,
-          drug_name: newMedication.name,
-          dosage: newMedication.dosage,
-          frequency: newMedication.frequency,
-          duration: newMedication.duration,
-          quantity: newMedication.quantity,
-          route: newMedication.route,
-          instructions: newMedication.reason
-        });
-        if (patientId) {
-          await refreshMedicationSafetyWarnings(patientId, medicationData);
-        }
-      } catch (error) {
-        setApiError(error.message || 'Failed to save medication to server.');
-      }
-    }
+    showSuccess('Medication added.');
   };
 
-  const handleAddAllergy = async () => {
-    if (!newAllergy.substance) return;
+  const handleRemoveMedication = (id) => {
+    dispatch(removeMedication(id));
+    dispatch(addAuditLog({ action: `Removed medication ${id}` }));
+    showSuccess('Medication removed.');
+  };
+
+  const handleAddAllergy = () => {
+    if (!newAllergy.substance) {
+      showError('Please enter allergy substance.');
+      return;
+    }
     dispatch(addAllergy(newAllergy));
     dispatch(addAuditLog({ action: `Added allergy ${newAllergy.substance}` }));
     setNewAllergy({ type: 'Drug', substance: '', severity: 'Moderate', reactionType: '', notes: '' });
-    if (visitId) {
-      try {
-        await consultationApi.createPrescription({
-          visit: visitId,
-          allergy_data: {
-            type: newAllergy.type,
-            substance: newAllergy.substance,
-            severity: newAllergy.severity,
-            reaction_type: newAllergy.reactionType,
-            notes: newAllergy.notes
-          }
-        });
-      } catch (error) {
-        setApiError(error.message || 'Failed to save allergy to server.');
-      }
+    showSuccess('Allergy added.');
+  };
+
+  const handleRemoveAllergy = (id) => {
+    dispatch(removeAllergy(id));
+    dispatch(addAuditLog({ action: `Removed allergy ${id}` }));
+    showSuccess('Allergy removed.');
+  };
+
+  const handleAddRelevantCondition = () => {
+    if (newRelevantCondition.trim()) {
+      dispatch(addRelevantCondition(newRelevantCondition.trim()));
+      setNewRelevantCondition('');
+      showSuccess('Condition added.');
     }
+  };
+
+  const handleRemoveRelevantCondition = (condition) => {
+    dispatch(removeRelevantCondition(condition));
+    showSuccess('Condition removed.');
+  };
+
+  const handleAddSibling = () => {
+    if (newSiblingName.trim()) {
+      dispatch(addFamilySibling({ 
+        id: Date.now().toString(), 
+        name: newSiblingName.trim(), 
+        conditions: newSiblingConditions.trim() 
+      }));
+      setNewSiblingName('');
+      setNewSiblingConditions('');
+      showSuccess('Sibling added.');
+    } else {
+      showError('Please enter sibling name.');
+    }
+  };
+
+  const handleRemoveSibling = (id) => {
+    dispatch(removeFamilySibling(id));
+    showSuccess('Sibling removed.');
   };
 
   const handleSearchICD10 = async (query) => {
     if (!query.trim()) {
       setIcd10Database([]);
-      setIcd10SearchError('');
       return;
     }
     setIcd10SearchLoading(true);
-    setIcd10SearchError('');
     try {
       const results = await consultationApi.searchICD10(query);
       setIcd10Database(results);
     } catch (error) {
-      setIcd10SearchError(error.message || 'Unable to search ICD-10 codes.');
-      setIcd10Database([]);
+      showError(error.message || 'Unable to search ICD-10 codes.');
     } finally {
       setIcd10SearchLoading(false);
-    }
-  };
-
-  const handleSaveHPI = async () => {
-    if (!visitId) return;
-    try {
-      await consultationApi.createConsultationNote({
-        visit: visitId,
-        patient: consultation.patient.patientId,
-        chief_complaint: consultation.hpi.chiefComplaint,
-        subjective: consultation.hpi.freeNotes,
-        hpi_data: consultation.hpi
-      });
-      dispatch(addAuditLog({ action: 'Saved HPI section' }));
-      setApiMessage('HPI saved.');
-      setTimeout(() => setApiMessage(''), 3000);
-    } catch (error) {
-      setApiError(error.message || 'Failed to save HPI.');
-    }
-  };
-
-  const handleSaveROS = async () => {
-    if (!visitId) return;
-    try {
-      await consultationApi.createConsultationNote({
-        visit: visitId,
-        patient: consultation.patient.patientId,
-        ros_data: consultation.ros
-      });
-      dispatch(addAuditLog({ action: 'Saved ROS section' }));
-      setApiMessage('ROS saved.');
-      setTimeout(() => setApiMessage(''), 3000);
-    } catch (error) {
-      setApiError(error.message || 'Failed to save ROS.');
-    }
-  };
-
-  const handleSaveICD10 = async () => {
-    if (!visitId) return;
-    try {
-      await consultationApi.createConsultationNote({
-        visit: visitId,
-        patient: consultation.patient.patientId,
-        diagnosis_codes: consultation.icd10.selectedCodes.map(c => c.code)
-      });
-      dispatch(addAuditLog({ action: 'Saved ICD-10 codes' }));
-      setApiMessage('ICD-10 codes saved.');
-      setTimeout(() => setApiMessage(''), 3000);
-    } catch (error) {
-      setApiError(error.message || 'Failed to save ICD-10 codes.');
-    }
-  };
-
-  const handleSaveTreatmentPlan = async () => {
-    if (!visitId) return;
-    try {
-      await consultationApi.createConsultationNote({
-        visit: visitId,
-        patient: consultation.patient.patientId,
-        plan: `${consultation.treatmentPlan.managementPlan}\n${consultation.treatmentPlan.medications}\n${consultation.treatmentPlan.lifestyleAdvice}\n${consultation.treatmentPlan.dietaryAdvice}\n${consultation.treatmentPlan.monitoringPlan}\n${consultation.treatmentPlan.safetyNetAdvice}`
-      });
-      dispatch(addAuditLog({ action: 'Saved Treatment Plan section' }));
-      setApiMessage('Treatment plan saved.');
-      setTimeout(() => setApiMessage(''), 3000);
-    } catch (error) {
-      setApiError(error.message || 'Failed to save treatment plan.');
-    }
-  };
-
-  const handleSaveOrders = async (orderType, orderData) => {
-    if (!visitId) return;
-    try {
-      const payload = {
-        ...orderData,
-        visit: visitId,
-        patient: consultation.patient.patientId
-      };
-      if (orderType === 'laboratory') {
-        payload.test = orderData.test?.id || orderData.test?.code || orderData.test;
-      }
-      const createMap = {
-        laboratory: consultationApi.createLabOrder,
-        radiology: consultationApi.createRadiologyOrder,
-        procedures: consultationApi.createProcedure,
-        referralOrders: consultationApi.createReferral
-      };
-      await createMap[orderType](payload);
-      dispatch(addAuditLog({ action: `Saved ${ORDER_TYPES.find(o => o.key === orderType)?.label} order` }));
-      setApiMessage('Order saved.');
-      setTimeout(() => setApiMessage(''), 3000);
-    } catch (error) {
-      setApiError(error.message || 'Failed to save order.');
-    }
-  };
-
-  const handleSaveBilling = async () => {
-    if (!visitId) return;
-    try {
-      await consultationApi.createBillingItem({
-        visit: visitId,
-        items: consultation.billing.charges
-      });
-      dispatch(addAuditLog({ action: 'Saved Billing charges' }));
-      setApiMessage('Billing charges saved.');
-      setTimeout(() => setApiMessage(''), 3000);
-    } catch (error) {
-      setApiError(error.message || 'Failed to save billing.');
     }
   };
 
   const handleAddICD10 = (code) => {
     dispatch(addICD10Code(code));
     dispatch(addAuditLog({ action: `Added diagnosis code ${code.code}` }));
+    showSuccess('ICD-10 code added.');
   };
 
-  const handleAddOrder = (orderType) => {
-    const orderTemplate = {
-      laboratory: { test: 'New lab test', status: 'pending', priority: 'normal' },
-      radiology: { study: 'New radiology study', status: 'pending', priority: 'normal' },
-      procedures: { procedure: 'New procedure', status: 'pending', priority: 'normal' },
-      referralOrders: { referral: 'Specialist referral', status: 'pending', priority: 'routine' }
-    };
-
-    const actionMap = {
-      laboratory: addLabOrder,
-      radiology: addRadiologyOrder,
-      procedures: addProcedure,
-      referralOrders: addReferral
-    };
-
-    dispatch(actionMap[orderType](orderTemplate[orderType]));
-    dispatch(addAuditLog({ action: `Created ${ORDER_TYPES.find(order => order.key === orderType).label} order` }));
-  };
-
-  const handleSignOff = async () => {
+  const handleSignOff = () => {
     const userFullName = localStorage.getItem('userFullName') || localStorage.getItem('userName');
     const tenantId = localStorage.getItem('tenantId');
-    dispatch(signConsultation({ 
+    dispatch(signConsultation({
       doctorName: userFullName,
       licenseNumber: tenantId,
-      digitalSignature: 'signed-by-app', 
-      ipAddress: window.location.hostname 
+      digitalSignature: 'signed-by-app',
+      ipAddress: window.location.hostname
     }));
     dispatch(addAuditLog({ action: 'Signed consultation' }));
     dispatch(generateBillingCharge({ item: 'Consultation fee', amount: 5000 }));
-    await handleSaveConsultation({ markFinal: true });
-  };
-
-  const handleBillingCharge = () => {
-    if (!chargeItem.item || !chargeItem.amount) return;
-    dispatch(generateBillingCharge({ item: chargeItem.item, amount: Number(chargeItem.amount) }));
-    setChargeItem({ item: '', amount: '' });
+    showSuccess('Consultation signed and finalized.');
   };
 
   const handleSaveConsultation = async ({ markFinal = false } = {}) => {
@@ -1074,15 +1302,28 @@ const ConsultationV2 = () => {
         differential_diagnosis: consultation.assessment.differentialDiagnosis,
         diagnosis_codes: consultation.icd10.selectedCodes.map(code => code.code),
         is_final: markFinal,
-        prescriptions: consultation.prescriptions.map(p => ({
-          medication: p.medication,
-          drug_name: p.medication,
-          dosage: p.dose,
+        ice_ideas: consultation.ice.ideas,
+        ice_concerns: consultation.ice.concerns,
+        ice_expectations: consultation.ice.expectations,
+        past_medical_history: consultation.pastMedicalHistory,
+        social_history: consultation.socialHistory,
+        family_history: consultation.familyHistory,
+        physical_exam: consultation.physicalExam,
+        disposition_type: consultation.disposition.type,
+        disposition_reason: consultation.disposition.reason,
+        admission_required: consultation.disposition.admission === 'Yes',
+        follow_up_date: consultation.followUp.date || null,
+        follow_up_time: consultation.followUp.time || null,
+        follow_up_reason: consultation.followUp.reason,
+        prescriptions: consultation.medications.map(p => ({
+          medication: p.name,
+          drug_name: p.name,
+          dosage: p.dosage,
           frequency: p.frequency,
           duration: p.duration,
           quantity: p.quantity,
           route: p.route,
-          instructions: p.instructions,
+          instructions: p.reason,
           status: p.status || 'prescribed'
         })),
         lab_orders: consultation.orders.laboratory.map(order => ({
@@ -1123,314 +1364,328 @@ const ConsultationV2 = () => {
 
       await consultationApi.endConsultation(visitId, payload);
 
-      setApiMessage('Consultation saved successfully.');
+      showSuccess('Consultation saved successfully.');
     } catch (error) {
-      setApiError(error.message || 'Unable to save consultation.');
+      showError(error.message || 'Unable to save consultation.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleRemoveMedication = (id) => {
-    dispatch(removeMedication(id));
-    dispatch(addAuditLog({ action: `Removed medication ${id}` }));
+  const handleBillingCharge = () => {
+    if (!chargeItem.item || !chargeItem.amount) {
+      showError('Please enter item and amount.');
+      return;
+    }
+    dispatch(generateBillingCharge({ item: chargeItem.item, amount: Number(chargeItem.amount) }));
+    setChargeItem({ item: '', amount: '' });
+    showSuccess('Charge added successfully.');
   };
 
-  const handleRemoveAllergy = (id) => {
-    dispatch(removeAllergy(id));
-    dispatch(addAuditLog({ action: `Removed allergy ${id}` }));
+  const handleAddOrder = (orderType) => {
+    const orderTemplate = {
+      laboratory: { test: 'New lab test', status: 'pending', priority: 'normal' },
+      radiology: { study: 'New radiology study', status: 'pending', priority: 'normal' },
+      procedures: { procedure: 'New procedure', status: 'pending', priority: 'normal' },
+      referralOrders: { referral: 'Specialist referral', status: 'pending', priority: 'routine' }
+    };
+
+    const actionMap = {
+      laboratory: addLabOrder,
+      radiology: addRadiologyOrder,
+      procedures: addProcedure,
+      referralOrders: addReferral
+    };
+
+    dispatch(actionMap[orderType](orderTemplate[orderType]));
+    dispatch(addAuditLog({ action: `Created ${orderType} order` }));
+    showSuccess(`${orderType} order added.`);
   };
 
-  const icd10Results = useMemo(() => {
-    const search = consultation.icd10.searchTerm.trim().toLowerCase();
-    if (!search) return icd10Database;
-    return icd10Database.filter(item => item.code.toLowerCase().includes(search) || item.description.toLowerCase().includes(search));
-  }, [consultation.icd10.searchTerm, icd10Database]);
+  // ==================== RENDER ====================
 
-  useEffect(() => {
-    handleSearchICD10(consultation.icd10.searchTerm);
-  }, [consultation.icd10.searchTerm]);
-
+  // --- Patient Search / No Visit ---
   if (!visitId) {
     return (
-      <>
-        <div className="p-6 space-y-6">
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            <p className="font-semibold">No visit selected.</p>
-            <p>Search for a patient, select a visit, or choose a recent visit to start consultation.</p>
-          </div>
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-3 sm:p-4 text-sm text-red-700">
+          <p className="font-semibold">No visit selected.</p>
+          <p className="text-xs sm:text-sm">Search for a patient, select a visit, or choose a recent visit to start consultation.</p>
+        </div>
 
-          <div className="flex flex-col lg:flex-row gap-4">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex-1 lg:max-w-[45%]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">Search patient</h2>
-                  <p className="mt-0.5 text-xs text-slate-600">Find a patient and open a visit from their history.</p>
-                </div>
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Patient Search */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm flex-1 lg:max-w-[45%]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-sm sm:text-base font-semibold text-slate-900">Search Patient</h2>
+                <p className="mt-0.5 text-[10px] sm:text-xs text-slate-600">Find a patient and open a visit from their history.</p>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="text"
+                  value={patientSearchTerm}
+                  onChange={(e) => {
+                    setPatientSearchTerm(e.target.value);
+                    if (selectedPatient) clearSelectedPatient();
+                  }}
+                  placeholder="Name, MRN, phone, or email"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                />
+                <button
+                  type="button"
+                  onClick={searchPatients}
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 whitespace-nowrap"
+                >
+                  <Search className="h-4 w-4 mr-1.5" />
+                  Search
+                </button>
               </div>
 
-              <div className="mt-3 space-y-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={patientSearchTerm}
-                    onChange={(e) => {
-                      setPatientSearchTerm(e.target.value);
-                      if (selectedPatient) clearSelectedPatient();
-                    }}
-                    placeholder="Name, MRN, phone, or email"
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={searchPatients}
-                    className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-700 whitespace-nowrap"
-                  >
-                    <Search className="h-3.5 w-3.5 mr-1.5" />
-                    Search
-                  </button>
+              {patientSearchError && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">
+                  {patientSearchError}
                 </div>
+              )}
 
-                {patientSearchError && (
-                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">
-                    {patientSearchError}
-                  </div>
-                )}
+              {isSearchingPatients ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">Searching...</div>
+              ) : patientResults.length > 0 ? (
+                <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                  {patientResults.map((patient) => {
+                    const hasAllergies = patient.known_allergies && patient.known_allergies !== 'None';
+                    const hasChronic = patient.chronic_conditions && patient.chronic_conditions !== 'None';
+                    const hasMedications = patient.current_medications && patient.current_medications !== 'None';
+                    const hasSurgery = patient.surgical_history && patient.surgical_history !== 'None';
 
-                {isSearchingPatients ? (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">Searching...</div>
-                ) : patientResults.length > 0 ? (
-                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-                    {patientResults.map((patient) => {
-                      const hasAllergies = patient.known_allergies && patient.known_allergies !== 'None';
-                      const hasChronic = patient.chronic_conditions && patient.chronic_conditions !== 'None';
-                      const hasMedications = patient.current_medications && patient.current_medications !== 'None';
-                      const hasSurgery = patient.surgical_history && patient.surgical_history !== 'None';
-                      
-                      return (
-                        <div
-                          key={patient.id}
-                          className="rounded-xl border border-slate-200 bg-slate-50 p-2 transition hover:bg-slate-100"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <p className="font-semibold text-slate-900 text-sm truncate">
-                                  {patient.full_name || `${patient.first_name} ${patient.last_name}`}
-                                </p>
-                                {hasAllergies && (
-                                  <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-medium text-red-700" title="Has Allergies">
-                                    <AlertCircle className="inline h-2.5 w-2.5 mr-0.5" />
-                                    Allergy
-                                  </span>
-                                )}
-                                {hasChronic && (
-                                  <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-medium text-orange-700" title="Has Chronic Conditions">
-                                    <Heart className="inline h-2.5 w-2.5 mr-0.5" />
-                                    Chronic
-                                  </span>
-                                )}
-                                {hasMedications && (
-                                  <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-medium text-blue-700" title="On Medications">
-                                    <Pill className="inline h-2.5 w-2.5 mr-0.5" />
-                                    Meds
-                                  </span>
-                                )}
-                                {hasSurgery && (
-                                  <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[9px] font-medium text-purple-700" title="Has Surgical History">
-                                    <Scissors className="inline h-2.5 w-2.5 mr-0.5" />
-                                    Surgery
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-slate-600">
-                                <span>MRN: {patient.hospital_number || patient.mrn}</span>
-                                <span>•</span>
-                                <span>{patient.age_display || `${patient.age}y`}</span>
-                                <span>•</span>
-                                <span className="capitalize">{patient.gender}</span>
-                                {patient.phone && (
-                                  <>
-                                    <span>•</span>
-                                    <span>{patient.phone}</span>
-                                  </>
-                                )}
-                              </div>
+                    return (
+                      <div
+                        key={patient.id}
+                        className="rounded-xl border border-slate-200 bg-slate-50 p-2 transition hover:bg-slate-100"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="font-semibold text-slate-900 text-sm truncate">
+                                {patient.full_name || `${patient.first_name} ${patient.last_name}`}
+                              </p>
+                              {hasAllergies && (
+                                <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-medium text-red-700 flex items-center gap-0.5">
+                                  <AlertCircle className="h-2.5 w-2.5" />
+                                  Allergy
+                                </span>
+                              )}
+                              {hasChronic && (
+                                <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-medium text-orange-700 flex items-center gap-0.5">
+                                  <Heart className="h-2.5 w-2.5" />
+                                  Chronic
+                                </span>
+                              )}
+                              {hasMedications && (
+                                <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-medium text-blue-700 flex items-center gap-0.5">
+                                  <Pill className="h-2.5 w-2.5" />
+                                  Meds
+                                </span>
+                              )}
+                              {hasSurgery && (
+                                <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[9px] font-medium text-purple-700 flex items-center gap-0.5">
+                                  <Scissors className="h-2.5 w-2.5" />
+                                  Surgery
+                                </span>
+                              )}
                             </div>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => viewPatientDetails(patient)}
-                                className="rounded-lg bg-slate-200 px-2 py-1 text-[10px] font-medium text-slate-700 transition hover:bg-slate-300"
-                              >
-                                <FileText className="inline h-3 w-3 mr-0.5" />
-                                Details
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => selectPatient(patient)}
-                                className="rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-slate-700"
-                              >
-                                <User className="inline h-3 w-3 mr-0.5" />
-                                Select
-                              </button>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-slate-600">
+                              <span>MRN: {patient.hospital_number || patient.mrn}</span>
+                              <span>•</span>
+                              <span>{patient.age_display || `${patient.age}y`}</span>
+                              <span>•</span>
+                              <span className="capitalize">{patient.gender}</span>
+                              {patient.phone && (
+                                <>
+                                  <span>•</span>
+                                  <span>{patient.phone}</span>
+                                </>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : patientSearchTerm ? (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">No patients found.</div>
-                ) : null}
-
-                {selectedPatient && (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-500">Selected</p>
-                        <p className="font-semibold text-slate-900 text-sm truncate">
-                          {selectedPatient.full_name || `${selectedPatient.first_name} ${selectedPatient.last_name}`}
-                        </p>
-                        <div className="mt-0.5 flex flex-wrap gap-1 text-[10px] text-slate-600">
-                          <span>MRN: {selectedPatient.hospital_number || selectedPatient.mrn}</span>
-                          <span>•</span>
-                          <span>{selectedPatient.age_display || `${selectedPatient.age}y`}</span>
-                          {selectedPatient.blood_group && (
-                            <>
-                              <span>•</span>
-                              <span className="font-medium">{selectedPatient.blood_group}</span>
-                            </>
-                          )}
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => viewPatientDetails(patient)}
+                              className="rounded-lg bg-slate-200 px-2 py-1 text-[10px] font-medium text-slate-700 transition hover:bg-slate-300"
+                            >
+                              <FileText className="inline h-3 w-3 mr-0.5" />
+                              Details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => selectPatient(patient)}
+                              className="rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-slate-700"
+                            >
+                              <User className="inline h-3 w-3 mr-0.5" />
+                              Select
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => viewPatientDetails(selectedPatient)}
-                          className="rounded-lg bg-slate-200 px-2 py-1 text-[10px] font-medium text-slate-700 transition hover:bg-slate-300"
-                        >
-                          <FileText className="inline h-3 w-3 mr-0.5" />
-                          Details
-                        </button>
-                        <button
-                          type="button"
-                          onClick={clearSelectedPatient}
-                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-medium text-slate-700 transition hover:bg-slate-50"
-                        >
-                          <X className="inline h-3 w-3 mr-0.5" />
-                          Clear
-                        </button>
+                    );
+                  })}
+                </div>
+              ) : patientSearchTerm ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">No patients found.</div>
+              ) : null}
+
+              {selectedPatient && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-slate-500">Selected</p>
+                      <p className="font-semibold text-slate-900 text-sm truncate">
+                        {selectedPatient.full_name || `${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                      </p>
+                      <div className="mt-0.5 flex flex-wrap gap-1 text-[10px] text-slate-600">
+                        <span>MRN: {selectedPatient.hospital_number || selectedPatient.mrn}</span>
+                        <span>•</span>
+                        <span>{selectedPatient.age_display || `${selectedPatient.age}y`}</span>
+                        {selectedPatient.blood_group && (
+                          <>
+                            <span>•</span>
+                            <span className="font-medium">{selectedPatient.blood_group}</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex-1">
-              <div className="text-left">
-                <h2 className="text-base font-semibold text-slate-900">
-                  {selectedPatient ? 'Patient visits' : 'Recent visits'}
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-600">
-                  {selectedPatient 
-                    ? `Select a visit for ${selectedPatient.full_name?.split(' ')[0] || 'patient'}`
-                    : 'Choose a recent visit to start consultation'}
-                </p>
-              </div>
-
-              {selectedPatient ? (
-                isLoadingPatientVisits ? (
-                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">Loading visits...</div>
-                ) : patientVisits.length > 0 ? (
-                  <div className="mt-3 space-y-1.5 max-h-[300px] overflow-y-auto">
-                    {patientVisits.map((visit) => (
+                    <div className="flex gap-1 flex-shrink-0">
                       <button
-                        key={visit.id}
                         type="button"
-                        onClick={() => navigate(`/consultation?visit=${visit.id}`)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-left transition hover:bg-slate-100"
+                        onClick={() => viewPatientDetails(selectedPatient)}
+                        className="rounded-lg bg-slate-200 px-2 py-1 text-[10px] font-medium text-slate-700 transition hover:bg-slate-300"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-slate-900 text-sm">
-                              {visit.visit_number}
-                            </p>
-                            <p className="text-[10px] text-slate-600">
-                              {visit.department_name || visit.visit_type}
-                            </p>
-                          </div>
-                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-slate-700">
-                            {visit.visit_status}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 text-[10px] text-slate-500">
-                          {visit.checkin_time ? new Date(visit.checkin_time).toLocaleString() : 'No check-in time'}
-                        </div>
+                        <FileText className="inline h-3 w-3 mr-0.5" />
+                        Details
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={clearSelectedPatient}
+                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <X className="inline h-3 w-3 mr-0.5" />
+                        Clear
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                    <div>{patientVisitsError || 'No visits available.'}</div>
-                    <button
-                      type="button"
-                      onClick={startNewVisit}
-                      disabled={isCheckingIn}
-                      className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
-                    >
-                      {isCheckingIn ? 'Starting...' : 'Start new visit'}
-                    </button>
-                    {checkInError && (
-                      <div className="rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">
-                        {checkInError}
-                      </div>
-                    )}
-                  </div>
-                )
-              ) : visitLoadError ? (
-                <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">{visitLoadError}</div>
-              ) : isLoadingVisits ? (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">Loading...</div>
-              ) : availableVisits.length > 0 ? (
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Visits List */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm flex-1">
+            <div className="text-left">
+              <h2 className="text-sm sm:text-base font-semibold text-slate-900">
+                {selectedPatient ? 'Patient Visits' : 'Recent Visits'}
+              </h2>
+              <p className="mt-0.5 text-[10px] sm:text-xs text-slate-600">
+                {selectedPatient
+                  ? `Select a visit for ${selectedPatient.full_name?.split(' ')[0] || 'patient'}`
+                  : 'Choose a recent visit to start consultation'}
+              </p>
+            </div>
+
+            {selectedPatient ? (
+              isLoadingPatientVisits ? (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">Loading visits...</div>
+              ) : patientVisits.length > 0 ? (
                 <div className="mt-3 space-y-1.5 max-h-[300px] overflow-y-auto">
-                  {availableVisits.map((visit) => (
+                  {patientVisits.map((visit) => (
                     <button
                       key={visit.id}
                       type="button"
                       onClick={() => navigate(`/consultation?visit=${visit.id}`)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-left transition hover:bg-slate-100"
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="font-semibold text-slate-900 text-sm">
                             {visit.visit_number}
                           </p>
                           <p className="text-[10px] text-slate-600">
-                            {visit.patient_name}
+                            {visit.department_name || visit.visit_type}
                           </p>
                         </div>
                         <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-slate-700">
-                          {visit.visit_status}
+                          {visit.visit_status || 'pending'}
                         </span>
                       </div>
                       <div className="mt-0.5 text-[10px] text-slate-500">
-                        {visit.department_name ? `${visit.department_name} · ` : ''}
                         {visit.checkin_time ? new Date(visit.checkin_time).toLocaleString() : 'No check-in time'}
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
-                  No recent visits found.
+                <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                  <div>{patientVisitsError || 'No visits available.'}</div>
+                  <button
+                    type="button"
+                    onClick={startNewVisit}
+                    disabled={isCheckingIn}
+                    className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                  >
+                    {isCheckingIn ? 'Starting...' : 'Start New Visit'}
+                  </button>
+                  {checkInError && (
+                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">
+                      {checkInError}
+                    </div>
+                  )}
                 </div>
-              )}
-            </section>
-          </div>
+              )
+            ) : visitLoadError ? (
+              <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">{visitLoadError}</div>
+            ) : isLoadingVisits ? (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">Loading...</div>
+            ) : availableVisits.length > 0 ? (
+              <div className="mt-3 space-y-1.5 max-h-[300px] overflow-y-auto">
+                {availableVisits.map((visit) => (
+                  <button
+                    key={visit.id}
+                    type="button"
+                    onClick={() => navigate(`/consultation?visit=${visit.id}`)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-left transition hover:bg-slate-100"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-slate-900 text-sm">
+                          {visit.visit_number}
+                        </p>
+                        <p className="text-[10px] text-slate-600">
+                          {visit.patient_name}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-slate-700">
+                        {visit.visit_status || 'pending'}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-slate-500">
+                      {visit.department_name ? `${visit.department_name} · ` : ''}
+                      {visit.checkin_time ? new Date(visit.checkin_time).toLocaleString() : 'No check-in time'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
+                No recent visits found.
+              </div>
+            )}
+          </section>
         </div>
 
+        {/* Patient Details Modal */}
         {showPatientDetails && selectedPatientForDetails && (
           <PatientMedicalDetails 
             patient={selectedPatientForDetails} 
@@ -1440,79 +1695,102 @@ const ConsultationV2 = () => {
             }}
           />
         )}
-      </>
+      </div>
     );
   }
 
+  // ==================== MAIN CONSULTATION VIEW ====================
+
   return (
     <>
-      <div className="p-6 space-y-6">
-        <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+        {/* Top Bar */}
+        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Consultation Module</p>
-                <h1 className="mt-1 text-xl font-semibold text-slate-900">EMR Consultation</h1>
-                <p className="mt-1 text-sm text-slate-600">Structured workflow with HPI, ROS, medications, orders, diagnostics, billing, and audit support.</p>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-slate-500">Consultation Module</p>
+                <h1 className="mt-1 text-lg sm:text-xl font-semibold text-slate-900">EMR Consultation</h1>
+                <p className="mt-1 text-xs sm:text-sm text-slate-600">Structured workflow with PISP-FDS clinical framework</p>
               </div>
               <div className="flex flex-col gap-2 sm:items-end">
-                <div className="rounded-xl bg-slate-100 px-3 py-1.5 text-sm text-slate-700">Encounter #{consultation.encounter.encounterNumber}</div>
+                <div className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs sm:text-sm text-slate-700">Encounter #{consultation.encounter.encounterNumber}</div>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => {
-                    const printWindow = window.open('', '_blank');
-                    const patientData = `
-                      <html>
-                        <head><title>Patient Summary - ${consultation.patient.name}</title>
-                        <style>
-                          body { font-family: Inter, sans-serif; padding: 20px; }
-                          .header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
-                          .section { margin-bottom: 15px; }
-                          .label { font-weight: 600; color: #475569; }
-                          .value { color: #0f172a; }
-                        </style>
-                      </head>
-                      <body>
-                        <div class="header">
-                          <h1>Patient Summary</h1>
-                          <p>Generated: ${new Date().toLocaleString()}</p>
-                        </div>
-                        <div class="section"><span class="label">Name:</span> <span class="value">${consultation.patient.name}</span></div>
-                        <div class="section"><span class="label">MRN:</span> <span class="value">${consultation.patient.mrn}</span></div>
-                        <div class="section"><span class="label">Gender/Age:</span> <span class="value">${consultation.patient.gender} / ${consultation.patient.age}</span></div>
-                        <div class="section"><span class="label">Insurance:</span> <span class="value">${consultation.patient.insurancePlan}</span></div>
-                        <div class="section"><span class="label">Consultant:</span> <span class="value">${consultation.patient.primaryConsultant}</span></div>
-                        <div class="section"><span class="label">Latest Vitals:</span> <span class="value">${consultation.patient.latestVitals}</span></div>
-                        <div class="section"><span class="label">Risk Flags:</span> <span class="value">${consultation.patient.riskFlags.join(', ')}</span></div>
-                      </body>
-                      </html>`;
-                    printWindow.document.write(patientData);
-                    printWindow.document.close();
-                    printWindow.print();
-                  }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-50">
-                    <FileUser className="h-3.5 w-3.5" /> Print Summary
+                  <button
+                    onClick={() => {
+                      const printWindow = window.open('', '_blank');
+                      const patientData = `
+                        <html>
+                          <head><title>Patient Summary - ${consultation.patient.name}</title>
+                          <style>
+                            body { font-family: Inter, sans-serif; padding: 20px; }
+                            .header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
+                            .section { margin-bottom: 15px; }
+                            .label { font-weight: 600; color: #475569; }
+                            .value { color: #0f172a; }
+                            @media print { body { padding: 10px; } }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="header">
+                            <h1>Patient Summary</h1>
+                            <p>Generated: ${new Date().toLocaleString()}</p>
+                          </div>
+                          <div class="section"><span class="label">Name:</span> <span class="value">${consultation.patient.name}</span></div>
+                          <div class="section"><span class="label">MRN:</span> <span class="value">${consultation.patient.mrn}</span></div>
+                          <div class="section"><span class="label">Gender/Age:</span> <span class="value">${consultation.patient.gender} / ${consultation.patient.age}</span></div>
+                          <div class="section"><span class="label">Insurance:</span> <span class="value">${consultation.patient.insurancePlan}</span></div>
+                          <div class="section"><span class="label">Consultant:</span> <span class="value">${consultation.patient.primaryConsultant}</span></div>
+                        </body>
+                        </html>`;
+                      printWindow.document.write(patientData);
+                      printWindow.document.close();
+                      printWindow.print();
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-[10px] sm:text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
+                  >
+                    <FileUser className="h-3.5 w-3.5" />
+                    <span className="hidden xs:inline">Print</span>
                   </button>
-                  <button onClick={handleSignOff} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700">
-                    <CheckCircle className="h-3.5 w-3.5" /> Sign & Close
+                  <button
+                    onClick={handleSignOff}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] sm:text-xs font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    <span className="hidden xs:inline">Sign & Close</span>
                   </button>
-                  <button onClick={handleSaveConsultation} disabled={isSaving} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-50">
-                    <Save className="h-3.5 w-3.5" /> {isSaving ? 'Saving...' : 'Save'}
+                  <button
+                    onClick={() => handleSaveConsultation({ markFinal: false })}
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-[10px] sm:text-xs font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {isSaving ? 'Saving...' : 'Save'}
                   </button>
                 </div>
-                {apiMessage && <div className="mt-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{apiMessage}</div>}
-                {apiError && <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{apiError}</div>}
+                {apiMessage && (
+                  <div className="mt-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs sm:text-sm text-green-700">
+                    {apiMessage}
+                  </div>
+                )}
+                {apiError && (
+                  <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs sm:text-sm text-red-700">
+                    {apiError}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-wider text-slate-500">Patient</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">{consultation.patient.name}</h2>
-                <p className="mt-0.5 text-sm text-slate-600">MRN: {consultation.patient.mrn} • {consultation.patient.gender} • {consultation.patient.age}</p>
-                <p className="text-sm text-slate-600">Insurance: {consultation.patient.insurancePlan}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">Patient</p>
+                <h2 className="mt-1 text-sm sm:text-base font-semibold text-slate-900 truncate">{consultation.patient.name}</h2>
+                <p className="mt-0.5 text-xs sm:text-sm text-slate-600">MRN: {consultation.patient.mrn} • {consultation.patient.gender} • {consultation.patient.age}</p>
+                <p className="text-xs sm:text-sm text-slate-600">Insurance: {consultation.patient.insurancePlan}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-wider text-slate-500">Encounter</p>
-                <div className="mt-1 space-y-0.5 text-sm text-slate-600">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">Encounter</p>
+                <div className="mt-1 space-y-0.5 text-xs sm:text-sm text-slate-600">
                   <p><strong>Clinic:</strong> {consultation.encounter.clinic}</p>
                   <p><strong>Dept:</strong> {consultation.encounter.department}</p>
                   <p><strong>Type:</strong> {consultation.encounter.type}</p>
@@ -1520,28 +1798,80 @@ const ConsultationV2 = () => {
                 </div>
               </div>
             </div>
+
+            {visitId && (
+              <div className="mt-3">
+                <button
+                  onClick={loadOtherVisits}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[10px] sm:text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Switch Visit
+                </button>
+                {showVisitSwitcher && (
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-white shadow-lg z-50 max-h-[300px] overflow-y-auto">
+                    {otherVisits.length === 0 ? (
+                      <div className="p-3 text-xs text-slate-500">No other visits found for this patient.</div>
+                    ) : (
+                      <div className="p-1">
+                        {otherVisits.map((visit) => (
+                          <button
+                            key={visit.id}
+                            onClick={() => switchToVisit(visit)}
+                            className="w-full text-left rounded-lg p-2 hover:bg-slate-50 transition"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs font-semibold text-slate-900">{visit.visit_number}</p>
+                                <p className="text-[10px] text-slate-500">
+                                  {visit.checkin_time ? new Date(visit.checkin_time).toLocaleDateString() : 'No date'} • {visit.visit_status || 'registered'}
+                                </p>
+                              </div>
+                              <span className="text-[10px] text-slate-400">Click to open</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
+          {/* Alerts Sidebar */}
           <section className="space-y-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-slate-800">
                 <ShieldCheck className="h-4 w-4 text-slate-500" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Alerts</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Clinical Alerts</p>
+                {redFlags.detected.length > 0 && (
+                  <span className="ml-auto flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">
+                    <AlertTriangle className="h-3 w-3" />
+                    {redFlags.detected.length}
+                  </span>
+                )}
               </div>
               <div className="mt-2 space-y-2">
-                {clinicalAlerts.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2 text-sm text-slate-600">No active alerts.</div>
-                ) : clinicalAlerts.slice(0, 2).map((alert, index) => (
-                  <div key={index} className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
-                    <AlertCircle className="mt-0.5 h-4 w-4 text-orange-500" />
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900">{alert.severity === 'high' ? 'High-risk' : alert.severity === 'moderate' ? 'Moderate' : 'Info'}</p>
-                      <p className="text-xs text-slate-700">{alert.message}</p>
-                    </div>
+                {redFlags.detected.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2 text-xs sm:text-sm text-slate-600">
+                    No red flags detected.
                   </div>
-                ))}
-                {clinicalAlerts.length > 2 && (
-                  <p className="text-xs text-slate-500">+{clinicalAlerts.length - 2} more alerts</p>
+                ) : (
+                  redFlags.detected.slice(0, 3).map((flag, index) => (
+                    <div key={index} className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2">
+                      <AlertOctagon className="mt-0.5 h-4 w-4 text-red-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-semibold text-red-900">{flag}</p>
+                        {redFlags.recommendedActions[index] && (
+                          <p className="text-[10px] text-red-700">{redFlags.recommendedActions[index]}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {redFlags.detected.length > 3 && (
+                  <p className="text-[10px] text-slate-500">+{redFlags.detected.length - 3} more alerts</p>
                 )}
               </div>
             </div>
@@ -1549,491 +1879,1249 @@ const ConsultationV2 = () => {
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-slate-800">
                 <Activity className="h-4 w-4 text-slate-500" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Recent Activity</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Progress</p>
               </div>
               <div className="mt-2 space-y-1.5">
-                {consultation.auditTrail.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2 text-sm text-slate-600">No activity yet.</p>
-                ) : consultation.auditTrail.slice(0, 3).map((event) => (
-                  <div key={event.id} className="rounded-xl border border-slate-200 bg-slate-50 p-2">
-                    <p className="text-xs font-medium text-slate-900">{event.action}</p>
-                    <p className="text-[10px] text-slate-500">{new Date(event.timestamp).toLocaleString()}</p>
-                  </div>
-                ))}
+                {Object.entries(consultation.completionStatus || {}).map(([key, completed]) => {
+                  const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                  const Icon = completed ? CheckCircle : AlertCircle;
+                  return (
+                    <div key={key} className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600">{label}</span>
+                      <Icon className={`h-3.5 w-3.5 ${completed ? 'text-green-600' : 'text-slate-300'}`} />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>
         </div>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500">History of Present Illness</p>
-              <h2 className="mt-1 text-base font-semibold text-slate-900">Structured HPI</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={handleSaveHPI} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">Save</button>
-              <button onClick={() => toggleSection('hpi')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                {expandedSections.hpi ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
+        {/* ====== PISP-FDS SECTIONS ====== */}
+
+        {/* === P - Presenting Complaint (HPI) === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Presenting Complaint"
+            subtitle="History of Presenting Illness"
+            icon={FileText}
+            expanded={expandedSections.hpi}
+            onToggle={() => toggleSection('hpi')}
+            onSave={handleSaveHPI}
+            isSaving={isSavingSection.hpi}
+          />
           {expandedSections.hpi && (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {['chiefComplaint', 'duration', 'onset', 'location', 'severity', 'character', 'radiation', 'associatedSymptoms', 'aggravatingFactors', 'relievingFactors', 'previousTreatment', 'progression'].map((field) => (
-                <div key={field} className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-700">{field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</label>
-                  <input
-                    value={consultation.hpi[field]}
-                    onChange={(e) => handleHPIChange(field, e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
-                  />
+            <div className="mt-4">
+              {/* Golden Minute Tip */}
+              <div className="mb-4 rounded-xl bg-blue-50 p-3 border border-blue-200">
+                <div className="flex items-start gap-2">
+                  <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
+                    <Info className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-blue-800">"Golden Minute" Approach</p>
+                    <p className="text-xs text-blue-700">
+                      Start with an open question: <strong>"What has brought you in to see the doctor today?"</strong>
+                    </p>
+                    <p className="mt-1 text-[10px] text-blue-600">
+                      💡 Let the patient speak freely, then summarize back to show you've listened.
+                    </p>
+                  </div>
                 </div>
-              ))}
-              <div className="sm:col-span-2 space-y-1">
-                <label className="block text-xs font-medium text-slate-700">Free text notes</label>
-                <textarea
+              </div>
+
+              {/* Screening Prompt */}
+              <div className="mb-4 rounded-xl bg-amber-50 p-3 border border-amber-200">
+                <div className="flex items-start gap-2">
+                  <Search className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800">"Screen then Scrutinize"</p>
+                    <p className="text-xs text-amber-700">
+                      Ask <strong>ALL</strong> symptoms before exploring any in detail.
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-amber-700">
+                      "Apart from this, have you noticed anything else?"
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormInput
+                  label="Chief Complaint"
+                  value={consultation.hpi.chiefComplaint}
+                  onChange={(v) => handleHPIChange('chiefComplaint', v)}
+                  placeholder="Main reason for visit"
+                  required
+                />
+                <FormInput
+                  label="Duration"
+                  value={consultation.hpi.duration}
+                  onChange={(v) => handleHPIChange('duration', v)}
+                  placeholder="How long has this been going on?"
+                />
+                <FormInput
+                  label="Onset"
+                  value={consultation.hpi.onset}
+                  onChange={(v) => handleHPIChange('onset', v)}
+                  placeholder="When did it start? Sudden or gradual?"
+                />
+                <FormInput
+                  label="Location"
+                  value={consultation.hpi.location}
+                  onChange={(v) => handleHPIChange('location', v)}
+                  placeholder="Where exactly? Can you point to it?"
+                />
+                <FormInput
+                  label="Character"
+                  value={consultation.hpi.character}
+                  onChange={(v) => handleHPIChange('character', v)}
+                  placeholder="Burning, stabbing, dull, crushing?"
+                />
+                <FormInput
+                  label="Radiation"
+                  value={consultation.hpi.radiation}
+                  onChange={(v) => handleHPIChange('radiation', v)}
+                  placeholder="Does the pain spread anywhere?"
+                />
+                <FormInput
+                  label="Associated Symptoms"
+                  value={consultation.hpi.associatedSymptoms}
+                  onChange={(v) => handleHPIChange('associatedSymptoms', v)}
+                  placeholder="Any other symptoms with this?"
+                />
+                <FormInput
+                  label="Timing"
+                  value={consultation.hpi.progression || consultation.hpi.duration}
+                  onChange={(v) => handleHPIChange('progression', v)}
+                  placeholder="Constant or intermittent? How long does it last?"
+                />
+                <FormInput
+                  label="Aggravating Factors"
+                  value={consultation.hpi.aggravatingFactors}
+                  onChange={(v) => handleHPIChange('aggravatingFactors', v)}
+                  placeholder="What makes it worse?"
+                />
+                <FormInput
+                  label="Relieving Factors"
+                  value={consultation.hpi.relievingFactors}
+                  onChange={(v) => handleHPIChange('relievingFactors', v)}
+                  placeholder="What makes it better?"
+                />
+                <FormInput
+                  label="Severity (1-10)"
+                  value={consultation.hpi.severity}
+                  onChange={(v) => handleHPIChange('severity', v)}
+                  placeholder="Rate the severity"
+                  type="number"
+                />
+                <FormInput
+                  label="Previous Treatment"
+                  value={consultation.hpi.previousTreatment}
+                  onChange={(v) => handleHPIChange('previousTreatment', v)}
+                  placeholder="What have you tried so far?"
+                />
+              </div>
+              <div className="mt-3">
+                <FormTextarea
+                  label="Free Text Notes"
                   value={consultation.hpi.freeNotes}
-                  onChange={(e) => handleHPIChange('freeNotes', e.target.value)}
-                  className="min-h-[100px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                  onChange={(v) => handleHPIChange('freeNotes', v)}
+                  placeholder="Detailed history in patient's own words..."
+                  rows={4}
                 />
               </div>
             </div>
           )}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500">Review of Systems</p>
-              <h2 className="mt-1 text-base font-semibold text-slate-900">Organ System Screening</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={handleSaveROS} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">Save</button>
-              <button onClick={() => toggleSection('ros')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                {expandedSections.ros ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-          {expandedSections.ros && (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {Object.entries(consultation.ros).map(([section, values]) => (
-                <div key={section} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-sm font-semibold text-slate-900 capitalize">{section}</p>
-                  <select
-                    value={values.status}
-                    onChange={(e) => handleROSChange(section, 'status', e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900"
-                  >
-                    <option value="present">Present</option>
-                    <option value="absent">Absent</option>
-                    <option value="unknown">Unknown</option>
-                  </select>
-                  <textarea
-                    value={values.comments}
-                    onChange={(e) => handleROSChange(section, 'comments', e.target.value)}
-                    placeholder="Comments"
-                    className="mt-2 min-h-[60px] w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900"
-                  />
-                </div>
-              ))}
+        {/* === I - Ideas, Concerns & Expectations (ICE) === */}
+        <section className="rounded-2xl border border-purple-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Ideas, Concerns & Expectations"
+            subtitle="Patient Perspective"
+            icon={HelpCircle}
+            expanded={expandedSections.ice}
+            onToggle={() => toggleSection('ice')}
+            onSave={handleSaveICE}
+            isSaving={isSavingSection.ice}
+          />
+          {expandedSections.ice && (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl bg-purple-50 p-3 border border-purple-200">
+                <p className="text-xs text-purple-700">
+                  💡 <strong>Clinical tip:</strong> Out of 100 people with the same symptoms, only 5 visit a doctor. 
+                  Ask directly to uncover the real reason they came today.
+                </p>
+              </div>
+              <FormTextarea
+                label="Ideas - What do you think is causing this?"
+                value={consultation.ice.ideas}
+                onChange={(v) => handleICEChange('ideas', v)}
+                placeholder="Patient's own ideas about their condition..."
+                rows={3}
+              />
+              <FormTextarea
+                label="Concerns - What are you most worried about?"
+                value={consultation.ice.concerns}
+                onChange={(v) => handleICEChange('concerns', v)}
+                placeholder="Patient's fears and anxieties..."
+                rows={3}
+              />
+              <FormTextarea
+                label="Expectations - What were you hoping to achieve today?"
+                value={consultation.ice.expectations}
+                onChange={(v) => handleICEChange('expectations', v)}
+                placeholder="Patient's desired outcomes..."
+                rows={3}
+              />
             </div>
           )}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Medication Reconciliation</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">Current Medications</h2>
-              </div>
-              <button onClick={() => toggleSection('medications')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                {expandedSections.medications ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
-            {expandedSections.medications && (
-              <div className="mt-4 space-y-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input value={newMedication.name} onChange={(e) => setNewMedication(prev => ({ ...prev, name: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" placeholder="Medication" />
-                  <input value={newMedication.dosage} onChange={(e) => setNewMedication(prev => ({ ...prev, dosage: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" placeholder="Dosage" />
-                  <input value={newMedication.frequency} onChange={(e) => setNewMedication(prev => ({ ...prev, frequency: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" placeholder="Frequency" />
-                  <input value={newMedication.duration} onChange={(e) => setNewMedication(prev => ({ ...prev, duration: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" placeholder="Duration" />
-                  <input value={newMedication.quantity} onChange={(e) => setNewMedication(prev => ({ ...prev, quantity: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" placeholder="Quantity" />
-                  <input value={newMedication.reason} onChange={(e) => setNewMedication(prev => ({ ...prev, reason: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" placeholder="Reason" />
+        {/* === S - Systems Review (ROS) === */}
+        <section className="rounded-2xl border border-green-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Systems Review"
+            subtitle="Review of Systems"
+            icon={ClipboardList}
+            expanded={expandedSections.ros}
+            onToggle={() => toggleSection('ros')}
+            onSave={handleSaveROS}
+            isSaving={isSavingSection.ros}
+          />
+          {expandedSections.ros && (
+            <div className="mt-4">
+              {/* Red Flag Mnemonic */}
+              <div className="mb-4 rounded-xl bg-red-50 p-3 border border-red-200">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-red-800">Red Flag Mnemonic</p>
+                    <p className="text-xs text-red-700">
+                      <strong>"Fat Gorillas Will Always Be Wanting To Try Nice Roast Potatoes"</strong>
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-red-600">
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Fever</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Glands</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Weight</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Appetite</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Bowels</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Waterworks</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Tired</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Travel</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Night sweats</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Rash</span>
+                      <span className="rounded bg-red-100 px-1.5 py-0.5">Pill/Pregnancy</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <select value={newMedication.route} onChange={(e) => setNewMedication(prev => ({ ...prev, route: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <option>Oral</option>
-                    <option>IV</option>
-                    <option>IM</option>
-                    <option>Topical</option>
-                  </select>
-                  <button onClick={handleAddMedication} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
-                    <Plus className="h-4 w-4 mr-1 inline" />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(consultation.ros).map(([section, values]) => (
+                  <div key={section} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-900 capitalize">{section}</p>
+                    <div className="mt-2 space-y-2">
+                      <select
+                        value={values.status}
+                        onChange={(e) => handleROSChange(section, 'status', e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs sm:text-sm text-slate-900"
+                      >
+                        <option value="unknown">Unknown</option>
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                      </select>
+                      <textarea
+                        value={values.comments || ''}
+                        onChange={(e) => handleROSChange(section, 'comments', e.target.value)}
+                        placeholder="Comments..."
+                        rows={2}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs sm:text-sm text-slate-900"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* === P - Past Medical History (WITH SAVE) === */}
+        <section className="rounded-2xl border border-orange-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Past Medical History"
+            subtitle="Medical Conditions & Surgeries"
+            icon={UserCircle}
+            expanded={expandedSections.pmh}
+            onToggle={() => toggleSection('pmh')}
+            onSave={handleSavePMH}
+            isSaving={isSavingSection.pmh}
+          />
+          {expandedSections.pmh && (
+            <div className="mt-4 grid gap-3">
+              <FormTextarea
+                label="Medical Conditions"
+                value={consultation.pastMedicalHistory.conditions}
+                onChange={(v) => handlePMHChange('conditions', v)}
+                placeholder="Diabetes, hypertension, asthma, etc."
+                rows={3}
+              />
+              <FormTextarea
+                label="Surgeries"
+                value={consultation.pastMedicalHistory.surgeries}
+                onChange={(v) => handlePMHChange('surgeries', v)}
+                placeholder="Previous operations and procedures"
+                rows={3}
+              />
+              <FormTextarea
+                label="Hospitalizations"
+                value={consultation.pastMedicalHistory.hospitalizations}
+                onChange={(v) => handlePMHChange('hospitalizations', v)}
+                placeholder="Previous hospital admissions"
+                rows={3}
+              />
+              <FormTextarea
+                label="Other History"
+                value={consultation.pastMedicalHistory.otherHistory}
+                onChange={(v) => handlePMHChange('otherHistory', v)}
+                placeholder="Any other relevant medical history"
+                rows={2}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* === F - Family History (WITH SAVE) === */}
+        <section className="rounded-2xl border border-yellow-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Family History"
+            subtitle="Genetic & Familial Risk Factors"
+            icon={Users}
+            expanded={expandedSections.familyHistory}
+            onToggle={() => toggleSection('familyHistory')}
+            onSave={handleSaveFamilyHistory}
+            isSaving={isSavingSection.familyHistory}
+          />
+          {expandedSections.familyHistory && (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 p-3 space-y-3">
+                  <h3 className="text-xs font-semibold text-slate-900">Mother</h3>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={consultation.familyHistory.mother.alive}
+                      onChange={(e) => handleFamilyHistoryChange('mother', 'alive', e.target.checked)}
+                      className="rounded border-slate-300"
+                    />
+                    <span className="text-xs text-slate-600">Alive</span>
+                  </div>
+                  <FormInput
+                    label="Age"
+                    value={consultation.familyHistory.mother.age}
+                    onChange={(v) => handleFamilyHistoryChange('mother', 'age', v)}
+                    placeholder="Age or age at death"
+                  />
+                  <FormTextarea
+                    label="Conditions"
+                    value={consultation.familyHistory.mother.conditions}
+                    onChange={(v) => handleFamilyHistoryChange('mother', 'conditions', v)}
+                    placeholder="Medical conditions"
+                    rows={2}
+                  />
+                  {!consultation.familyHistory.mother.alive && (
+                    <FormInput
+                      label="Cause of Death"
+                      value={consultation.familyHistory.mother.causeOfDeath}
+                      onChange={(v) => handleFamilyHistoryChange('mother', 'causeOfDeath', v)}
+                      placeholder="Cause of death"
+                    />
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-slate-200 p-3 space-y-3">
+                  <h3 className="text-xs font-semibold text-slate-900">Father</h3>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={consultation.familyHistory.father.alive}
+                      onChange={(e) => handleFamilyHistoryChange('father', 'alive', e.target.checked)}
+                      className="rounded border-slate-300"
+                    />
+                    <span className="text-xs text-slate-600">Alive</span>
+                  </div>
+                  <FormInput
+                    label="Age"
+                    value={consultation.familyHistory.father.age}
+                    onChange={(v) => handleFamilyHistoryChange('father', 'age', v)}
+                    placeholder="Age or age at death"
+                  />
+                  <FormTextarea
+                    label="Conditions"
+                    value={consultation.familyHistory.father.conditions}
+                    onChange={(v) => handleFamilyHistoryChange('father', 'conditions', v)}
+                    placeholder="Medical conditions"
+                    rows={2}
+                  />
+                  {!consultation.familyHistory.father.alive && (
+                    <FormInput
+                      label="Cause of Death"
+                      value={consultation.familyHistory.father.causeOfDeath}
+                      onChange={(v) => handleFamilyHistoryChange('father', 'causeOfDeath', v)}
+                      placeholder="Cause of death"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Siblings */}
+              <div className="rounded-xl border border-slate-200 p-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-xs font-semibold text-slate-900">Siblings</h3>
+                  <button
+                    onClick={handleAddSibling}
+                    className="flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-medium text-white hover:bg-slate-700"
+                  >
+                    <Plus className="h-3 w-3" />
                     Add
                   </button>
                 </div>
-                {medicationSafetyWarnings.length > 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-                      <AlertTriangle className="h-4 w-4" /> Safety review
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input
+                    value={newSiblingName}
+                    onChange={(e) => setNewSiblingName(e.target.value)}
+                    placeholder="Name"
+                    className="flex-1 min-w-[80px] rounded border border-slate-200 bg-white px-2 py-1 text-xs"
+                  />
+                  <input
+                    value={newSiblingConditions}
+                    onChange={(e) => setNewSiblingConditions(e.target.value)}
+                    placeholder="Conditions"
+                    className="flex-1 min-w-[80px] rounded border border-slate-200 bg-white px-2 py-1 text-xs"
+                  />
+                </div>
+                <div className="mt-2 space-y-2">
+                  {consultation.familyHistory.siblings.map((sibling) => (
+                    <div key={sibling.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                      <span className="text-xs font-medium text-slate-900 min-w-[80px]">{sibling.name || 'Unnamed'}</span>
+                      <span className="text-xs text-slate-600 flex-1">{sibling.conditions || 'No conditions'}</span>
+                      <button
+                        onClick={() => handleRemoveSibling(sibling.id)}
+                        className="rounded p-1 text-red-600 hover:bg-red-50"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <ul className="mt-1 space-y-1 text-sm text-amber-800">
-                      {medicationSafetyWarnings.slice(0, 2).map((warning, index) => (
-                        <li key={index} className="rounded-xl bg-white/60 p-2 text-xs">{warning.message}</li>
-                      ))}
-                      {medicationSafetyWarnings.length > 2 && (
-                        <li className="text-xs text-amber-600">+{medicationSafetyWarnings.length - 2} more warnings</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 max-h-[200px] overflow-y-auto">
-                  {consultation.medications.length === 0 ? (
-                    <p className="text-sm text-slate-600">No current medications.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {consultation.medications.map((med) => (
-                        <div key={med.id} className="rounded-xl border border-slate-200 bg-white p-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">{med.name}</p>
-                              <p className="text-xs text-slate-600">{med.dosage} • {med.frequency} • {med.route}</p>
-                            </div>
-                            <button onClick={() => handleRemoveMedication(med.id)} className="rounded-xl border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
-                              <Trash2 className="h-3 w-3 mr-1 inline" />
-                              Remove
-                            </button>
-                          </div>
-                          <p className="mt-1 text-xs text-slate-700">{med.reason || 'No instructions'}</p>
-                        </div>
-                      ))}
-                    </div>
+                  ))}
+                  {consultation.familyHistory.siblings.length === 0 && (
+                    <p className="text-xs text-slate-500">No siblings added.</p>
                   )}
                 </div>
               </div>
-            )}
-          </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Allergies</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">Allergy Management</h2>
-              </div>
-              <button onClick={() => toggleSection('allergies')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                {expandedSections.allergies ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
-            {expandedSections.allergies && (
-              <div className="mt-4 space-y-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input value={newAllergy.substance} onChange={(e) => setNewAllergy(prev => ({ ...prev, substance: e.target.value }))} placeholder="Allergen" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-                  <select value={newAllergy.severity} onChange={(e) => setNewAllergy(prev => ({ ...prev, severity: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <option>Severe</option>
-                    <option>Moderate</option>
-                    <option>Mild</option>
-                  </select>
+              {/* Relevant Conditions */}
+              <div className="rounded-xl border border-slate-200 p-3">
+                <h3 className="text-xs font-semibold text-slate-900">Relevant Family Conditions</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <input
+                    value={newRelevantCondition}
+                    onChange={(e) => setNewRelevantCondition(e.target.value)}
+                    placeholder="Condition"
+                    className="flex-1 min-w-[120px] rounded border border-slate-200 bg-white px-2 py-1 text-xs"
+                  />
+                  <button
+                    onClick={handleAddRelevantCondition}
+                    className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700"
+                  >
+                    Add
+                  </button>
                 </div>
-                <input value={newAllergy.reactionType} onChange={(e) => setNewAllergy(prev => ({ ...prev, reactionType: e.target.value }))} placeholder="Reaction type" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-                <textarea value={newAllergy.notes} onChange={(e) => setNewAllergy(prev => ({ ...prev, notes: e.target.value }))} placeholder="Notes" className="min-h-[60px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-                <button onClick={handleAddAllergy} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
-                  <Plus className="h-4 w-4 mr-1 inline" />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {consultation.familyHistory.relevantConditions.map((condition) => (
+                    <span key={condition} className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+                      {condition}
+                      <button
+                        onClick={() => handleRemoveRelevantCondition(condition)}
+                        className="rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* === D - Drug History (WITH SAVE) === */}
+        <section className="rounded-2xl border border-red-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Drug History"
+            subtitle="Medications & Allergies"
+            icon={Pill}
+            expanded={expandedSections.drugHistory}
+            onToggle={() => toggleSection('drugHistory')}
+            onSave={handleSaveDrugHistory}
+            isSaving={isSavingSection.drugHistory}
+          />
+          {expandedSections.drugHistory && (
+            <div className="mt-4 space-y-4">
+              {/* Medications */}
+              <div className="rounded-xl border border-slate-200 p-3">
+                <h3 className="text-xs font-semibold text-slate-900">Current Medications</h3>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <FormInput
+                    label="Medication"
+                    value={newMedication.name}
+                    onChange={(v) => setNewMedication(prev => ({ ...prev, name: v }))}
+                    placeholder="Medication name"
+                  />
+                  <FormInput
+                    label="Dosage"
+                    value={newMedication.dosage}
+                    onChange={(v) => setNewMedication(prev => ({ ...prev, dosage: v }))}
+                    placeholder="e.g., 500mg"
+                  />
+                  <FormInput
+                    label="Frequency"
+                    value={newMedication.frequency}
+                    onChange={(v) => setNewMedication(prev => ({ ...prev, frequency: v }))}
+                    placeholder="e.g., Twice daily"
+                  />
+                  <FormInput
+                    label="Duration"
+                    value={newMedication.duration}
+                    onChange={(v) => setNewMedication(prev => ({ ...prev, duration: v }))}
+                    placeholder="e.g., 7 days"
+                  />
+                  <FormInput
+                    label="Quantity"
+                    value={newMedication.quantity}
+                    onChange={(v) => setNewMedication(prev => ({ ...prev, quantity: v }))}
+                    placeholder="Number of tablets"
+                  />
+                  <FormSelect
+                    label="Route"
+                    value={newMedication.route}
+                    onChange={(v) => setNewMedication(prev => ({ ...prev, route: v }))}
+                    options={[
+                      { value: 'Oral', label: 'Oral' },
+                      { value: 'IV', label: 'IV' },
+                      { value: 'IM', label: 'IM' },
+                      { value: 'SC', label: 'SC' },
+                      { value: 'Topical', label: 'Topical' },
+                      { value: 'Inhalation', label: 'Inhalation' }
+                    ]}
+                  />
+                </div>
+                <FormInput
+                  label="Reason"
+                  value={newMedication.reason}
+                  onChange={(v) => setNewMedication(prev => ({ ...prev, reason: v }))}
+                  placeholder="Why is this medication being prescribed?"
+                  className="mt-2"
+                />
+                <button
+                  onClick={handleAddMedication}
+                  className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Medication
+                </button>
+
+                <div className="mt-3 space-y-1.5 max-h-[200px] overflow-y-auto">
+                  {consultation.medications.map((med) => (
+                    <div key={med.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-900">{med.name}</p>
+                        <p className="text-[10px] text-slate-600">{med.dosage} • {med.frequency} • {med.route}</p>
+                        {med.reason && <p className="text-[10px] text-slate-500">Reason: {med.reason}</p>}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveMedication(med.id)}
+                        className="rounded p-1 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {consultation.medications.length === 0 && (
+                    <p className="text-xs text-slate-500">No medications added.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Allergies */}
+              <div className="rounded-xl border border-slate-200 p-3">
+                <h3 className="text-xs font-semibold text-slate-900">Allergies</h3>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <FormInput
+                    label="Allergen"
+                    value={newAllergy.substance}
+                    onChange={(v) => setNewAllergy(prev => ({ ...prev, substance: v }))}
+                    placeholder="e.g., Penicillin, Peanuts"
+                  />
+                  <FormSelect
+                    label="Type"
+                    value={newAllergy.type}
+                    onChange={(v) => setNewAllergy(prev => ({ ...prev, type: v }))}
+                    options={[
+                      { value: 'Drug', label: 'Drug' },
+                      { value: 'Food', label: 'Food' },
+                      { value: 'Environmental', label: 'Environmental' },
+                      { value: 'Other', label: 'Other' }
+                    ]}
+                  />
+                  <FormSelect
+                    label="Severity"
+                    value={newAllergy.severity}
+                    onChange={(v) => setNewAllergy(prev => ({ ...prev, severity: v }))}
+                    options={[
+                      { value: 'Mild', label: 'Mild' },
+                      { value: 'Moderate', label: 'Moderate' },
+                      { value: 'Severe', label: 'Severe' },
+                      { value: 'Life-Threatening', label: 'Life-Threatening' }
+                    ]}
+                  />
+                  <FormInput
+                    label="Reaction Type"
+                    value={newAllergy.reactionType}
+                    onChange={(v) => setNewAllergy(prev => ({ ...prev, reactionType: v }))}
+                    placeholder="e.g., Rash, Anaphylaxis"
+                  />
+                </div>
+                <FormTextarea
+                  label="Notes"
+                  value={newAllergy.notes}
+                  onChange={(v) => setNewAllergy(prev => ({ ...prev, notes: v }))}
+                  placeholder="Additional details"
+                  rows={2}
+                  className="mt-2"
+                />
+                <button
+                  onClick={handleAddAllergy}
+                  className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+                >
+                  <Plus className="h-3.5 w-3.5" />
                   Add Allergy
                 </button>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 max-h-[150px] overflow-y-auto">
-                  {consultation.allergies.length === 0 ? (
-                    <p className="text-sm text-slate-600">No allergies on record.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {consultation.allergies.map((allergy) => (
-                        <li key={allergy.id} className="rounded-xl border border-slate-200 bg-white p-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">{allergy.substance}</p>
-                              <p className="text-xs text-slate-600">{allergy.type} • {allergy.severity}</p>
-                            </div>
-                            <button onClick={() => handleRemoveAllergy(allergy.id)} className="rounded-xl border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
-                              <Trash2 className="h-3 w-3 mr-1 inline" />
-                              Remove
-                            </button>
-                          </div>
-                          <p className="mt-1 text-xs text-slate-700">{allergy.notes || 'No notes'}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500">Diagnosis & Coding</p>
-              <h2 className="mt-1 text-base font-semibold text-slate-900">ICD-10 Selection</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={handleSaveICD10} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">Save</button>
-              <button onClick={() => toggleSection('icd10')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                {expandedSections.icd10 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-          {expandedSections.icd10 && (
-            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.7fr]">
-              <div className="space-y-3">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <label className="block text-xs font-medium text-slate-700">Search ICD-10</label>
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      value={consultation.icd10.searchTerm}
-                      onChange={(e) => dispatch(updateICD10SearchTerm(e.target.value))}
-                      placeholder="Search by code or description"
-                      className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                    />
-                    <button className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700" type="button">
-                      <Search className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2 max-h-[250px] overflow-y-auto">
-                  {icd10Results.slice(0, 5).map((item) => (
-                    <div key={item.code} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{item.code}</p>
-                        <p className="text-xs text-slate-600">{item.description}</p>
-                      </div>
-                      <button onClick={() => handleAddICD10(item)} className="rounded-xl bg-slate-900 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-700">
-                        <Plus className="h-3 w-3 mr-1 inline" />
-                        Add
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <h3 className="text-sm font-semibold text-slate-900">Selected codes</h3>
-                <div className="mt-2 space-y-2 max-h-[250px] overflow-y-auto">
-                  {consultation.icd10.selectedCodes.map((code) => (
-                    <div key={code.code} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{code.code}</p>
-                        <p className="text-xs text-slate-600">{code.description}</p>
-                      </div>
-                      <button onClick={() => dispatch(removeICD10Code(code.code))} className="rounded-xl border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700">
-                        <X className="h-3 w-3 mr-1 inline" />
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500">Orders</p>
-              <h2 className="mt-1 text-base font-semibold text-slate-900">Diagnostics & Referrals</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => handleSaveOrders('laboratory', consultation.orders.laboratory[0])} disabled={!visitId} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50">Save</button>
-              <button onClick={() => toggleSection('orders')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                {expandedSections.orders ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-          {expandedSections.orders && (
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {ORDER_TYPES.map((order) => (
-                  <button
-                    key={order.key}
-                    onClick={() => handleAddOrder(order.key)}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100"
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1 inline" />
-                    {order.label}
-                  </button>
-                ))}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <h3 className="text-sm font-semibold text-slate-900">Lab Orders</h3>
-                  {consultation.orders.laboratory.length === 0 ? (
-                    <p className="mt-2 text-sm text-slate-600">No lab orders.</p>
-                  ) : (
-                    <ul className="mt-2 space-y-1.5">
-                      {consultation.orders.laboratory.map(order => (
-                        <li key={order.id} className="rounded-xl border border-slate-200 bg-white p-2 text-sm text-slate-700">{order.test} • {order.priority}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <h3 className="text-sm font-semibold text-slate-900">Radiology & Referrals</h3>
-                  {consultation.orders.radiology.length === 0 && consultation.orders.referralOrders.length === 0 ? (
-                    <p className="mt-2 text-sm text-slate-600">No orders.</p>
-                  ) : (
-                    <div className="mt-2 space-y-1.5">
-                      {consultation.orders.radiology.map(order => (
-                        <div key={order.id} className="rounded-xl border border-slate-200 bg-white p-2 text-sm text-slate-700">{order.study} • {order.priority}</div>
-                      ))}
-                      {consultation.orders.referralOrders.map(order => (
-                        <div key={order.id} className="rounded-xl border border-slate-200 bg-white p-2 text-sm text-slate-700">{order.referral} • {order.priority}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Treatment Plan</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">Care Plan</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={handleSaveTreatmentPlan} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">Save</button>
-                <button onClick={() => toggleSection('plan')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                  {expandedSections.plan ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            {expandedSections.plan && (
-              <div className="mt-4 space-y-3">
-                {['managementPlan', 'medications', 'lifestyleAdvice', 'dietaryAdvice', 'patientEducation', 'monitoringPlan', 'safetyNetAdvice'].map((field) => (
-                  <div key={field} className="space-y-1">
-                    <label className="block text-xs font-medium text-slate-700">{field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</label>
-                    <textarea
-                      value={consultation.treatmentPlan[field]}
-                      onChange={(e) => dispatch(updateTreatmentPlan({ field, value: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Disposition</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">Plan & Follow-up</h2>
-              </div>
-              <button onClick={() => toggleSection('disposition')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                {expandedSections.disposition ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
-            {expandedSections.disposition && (
-              <div className="mt-4 space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <select value={consultation.disposition.type} onChange={(e) => dispatch(updateDisposition({ field: 'type', value: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
-                    <option>Outpatient</option>
-                    <option>Inpatient</option>
-                    <option>Observation</option>
-                    <option>Referral</option>
-                  </select>
-                  <select value={consultation.disposition.admission} onChange={(e) => dispatch(updateDisposition({ field: 'admission', value: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
-                    <option>No</option>
-                    <option>Yes</option>
-                  </select>
-                </div>
-                <textarea value={consultation.disposition.reason} onChange={(e) => dispatch(updateDisposition({ field: 'reason', value: e.target.value }))} placeholder="Disposition reason" className="min-h-[80px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900" />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-700">Follow-up date</label>
-                    <input value={consultation.followUp.date} onChange={(e) => dispatch(updateFollowUp({ field: 'date', value: e.target.value }))} type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-700">Follow-up time</label>
-                    <input value={consultation.followUp.time} onChange={(e) => dispatch(updateFollowUp({ field: 'time', value: e.target.value }))} type="time" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900" />
-                  </div>
-                </div>
-                <textarea value={consultation.followUp.reason} onChange={(e) => dispatch(updateFollowUp({ field: 'reason', value: e.target.value }))} placeholder="Follow-up indication" className="min-h-[80px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900" />
-              </div>
-            )}
-          </section>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Billing</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">Charges</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={handleSaveBilling} disabled={!visitId} className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50">Save</button>
-                <button onClick={() => toggleSection('billing')} className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                  {expandedSections.billing ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            {expandedSections.billing && (
-              <div className="mt-4 space-y-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input value={chargeItem.item} onChange={(e) => setChargeItem(prev => ({ ...prev, item: e.target.value }))} placeholder="Charge item" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-                  <input value={chargeItem.amount} onChange={(e) => setChargeItem(prev => ({ ...prev, amount: e.target.value }))} placeholder="Amount" type="number" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-                </div>
-                <button onClick={handleBillingCharge} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
-                  <Plus className="h-4 w-4 mr-1 inline" />
-                  Add Charge
-                </button>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  {consultation.billing.charges.length === 0 ? (
-                    <p className="text-sm text-slate-600">No billing items.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {consultation.billing.charges.map((charge) => (
-                        <div key={charge.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-2 text-sm text-slate-700">
-                          <span>{charge.item}</span>
-                          <strong>₦{charge.amount}</strong>
+                <div className="mt-3 space-y-1.5 max-h-[200px] overflow-y-auto">
+                  {consultation.allergies.map((allergy) => (
+                    <div key={allergy.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50/50 p-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-semibold text-red-900">{allergy.substance}</p>
+                          <span className="rounded-full bg-red-200 px-1.5 py-0.5 text-[8px] font-medium text-red-700">
+                            {allergy.severity}
+                          </span>
                         </div>
-                      ))}
-                      <div className="flex items-center justify-between border-t border-slate-300 pt-2 text-sm font-semibold text-slate-900">
-                        <span>Total</span>
-                        <span>₦{consultation.billing.total}</span>
+                        <p className="text-[10px] text-red-700">{allergy.type} • {allergy.reactionType || 'No reaction noted'}</p>
+                        {allergy.notes && <p className="text-[10px] text-red-600">{allergy.notes}</p>}
                       </div>
+                      <button
+                        onClick={() => handleRemoveAllergy(allergy.id)}
+                        className="rounded p-1 text-red-600 hover:bg-red-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
+                  ))}
+                  {consultation.allergies.length === 0 && (
+                    <p className="text-xs text-slate-500">No allergies recorded.</p>
                   )}
                 </div>
               </div>
-            )}
-          </section>
+            </div>
+          )}
+        </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Sign-off</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">Electronic Signature</h2>
+        {/* === S - Social History (WITH SAVE) === */}
+        <section className="rounded-2xl border border-teal-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Social History"
+            subtitle="Lifestyle & Context"
+            icon={Home}
+            expanded={expandedSections.socialHistory}
+            onToggle={() => toggleSection('socialHistory')}
+            onSave={handleSaveSocialHistory}
+            isSaving={isSavingSection.socialHistory}
+          />
+          {expandedSections.socialHistory && (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormInput
+                  label="Occupation"
+                  value={consultation.socialHistory.occupation}
+                  onChange={(v) => handleSocialHistoryChange('occupation', v)}
+                  placeholder="What do you do for work?"
+                />
+                <FormInput
+                  label="Living Situation"
+                  value={consultation.socialHistory.livingSituation}
+                  onChange={(v) => handleSocialHistoryChange('livingSituation', v)}
+                  placeholder="e.g., Lives alone, with family"
+                />
+                <FormSelect
+                  label="Marital Status"
+                  value={consultation.socialHistory.maritalStatus}
+                  onChange={(v) => handleSocialHistoryChange('maritalStatus', v)}
+                  options={[
+                    { value: 'single', label: 'Single' },
+                    { value: 'married', label: 'Married' },
+                    { value: 'divorced', label: 'Divorced' },
+                    { value: 'widowed', label: 'Widowed' },
+                    { value: 'separated', label: 'Separated' }
+                  ]}
+                />
+                <FormInput
+                  label="Children"
+                  value={consultation.socialHistory.children}
+                  onChange={(v) => handleSocialHistoryChange('children', v)}
+                  placeholder="Number of children"
+                />
+                <FormSelect
+                  label="Independence"
+                  value={consultation.socialHistory.independence}
+                  onChange={(v) => handleSocialHistoryChange('independence', v)}
+                  options={[
+                    { value: 'independent', label: 'Independent' },
+                    { value: 'assisted', label: 'Assisted Living' },
+                    { value: 'dependent', label: 'Dependent' }
+                  ]}
+                />
               </div>
-              <button onClick={handleSignOff} disabled={isSaving || !visitId} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
-                <CheckCircle className="h-4 w-4 mr-1 inline" />
-                Sign Now
+
+              <div className="rounded-xl border border-slate-200 p-3">
+                <h3 className="text-xs font-semibold text-slate-900">Smoking</h3>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  <FormSelect
+                    label="Status"
+                    value={consultation.socialHistory.smoking.status}
+                    onChange={(v) => handleSocialHistorySubsectionChange('smoking', 'status', v)}
+                    options={[
+                      { value: 'never', label: 'Never' },
+                      { value: 'former', label: 'Former' },
+                      { value: 'current', label: 'Current' }
+                    ]}
+                  />
+                  <FormInput
+                    label="Pack Years"
+                    value={consultation.socialHistory.smoking.packYears}
+                    onChange={(v) => handleSocialHistorySubsectionChange('smoking', 'packYears', v)}
+                    placeholder="e.g., 10 pack-years"
+                  />
+                  <FormInput
+                    label="Quit Date"
+                    value={consultation.socialHistory.smoking.quitDate}
+                    onChange={(v) => handleSocialHistorySubsectionChange('smoking', 'quitDate', v)}
+                    placeholder="When did you quit?"
+                    type="date"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 p-3">
+                <h3 className="text-xs font-semibold text-slate-900">Alcohol</h3>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  <FormSelect
+                    label="Status"
+                    value={consultation.socialHistory.alcohol.status}
+                    onChange={(v) => handleSocialHistorySubsectionChange('alcohol', 'status', v)}
+                    options={[
+                      { value: 'never', label: 'Never' },
+                      { value: 'occasional', label: 'Occasional' },
+                      { value: 'moderate', label: 'Moderate' },
+                      { value: 'heavy', label: 'Heavy' }
+                    ]}
+                  />
+                  <FormInput
+                    label="Units per Week"
+                    value={consultation.socialHistory.alcohol.unitsPerWeek}
+                    onChange={(v) => handleSocialHistorySubsectionChange('alcohol', 'unitsPerWeek', v)}
+                    placeholder="Number of units"
+                    type="number"
+                  />
+                  <FormInput
+                    label="Duration"
+                    value={consultation.socialHistory.alcohol.duration}
+                    onChange={(v) => handleSocialHistorySubsectionChange('alcohol', 'duration', v)}
+                    placeholder="e.g., 10 years"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 p-3">
+                <h3 className="text-xs font-semibold text-slate-900">Recreational Drug Use</h3>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  <FormSelect
+                    label="Status"
+                    value={consultation.socialHistory.recreationalDrugs.status}
+                    onChange={(v) => handleSocialHistorySubsectionChange('recreationalDrugs', 'status', v)}
+                    options={[
+                      { value: 'never', label: 'Never' },
+                      { value: 'former', label: 'Former' },
+                      { value: 'current', label: 'Current' }
+                    ]}
+                  />
+                  <FormInput
+                    label="Substances"
+                    value={consultation.socialHistory.recreationalDrugs.substances}
+                    onChange={(v) => handleSocialHistorySubsectionChange('recreationalDrugs', 'substances', v)}
+                    placeholder="e.g., Cannabis, Cocaine"
+                  />
+                  <FormInput
+                    label="Frequency"
+                    value={consultation.socialHistory.recreationalDrugs.frequency}
+                    onChange={(v) => handleSocialHistorySubsectionChange('recreationalDrugs', 'frequency', v)}
+                    placeholder="e.g., Weekly, Daily"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* === Assessment (WITH SAVE) === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Assessment"
+            subtitle="Clinical Assessment"
+            icon={Stethoscope}
+            expanded={expandedSections.assessment}
+            onToggle={() => toggleSection('assessment')}
+            onSave={handleSaveAssessment}
+            isSaving={isSavingSection.assessment}
+          />
+          {expandedSections.assessment && (
+            <div className="mt-4 grid gap-3">
+              <FormTextarea
+                label="Clinical Impression"
+                value={consultation.assessment.clinicalImpression}
+                onChange={(v) => dispatch(updateAssessment({ field: 'clinicalImpression', value: v }))}
+                placeholder="Overall clinical assessment"
+                rows={3}
+              />
+              <FormInput
+                label="Primary Diagnosis"
+                value={consultation.assessment.primaryDiagnosis}
+                onChange={(v) => dispatch(updateAssessment({ field: 'primaryDiagnosis', value: v }))}
+                placeholder="Main diagnosis"
+              />
+              <FormInput
+                label="Secondary Diagnosis"
+                value={consultation.assessment.secondaryDiagnosis}
+                onChange={(v) => dispatch(updateAssessment({ field: 'secondaryDiagnosis', value: v }))}
+                placeholder="Other diagnoses"
+              />
+              <FormTextarea
+                label="Differential Diagnosis"
+                value={consultation.assessment.differentialDiagnosis}
+                onChange={(v) => dispatch(updateAssessment({ field: 'differentialDiagnosis', value: v }))}
+                placeholder="List of differential diagnoses with reasoning"
+                rows={4}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* === Treatment Plan (WITH SAVE) === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Treatment Plan"
+            subtitle="Management Plan"
+            icon={Edit3}
+            expanded={expandedSections.plan}
+            onToggle={() => toggleSection('plan')}
+            onSave={handleSaveTreatmentPlan}
+            isSaving={isSavingSection.plan}
+          />
+          {expandedSections.plan && (
+            <div className="mt-4 grid gap-3">
+              <FormTextarea
+                label="Management Plan"
+                value={consultation.treatmentPlan.managementPlan}
+                onChange={(v) => dispatch(updateTreatmentPlan({ field: 'managementPlan', value: v }))}
+                placeholder="Overall management strategy"
+                rows={3}
+              />
+              <FormTextarea
+                label="Medications"
+                value={consultation.treatmentPlan.medications}
+                onChange={(v) => dispatch(updateTreatmentPlan({ field: 'medications', value: v }))}
+                placeholder="Medication plan"
+                rows={3}
+              />
+              <FormTextarea
+                label="Lifestyle Advice"
+                value={consultation.treatmentPlan.lifestyleAdvice}
+                onChange={(v) => dispatch(updateTreatmentPlan({ field: 'lifestyleAdvice', value: v }))}
+                placeholder="Lifestyle recommendations"
+                rows={2}
+              />
+              <FormTextarea
+                label="Dietary Advice"
+                value={consultation.treatmentPlan.dietaryAdvice}
+                onChange={(v) => dispatch(updateTreatmentPlan({ field: 'dietaryAdvice', value: v }))}
+                placeholder="Dietary recommendations"
+                rows={2}
+              />
+              <FormTextarea
+                label="Monitoring Plan"
+                value={consultation.treatmentPlan.monitoringPlan}
+                onChange={(v) => dispatch(updateTreatmentPlan({ field: 'monitoringPlan', value: v }))}
+                placeholder="Follow-up and monitoring schedule"
+                rows={2}
+              />
+              <FormTextarea
+                label="Safety Net Advice"
+                value={consultation.treatmentPlan.safetyNetAdvice}
+                onChange={(v) => dispatch(updateTreatmentPlan({ field: 'safetyNetAdvice', value: v }))}
+                placeholder="When to seek urgent care"
+                rows={2}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* === Physical Exam (WITH SAVE) === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Physical Exam"
+            subtitle="Examination Findings"
+            icon={Eye}
+            expanded={expandedSections.physicalExam}
+            onToggle={() => toggleSection('physicalExam')}
+            onSave={handleSavePhysicalExam}
+            isSaving={isSavingSection.physicalExam}
+          />
+          {expandedSections.physicalExam && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <FormTextarea
+                label="General Appearance"
+                value={consultation.physicalExam.generalAppearance}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'generalAppearance', value: v }))}
+                placeholder="Overall appearance"
+                rows={2}
+              />
+              <FormTextarea
+                label="Vital Signs"
+                value={consultation.physicalExam.vitalSigns}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'vitalSigns', value: v }))}
+                placeholder="BP, HR, RR, Temp, SpO2"
+                rows={2}
+              />
+              <FormTextarea
+                label="Cardiovascular"
+                value={consultation.physicalExam.cardiovascular}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'cardiovascular', value: v }))}
+                placeholder="Heart sounds, murmurs, JVP"
+                rows={2}
+              />
+              <FormTextarea
+                label="Respiratory"
+                value={consultation.physicalExam.respiratory}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'respiratory', value: v }))}
+                placeholder="Breath sounds, work of breathing"
+                rows={2}
+              />
+              <FormTextarea
+                label="Abdominal"
+                value={consultation.physicalExam.abdominal}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'abdominal', value: v }))}
+                placeholder="Abdomen examination"
+                rows={2}
+              />
+              <FormTextarea
+                label="Neurological"
+                value={consultation.physicalExam.neurological}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'neurological', value: v }))}
+                placeholder="CNS examination"
+                rows={2}
+              />
+              <FormTextarea
+                label="Musculoskeletal"
+                value={consultation.physicalExam.musculoskeletal}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'musculoskeletal', value: v }))}
+                placeholder="Joint and muscle examination"
+                rows={2}
+              />
+              <FormTextarea
+                label="ENT"
+                value={consultation.physicalExam.ent}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'ent', value: v }))}
+                placeholder="Ear, nose, throat examination"
+                rows={2}
+              />
+              <FormTextarea
+                label="Eye"
+                value={consultation.physicalExam.eye}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'eye', value: v }))}
+                placeholder="Eye examination"
+                rows={2}
+              />
+              <FormTextarea
+                label="Skin"
+                value={consultation.physicalExam.skin}
+                onChange={(v) => dispatch(updatePhysicalExam({ field: 'skin', value: v }))}
+                placeholder="Skin examination"
+                rows={2}
+              />
+              <div className="sm:col-span-2">
+                <FormTextarea
+                  label="Mental State"
+                  value={consultation.physicalExam.mentalState}
+                  onChange={(v) => dispatch(updatePhysicalExam({ field: 'mentalState', value: v }))}
+                  placeholder="Mental status examination"
+                  rows={2}
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* === Disposition & Follow-up (WITH SAVE) === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Disposition & Follow-up"
+            subtitle="Plan & Next Steps"
+            icon={Calendar}
+            expanded={expandedSections.disposition}
+            onToggle={() => toggleSection('disposition')}
+            onSave={handleSaveDisposition}
+            isSaving={isSavingSection.disposition}
+          />
+          {expandedSections.disposition && (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormSelect
+                  label="Disposition Type"
+                  value={consultation.disposition.type}
+                  onChange={(v) => dispatch(updateDisposition({ field: 'type', value: v }))}
+                  options={[
+                    { value: 'Outpatient', label: 'Outpatient' },
+                    { value: 'Inpatient', label: 'Inpatient' },
+                    { value: 'Observation', label: 'Observation' },
+                    { value: 'Referral', label: 'Referral' }
+                  ]}
+                />
+                <FormSelect
+                  label="Admission Required"
+                  value={consultation.disposition.admission}
+                  onChange={(v) => dispatch(updateDisposition({ field: 'admission', value: v }))}
+                  options={[
+                    { value: 'No', label: 'No' },
+                    { value: 'Yes', label: 'Yes' }
+                  ]}
+                />
+              </div>
+              <FormTextarea
+                label="Disposition Reason"
+                value={consultation.disposition.reason}
+                onChange={(v) => dispatch(updateDisposition({ field: 'reason', value: v }))}
+                placeholder="Reason for disposition decision"
+                rows={2}
+              />
+
+              <div className="border-t border-slate-200 pt-4 mt-4">
+                <h3 className="text-xs font-semibold text-slate-900 mb-3">Follow-up</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormInput
+                    label="Follow-up Date"
+                    value={consultation.followUp.date}
+                    onChange={(v) => dispatch(updateFollowUp({ field: 'date', value: v }))}
+                    placeholder="mm/dd/yyyy"
+                    type="date"
+                  />
+                  <FormInput
+                    label="Follow-up Time"
+                    value={consultation.followUp.time}
+                    onChange={(v) => dispatch(updateFollowUp({ field: 'time', value: v }))}
+                    placeholder="HH:MM"
+                    type="time"
+                  />
+                </div>
+                <FormTextarea
+                  label="Follow-up Reason"
+                  value={consultation.followUp.reason}
+                  onChange={(v) => dispatch(updateFollowUp({ field: 'reason', value: v }))}
+                  placeholder="Reason for follow-up"
+                  rows={2}
+                  className="mt-3"
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* === ICD-10 === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Diagnosis & Coding"
+            subtitle="ICD-10 Selection"
+            icon={File}
+            expanded={expandedSections.orders}
+            onToggle={() => toggleSection('orders')}
+            showSave={false}
+          />
+          {expandedSections.orders && (
+            <div className="mt-4">
+              <div className="flex gap-2 mb-3">
+                <input
+                  value={consultation.icd10.searchTerm}
+                  onChange={(e) => {
+                    dispatch(updateICD10SearchTerm(e.target.value));
+                    handleSearchICD10(e.target.value);
+                  }}
+                  placeholder="Search ICD-10 codes..."
+                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={() => handleSearchICD10(consultation.icd10.searchTerm)}
+                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {icd10Database.slice(0, 10).map((item) => (
+                    <div key={item.code} className="flex items-center justify-between rounded-lg border border-slate-200 p-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-900">{item.code}</p>
+                        <p className="text-[10px] text-slate-600">{item.description}</p>
+                      </div>
+                      <button
+                        onClick={() => handleAddICD10(item)}
+                        className="rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-medium text-white hover:bg-slate-700"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  <p className="text-xs font-medium text-slate-700">Selected Codes</p>
+                  {consultation.icd10.selectedCodes.map((code) => (
+                    <div key={code.code} className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-green-900">{code.code}</p>
+                        <p className="text-[10px] text-green-700">{code.description}</p>
+                      </div>
+                      <button
+                        onClick={() => dispatch(removeICD10Code(code.code))}
+                        className="rounded p-1 text-red-600 hover:bg-red-100"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {consultation.icd10.selectedCodes.length === 0 && (
+                    <p className="text-xs text-slate-500">No codes selected.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* === Billing === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <SectionHeader
+            title="Billing"
+            subtitle="Charges & Insurance"
+            icon={BarChart3}
+            expanded={expandedSections.billing}
+            onToggle={() => toggleSection('billing')}
+            showSave={false}
+          />
+          {expandedSections.billing && (
+            <div className="mt-4 space-y-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <FormInput
+                  label="Item"
+                  value={chargeItem.item}
+                  onChange={(v) => setChargeItem(prev => ({ ...prev, item: v }))}
+                  placeholder="Service or item"
+                />
+                <FormInput
+                  label="Amount"
+                  value={chargeItem.amount}
+                  onChange={(v) => setChargeItem(prev => ({ ...prev, amount: v }))}
+                  placeholder="Amount"
+                  type="number"
+                />
+              </div>
+              <button
+                onClick={handleBillingCharge}
+                className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Charge
               </button>
+
+              <div className="rounded-xl border border-slate-200 p-3">
+                {consultation.billing.charges.map((charge) => (
+                  <div key={charge.id} className="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                    <span className="text-sm text-slate-700">{charge.item}</span>
+                    <span className="text-sm font-semibold text-slate-900">₦{charge.amount.toLocaleString()}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-200">
+                  <span className="text-sm font-semibold text-slate-900">Total</span>
+                  <span className="text-sm font-bold text-slate-900">₦{consultation.billing.total.toLocaleString()}</span>
+                </div>
+              </div>
             </div>
-            <div className="mt-3 space-y-1.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm text-slate-700">Doctor: <span className="font-semibold text-slate-900">{localStorage.getItem('userFullName') || localStorage.getItem('userName') || consultation.signature.doctorName}</span></p>
-              <p className="text-sm text-slate-700">License: <span className="font-semibold text-slate-900">{localStorage.getItem('licenseNumber') || consultation.signature.licenseNumber}</span></p>
-              <p className="text-sm text-slate-700">Signed: <span className="font-semibold text-slate-900">{consultation.signature.signed ? 'Yes' : 'No'}</span></p>
-              {consultation.signature.signed && <p className="text-xs text-slate-500">Signed at {new Date(consultation.signature.signedAt).toLocaleString()}</p>}
+          )}
+        </section>
+
+        {/* === Signature === */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+              </div>
+              <div>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-slate-500">Sign-off</p>
+                <h2 className="text-sm sm:text-base font-semibold text-slate-900">Electronic Signature</h2>
+              </div>
             </div>
-          </section>
-        </div>
+            <button
+              onClick={handleSignOff}
+              disabled={isSaving || !visitId}
+              className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Sign Now
+            </button>
+          </div>
+          <div className="mt-3 space-y-1 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs sm:text-sm text-slate-700">
+              Doctor: <span className="font-semibold text-slate-900">
+                {localStorage.getItem('userFullName') || localStorage.getItem('userName') || consultation.signature.doctorName || 'Not signed'}
+              </span>
+            </p>
+            <p className="text-xs sm:text-sm text-slate-700">
+              Status: <span className={`font-semibold ${consultation.signature.signed ? 'text-green-600' : 'text-amber-600'}`}>
+                {consultation.signature.signed ? '✓ Signed' : 'Pending'}
+              </span>
+            </p>
+            {consultation.signature.signed && consultation.signature.signedAt && (
+              <p className="text-[10px] sm:text-xs text-slate-500">
+                Signed at {new Date(consultation.signature.signedAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+        </section>
       </div>
 
+      {/* Patient Details Modal */}
       {showPatientDetails && selectedPatientForDetails && (
         <PatientMedicalDetails 
           patient={selectedPatientForDetails} 
