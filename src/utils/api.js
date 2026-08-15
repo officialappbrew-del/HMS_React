@@ -69,7 +69,7 @@ const shouldUseCookieAuth = () => {
 
 export const checkAuthStatus = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/users/me/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/users/me/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

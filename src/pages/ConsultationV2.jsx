@@ -924,7 +924,14 @@ const ConsultationV2 = () => {
 
   const loadOtherVisits = () => {
     const currentId = parseInt(visitId, 10);
-    const others = allPatientVisits.filter(v => v.id !== currentId);
+    let others = [];
+
+    if (allPatientVisits.length > 0) {
+      others = allPatientVisits.filter(v => v.id !== currentId);
+    } else if (consultation.patient?.patientId) {
+      others = patientVisits.filter(v => v.id !== currentId);
+    }
+
     setOtherVisits(others);
     setShowVisitSwitcher(true);
   };
