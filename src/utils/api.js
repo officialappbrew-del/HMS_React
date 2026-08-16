@@ -250,15 +250,22 @@ const refreshAccessToken = async () => {
     '';
   const body = refreshToken ? JSON.stringify({ refresh: refreshToken }) : JSON.stringify({});
 
-  refreshPromise = fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
-    },
-    body,
-    credentials: 'include',
-  })
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Token refresh timed out')), 10000)
+  );
+
+  refreshPromise = Promise.race([
+    fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
+      },
+      body,
+      credentials: 'include',
+    }),
+    timeoutPromise,
+  ])
     .then(async (response) => {
       const contentType = response.headers.get('content-type') || '';
       const isJson = contentType.includes('application/json');
@@ -367,7 +374,53 @@ const csrfToken = isMutating ? getCsrfToken() : '';
         if (shouldAttemptRefresh) {
           try {
             await refreshAccessToken();
-            return apiRequest(path, { ...options, __retry: retryCount + 1 });
+            inFlightRequests.delete(requestKey);
+            const retryOptions = { ...options, __retry: retryCount + 1 };
+            const retryPromise = (async () => {
+              const patientToken = localStorage.getItem('patientAccessToken');
+              const hasCookie = shouldUseCookieAuth();
+              const token = patientToken || (hasCookie ? null : (localStorage.getItem('accessToken') || localStorage.getItem('authToken')));
+              const tenantId = localStorage.getItem('tenantId');
+              const isPatientSession = Boolean(patientToken);
+              const method = (retryOptions.method || 'GET').toUpperCase();
+              const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+              const csrfToken = isMutating ? getCsrfToken() : '';
+              const isFormData = retryOptions.body instanceof FormData;
+              const currentSubdomain = getSubdomain();
+              const adminAccess = isAdminSubdomain();
+              const headers = {
+                ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+                ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+                ...(token && !shouldSkipAuthHeader(path) ? { Authorization: `Bearer ${token}` } : {}),
+                ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
+                ...(currentSubdomain ? { 'X-Subdomain': currentSubdomain } : {}),
+                ...(adminAccess ? { 'X-Admin-Access': 'true' } : {}),
+                ...(retryOptions.headers || {}),
+              };
+              const requestUrl = normalizeRequestUrl(path);
+              const response = await fetch(requestUrl, {
+                ...retryOptions,
+                headers,
+                body: retryOptions.body ? retryOptions.body : undefined,
+                credentials: 'include',
+              });
+              const contentType = response.headers.get('content-type') || '';
+              const isJson = contentType.includes('application/json');
+              const data = isJson ? await response.json().catch(() => ({})) : await response.text();
+              if (!response.ok) {
+                const message = extractErrorMessage(data, `Request failed with status ${response.status}`);
+                const error = new Error(message);
+                error.status = response.status;
+                error.data = data;
+                throw error;
+              }
+              if (method === 'GET') {
+                cacheResponse(requestKey, data, retryOptions.cacheTtl ?? 5000);
+              }
+              return data;
+            })();
+            inFlightRequests.set(requestKey, retryPromise);
+            return retryPromise;
           } catch (refreshError) {
             throw new Error(refreshError.message || 'Session expired. Please log in again.');
           }

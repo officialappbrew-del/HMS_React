@@ -1982,11 +1982,13 @@ const handleRestorePatient = (patient) => {
   const buildPatientPayload = (formData, forceDuplicate = false) => {
     const fullName = (formData.name || '').trim().split(/\s+/);
     const firstName = fullName.shift() || '';
-    const lastName = fullName.join(' ') || 'Unknown';
+    const lastName = fullName.pop() || 'Unknown';
+    const middleName = fullName.join(' ') || '';
 
     return {
       first_name: firstName,
       last_name: lastName,
+      middle_name: middleName,
       date_of_birth: formData.dateOfBirth || '',
       gender: formData.gender?.toLowerCase() || 'unknown',
       phone: formData.phone || '',

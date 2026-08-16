@@ -1605,50 +1605,53 @@ const ConsultationV2 = () => {
             {selectedPatient ? (
               isLoadingPatientVisits ? (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">Loading visits...</div>
-              ) : patientVisits.length > 0 ? (
-                <div className="mt-3 space-y-1.5 max-h-[300px] overflow-y-auto">
-                  {patientVisits.map((visit) => (
-                    <button
-                      key={visit.id}
-                      type="button"
-                      onClick={() => navigate(`/consultation?visit=${visit.id}`)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-left transition hover:bg-slate-100"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-slate-900 text-sm">
-                            {visit.visit_number}
-                          </p>
-                          <p className="text-[10px] text-slate-600">
-                            {visit.department_name || visit.visit_type}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-slate-700">
-                          {visit.visit_status || 'pending'}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 text-[10px] text-slate-500">
-                        {visit.checkin_time ? new Date(visit.checkin_time).toLocaleString() : 'No check-in time'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
               ) : (
-                <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                  <div>{patientVisitsError || 'No visits available.'}</div>
-                  <button
-                    type="button"
-                    onClick={startNewVisit}
-                    disabled={isCheckingIn}
-                    className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
-                  >
-                    {isCheckingIn ? 'Starting...' : 'Start New Visit'}
-                  </button>
-                  {checkInError && (
-                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">
-                      {checkInError}
+                <div className="mt-3 space-y-2">
+                  {patientVisits.length > 0 && (
+                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                      {patientVisits.map((visit) => (
+                        <button
+                          key={visit.id}
+                          type="button"
+                          onClick={() => navigate(`/consultation?visit=${visit.id}`)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-left transition hover:bg-slate-100"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="font-semibold text-slate-900 text-sm">
+                                {visit.visit_number}
+                              </p>
+                              <p className="text-[10px] text-slate-600">
+                                {visit.department_name || visit.visit_type}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider text-slate-700">
+                              {visit.visit_status || 'pending'}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-slate-500">
+                            {visit.checkin_time ? new Date(visit.checkin_time).toLocaleString() : 'No check-in time'}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                    {patientVisits.length === 0 && (patientVisitsError || 'No visits available.')}
+                    <button
+                      type="button"
+                      onClick={startNewVisit}
+                      disabled={isCheckingIn}
+                      className="mt-2 inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                    >
+                      {isCheckingIn ? 'Starting...' : 'Start New Visit'}
+                    </button>
+                    {checkInError && (
+                      <div className="mt-2 rounded-xl border border-orange-200 bg-orange-50 p-2 text-xs text-orange-700">
+                        {checkInError}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             ) : visitLoadError ? (
