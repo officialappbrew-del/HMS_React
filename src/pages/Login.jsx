@@ -79,34 +79,27 @@ const Login = () => {
     return () => clearInterval(t);
   }, []);
 
-  // Session restore via refresh endpoint (backend reads refresh token from cookie)
+  // Session restore via refresh endpoint
   useEffect(() => {
     const restoreSession = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
+        const refreshToken =
+          localStorage.getItem('refreshToken') ||
+          localStorage.getItem('patientRefreshToken') ||
+          '';
+        const response = await apiRequest('/api/v1/auth/token/refresh/', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(getCsrfToken ? { 'X-CSRF-Token': getCsrfToken() } : {}),
-          },
-          body: JSON.stringify({}),
-          credentials: 'include',
+          body: JSON.stringify(refreshToken ? { refresh: refreshToken } : {}),
         });
 
-        const contentType = response.headers.get('content-type') || '';
-        const isJson = contentType.includes('application/json');
-        const data = isJson ? await response.json().catch(() => ({})) : {};
-
-        if (!response.ok) {
-          throw new Error(data?.detail || data?.message || 'Session expired');
-        }
-
-        const accessToken = data.access || data.access_token;
+        const accessToken = response.access || response.access_token;
         if (!accessToken) {
           throw new Error('No access token returned');
         }
 
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('authToken', accessToken);
         sessionStorage.setItem('isAuthenticated', 'true');
         const decoded = parseJwt(accessToken);
         if (decoded) {
@@ -177,6 +170,9 @@ const Login = () => {
       if (!token) {
         throw new Error('Authentication token was not returned by the server.');
       }
+
+      localStorage.setItem('accessToken', token);
+      localStorage.setItem('authToken', token);
 
       if (response?.requires_2fa || authData.requires_2fa) {
         throw new Error('Two-factor verification is required before you can continue.');
@@ -371,7 +367,7 @@ const Login = () => {
             {showForgotPassword ? 'Password recovery' : 'Secure sign-in'}
           </p>
           <h2 className="mt-1.5 font-['Lora'] text-xl font-semibold leading-snug text-[#1C2B27] sm:text-[22px]">
-            {showForgotPassword ? (tokenSent ? 'Set a new password' : 'Forgot your password?') :   'Welcome back'}
+            {showForgotPassword ? (tokenSent ? 'Set a new password' : 'Forgot your password?') : 'WelcomE back'}
           </h2>
           <p className="mt-1.5 text-[13px] leading-snug text-[#5C6D67]">
             {showForgotPassword
