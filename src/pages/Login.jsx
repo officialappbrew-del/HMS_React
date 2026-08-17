@@ -371,7 +371,7 @@ const Login = () => {
             {showForgotPassword ? 'Password recovery' : 'Secure sign-in'}
           </p>
           <h2 className="mt-1.5 font-['Lora'] text-xl font-semibold leading-snug text-[#1C2B27] sm:text-[22px]">
-            {showForgotPassword ? (tokenSent ? 'Set a new password' : 'Forgot your password?') : 'WelcomE back'}
+            {showForgotPassword ? (tokenSent ? 'Set a new password' : 'Forgot your password?') :   'Welcome back'}
           </h2>
           <p className="mt-1.5 text-[13px] leading-snug text-[#5C6D67]">
             {showForgotPassword
