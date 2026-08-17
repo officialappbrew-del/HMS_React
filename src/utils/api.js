@@ -70,8 +70,8 @@ const shouldUseCookieAuth = () => {
 export const checkAuthStatus = async () => {
   try {
     const patientToken = localStorage.getItem('patientAccessToken');
-    const hasCookie = shouldUseCookieAuth();
-    const token = patientToken || (hasCookie ? null : (localStorage.getItem('accessToken') || localStorage.getItem('authToken')));
+    const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+    const token = patientToken || accessToken;
     
     const response = await fetch(`${API_BASE_URL}/api/v1/auth/users/me/`, {
       method: 'GET',
@@ -338,8 +338,8 @@ export const apiRequest = async (path, options = {}) => {
   const requestPromise = (async () => {
     const makeRequest = async () => {
       const patientToken = localStorage.getItem('patientAccessToken');
-      const hasCookie = shouldUseCookieAuth();
-      const token = patientToken || (hasCookie ? null : (localStorage.getItem('accessToken') || localStorage.getItem('authToken')));
+      const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const token = patientToken || accessToken;
       const tenantId = localStorage.getItem('tenantId');
       const isPatientSession = Boolean(patientToken);
       const method = (options.method || 'GET').toUpperCase();
@@ -388,8 +388,8 @@ const csrfToken = isMutating ? getCsrfToken() : '';
             const retryOptions = { ...options, __retry: retryCount + 1 };
             const retryPromise = (async () => {
               const patientToken = localStorage.getItem('patientAccessToken');
-              const hasCookie = shouldUseCookieAuth();
-              const token = patientToken || (hasCookie ? null : (localStorage.getItem('accessToken') || localStorage.getItem('authToken')));
+              const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+              const token = patientToken || accessToken;
               const tenantId = localStorage.getItem('tenantId');
               const isPatientSession = Boolean(patientToken);
               const method = (retryOptions.method || 'GET').toUpperCase();
