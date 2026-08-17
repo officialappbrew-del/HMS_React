@@ -69,11 +69,16 @@ const shouldUseCookieAuth = () => {
 
 export const checkAuthStatus = async () => {
   try {
+    const patientToken = localStorage.getItem('patientAccessToken');
+    const hasCookie = shouldUseCookieAuth();
+    const token = patientToken || (hasCookie ? null : (localStorage.getItem('accessToken') || localStorage.getItem('authToken')));
+    
     const response = await fetch(`${API_BASE_URL}/api/v1/auth/users/me/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       credentials: 'include',
     });
@@ -212,11 +217,16 @@ const extractErrorMessage = (data, fallback = 'Request failed') => {
 
 export const logout = async () => {
   try {
+    const patientToken = localStorage.getItem('patientAccessToken');
+    const hasCookie = shouldUseCookieAuth();
+    const token = patientToken || (hasCookie ? null : (localStorage.getItem('accessToken') || localStorage.getItem('authToken')));
+    
     await fetch(`${API_BASE_URL}/api/v1/auth/logout/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({}),
       credentials: 'include',
