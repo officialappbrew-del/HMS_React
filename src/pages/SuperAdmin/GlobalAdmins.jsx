@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, Search, X, Loader2, AlertCircle, CheckCircle, Shield, Trash2
+  Plus, Search, X, Loader2, AlertCircle, CheckCircle, Shield, Trash2, Eye, Archive
 } from 'lucide-react';
 import { superAdminApi } from '../../utils/superAdminApi';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -39,8 +39,11 @@ const GlobalAdmins = () => {
   const [editError, setEditError] = useState('');
   const [editAdmin, setEditAdmin] = useState(null);
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteAdmin, setDeleteAdmin] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewAdmin, setViewAdmin] = useState(null);
+
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveAdmin, setArchiveAdmin] = useState(null);
 
   const currentUserId = localStorage.getItem('userId');
 
@@ -165,6 +168,11 @@ const GlobalAdmins = () => {
     }
   };
 
+  const handleView = (admin) => {
+    setViewAdmin(admin);
+    setShowViewModal(true);
+  };
+
   const handleEdit = (admin) => {
     setEditAdmin(admin);
     setFormData({
@@ -206,19 +214,23 @@ const GlobalAdmins = () => {
     }
   };
 
-  const confirmDelete = () => {
-    setShowDeleteModal(true);
+  const confirmArchive = (admin) => {
+    setArchiveAdmin(admin);
+    setShowArchiveModal(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteAdmin) return;
+  const handleArchive = async () => {
+    if (!archiveAdmin) return;
     try {
-      await superAdminApi.deleteGlobalAdmin(deleteAdmin.id);
-      setAdmins(prev => prev.filter(a => a.id !== deleteAdmin.id));
-      setShowDeleteModal(false);
-      setDeleteAdmin(null);
+      // Assuming there's an archive endpoint or we set is_active to false
+      await superAdminApi.updateGlobalAdmin(archiveAdmin.id, { is_active: false });
+      setAdmins(prev => prev.map(a => 
+        a.id === archiveAdmin.id ? { ...a, is_active: false } : a
+      ));
+      setShowArchiveModal(false);
+      setArchiveAdmin(null);
     } catch (err) {
-      setError(err.message || 'Failed to delete admin');
+      setError(err.message || 'Failed to archive admin');
     }
   };
 
@@ -348,7 +360,7 @@ const GlobalAdmins = () => {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 text-xs font-medium border rounded ${admin.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                        {admin.is_active ? 'Active' : 'Inactive'}
+                        {admin.is_active ? 'Active' : 'Archived'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -357,11 +369,18 @@ const GlobalAdmins = () => {
                           const adminLevel = ROLE_HIERARCHY[admin.role] || 0;
                           const canManage = currentUserLevel >= adminLevel;
                           const isSuperadminTarget = admin.is_superuser || admin.role === 'super_admin';
-                          const canEditDelete = canManage && (!isSuperadminTarget || isSuperUser());
+                          const canEditArchive = canManage && (!isSuperadminTarget || isSuperUser());
                           if (!canManage) return null;
                           return (
                             <>
-                              {canEditDelete && (
+                              <button
+                                onClick={() => handleView(admin)}
+                                className="p-1.5 rounded text-[#5A5A5A] hover:text-[#008751] hover:bg-[#E8F5EF] transition-colors"
+                                title="View admin details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              {canEditArchive && (
                                 <button
                                   onClick={() => handleEdit(admin)}
                                   className="p-1.5 rounded text-[#5A5A5A] hover:text-[#008751] hover:bg-[#E8F5EF] transition-colors"
@@ -370,13 +389,13 @@ const GlobalAdmins = () => {
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
                               )}
-                              {canEditDelete && (
+                              {canEditArchive && (
                                 <button
-                                  onClick={() => { setDeleteAdmin(admin); confirmDelete(); }}
+                                  onClick={() => confirmArchive(admin)}
                                   className="p-1.5 rounded text-[#5A5A5A] hover:text-[#C8553D] hover:bg-[#F5EDEA] transition-colors"
-                                  title="Delete admin"
+                                  title={admin.is_active ? 'Archive admin' : 'Unarchive admin'}
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Archive className="w-4 h-4" />
                                 </button>
                               )}
                             </>
@@ -502,6 +521,106 @@ const GlobalAdmins = () => {
         </div>
       )}
 
+      {/* View Admin Modal */}
+      {showViewModal && viewAdmin && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity" onClick={() => setShowViewModal(false)} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-[#F7F5F2] w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg">
+              <div className="sticky top-0 bg-[#F7F5F2] border-b border-[#E8E3DC] px-6 py-4 flex items-center justify-between z-10">
+                <h3 className="text-lg font-display font-semibold text-[#1A1A1A]">Admin Details</h3>
+                <button onClick={() => setShowViewModal(false)} className="p-1.5 rounded hover:bg-[#E8E3DC] transition-colors">
+                  <X className="w-5 h-5 text-[#5A5A5A]" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-4 pb-4 border-b border-[#E8E3DC]">
+                  <div className="w-16 h-16 rounded-full bg-[#008751] bg-opacity-10 flex items-center justify-center">
+                    <Shield className="w-8 h-8 text-[#008751]" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-[#1A1A1A]">{viewAdmin.first_name} {viewAdmin.last_name}</h4>
+                    <p className="text-sm text-[#5A5A5A]">{viewAdmin.email}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Username</label>
+                    <p className="text-sm text-[#1A1A1A]">{viewAdmin.username}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Role</label>
+                    <p className="text-sm text-[#1A1A1A]">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 border border-slate-200 font-medium">
+                        {viewAdmin.role_label || viewAdmin.role.replace('_', ' ')}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Employee ID</label>
+                    <p className="text-sm text-[#1A1A1A]">{viewAdmin.employee_id || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Phone</label>
+                    <p className="text-sm text-[#1A1A1A]">{viewAdmin.phone || 'Not set'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Status</label>
+                  <p className="text-sm text-[#1A1A1A]">
+                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium border rounded ${viewAdmin.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                      {viewAdmin.is_active ? 'Active' : 'Archived'}
+                    </span>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Superuser</label>
+                  <p className="text-sm text-[#1A1A1A]">{viewAdmin.is_superuser ? 'Yes' : 'No'}</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Date Joined</label>
+                  <p className="text-sm text-[#1A1A1A]">{new Date(viewAdmin.date_joined).toLocaleString()}</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Permissions</label>
+                  <div className="flex flex-wrap gap-2">
+                    {viewAdmin.can_create_tenants && <span className="px-2 py-1 text-xs rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Create Tenants</span>}
+                    {viewAdmin.can_suspend_tenants && <span className="px-2 py-1 text-xs rounded bg-amber-50 text-amber-700 border border-amber-200">Suspend Tenants</span>}
+                    {viewAdmin.can_delete_tenants && <span className="px-2 py-1 text-xs rounded bg-rose-50 text-rose-700 border border-rose-200">Delete Tenants</span>}
+                    {viewAdmin.can_view_all_tenants && <span className="px-2 py-1 text-xs rounded bg-blue-50 text-blue-700 border border-blue-200">View All Tenants</span>}
+                    {viewAdmin.can_manage_admin_permissions && <span className="px-2 py-1 text-xs rounded bg-purple-50 text-purple-700 border border-purple-200">Manage Admin Permissions</span>}
+                    {!viewAdmin.can_create_tenants && !viewAdmin.can_suspend_tenants && !viewAdmin.can_delete_tenants && !viewAdmin.can_view_all_tenants && !viewAdmin.can_manage_admin_permissions && (
+                      <span className="text-sm text-[#5A5A5A]">No special permissions</span>
+                    )}
+                  </div>
+                </div>
+
+                {viewAdmin.notes && (
+                  <div>
+                    <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Notes</label>
+                    <p className="text-sm text-[#1A1A1A] bg-white p-2 rounded border border-[#E8E3DC]">{viewAdmin.notes}</p>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-4 border-t border-[#E8E3DC]">
+                  <button onClick={() => setShowViewModal(false)} className="px-4 py-2 text-sm font-medium bg-[#008751] text-white rounded hover:bg-[#006B40] transition-colors">
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Admin Modal */}
       {showEditModal && editAdmin && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -605,16 +724,19 @@ const GlobalAdmins = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Archive Confirmation Modal */}
       <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setDeleteAdmin(null); }}
-        onConfirm={handleDelete}
-        title="Delete Admin"
-        message={`Are you sure you want to delete ${deleteAdmin?.first_name} ${deleteAdmin?.last_name}? This action cannot be undone.`}
-        confirmText="Delete"
+        isOpen={showArchiveModal}
+        onClose={() => { setShowArchiveModal(false); setArchiveAdmin(null); }}
+        onConfirm={handleArchive}
+        title={archiveAdmin?.is_active ? "Archive Admin" : "Unarchive Admin"}
+        message={archiveAdmin?.is_active 
+          ? `Are you sure you want to archive ${archiveAdmin?.first_name} ${archiveAdmin?.last_name}? This will deactivate their account.`
+          : `Are you sure you want to unarchive ${archiveAdmin?.first_name} ${archiveAdmin?.last_name}? This will reactivate their account.`
+        }
+        confirmText={archiveAdmin?.is_active ? "Archive" : "Unarchive"}
         cancelText="Cancel"
-        type="delete"
+        type={archiveAdmin?.is_active ? "delete" : "warning"}
       />
 
       {/* My Profile Modal */}

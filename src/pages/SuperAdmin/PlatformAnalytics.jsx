@@ -29,7 +29,7 @@ const PlatformAnalytics = () => {
     loadAnalytics();
   }, []);
 
-const StatCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, onClick }) => (
+  const StatCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, onClick }) => (
     <div
       onClick={onClick}
       role={onClick ? 'button' : undefined}
@@ -72,7 +72,7 @@ const StatCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue
     );
   }
 
-return (
+  return (
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -89,7 +89,7 @@ return (
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-<StatCard
+        <StatCard
           title="Total Tenants"
           value={data?.total_tenants || 0}
           subValue={`${data?.active_tenants || 0} active`}
@@ -134,7 +134,7 @@ return (
         />
       </div>
 
-<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div
           onClick={() => navigate('/tenants')}
           role="button"
@@ -185,23 +185,32 @@ return (
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/audit-logs'); } }}
         className="bg-white border border-[#E8E3DC] rounded-lg p-5 cursor-pointer hover:border-[#008751] hover:shadow-md transition-all"
       >
-        <h3 className="text-sm font-semibold text-[#1A1A1A] mb-4">Recent Activity </h3>
+        <h3 className="text-sm font-semibold text-[#1A1A1A] mb-4">Recent Activity</h3>
         <div className="space-y-3">
-          {(data?.recent_activity || []).map((activity) => (
-            <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-[#E8E3DC] last:border-b-0">
-              <div className="w-8 h-8 rounded-full bg-[#F6F2E7] flex items-center justify-center flex-shrink-0">
-                <Activity className="w-4 h-4 text-[#C79A3D]" />
+          {(data?.recent_activity || [])
+            .slice(0, 5) // Limit to 5 items
+            .map((activity) => (
+              <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-[#E8E3DC] last:border-b-0">
+                <div className="w-8 h-8 rounded-full bg-[#F6F2E7] flex items-center justify-center flex-shrink-0">
+                  <Activity className="w-4 h-4 text-[#C79A3D]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[#1A1A1A]">{activity.title || activity.action}</p>
+                  <p className="text-xs text-[#5A5A5A]">
+                    {activity.user_name || 'System'} &middot; {new Date(activity.timestamp).toLocaleString()}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-[#1A1A1A]">{activity.title || activity.action}</p>
-                <p className="text-xs text-[#5A5A5A]">
-                  {activity.user_name || 'System'} &middot; {new Date(activity.timestamp).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          ))}
+            ))}
           {(!data?.recent_activity || data.recent_activity.length === 0) && (
             <p className="text-sm text-[#5A5A5A]">No recent activity</p>
+          )}
+          {data?.recent_activity && data.recent_activity.length > 5 && (
+            <div className="pt-2 text-center">
+              <span className="text-xs text-[#5A5A5A]">
+                Showing 5 of {data.recent_activity.length} activities
+              </span>
+            </div>
           )}
         </div>
       </div>

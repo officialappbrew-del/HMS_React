@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Plus, Search, Filter, X, Loader2, XCircle, CheckCircle, ChevronRight, ChevronLeft,
   Users, Server, Shield, Zap, Mail, Building2, Pencil, Eye, Save, Info,
-  MapPin, CreditCard, Calendar, ShieldCheck
+  MapPin, CreditCard, Calendar, ShieldCheck, User
 } from 'lucide-react';
 import { superAdminApi } from '../../utils/superAdminApi';
 import AdminPagination from '../../components/AdminPagination';
@@ -377,13 +377,14 @@ const openDetailModal = async (publicId) => {
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Users</th>
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Plan</th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden xl:table-cell">Root Admin</th>
                 <th className="px-3 sm:px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {pageLoading ? (
-                <tr>
-                  <td colSpan="6" className="px-4 py-12 text-center text-slate-500">
+                 <tr>
+                  <td colSpan="7" className="px-4 py-12 text-center text-slate-500">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
                       <span className="text-sm font-medium">Loading tenants...</span>
@@ -392,7 +393,7 @@ const openDetailModal = async (publicId) => {
                 </tr>
               ) : tenants.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan="7" className="px-4 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-2">
                       <Building2 className="w-8 h-8 text-slate-300" />
                       <span className="text-sm font-medium">No tenants found</span>
@@ -433,6 +434,22 @@ const openDetailModal = async (publicId) => {
                         </span>
                       ) : (
                         '-'
+                      )}
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 text-xs text-slate-600 hidden xl:table-cell">
+                      {tenant.root_admin ? (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(tenant.root_admin.email).catch(() => {});
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1 font-medium text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50"
+                          title={`${tenant.root_admin.name} · ${tenant.root_admin.email}`}
+                        >
+                          <User className="w-3 h-3 text-slate-400" />
+                          <span className="truncate max-w-[120px]">{tenant.root_admin.name}</span>
+                        </button>
+                      ) : (
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
 <td className="px-3 sm:px-4 py-3 text-right">
@@ -1207,6 +1224,36 @@ const openDetailModal = async (publicId) => {
                       { label: 'Updated At', value: detailTenant.updated_at ? new Date(detailTenant.updated_at).toLocaleString() : '—' },
                       { label: 'Active', value: detailTenant.is_active ? 'Yes' : 'No' },
                     ]} />
+                  </Section>
+
+                  {/* Root Administrator */}
+                  <Section title="Root Administrator" icon={<User className="w-4 h-4" />}>
+                    {detailTenant.root_admin ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Name</p>
+                          <p className="text-sm font-medium text-slate-900 mt-0.5">{detailTenant.root_admin.name}</p>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Email</p>
+                          <p className="text-sm font-medium text-slate-900 mt-0.5 break-all">{detailTenant.root_admin.email}</p>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Phone</p>
+                          <p className="text-sm font-medium text-slate-900 mt-0.5">{detailTenant.root_admin.phone || '—'}</p>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Role</p>
+                          <p className="text-sm font-medium text-slate-900 mt-0.5 capitalize">{detailTenant.root_admin.role || 'admin'}</p>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Employee ID</p>
+                          <p className="text-sm font-medium text-slate-900 mt-0.5">{detailTenant.root_admin.employee_id || '—'}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No root administrator configured for this tenant.</p>
+                    )}
                   </Section>
                 </div>
               )}

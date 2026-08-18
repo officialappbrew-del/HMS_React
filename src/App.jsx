@@ -9,12 +9,14 @@ import Loader from './components/Loader';
 import { apiRequest, parseListResponse, checkAuthStatus } from './utils/api';
 import { isAdminSubdomain } from './utils/subdomain';
 
+
 const RoleInsightPanel = lazy(() => import('./components/dashboards/RoleInsightPanel'));
 
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdmin/SuperAdminDashboard'));
 const AdminLogin = lazy(() => import('./pages/SuperAdmin/AdminLogin'));
 
 // Lazy-load pages and heavier layout parts to enable code-splitting and faster initial loads
+
 const Header = lazy(() => import('./components/Header'));
 const Footer = lazy(() => import('./components/Footer'));
 const Sidebar = lazy(() => import('./components/Sidebar'));
