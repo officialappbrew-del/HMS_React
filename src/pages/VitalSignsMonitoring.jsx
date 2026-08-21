@@ -414,6 +414,8 @@ const VitalSignsMonitoring = () => {
     temperature: '',
     respirationRate: '',
     oxygenSaturation: '',
+    weight: '',
+    height: '',
     bloodGlucose: '',
     painScore: '',
     consciousness: 'Alert',
@@ -574,7 +576,9 @@ const VitalSignsMonitoring = () => {
       pulse: formData.heartRate ? parseInt(formData.heartRate) : null,
       temperature: formData.temperature ? parseFloat(formData.temperature) : null,
       respiratory_rate: formData.respirationRate ? parseInt(formData.respirationRate) : null,
-      oxygen_saturation: formData.oxygenSaturation ? parseInt(formData.oxygenSaturation) : null,
+      oxygen_saturation: formData.oxygenSaturation ? parseFloat(formData.oxygenSaturation) : null,
+      weight: formData.weight ? parseFloat(formData.weight) : null,
+      height: formData.height ? parseFloat(formData.height) : null,
       blood_glucose: formData.bloodGlucose ? parseFloat(formData.bloodGlucose) : null,
       pain_score: formData.painScore ? parseInt(formData.painScore) : null,
       consciousness: formData.consciousness,
@@ -633,6 +637,8 @@ const VitalSignsMonitoring = () => {
       temperature: '',
       respirationRate: '',
       oxygenSaturation: '',
+      weight: '',
+      height: '',
       bloodGlucose: '',
       painScore: '',
       consciousness: 'Alert',
@@ -683,6 +689,8 @@ const VitalSignsMonitoring = () => {
       temperature: '',
       respirationRate: '',
       oxygenSaturation: '',
+      weight: '',
+      height: '',
       bloodGlucose: '',
       painScore: '',
       consciousness: 'Alert',
@@ -1270,6 +1278,34 @@ const VitalSignsMonitoring = () => {
                       value={formData.bloodGlucose} 
                       onChange={(e) => setFormData({...formData, bloodGlucose: e.target.value})} 
                       className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.weight}
+                      onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                      Height (m)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.height}
+                      onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                     />
                   </div>
 

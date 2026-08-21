@@ -37,7 +37,8 @@ import {
   generateBillingCharge,
   updatePhysicalExam,
   updateCompletionStatus,
-  selectRedFlags
+  selectRedFlags,
+  resetConsultation
 } from '../features/consultationSlice';
 
 // Lucide React Icons
@@ -563,6 +564,7 @@ const ConsultationV2 = () => {
   const [newRelevantCondition, setNewRelevantCondition] = useState('');
   const [newSiblingName, setNewSiblingName] = useState('');
   const [newSiblingConditions, setNewSiblingConditions] = useState('');
+  const [otherVisits, setOtherVisits] = useState([]);
   const [showVisitSwitcher, setShowVisitSwitcher] = useState(false);
 
   const visitId = useMemo(() => {
@@ -593,6 +595,29 @@ const ConsultationV2 = () => {
     setTimeout(() => setApiError(''), 5000);
   };
 
+  const getHpiDetails = () => ({
+    onset: consultation.hpi.onset,
+    location: consultation.hpi.location,
+    character: consultation.hpi.character,
+    radiation: consultation.hpi.radiation,
+    associatedSymptoms: consultation.hpi.associatedSymptoms,
+    aggravatingFactors: consultation.hpi.aggravatingFactors,
+    relievingFactors: consultation.hpi.relievingFactors,
+    severity: consultation.hpi.severity,
+    previousTreatment: consultation.hpi.previousTreatment
+  });
+
+  const parseStructured = (value, fallback = {}) => {
+    if (value && typeof value === 'object') return value;
+    if (typeof value !== 'string' || !value.trim()) return fallback;
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   // ==================== API FUNCTIONS ====================
 
 
@@ -604,7 +629,10 @@ const ConsultationV2 = () => {
         visit: visitId,
         patient: consultation.patient.patientId,
         chief_complaint: consultation.hpi.chiefComplaint,
-        history_of_present_illness: consultation.hpi.freeNotes
+        history_of_present_illness: consultation.hpi.freeNotes,
+        duration: consultation.hpi.duration,
+        timing: consultation.hpi.timing,
+        hpi_details: getHpiDetails()
       });
       dispatch(addAuditLog({ action: 'Saved HPI section' }));
       showSuccess('HPI saved successfully.');
@@ -622,6 +650,7 @@ const ConsultationV2 = () => {
       await consultationApi.createConsultationNote({
         visit: visitId,
         patient: consultation.patient.patientId,
+        allergies: consultation.allergies,
         ice_ideas: consultation.ice.ideas,
         ice_concerns: consultation.ice.concerns,
         ice_expectations: consultation.ice.expectations
@@ -853,6 +882,16 @@ const ConsultationV2 = () => {
           follow_up_reason: consultation.followUp.reason
         })
       });
+      await consultationApi.createConsultationNote({
+        visit: visitId,
+        patient: consultation.patient.patientId,
+        disposition_type: consultation.disposition.type,
+        disposition_reason: consultation.disposition.reason,
+        admission_required: consultation.disposition.admission === 'Yes',
+        follow_up_date: consultation.followUp.date || null,
+        follow_up_time: consultation.followUp.time || null,
+        follow_up_reason: consultation.followUp.reason
+      });
       dispatch(addAuditLog({ action: 'Saved Disposition' }));
       showSuccess('Disposition saved successfully.');
     } catch (error) {
@@ -923,13 +962,13 @@ const ConsultationV2 = () => {
   };
 
   const loadOtherVisits = () => {
-    const currentId = parseInt(visitId, 10);
+    const currentId = String(visitId);
     let others = [];
 
     if (allPatientVisits.length > 0) {
-      others = allPatientVisits.filter(v => v.id !== currentId);
+      others = allPatientVisits.filter(v => String(v.id) !== currentId);
     } else if (consultation.patient?.patientId) {
-      others = patientVisits.filter(v => v.id !== currentId);
+      others = patientVisits.filter(v => String(v.id) !== currentId);
     }
 
     setOtherVisits(others);
@@ -1017,6 +1056,9 @@ const ConsultationV2 = () => {
   useEffect(() => {
     if (!visitId) return;
 
+    let isCurrentRequest = true;
+    dispatch(resetConsultation());
+
     const loadVisit = async () => {
       setIsLoading(true);
       try {
@@ -1031,65 +1073,157 @@ const ConsultationV2 = () => {
           ),
         ]);
 
+        if (!isCurrentRequest) return;
+
         const notes = parseList(noteResponse);
         const prescriptions = parseList(prescriptionResponse);
+        const allergyResponse = await consultationApi.getAllergies({ patient: visit.patient }).catch(() => []);
+        const allergies = parseList(allergyResponse);
 
         const currentPatient = {
-          ...consultation.patient,
           patientId: visit.patient,
-          mrn: consultation.patient.mrn,
+          mrn: visit.patient_mrn || visit.patient_hospital_number || '',
           name: visit.patient_name,
-          insurancePlan: consultation.patient.insurancePlan,
+          gender: visit.patient_gender || '',
+          age: visit.patient_age ?? '',
+          insurancePlan: visit.patient_insurance || '',
           primaryConsultant: visit.doctor_name,
-          gender: consultation.patient.gender,
-          age: consultation.patient.age,
-          latestVitals: visit.vital_signs ? Object.entries(visit.vital_signs).map(([key, value]) => `${key}: ${value}`).join(', ') : consultation.patient.latestVitals
+          latestVitals: visit.vital_signs ? Object.entries(visit.vital_signs).map(([key, value]) => `${key}: ${value}`).join(', ') : ''
         };
 
         const visitPayload = {
-          ...consultation.encounter,
           encounterNumber: visit.visit_number,
-          date: visit.checkin_time ? new Date(visit.checkin_time).toLocaleDateString() : consultation.encounter.date,
-          time: visit.checkin_time ? new Date(visit.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : consultation.encounter.time,
+          date: visit.checkin_time ? new Date(visit.checkin_time).toLocaleDateString() : '',
+          time: visit.checkin_time ? new Date(visit.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
           doctorName: visit.doctor_name,
           clinic: visit.department_name,
           department: visit.department_name,
           type: visit.visit_type,
-          consultationStatus: visit.visit_status ? visit.visit_status.replace('_', ' ') : consultation.encounter.consultationStatus,
+          consultationStatus: visit.visit_status ? visit.visit_status.replace('_', ' ') : '',
           location: visit.referral_from
         };
 
         const note = notes.length ? notes[0] : null;
+        const subjectiveData = parseStructured(note?.subjective);
+        const assessmentData = parseStructured(note?.assessment);
+        const planData = parseStructured(note?.plan);
+        const physicalExamData = parseStructured(note?.objective);
+        const rosData = subjectiveData.ros || (subjectiveData.general ? subjectiveData : {});
+        const loadedRos = Object.keys(rosData).length > 0 ? rosData : {
+          general: { status: '', comments: '' },
+          cardiovascular: { status: '', comments: '' },
+          respiratory: { status: '', comments: '' },
+          gastrointestinal: { status: '', comments: '' },
+          genitourinary: { status: '', comments: '' },
+          neurological: { status: '', comments: '' },
+          musculoskeletal: { status: '', comments: '' },
+          endocrine: { status: '', comments: '' },
+          psychiatric: { status: '', comments: '' },
+          skin: { status: '', comments: '' },
+          ent: { status: '', comments: '' },
+          eyes: { status: '', comments: '' }
+        };
+        const subjectiveNotes = subjectiveData.notes || (
+          typeof note?.subjective === 'string' && !note.subjective.trim().startsWith('{')
+            ? note.subjective
+            : ''
+        );
+        const pmhData = parseStructured(note?.past_medical_history);
+        const familyData = parseStructured(note?.family_history);
+        const socialData = parseStructured(note?.social_history);
+        const billingItems = Array.isArray(note?.billing_items) ? note.billing_items : [];
         const notePayload = note ? {
           hpi: {
-            ...consultation.hpi,
-            freeNotes: note.subjective || note.history_of_present_illness || '',
-            chiefComplaint: note.chief_complaint || ''
+            freeNotes: subjectiveNotes || note.history_of_present_illness || '',
+            chiefComplaint: note.chief_complaint || '',
+            duration: note.duration || '',
+            timing: note.timing || '',
+            ...(note.hpi_details || {})
           },
           assessment: {
-            ...consultation.assessment,
-            clinicalImpression: note.assessment || '',
-            differentialDiagnosis: note.differential_diagnosis || ''
+            clinicalImpression: assessmentData.clinical_impression || assessmentData.clinicalImpression || note.assessment || '',
+            primaryDiagnosis: assessmentData.primary_diagnosis || assessmentData.primaryDiagnosis || '',
+            secondaryDiagnosis: assessmentData.secondary_diagnosis || assessmentData.secondaryDiagnosis || '',
+            workingDiagnosis: assessmentData.working_diagnosis || assessmentData.workingDiagnosis || '',
+            finalDiagnosis: assessmentData.final_diagnosis || assessmentData.finalDiagnosis || '',
+            clinicalReasoning: assessmentData.clinical_reasoning || assessmentData.clinicalReasoning || '',
+            differentialDiagnosis: assessmentData.differential_diagnosis || assessmentData.differentialDiagnosis || note.differential_diagnosis || ''
           },
           treatmentPlan: {
-            ...consultation.treatmentPlan,
-            managementPlan: note.plan || ''
+            managementPlan: planData.management_plan || planData.managementPlan || note.plan || '',
+            medications: planData.medications || '',
+            lifestyleAdvice: planData.lifestyle_advice || planData.lifestyleAdvice || '',
+            dietaryAdvice: planData.dietary_advice || planData.dietaryAdvice || '',
+            patientEducation: planData.patient_education || planData.patientEducation || '',
+            procedurePlan: planData.procedure_plan || planData.procedurePlan || '',
+            monitoringPlan: planData.monitoring_plan || planData.monitoringPlan || '',
+            safetyNetAdvice: planData.safety_net_advice || planData.safetyNetAdvice || ''
           },
           icd10: {
-            ...consultation.icd10,
             selectedCodes: Array.isArray(note.diagnosis_codes)
               ? note.diagnosis_codes.map(code => ({ code, description: '' }))
-              : consultation.icd10.selectedCodes
+              : []
           },
           ice: {
-            ...consultation.ice,
             ideas: note.ice_ideas || '',
             concerns: note.ice_concerns || '',
             expectations: note.ice_expectations || ''
+          },
+          ros: loadedRos,
+          pastMedicalHistory: {
+            conditions: pmhData.conditions || '',
+            surgeries: pmhData.surgeries || '',
+            hospitalizations: pmhData.hospitalizations || '',
+            otherHistory: pmhData.otherHistory || pmhData.other_history || '',
+            pastIllnesses: pmhData.pastIllnesses || [],
+            chronicDiseases: pmhData.chronicDiseases || [],
+            pastSurgeries: pmhData.pastSurgeries || [],
+            hospitalAdmissions: pmhData.hospitalAdmissions || [],
+            previousDiagnoses: pmhData.previousDiagnoses || [],
+            vaccinations: pmhData.vaccinations || []
+          },
+          familyHistory: {
+            mother: familyData.mother || { alive: false, age: '', conditions: '', causeOfDeath: '' },
+            father: familyData.father || { alive: false, age: '', conditions: '', causeOfDeath: '' },
+            siblings: familyData.siblings || [],
+            relevantConditions: familyData.relevantConditions || familyData.relevant_conditions || []
+          },
+          socialHistory: {
+            occupation: socialData.occupation || '',
+            livingSituation: socialData.livingSituation || socialData.living_situation || '',
+            maritalStatus: socialData.maritalStatus || socialData.marital_status || '',
+            children: socialData.children || '',
+            independence: socialData.independence || '',
+            smoking: socialData.smoking || { status: '', startDate: '', packYears: '', quitDate: '' },
+            alcohol: socialData.alcohol || { status: '', unitsPerWeek: '', duration: '' },
+            recreationalDrugs: socialData.recreationalDrugs || socialData.recreational_drugs || { status: '', substances: '', frequency: '' }
+          },
+          physicalExam: physicalExamData,
+          disposition: {
+            type: note.disposition_type || '',
+            reason: note.disposition_reason || '',
+            admission: note.admission_required ? 'Yes' : 'No'
+          },
+          followUp: {
+            date: note.follow_up_date || '',
+            time: note.follow_up_time || '',
+            reason: note.follow_up_reason || ''
+          },
+          billing: {
+            charges: billingItems,
+            total: billingItems.reduce((total, item) => total + Number(item.amount || 0), 0),
+            generated: billingItems.length > 0,
+            insuranceCovered: !!note.insurance_covered,
+            insuranceAmount: Number(note.insurance_amount || 0)
+          },
+          signature: {
+            signed: !!note.is_signed,
+            signedAt: note.signed_at || '',
+            doctorName: note.doctor_name || ''
           }
         } : {};
 
-        const prescriptionsPayload = prescriptions.length ? {
+        const prescriptionsPayload = {
           medications: prescriptions.map((prescription) => ({
             id: prescription.id,
             name: prescription.drug_name,
@@ -1101,18 +1235,33 @@ const ConsultationV2 = () => {
             reason: prescription.instructions || '',
             status: prescription.status || 'active'
           }))
-        } : {};
+        };
+
+        const savedAllergies = Array.isArray(note?.allergies) ? note.allergies : [];
+        const allergiesPayload = [...savedAllergies, ...allergies].map((allergy) => ({
+          id: allergy.id,
+          substance: allergy.allergen || allergy.substance || '',
+          type: allergy.allergy_type || allergy.type || 'Drug',
+          severity: allergy.severity || 'Moderate',
+          reactionType: allergy.reaction || allergy.reaction_type || '',
+          notes: allergy.notes || ''
+        }));
 
         dispatch(loadConsultation({
           patient: currentPatient,
           encounter: visitPayload,
           hpi: {
-            ...consultation.hpi,
+            ...notePayload.hpi,
             freeNotes: visit.history_of_present_illness || '',
-            chiefComplaint: visit.chief_complaint || ''
+            chiefComplaint: visit.chief_complaint || '',
+            duration: note?.duration || '',
+            timing: note?.timing || ''
           },
           ...notePayload,
-          ...prescriptionsPayload
+          ...prescriptionsPayload,
+          allergies: allergiesPayload.filter((allergy, index, values) =>
+            values.findIndex(item => item.substance.toLowerCase() === allergy.substance.toLowerCase()) === index
+          )
         }));
 
         const status = {
@@ -1124,13 +1273,18 @@ const ConsultationV2 = () => {
         dispatch(updateCompletionStatus(status));
 
       } catch (error) {
-        setApiError(error.message || 'Unable to load consultation details.');
+        if (isCurrentRequest) {
+          setApiError(error.message || 'Unable to load consultation details.');
+        }
       } finally {
-        setIsLoading(false);
+        if (isCurrentRequest) setIsLoading(false);
       }
     };
 
     loadVisit();
+    return () => {
+      isCurrentRequest = false;
+    };
   }, [visitId, dispatch]);
 
   useEffect(() => {
@@ -1276,9 +1430,11 @@ const ConsultationV2 = () => {
     showSuccess('ICD-10 code added.');
   };
 
-  const handleSignOff = () => {
+  const handleSignOff = async () => {
     const userFullName = localStorage.getItem('userFullName') || localStorage.getItem('userName');
     const tenantId = localStorage.getItem('tenantId');
+    const signedAt = new Date().toISOString();
+    const consultationCharge = { item: 'Consultation fee', amount: 5000 };
     dispatch(signConsultation({
       doctorName: userFullName,
       licenseNumber: tenantId,
@@ -1286,11 +1442,28 @@ const ConsultationV2 = () => {
       ipAddress: window.location.hostname
     }));
     dispatch(addAuditLog({ action: 'Signed consultation' }));
-    dispatch(generateBillingCharge({ item: 'Consultation fee', amount: 5000 }));
+    dispatch(generateBillingCharge(consultationCharge));
     showSuccess('Consultation signed and finalized.');
+    await handleSaveConsultation({
+      markFinal: true,
+      signatureOverride: {
+        signed: true,
+        signedAt,
+        doctorName: userFullName,
+        licenseNumber: tenantId,
+        digitalSignature: 'signed-by-app',
+        ipAddress: window.location.hostname
+      },
+      billingOverride: {
+        ...consultation.billing,
+        charges: [...consultation.billing.charges, { id: Date.now(), ...consultationCharge }],
+        generated: true,
+        total: consultation.billing.total + Number(consultationCharge.amount)
+      }
+    });
   };
 
-  const handleSaveConsultation = async ({ markFinal = false } = {}) => {
+  const handleSaveConsultation = async ({ markFinal = false, signatureOverride, billingOverride } = {}) => {
     setApiError('');
     setApiMessage('');
     setIsSaving(true);
@@ -1300,12 +1473,15 @@ const ConsultationV2 = () => {
         next_status: markFinal ? 'billing' : 'awaiting_lab',
         chief_complaint: consultation.hpi.chiefComplaint,
         history_of_present_illness: consultation.hpi.freeNotes,
+        duration: consultation.hpi.duration,
+        timing: consultation.hpi.timing,
+        hpi_details: getHpiDetails(),
         referral_from: consultation.disposition.referral,
         referral_reason: consultation.disposition.reason,
-        subjective: `${consultation.hpi.freeNotes}\n\nROS: ${Object.entries(consultation.ros).map(([section, values]) => `${section}: ${values.status}, ${values.comments}`).join('; ')}`,
-        objective: `${consultation.physicalExam.generalAppearance}\n${consultation.physicalExam.vitalSigns}\n${consultation.physicalExam.cardiovascular}\n${consultation.physicalExam.respiratory}\n${consultation.physicalExam.abdominal}\n${consultation.physicalExam.neurological}\n${consultation.physicalExam.musculoskeletal}\n${consultation.physicalExam.ent}\n${consultation.physicalExam.eye}\n${consultation.physicalExam.skin}\n${consultation.physicalExam.mentalState}`,
-        assessment: `${consultation.assessment.clinicalImpression}\nPrimary: ${consultation.assessment.primaryDiagnosis}\nSecondary: ${consultation.assessment.secondaryDiagnosis}\nDifferential: ${consultation.assessment.differentialDiagnosis}`,
-        plan: `${consultation.treatmentPlan.managementPlan}\nMedications: ${consultation.treatmentPlan.medications}\nLifestyle: ${consultation.treatmentPlan.lifestyleAdvice}\nDietary: ${consultation.treatmentPlan.dietaryAdvice}\nMonitoring: ${consultation.treatmentPlan.monitoringPlan}\nSafety net: ${consultation.treatmentPlan.safetyNetAdvice}`,
+        subjective: JSON.stringify({ notes: consultation.hpi.freeNotes, ros: consultation.ros }),
+        objective: JSON.stringify(consultation.physicalExam),
+        assessment: JSON.stringify(consultation.assessment),
+        plan: JSON.stringify(consultation.treatmentPlan),
         differential_diagnosis: consultation.assessment.differentialDiagnosis,
         diagnosis_codes: consultation.icd10.selectedCodes.map(code => code.code),
         is_final: markFinal,
@@ -1333,6 +1509,7 @@ const ConsultationV2 = () => {
           instructions: p.reason,
           status: p.status || 'prescribed'
         })),
+        allergies: consultation.allergies,
         lab_orders: consultation.orders.laboratory.map(order => ({
           test_name: order.test || order.test_name,
           clinical_notes: order.clinical_notes || '',
@@ -1357,12 +1534,14 @@ const ConsultationV2 = () => {
           status: order.status || 'ordered',
           notes: order.notes || ''
         })),
-        billing_items: consultation.billing.charges.map(charge => ({
+        billing_items: (billingOverride?.charges || consultation.billing.charges).map(charge => ({
           item: charge.item,
           amount: charge.amount
         })),
-        insurance_covered: consultation.billing.insuranceCovered || false,
-        insurance_amount: consultation.billing.insuranceAmount || 0
+        insurance_covered: (billingOverride || consultation.billing).insuranceCovered || false,
+        insurance_amount: (billingOverride || consultation.billing).insuranceAmount || 0,
+        is_signed: signatureOverride?.signed ?? consultation.signature.signed,
+        signed_at: signatureOverride?.signedAt || consultation.signature.signedAt || null
       };
 
       if (!visitId) {
@@ -1795,16 +1974,16 @@ const ConsultationV2 = () => {
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">Patient</p>
                 <h2 className="mt-1 text-sm sm:text-base font-semibold text-slate-900 truncate">{consultation.patient.name}</h2>
-                <p className="mt-0.5 text-xs sm:text-sm text-slate-600">MRN: {consultation.patient.mrn} • {consultation.patient.gender} • {consultation.patient.age}</p>
-                <p className="text-xs sm:text-sm text-slate-600">Insurance: {consultation.patient.insurancePlan}</p>
+                <p className="mt-0.5 text-xs sm:text-sm text-slate-600">MRN: {consultation.patient.mrn || 'N/A'} • {consultation.patient.gender || 'N/A'} • {consultation.patient.age || 'N/A'}</p>
+                <p className="text-xs sm:text-sm text-slate-600">Insurance: {consultation.patient.insurancePlan || 'None recorded'}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">Encounter</p>
                 <div className="mt-1 space-y-0.5 text-xs sm:text-sm text-slate-600">
-                  <p><strong>Clinic:</strong> {consultation.encounter.clinic}</p>
-                  <p><strong>Dept:</strong> {consultation.encounter.department}</p>
-                  <p><strong>Type:</strong> {consultation.encounter.type}</p>
-                  <p><strong>Status:</strong> {consultation.encounter.consultationStatus}</p>
+                  <p><strong>Clinic:</strong> {consultation.encounter.clinic || 'N/A'}</p>
+                  <p><strong>Dept:</strong> {consultation.encounter.department || 'N/A'}</p>
+                  <p><strong>Type:</strong> {consultation.encounter.type || 'N/A'}</p>
+                  <p><strong>Status:</strong> {consultation.encounter.consultationStatus || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -2002,9 +2181,9 @@ const ConsultationV2 = () => {
                 />
                 <FormInput
                   label="Timing"
-                  value={consultation.hpi.progression || consultation.hpi.duration}
-                  onChange={(v) => handleHPIChange('progression', v)}
-                  placeholder="Constant or intermittent? How long does it last?"
+                  value={consultation.hpi.timing}
+                  onChange={(v) => handleHPIChange('timing', v)}
+                  placeholder="Constant, intermittent, episodic, or worse at a certain time?"
                 />
                 <FormInput
                   label="Aggravating Factors"

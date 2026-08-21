@@ -77,8 +77,10 @@ const CreditManagement = lazy(() => import('./pages/CreditManagement'));
 const NDPRCompliance = lazy(() => import('./pages/NDPRCompliance'));
 const BudgetingForecasting = lazy(() => import('./pages/BudgetingForecasting'));
 const Settings = lazy(() => import('./pages/Settings'));
+const TenantSubscription = lazy(() => import('./pages/TenantSubscription'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const InvitationSignup = lazy(() => import('./pages/InvitationSignup'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
@@ -147,6 +149,7 @@ const NotFoundLayout = ({ children }) => {
       () => import('./pages/Settings'),
       () => import('./pages/Login'),
       () => import('./pages/Signup'),
+      () => import('./pages/VerifyEmail'),
       () => import('./pages/AboutPage'),
       () => import('./pages/PrivacyPage'),
       () => import('./pages/TermsPage'),
@@ -166,7 +169,7 @@ const NotFoundLayout = ({ children }) => {
 
 function AppLayout() {
    const location = useLocation();
-   const publicPaths = ['/', '/login', '/signup', '/invitation-signup', '/about', '/privacy', '/terms', '/contact'];
+   const publicPaths = ['/', '/login', '/signup', '/verify-email', '/invitation-signup', '/about', '/privacy', '/terms', '/contact'];
    const isLandingPage = location.pathname === '/';
    const isLoginPage = location.pathname === '/login';
    const isSignupPage = location.pathname === '/signup';
@@ -401,7 +404,8 @@ function AppLayout() {
                 <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-                <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+                 <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+                 <Route path="/verify-email" element={<PublicRoute><VerifyEmail /></PublicRoute>} />
                 <Route path="/invitation-signup" element={<PublicRoute allowAuthenticated={true}><InvitationSignup /></PublicRoute>} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
@@ -463,6 +467,7 @@ function AppLayout() {
                 <Route path="/ndpr-compliance" element={<ProtectedRoute><NDPRCompliance /></ProtectedRoute>} />
                 <Route path="/budgeting-forecasting" element={<ProtectedRoute><BudgetingForecasting /></ProtectedRoute>} />
                 <Route path="/settings" element={<SettingsRoute><Settings /></SettingsRoute>} />
+                <Route path="/subscription" element={<SettingsRoute><TenantSubscription /></SettingsRoute>} />
                  <Route path="/404" element={<NotFoundLayout><NotFound /></NotFoundLayout>} />
                 </Routes>
               </Suspense>

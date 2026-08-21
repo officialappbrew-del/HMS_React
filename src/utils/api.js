@@ -25,6 +25,7 @@ const API_BASE_URL = (() => {
   const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
   if (isLocalFrontend()) {
+    // return 'https://hms-backend-l09g.onrender.com';
     return configuredUrl || 'http://localhost:8000';
   }
 
@@ -45,7 +46,9 @@ const PUBLIC_AUTH_PATHS = [
   '/api/v1/auth/two-factor/backup-codes/',
   '/api/v1/tenants/active-tenants/',
   '/api/v1/tenants/invitations/accept/',
-  '/api/v1/tenants/invitations/accept',
+  '/api/v1/tenants/self-signup/',
+  '/api/v1/tenants/verify-email/',
+  '/api/v1/tenants/public-config/',
   '/api/v1/patients/login/',
   '/api/v1/patients/login',
 ];
@@ -72,22 +75,15 @@ export const checkAuthStatus = async () => {
     const patientToken = localStorage.getItem('patientAccessToken');
     const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
     const token = patientToken || accessToken;
-    
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/users/me/`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(getCsrfToken() ? { 'X-CSRF-Token': getCsrfToken() } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      credentials: 'include',
-    });
-    if (response.ok) {
-      const data = await response.json().catch(() => ({}));
-      if (data.id || data.user_id) {
-        return { authenticated: true, user: data };
-      }
+    if (!token && !shouldUseCookieAuth()) {
+      return { authenticated: false };
     }
+
+    const data = await apiRequest('/api/v1/auth/users/me/');
+    if (data?.id || data?.user_id) {
+      return { authenticated: true, user: data };
+    }
+
     return { authenticated: false };
   } catch {
     return { authenticated: false };
@@ -297,6 +293,10 @@ const refreshAccessToken = async () => {
 
       localStorage.setItem('accessToken', newAccessToken);
       localStorage.setItem('authToken', newAccessToken);
+      const newRefreshToken = data.refresh || data.refresh_token;
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
 
       return newAccessToken;
     })
@@ -391,7 +391,6 @@ const csrfToken = isMutating ? getCsrfToken() : '';
               const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
               const token = patientToken || accessToken;
               const tenantId = localStorage.getItem('tenantId');
-              const isPatientSession = Boolean(patientToken);
               const method = (retryOptions.method || 'GET').toUpperCase();
               const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
               const csrfToken = isMutating ? getCsrfToken() : '';
@@ -473,6 +472,19 @@ export const parseListResponse = (data) => {
 
 export { API_BASE_URL };
 export default API_BASE_URL;
+
+export const signupApi = {
+  getPublicConfig: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/tenants/public-config/${qsStr ? '?' + qsStr : ''}`, { cacheTtl: 30000 });
+  },
+  createTenant: (data) =>
+    apiRequest('/api/v1/tenants/self-signup/', { method: 'POST', body: JSON.stringify(data) }),
+  verifyEmail: (token) =>
+    apiRequest('/api/v1/tenants/verify-email/', { method: 'POST', body: JSON.stringify({ token }) }),
+};
 
 export const pharmacyApi = {
   getDrugs: async (params = {}) => {
@@ -608,6 +620,12 @@ export const consultationApi = {
   },
   createConsultationNote: (data) => apiRequest('/api/v1/clinical/consultation-notes/', { method: 'POST', body: JSON.stringify(data) }),
   updateConsultationNote: (noteId, data) => apiRequest(`/api/v1/clinical/consultation-notes/${noteId}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getAllergies: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/emr/allergies/${qsStr ? '?' + qsStr : ''}`);
+  },
   createAllergy: (data) => apiRequest('/api/v1/emr/allergies/', { method: 'POST', body: JSON.stringify(data) }),
   getPrescriptions: (params = {}) => {
     const qs = new URLSearchParams();

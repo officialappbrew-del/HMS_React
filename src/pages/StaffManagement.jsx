@@ -895,6 +895,7 @@ const StaffManagement = () => {
     employeeId: '',
     email: '',
     password: '',
+    welcomeEmailStatus: 'not_queued',
     showPassword: false,
   });
 
@@ -1258,7 +1259,8 @@ const StaffManagement = () => {
           isOpen: true,
           employeeId: created.employee_id || `STAFF-${created.id}`,
           email: created.email,
-          password: formData.password,
+          password: createPayload.password,
+          welcomeEmailStatus: created.welcome_email_status || 'not_queued',
           showPassword: false,
         });
       }
@@ -1845,6 +1847,15 @@ const StaffManagement = () => {
                 <p className="text-xs text-gray-500 mb-3">
                   The user can login with their Employee ID and the password above.
                 </p>
+                <div className={`mb-3 rounded-lg border px-2.5 py-2 text-xs ${
+                  credentialsModal.welcomeEmailStatus === 'queued'
+                    ? 'border-green-200 bg-green-50 text-green-700'
+                    : 'border-yellow-200 bg-yellow-50 text-yellow-700'
+                }`}>
+                  {credentialsModal.welcomeEmailStatus === 'queued'
+                    ? `Welcome email queued for ${credentialsModal.email}.`
+                    : 'Welcome email was not queued. Share the credentials securely with the staff member.'}
+                </div>
                 
                 <button
                   onClick={() => setCredentialsModal({ ...credentialsModal, isOpen: false })}

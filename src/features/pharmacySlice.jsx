@@ -6,7 +6,7 @@ export const fetchDrugs = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const data = await pharmacyApi.getDrugs(params);
-      const normalized = Array.isArray(data) ? data.map(normalizeDrug) : (data.results || []).map(normalizeDrug);
+      const normalized = Array.isArray(data) ? data.map(normalizeDrugInternal) : (data.results || []).map(normalizeDrugInternal);
       return normalized;
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to fetch drugs');
@@ -14,7 +14,7 @@ export const fetchDrugs = createAsyncThunk(
   }
 );
 
-const normalizeDrug = (drug) => ({
+export const normalizeDrug = (drug) => ({
   ...drug,
   quantityInStock: drug.stock_quantity,
   reorderLevel: drug.reorder_level,
@@ -50,6 +50,8 @@ const normalizeDrug = (drug) => ({
   storageConditions: drug.storage_conditions,
   prescriptionRequired: drug.prescription_required,
 });
+
+const normalizeDrugInternal = normalizeDrug;
 
 export const fetchSuppliers = createAsyncThunk(
   'pharmacy/fetchSuppliers',
@@ -311,6 +313,17 @@ const pharmacySlice = createSlice({
         alert.acknowledgedBy = acknowledgedBy;
       }
     },
+
+    addPurchaseOrder: (state, action) => {
+      state.purchaseOrders.push(action.payload);
+    },
+
+    updatePurchaseOrder: (state, action) => {
+      const index = state.purchaseOrders.findIndex(po => po.poId === action.payload.poId);
+      if (index !== -1) {
+        state.purchaseOrders[index] = { ...state.purchaseOrders[index], ...action.payload };
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -440,6 +453,8 @@ export const {
   checkDrugInteraction,
   generatePrescription,
   acknowledgeLowStockAlert,
+  addPurchaseOrder,
+  updatePurchaseOrder,
 } = pharmacySlice.actions;
 
 export default pharmacySlice.reducer;

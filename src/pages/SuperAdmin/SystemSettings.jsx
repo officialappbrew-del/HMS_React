@@ -12,6 +12,7 @@ const SystemSettings = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [paymentConfiguration, setPaymentConfiguration] = useState({});
 
   const loadSettings = async () => {
     setLoading(true);
@@ -20,6 +21,7 @@ const SystemSettings = () => {
       const result = await superAdminApi.getSettings();
       setSettings(result.settings || {});
       setPlans(result.subscription_plans || []);
+      setPaymentConfiguration(result.payment_configuration || {});
     } catch (err) {
       setError(err.message || 'Failed to load settings');
     } finally {
@@ -36,7 +38,7 @@ const SystemSettings = () => {
     setSuccess('');
     setError('');
     try {
-      await superAdminApi.updateSettings(settings);
+      await superAdminApi.updateSettings({ ...settings, ...paymentConfiguration });
       setSuccess('Settings updated successfully');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -48,6 +50,10 @@ const SystemSettings = () => {
 
   const updateSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const updatePaymentConfiguration = (key, value) => {
+    setPaymentConfiguration(prev => ({ ...prev, [key]: value }));
   };
 
   if (loading) {
@@ -188,6 +194,33 @@ const SystemSettings = () => {
               onChange={(e) => updateSetting('max_users_per_tenant', parseInt(e.target.value) || 0)}
               className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Self-service payment method</label>
+            <select
+              value={settings?.subscription_payment_method || 'paystack'}
+              onChange={(e) => updateSetting('subscription_payment_method', e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+            >
+              <option value="paystack">Paystack</option>
+              <option value="paypal">PayPal</option>
+            </select>
+            <p className="mt-1 text-xs text-[#5A5A5A]">The provider used by new root admins to pay for their selected plan.</p>
+          </div>
+          <div className="border-t border-[#E8E3DC] pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#5A5A5A]">Payment gateway credentials</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <input type="password" placeholder={paymentConfiguration.paystack_secret_key_configured ? 'Paystack secret key configured' : 'Paystack secret key'} onChange={(e) => updatePaymentConfiguration('paystack_secret_key', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] rounded" />
+              <input type="text" placeholder="Paystack public key" value={paymentConfiguration.paystack_public_key || ''} onChange={(e) => updatePaymentConfiguration('paystack_public_key', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] rounded" />
+              <input type="text" placeholder="PayPal client ID" value={paymentConfiguration.paypal_client_id || ''} onChange={(e) => updatePaymentConfiguration('paypal_client_id', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] rounded" />
+              <input type="password" placeholder={paymentConfiguration.paypal_client_secret_configured ? 'PayPal client secret configured' : 'PayPal client secret'} onChange={(e) => updatePaymentConfiguration('paypal_client_secret', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] rounded" />
+              <input type="password" placeholder={paymentConfiguration.paypal_webhook_id_configured ? 'PayPal webhook ID configured' : 'PayPal webhook ID'} onChange={(e) => updatePaymentConfiguration('paypal_webhook_id', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] rounded" />
+              <select value={paymentConfiguration.paypal_base_url || 'https://api-m.sandbox.paypal.com'} onChange={(e) => updatePaymentConfiguration('paypal_base_url', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] rounded">
+                <option value="https://api-m.sandbox.paypal.com">PayPal Sandbox</option>
+                <option value="https://api-m.paypal.com">PayPal Live</option>
+              </select>
+            </div>
+            <p className="mt-2 text-xs text-[#5A5A5A]">Secrets are encrypted in the database and are never returned to the dashboard.</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Max Storage Per Tenant (GB)</label>

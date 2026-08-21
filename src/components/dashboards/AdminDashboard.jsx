@@ -212,25 +212,25 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
     <Tooltip text={tooltip}>
       <div 
         onClick={onClick}
-        className={`bg-white border border-[#E8E3DC] p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
+        className={`bg-white border border-[#E8E3DC] p-4 sm:p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
-            <p className="mt-1 text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">{value}</p>
+            <p className="mt-1 text-xl sm:text-2xl lg:text-3xl font-display font-bold text-[#1A1A1A] tracking-tight truncate">{value}</p>
             {subValue && (
-              <p className="text-xs text-[#5A5A5A] mt-0.5">{subValue}</p>
+              <p className="text-xs text-[#5A5A5A] mt-0.5 truncate">{subValue}</p>
             )}
             {trend && (
               <div className={`flex items-center mt-1 text-xs ${trendColors[trend]} font-medium`}>
-                {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5" />}
-                {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5" />}
-                <span>{trendValue}</span>
+                {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5 flex-shrink-0" />}
+                {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5 flex-shrink-0" />}
+                <span className="truncate">{trendValue}</span>
               </div>
             )}
           </div>
-          <div className={`w-10 h-10 ${colorMap[color]} rounded flex items-center justify-center flex-shrink-0 ml-3`}>
-            <Icon className="w-5 h-5 text-white" />
+          <div className={`w-10 h-10 lg:w-12 lg:h-12 ${colorMap[color]} rounded flex items-center justify-center flex-shrink-0 ml-3`}>
+            <Icon className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
         </div>
       </div>
@@ -250,10 +250,10 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
       />
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative bg-[#F7F5F2] w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-300">
-          <div className="border-b border-[#E8E3DC] p-6">
+          <div className="border-b border-[#E8E3DC] p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-display font-bold text-[#1A1A1A]">My Profile</h2>
+                <h2 className="text-lg sm:text-xl font-display font-bold text-[#1A1A1A]">My Profile</h2>
                 <p className="text-sm text-[#5A5A5A] mt-0.5">View and update your personal information</p>
               </div>
               <button
@@ -265,7 +265,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
             </div>
           </div>
 
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+          <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
             {(error || success) && (
               <div className={`mb-4 p-3 text-sm whitespace-pre-line ${error ? 'bg-[#F5EDEA] text-[#C8553D] border border-[#E8D6D0]' : 'bg-[#EAF3EE] text-[#2D7D46] border border-[#D0E3D8]'}`}>
                 {error || success}
@@ -273,9 +273,9 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
             )}
 
             {!loading && (
-              <div className="flex flex-col items-center mb-8">
+              <div className="flex flex-col items-center mb-6 sm:mb-8">
                 <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden">
                     {profilePicturePreview ? (
                       <img
                         key={profilePicturePreview}
@@ -290,7 +290,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                       />
                     ) : null}
                     <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: profilePicturePreview ? 'none' : 'flex' }}>
-                      <UserIcon className="w-12 h-12 text-[#5A5A5A]" />
+                      <UserIcon className="w-10 h-10 sm:w-12 sm:h-12 text-[#5A5A5A]" />
                     </div>
                   </div>
                 </div>
@@ -528,31 +528,31 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
       <div className="flex min-h-full items-center justify-center p-3">
         <div className="relative bg-[#F7F5F2] w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E3DC] flex-shrink-0">
+          <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-[#E8E3DC] flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#E8F5EF] flex items-center justify-center text-[#008751] font-display font-semibold text-sm flex-shrink-0">
                 {getInitials(patient.name)}
               </div>
-              <div>
-                <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">{patient.name}</h3>
+              <div className="min-w-0">
+                <h3 className="text-sm font-display font-semibold text-[#1A1A1A] truncate">{patient.name}</h3>
                 <div className="flex items-center gap-2 text-xs text-[#5A5A5A] flex-wrap">
-                  {patient.mrn && <span>MRN: {patient.mrn}</span>}
-                  {patient.hospital_number && <span>HN: {patient.hospital_number}</span>}
-                  {patient.age && <span>• {patient.age}y</span>}
-                  {patient.gender && <span>• {patient.gender}</span>}
+                  {patient.mrn && <span className="truncate">MRN: {patient.mrn}</span>}
+                  {patient.hospital_number && <span className="truncate">HN: {patient.hospital_number}</span>}
+                  {patient.age && <span className="truncate">• {patient.age}y</span>}
+                  {patient.gender && <span className="truncate">• {patient.gender}</span>}
                 </div>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded hover:bg-[#E8E3DC] transition-colors"
+              className="p-1.5 rounded hover:bg-[#E8E3DC] transition-colors flex-shrink-0"
             >
               <X className="w-4 h-4 text-[#5A5A5A]" />
             </button>
           </div>
 
           {/* Status Badge */}
-          <div className="px-5 py-2.5 border-b border-[#E8E3DC] flex-shrink-0 flex items-center gap-2 flex-wrap">
+          <div className="px-4 sm:px-5 py-2.5 border-b border-[#E8E3DC] flex-shrink-0 flex items-center gap-2 flex-wrap">
             <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium border ${getStatusColor(patient.status)}`}>
               {patient.status || 'Active'}
             </span>
@@ -571,12 +571,12 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-[#E8E3DC] px-5 flex-shrink-0">
+          <div className="flex border-b border-[#E8E3DC] px-4 sm:px-5 flex-shrink-0 overflow-x-auto">
             {['personal', 'contact', 'medical'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab
                     ? 'border-[#008751] text-[#008751]'
                     : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A]'
@@ -588,12 +588,12 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5">
             {activeTab === 'personal' && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Full Name</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.name}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.name}</p>
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Gender</p>
@@ -601,63 +601,63 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Date of Birth</p>
-                  <p className="font-medium text-[#1A1A1A]">
+                  <p className="font-medium text-[#1A1A1A] break-words">
                     {formatDate(patient.dateOfBirth)}
                     {patient.age && ` (${patient.age}y)`}
                   </p>
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">NIN</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.nin || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.nin || 'N/A'}</p>
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Marital Status</p>
-                  <p className="font-medium text-[#1A1A1A] capitalize">{patient.maritalStatus || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] capitalize break-words">{patient.maritalStatus || 'N/A'}</p>
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Religion</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.religion || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.religion || 'N/A'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Ethnicity</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.tribe || patient.ethnicity || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.tribe || patient.ethnicity || 'N/A'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Occupation</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.occupation || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.occupation || 'N/A'}</p>
                 </div>
               </div>
             )}
 
             {activeTab === 'contact' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Phone</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.phone || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.phone || 'N/A'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Email</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.email || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.email || 'N/A'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Address</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.address || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.address || 'N/A'}</p>
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">State</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.state || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.state || 'N/A'}</p>
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">LGA</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.lga || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.lga || 'N/A'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">City</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.city || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.city || 'N/A'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Emergency Contact</p>
-                  <p className="font-medium text-[#1A1A1A]">
+                  <p className="font-medium text-[#1A1A1A] break-words">
                     {patient.emergencyContact || patient.next_of_kin_name || 'N/A'}
                     {patient.emergencyPhone && ` (${patient.emergencyPhone})`}
                   </p>
@@ -666,43 +666,43 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
             )}
 
             {activeTab === 'medical' && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Blood Type</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.bloodType || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.bloodType || 'N/A'}</p>
                 </div>
                 <div className="bg-white p-3 border border-[#E8E3DC]">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Genotype</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.genotype || 'N/A'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.genotype || 'N/A'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Known Allergies</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.known_allergies || 'None'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.known_allergies || 'None'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Chronic Conditions</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.chronic_conditions || 'None'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.chronic_conditions || 'None'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Current Medications</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.current_medications || 'None'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.current_medications || 'None'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Surgical History</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.surgical_history || 'None'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.surgical_history || 'None'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Family History</p>
-                  <p className="font-medium text-[#1A1A1A]">{patient.family_history || 'None'}</p>
+                  <p className="font-medium text-[#1A1A1A] break-words">{patient.family_history || 'None'}</p>
                 </div>
-                <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                   <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Notes</p>
-                  <p className="font-medium text-[#1A1A1A] whitespace-pre-line">{patient.notes || 'None'}</p>
+                  <p className="font-medium text-[#1A1A1A] whitespace-pre-line break-words">{patient.notes || 'None'}</p>
                 </div>
                 {patient.has_insurance && (
-                  <div className="bg-white p-3 border border-[#E8E3DC] col-span-2">
+                  <div className="bg-white p-3 border border-[#E8E3DC] col-span-1 sm:col-span-2">
                     <p className="text-[10px] text-[#5A5A5A] uppercase font-medium tracking-wider">Insurance</p>
-                    <p className="font-medium text-[#1A1A1A]">
+                    <p className="font-medium text-[#1A1A1A] break-words">
                       {patient.insurance_company || 'N/A'}
                       {patient.insurance_policy_number && ` (${patient.insurance_policy_number})`}
                     </p>
@@ -713,7 +713,7 @@ const PatientDetailModal = ({ patient, onClose, onEdit, onAdmit, onConsult, onVi
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#E8E3DC] flex-shrink-0 flex-wrap bg-white">
+          <div className="flex items-center justify-end gap-2 px-4 sm:px-5 py-4 border-t border-[#E8E3DC] flex-shrink-0 flex-wrap bg-white">
             <ButtonWithTooltip
               onClick={onClose}
               tooltip="Close"
@@ -879,8 +879,8 @@ const EditPatientModal = ({
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4">
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Full Name *</label>
                   <input
                     type="text"
@@ -918,7 +918,7 @@ const EditPatientModal = ({
                     <option value="other">Other</option>
                   </select>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">NIN</label>
                   <input
                     type="text"
@@ -930,7 +930,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Phone Number *</label>
                   <input
                     type="tel"
@@ -942,7 +942,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Email</label>
                   <input
                     type="email"
@@ -953,7 +953,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Address</label>
                   <input
                     type="text"
@@ -1051,7 +1051,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Occupation</label>
                   <input
                     type="text"
@@ -1062,7 +1062,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Ethnicity / Tribe</label>
                   <input
                     type="text"
@@ -1074,7 +1074,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Emergency Contact</label>
                   <input
                     type="text"
@@ -1095,7 +1095,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Known Allergies</label>
                   <input
                     type="text"
@@ -1107,7 +1107,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Chronic Conditions</label>
                   <input
                     type="text"
@@ -1119,7 +1119,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Current Medications</label>
                   <input
                     type="text"
@@ -1131,7 +1131,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Surgical History</label>
                   <input
                     type="text"
@@ -1143,7 +1143,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Family History</label>
                   <input
                     type="text"
@@ -1155,7 +1155,7 @@ const EditPatientModal = ({
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Notes</label>
                   <textarea
                     name="notes"
@@ -1185,8 +1185,8 @@ const EditPatientModal = ({
                   </label>
                 </div>
                 {formData.has_insurance && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="col-span-1 sm:col-span-2">
                       <label className="block text-[10px] font-medium text-[#5A5A5A] mb-0.5">Insurance Company</label>
                       <input
                         type="text"
@@ -1773,7 +1773,6 @@ const AdminDashboard = () => {
         color: getActivityColor(log.severity || 'info'),
       };
     });
-    // 👇 Only keep the last 3 activities
     setRecentActivities(normalized.slice(0, 3));
   } catch (err) {
     console.error('Failed to load activity logs:', err);
@@ -2080,7 +2079,7 @@ const AdminDashboard = () => {
     };
   };
 
-  const loadPatients = async (url = '/api/v1/patients/patients/') => {
+  const loadPatients = async (url = '/api/v1/patients/patients/?status=all') => {
     try {
       setPatientsLoading(true);
       let data;
@@ -2366,99 +2365,79 @@ const AdminDashboard = () => {
   // ==================== RENDER OVERVIEW CONTENT ====================
   const renderOverviewContent = () => {
     return (
-      <div className="space-y-6 sm:space-y-8">
-        {/* Stats Grid — 2+2 layout with size variation */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <StatsCard
-              title="Registered Patients"
-              value={stats.totalPatients.toLocaleString()}
-              subValue={`${stats.todayAppointments} seen today`}
-              icon={Users}
-              color="green"
-              trend="up"
-              trendValue="+12% this month"
-              tooltip="Total registered patients in the system"
-              onClick={() => navigate('/patients')}
-            />
-            <StatsCard
-              title="Bed Occupancy"
-              value={`${stats.occupancyRate}%`}
-              subValue={`${stats.occupiedBeds} of ${stats.totalBeds} occupied`}
-              icon={Bed}
-              color="gold"
-              trend={stats.occupancyRate > 80 ? 'up' : 'neutral'}
-              trendValue={stats.occupancyRate > 80 ? 'Nearing capacity' : 'Capacity available'}
-              tooltip="Current bed occupancy rate"
-              onClick={() => navigate('/bed-allocation')}
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <StatsCard
-              title="Revenue"
-              value={stats.totalRevenue > 999999 ? `₦${(stats.totalRevenue / 1000000).toFixed(1)}M` : `₦${stats.totalRevenue.toLocaleString()}`}
-              subValue={`₦${stats.totalRevenue.toLocaleString()} total`}
-              icon={DollarSign}
-              color="green"
-              trend={revenueGrowthTrend}
-              trendValue={revenueGrowthText}
-              tooltip="Total revenue generated"
-              onClick={() => navigate('/billing')}
-            />
-            <StatsCard
-              title="Critical Alerts"
-              value={stats.criticalAlerts}
-              subValue={`${stats.lowStockItems} low stock items`}
-              icon={AlertCircle}
-              color="terracotta"
-              trend={stats.criticalAlerts > 0 ? 'up' : 'neutral'}
-              trendValue={stats.criticalAlerts > 0 ? 'Requires attention' : 'All clear'}
-              tooltip="Alerts requiring immediate attention"
-              onClick={() => setActiveTab('alerts')}
-            />
-          </div>
+      <div className="space-y-6 lg:space-y-8">
+        {/* Stats Grid — fully responsive with proper breakpoints */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4">
+          <StatsCard
+            title="Registered Patients"
+            value={stats.totalPatients.toLocaleString()}
+            subValue={`${stats.todayAppointments} seen today`}
+            icon={Users}
+            color="green"
+            trend="up"
+            trendValue="+12% this month"
+            tooltip="Total registered patients in the system"
+            onClick={() => navigate('/patients')}
+          />
+          <StatsCard
+            title="Bed Occupancy"
+            value={`${stats.occupancyRate}%`}
+            subValue={`${stats.occupiedBeds} of ${stats.totalBeds} occupied`}
+            icon={Bed}
+            color="gold"
+            trend={stats.occupancyRate > 80 ? 'up' : 'neutral'}
+            trendValue={stats.occupancyRate > 80 ? 'Nearing capacity' : 'Capacity available'}
+            tooltip="Current bed occupancy rate"
+            onClick={() => navigate('/bed-allocation')}
+          />
+          <StatsCard
+            title="Revenue"
+            value={stats.totalRevenue > 999999 ? `₦${(stats.totalRevenue / 1000000).toFixed(1)}M` : `₦${stats.totalRevenue.toLocaleString()}`}
+            subValue={`₦${stats.totalRevenue.toLocaleString()} total`}
+            icon={DollarSign}
+            color="green"
+            trend={revenueGrowthTrend}
+            trendValue={revenueGrowthText}
+            tooltip="Total revenue generated"
+            onClick={() => navigate('/billing')}
+          />
+          <StatsCard
+            title="Critical Alerts"
+            value={stats.criticalAlerts}
+            subValue={`${stats.lowStockItems} low stock items`}
+            icon={AlertCircle}
+            color="terracotta"
+            trend={stats.criticalAlerts > 0 ? 'up' : 'neutral'}
+            trendValue={stats.criticalAlerts > 0 ? 'Requires attention' : 'All clear'}
+            tooltip="Alerts requiring immediate attention"
+            onClick={() => setActiveTab('alerts')}
+          />
         </div>
 
-        {/* Waveform divider — signature motif (Nigerian green) */}
+        {/* Waveform divider */}
         <div className="flex items-center gap-3 py-1">
           <div className="h-px flex-1 bg-[#D8D4CD]"></div>
-          <svg width="40" height="12" viewBox="0 0 40 12" className="text-[#008751]">
+          <svg width="40" height="12" viewBox="0 0 40 12" className="text-[#008751] flex-shrink-0">
             <path d="M2 6 L8 6 L10 2 L14 10 L18 4 L22 10 L26 4 L30 8 L32 6 L38 6" 
                   stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <div className="h-px flex-1 bg-[#D8D4CD]"></div>
         </div>
 
-        {/* Quick Actions — using Nigerian brand colors */}
+        {/* Quick Actions */}
         <div>
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A] mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            {quickActions.slice(0, 4).map((action, index) => {
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8 gap-2 lg:gap-3">
+            {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
                 <Tooltip key={index} text={`Go to ${action.label}`}>
                   <button
                     onClick={() => navigate(action.action)}
-                    className={`${action.color} text-white p-3 sm:p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
+                    className={`${action.color} text-white p-3 lg:p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
                   >
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />
-                    <span className="text-xs font-medium">{action.label}</span>
-                  </button>
-                </Tooltip>
-              );
-            })}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-2 sm:mt-3">
-            {quickActions.slice(4).map((action, index) => {
-              const Icon = action.icon;
-              return (
-                <Tooltip key={index} text={`Go to ${action.label}`}>
-                  <button
-                    onClick={() => navigate(action.action)}
-                    className={`${action.color} text-white p-3 sm:p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
-                  >
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />
-                    <span className="text-xs font-medium">{action.label}</span>
+                    <Icon className="w-4 h-4 lg:w-5 lg:h-5 mb-1" />
+                    <span className="text-xs font-medium leading-tight">{action.label}</span>
                   </button>
                 </Tooltip>
               );
@@ -2469,13 +2448,13 @@ const AdminDashboard = () => {
         {/* Upcoming Duty Roster */}
         <UpcomingRosterWidget />
 
-        {/* Charts & Activity — asymmetric layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <div className="lg:col-span-2">
-            <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
+        {/* Charts & Activity */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
+          <div className="xl:col-span-2">
+            <div className="bg-white border border-[#E8E3DC] p-4 lg:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3 lg:mb-4">
                 <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Revenue Trend</h3>
-                <div className="flex items-center gap-1 sm:gap-2">
+                <div className="flex items-center gap-1 lg:gap-2">
                   <ButtonWithTooltip
                     onClick={() => setShowDateRangePicker(!showDateRangePicker)}
                     tooltip="Change date range"
@@ -2483,7 +2462,7 @@ const AdminDashboard = () => {
                     className="text-xs"
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{dateRange.start} — {dateRange.end}</span>
+                    <span className="hidden sm:inline text-xs">{dateRange.start} — {dateRange.end}</span>
                   </ButtonWithTooltip>
                   <IconButton
                     icon={RefreshCw}
@@ -2494,28 +2473,28 @@ const AdminDashboard = () => {
                 </div>
               </div>
               {revenueTrendLoading ? (
-                <div className="h-40 sm:h-48 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
+                <div className="h-40 lg:h-48 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
                   <div className="text-center">
                     <Loader2 className="w-8 h-8 text-[#008751] animate-spin mx-auto mb-2" />
                     <p className="text-xs">Loading revenue data...</p>
                   </div>
                 </div>
               ) : revenueTrendData.length > 0 ? (
-                <div className="h-40 sm:h-48 flex items-end justify-between gap-1 border-b border-[#E8E3DC] pb-1 overflow-x-auto">
+                <div className="h-40 lg:h-48 flex items-end justify-between gap-1 border-b border-[#E8E3DC] pb-1 overflow-x-auto">
                   {revenueTrendData.map((item, idx) => {
                     const maxAmount = Math.max(...revenueTrendData.map(d => d.amount), 1);
                     const barHeight = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
                     return (
-                      <div key={idx} className="flex flex-col items-center flex-shrink-0">
-                        <span className="text-[8px] text-[#5A5A5A] mb-1">
+                      <div key={idx} className="flex flex-col items-center flex-shrink-0 min-w-[32px]">
+                        <span className="text-[8px] text-[#5A5A5A] mb-1 truncate max-w-[40px]">
                           ₦{(item.amount / 1000000).toFixed(1)}M
                         </span>
                         <div
-                          className="w-8 sm:w-10 bg-[#008751] hover:bg-[#006B40] transition-colors min-h-[2px]"
+                          className="w-6 sm:w-8 lg:w-10 bg-[#008751] hover:bg-[#006B40] transition-colors min-h-[2px]"
                           style={{ height: `${Math.max(barHeight, 4)}%` }}
                           title={`${new Date(item.date).toLocaleDateString('en-GB')} - ₦${item.amount.toLocaleString()}`}
                         />
-                        <span className="text-[8px] text-[#B0A89E] mt-1">
+                        <span className="text-[8px] text-[#B0A89E] mt-1 whitespace-nowrap">
                           {new Date(item.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
@@ -2523,7 +2502,7 @@ const AdminDashboard = () => {
                   })}
                 </div>
               ) : (
-                <div className="h-40 sm:h-48 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
+                <div className="h-40 lg:h-48 flex items-center justify-center text-[#5A5A5A] bg-[#F7F5F2] border border-[#E8E3DC]">
                   <div className="text-center">
                     <BarChart3 className="w-10 h-10 text-[#D8D4CD] mx-auto mb-2" />
                     <p className="text-sm">No revenue data available</p>
@@ -2534,9 +2513,9 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-1">
-            <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5 h-full">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div className="xl:col-span-1">
+            <div className="bg-white border border-[#E8E3DC] p-4 lg:p-5 h-full">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3 lg:mb-4">
                 <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Key Metrics</h3>
                 <ButtonWithTooltip
                   onClick={handleExportReport}
@@ -2545,7 +2524,7 @@ const AdminDashboard = () => {
                   className="text-xs"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Export
+                  <span className="hidden sm:inline">Export</span>
                 </ButtonWithTooltip>
               </div>
               <div className="space-y-3">
@@ -2571,8 +2550,8 @@ const AdminDashboard = () => {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <div className="bg-white border border-[#E8E3DC] p-4 lg:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 lg:mb-4">
             <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Recent Activity</h2>
             <ButtonWithTooltip
               onClick={() => navigate('/activity-log')}
@@ -2601,11 +2580,11 @@ const AdminDashboard = () => {
               };
               return (
                 <div key={activity.id} className="flex items-center p-3 bg-[#F7F5F2] hover:bg-[#F0EDE8] transition-colors border border-[#F0EDE8] gap-3">
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 ${colorMap[activity.color] || colorMap.green} flex items-center justify-center mr-2 sm:mr-3 flex-shrink-0`}>
-                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <div className={`w-7 h-7 lg:w-8 lg:h-8 ${colorMap[activity.color] || colorMap.green} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#1A1A1A]">{activity.message}</p>
+                    <p className="text-sm font-medium text-[#1A1A1A] truncate">{activity.message}</p>
                     <p className="text-xs text-[#5A5A5A] truncate">{activity.details}</p>
                   </div>
                 </div>
@@ -2622,7 +2601,7 @@ const AdminDashboard = () => {
   const renderPatientsContent = () => {
     return (
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 lg:mb-5">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Patient Management</h2>
           <div className="flex flex-wrap items-center gap-2">
             <ButtonWithTooltip
@@ -2654,18 +2633,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               <FileText className="w-3.5 h-3.5" />
               Template
             </ButtonWithTooltip>
-            {/* <ButtonWithTooltip
-              tooltip="Bulk upload patients from CSV"
-              variant="secondary"
-              onClick={() => document.getElementById('admin-bulk-upload-input')?.click()}
-            >
-              {bulkUploading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Upload className="w-5 h-5" />
-              )}
-              Bulk Upload
-            </ButtonWithTooltip> */}
             <input
               id="admin-bulk-upload-input"
               type="file"
@@ -2691,28 +2658,28 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
 
-        {/* Bulk Upload Progress/Result — using Nigerian green accent */}
+        {/* Bulk Upload Progress/Result */}
         {(bulkUploadProgress || bulkUploadResult) && (
           <div className={`mb-4 p-4 border ${bulkUploadResult?.status === 'failed' ? 'bg-[#F5EDEA] border-[#E8D6D0]' : 'bg-[#E8F5EF] border-[#C8E0D5]'}`}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 {bulkUploading ? (
-                  <Loader2 className="w-5 h-5 text-[#008751] animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#008751] animate-spin flex-shrink-0" />
                 ) : bulkUploadResult?.status === 'completed' ? (
-                  <CheckCircle className="w-5 h-5 text-[#2D7D46]" />
+                  <CheckCircle className="w-5 h-5 text-[#2D7D46] flex-shrink-0" />
                 ) : bulkUploadResult?.status === 'failed' ? (
-                  <AlertTriangle className="w-5 h-5 text-[#C8553D]" />
+                  <AlertTriangle className="w-5 h-5 text-[#C8553D] flex-shrink-0" />
                 ) : (
-                  <Loader2 className="w-5 h-5 text-[#008751] animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#008751] animate-spin flex-shrink-0" />
                 )}
-                <span className="text-xs sm:text-sm font-medium text-[#1A1A1A]">
+                <span className="text-xs sm:text-sm font-medium text-[#1A1A1A] break-words">
                   {bulkUploadProgress?.message || bulkUploadResult?.message}
                 </span>
               </div>
               {!bulkUploading && (
                 <button
                   onClick={resetBulkUpload}
-                  className="p-1 hover:bg-[#E8E3DC] rounded"
+                  className="p-1 hover:bg-[#E8E3DC] rounded flex-shrink-0"
                 >
                   <X className="w-4 h-4 text-[#5A5A5A]" />
                 </button>
@@ -2751,7 +2718,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-[#E8E3DC]">
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Name</th>
@@ -2772,13 +2739,13 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                           <div className="w-8 h-8 rounded-full bg-[#E8F5EF] flex items-center justify-center text-[#008751] font-display font-medium text-sm flex-shrink-0">
                             {patient.name && patient.name.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <span className="text-sm font-medium text-[#1A1A1A]">{patient.name || 'Unnamed Patient'}</span>
+                          <div className="min-w-0">
+                            <span className="text-sm font-medium text-[#1A1A1A] truncate block">{patient.name || 'Unnamed Patient'}</span>
                             {patient.age && (
-                              <span className="text-xs text-[#5A5A5A] ml-1">({patient.age}y)</span>
+                              <span className="text-xs text-[#5A5A5A]">({patient.age}y)</span>
                             )}
                             {(patient.mrn || patient.hospital_number) && (
-                              <div className="text-[10px] text-[#B0A89E]">
+                              <div className="text-[10px] text-[#B0A89E] truncate">
                                 {patient.mrn ? `MRN: ${patient.mrn}` : ''}
                                 {patient.mrn && patient.hospital_number ? ' • ' : ''}
                                 {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
@@ -2788,22 +2755,22 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                         </div>
                       </td>
                       <td className="py-3 hidden sm:table-cell">
-                        <div className="text-xs text-[#5A5A5A]">{patient.phone || 'No phone'}</div>
-                        <div className="text-[10px] text-[#B0A89E]">{patient.email || 'No email'}</div>
+                        <div className="text-xs text-[#5A5A5A] truncate max-w-[120px]">{patient.phone || 'No phone'}</div>
+                        <div className="text-[10px] text-[#B0A89E] truncate max-w-[120px]">{patient.email || 'No email'}</div>
                       </td>
                       <td className="py-3 hidden md:table-cell">
-                        <span className="text-xs text-[#5A5A5A]">{getPatientCondition(patient)}</span>
+                        <span className="text-xs text-[#5A5A5A] truncate block max-w-[150px]">{getPatientCondition(patient)}</span>
                         {patient.bloodType && (
                           <div className="text-[10px] text-[#B0A89E]">Blood: {patient.bloodType}</div>
                         )}
                       </td>
                       <td className="py-3">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${status.color}`}>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium border whitespace-nowrap ${status.color}`}>
                           {status.label}
                         </span>
                       </td>
                       <td className="py-3 hidden lg:table-cell">
-                        <span className="text-xs text-[#5A5A5A]">
+                        <span className="text-xs text-[#5A5A5A] whitespace-nowrap">
                           {formatDate(patient.last_visit || patient.lastVisit || patient.registration_date)}
                         </span>
                       </td>
@@ -2835,7 +2802,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                           <button
                             type="button"
                             onClick={() => handleCreateAdmissionForPatient(patient)}
-                            className="inline-flex items-center gap-1 border border-[#D0E3D8] bg-[#EAF3EE] px-2 py-1 text-[10px] font-medium text-[#2D7D46] hover:bg-[#D0E3D8]"
+                            className="inline-flex items-center gap-1 border border-[#D0E3D8] bg-[#EAF3EE] px-2 py-1 text-[10px] font-medium text-[#2D7D46] hover:bg-[#D0E3D8] whitespace-nowrap"
                           >
                             <Plus className="w-3 h-3" />
                             Admit
@@ -2856,7 +2823,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             </table>
             {/* Pagination */}
             <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
-              <div className="text-[10px] sm:text-xs text-[#5A5A5A]">
+              <div className="text-[10px] sm:text-xs text-[#5A5A5A] text-center sm:text-left">
                 Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
@@ -2936,7 +2903,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
     return (
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 lg:mb-5">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Billing Overview</h2>
           <div className="flex items-center gap-2 flex-wrap">
             <ButtonWithTooltip
@@ -2958,23 +2925,23 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 sm:p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4 mb-4 lg:mb-6">
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 lg:p-4">
             <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Total Revenue</p>
-            <p className="text-lg sm:text-xl font-display font-bold text-[#1A1A1A]">
+            <p className="text-lg lg:text-xl font-display font-bold text-[#1A1A1A] break-words">
               ₦{(billingSummary?.total_revenue || 0).toLocaleString()}
             </p>
           </div>
-          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 sm:p-4">
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 lg:p-4">
             <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Pending Bills</p>
-            <p className="text-lg sm:text-xl font-display font-bold text-[#C87D3D]">
+            <p className="text-lg lg:text-xl font-display font-bold text-[#C87D3D]">
               {billingSummary?.total_invoices || 0}
             </p>
             <p className="text-xs text-[#5A5A5A] mt-0.5">₦{(billingSummary?.total_pending || 0).toLocaleString()} due</p>
           </div>
-          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 sm:p-4">
+          <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 lg:p-4">
             <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Today's Transactions</p>
-            <p className="text-lg sm:text-xl font-display font-bold text-[#2D7D46]">
+            <p className="text-lg lg:text-xl font-display font-bold text-[#2D7D46] break-words">
               ₦{todayTransactions.toLocaleString()}
             </p>
             <p className="text-xs text-[#5A5A5A] mt-0.5">{billingSummary?.collection_rate || 0}% collection rate</p>
@@ -2993,7 +2960,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[560px]">
               <thead>
                 <tr className="border-b border-[#E8E3DC]">
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Patient</th>
@@ -3010,21 +2977,21 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   return (
                     <tr key={invoice.id} className="hover:bg-[#F7F5F2] transition-colors">
                       <td className="py-3">
-                        <div className="flex flex-col min-[480px]:flex-row 480px:items-center gap-1">
-                          <span className="text-sm font-medium text-[#1A1A1A]">{patientName}</span>
-                          <span className="text-xs text-[#5A5A5A] min-[480px]:ml-1 min-[480px]:hidden sm:table-cell">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-[#1A1A1A] truncate max-w-[120px] sm:max-w-[200px]">{patientName}</span>
+                          <span className="text-xs text-[#5A5A5A] truncate max-w-[120px] sm:max-w-[200px]">
                             {invoice.invoice_number || ''}
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 text-sm text-[#5A5A5A] hidden sm:table-cell">
+                      <td className="py-3 text-sm text-[#5A5A5A] hidden sm:table-cell whitespace-nowrap">
                         ₦{parseFloat(invoice.total_amount || invoice.amount || 0).toLocaleString()}
                       </td>
-                      <td className="py-3 text-sm text-[#5A5A5A] hidden md:table-cell">
+                      <td className="py-3 text-sm text-[#5A5A5A] hidden md:table-cell whitespace-nowrap">
                         {formatDate(invoice.invoice_date || invoice.created_at || '')}
                       </td>
                       <td className="py-3">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${status.color}`}>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium border whitespace-nowrap ${status.color}`}>
                           {status.label}
                         </span>
                       </td>
@@ -3050,7 +3017,7 @@ const renderDepartmentsContent = () => {
   return (
     <div>
       {/* Header with actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 lg:mb-5">
         <div>
           <h2 className="text-base font-display font-semibold text-[#1A1A1A]">Department Management</h2>
           <p className="text-xs text-[#5A5A5A] mt-0.5">Organize and manage your hospital departments</p>
@@ -3074,7 +3041,7 @@ const renderDepartmentsContent = () => {
       {/* Add Department Form - Professional Card Style */}
       {showAddDeptForm && (
         <div className="mb-6 bg-gradient-to-br from-white to-[#F7F5F2] border border-[#E8E3DC] rounded-lg shadow-sm overflow-hidden">
-          <div className="px-5 py-4 bg-[#008751] bg-opacity-5 border-b border-[#E8E3DC]">
+          <div className="px-4 sm:px-5 py-3 sm:py-4 bg-[#008751] bg-opacity-5 border-b border-[#E8E3DC]">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-[#008751] rounded">
                 <Plus className="w-3.5 h-3.5 text-white" />
@@ -3083,7 +3050,7 @@ const renderDepartmentsContent = () => {
             </div>
           </div>
           
-          <form onSubmit={handleAddDepartment} className="p-5">
+          <form onSubmit={handleAddDepartment} className="p-4 sm:p-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">
@@ -3164,7 +3131,7 @@ const renderDepartmentsContent = () => {
       {/* Edit Department Form - Professional Card Style */}
       {showEditDeptForm && (
         <div className="mb-6 bg-gradient-to-br from-white to-[#E8F5EF] border border-[#C8E0D5] rounded-lg shadow-sm overflow-hidden">
-          <div className="px-5 py-4 bg-[#008751] bg-opacity-10 border-b border-[#C8E0D5]">
+          <div className="px-4 sm:px-5 py-3 sm:py-4 bg-[#008751] bg-opacity-10 border-b border-[#C8E0D5]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-[#008751] rounded">
@@ -3186,7 +3153,7 @@ const renderDepartmentsContent = () => {
             </div>
           </div>
           
-          <form onSubmit={handleUpdateDepartment} className="p-5">
+          <form onSubmit={handleUpdateDepartment} className="p-4 sm:p-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-[#5A5A5A]">
@@ -3268,7 +3235,7 @@ const renderDepartmentsContent = () => {
 
       {/* Department Stats Bar */}
       {departments.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 lg:mb-5">
           <div className="bg-[#F7F5F2] border border-[#E8E3DC] rounded-lg p-3 text-center">
             <p className="text-xl font-display font-bold text-[#1A1A1A]">{departments.length}</p>
             <p className="text-[10px] text-[#5A5A5A] uppercase tracking-wider font-medium">Total</p>
@@ -3302,7 +3269,7 @@ const renderDepartmentsContent = () => {
           <p className="text-sm text-[#B0A89E] mt-1">Click "Add Department" to create your first one</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {departments.map((dept) => (
             <div 
               key={dept.id} 
@@ -3313,7 +3280,7 @@ const renderDepartmentsContent = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <div className={`p-1.5 rounded ${dept.is_clinical ? 'bg-[#008751]' : 'bg-[#5A5A5A]'}`}>
+                      <div className={`p-1.5 rounded flex-shrink-0 ${dept.is_clinical ? 'bg-[#008751]' : 'bg-[#5A5A5A]'}`}>
                         <Building2 className="w-3.5 h-3.5 text-white" />
                       </div>
                       <h4 className="font-display font-semibold text-[#1A1A1A] text-sm truncate">
@@ -3321,7 +3288,7 @@ const renderDepartmentsContent = () => {
                       </h4>
                     </div>
                     {dept.code && (
-                      <p className="text-[10px] text-[#B0A89E] mt-0.5 ml-7">Code: {dept.code}</p>
+                      <p className="text-[10px] text-[#B0A89E] mt-0.5 ml-7 truncate">Code: {dept.code}</p>
                     )}
                   </div>
                   <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 mt-0.5 ${
@@ -3337,20 +3304,20 @@ const renderDepartmentsContent = () => {
               {/* Department Body */}
               <div className="px-4 py-3 space-y-2">
                 {dept.description && (
-                  <p className="text-xs text-[#5A5A5A] leading-relaxed">{dept.description}</p>
+                  <p className="text-xs text-[#5A5A5A] leading-relaxed break-words">{dept.description}</p>
                 )}
                 
                 {dept.head && (
                   <div className="flex items-center gap-2 text-xs">
-                    <UserIcon className="w-3.5 h-3.5 text-[#B0A89E]" />
-                    <span className="text-[#5A5A5A]">Head: <span className="font-medium text-[#1A1A1A]">{dept.head}</span></span>
+                    <UserIcon className="w-3.5 h-3.5 text-[#B0A89E] flex-shrink-0" />
+                    <span className="text-[#5A5A5A] truncate">Head: <span className="font-medium text-[#1A1A1A]">{dept.head}</span></span>
                   </div>
                 )}
                 
                 {dept.location && (
                   <div className="flex items-center gap-2 text-xs">
-                    <MapPin className="w-3.5 h-3.5 text-[#B0A89E]" />
-                    <span className="text-[#5A5A5A]">{dept.location}</span>
+                    <MapPin className="w-3.5 h-3.5 text-[#B0A89E] flex-shrink-0" />
+                    <span className="text-[#5A5A5A] truncate">{dept.location}</span>
                   </div>
                 )}
               </div>
@@ -3388,9 +3355,9 @@ const renderDepartmentsContent = () => {
 
     return (
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 lg:mb-5">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Alert Management</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {alerts.filter(a => !a.read).length > 0 && (
               <ButtonWithTooltip
                 onClick={handleMarkAllAlertsRead}
@@ -3422,7 +3389,7 @@ const renderDepartmentsContent = () => {
                   <div className="flex items-center flex-1 min-w-0">
                     <AlertCircle className="w-5 h-5 text-[#C8553D] mr-3 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1A1A1A]">{alert.message}</p>
+                      <p className="text-sm font-medium text-[#1A1A1A] break-words">{alert.message}</p>
                       <p className="text-xs text-[#5A5A5A]">{alert.time}</p>
                     </div>
                   </div>
@@ -3466,7 +3433,7 @@ const renderDepartmentsContent = () => {
                       <Info className="w-5 h-5 text-[#008751] mr-3 flex-shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1A1A1A]">{alert.message}</p>
+                      <p className="text-sm font-medium text-[#1A1A1A] break-words">{alert.message}</p>
                       <p className="text-xs text-[#5A5A5A]">{alert.time}</p>
                     </div>
                   </div>
@@ -3507,11 +3474,11 @@ const renderDepartmentsContent = () => {
 
   // ==================== MAIN RENDER ====================
   return (
-    <div className="dashboard min-h-screen bg-[#F7F5F2] p-3 sm:p-4 md:p-8 font-sans">
+    <div className="dashboard min-h-screen bg-[#F7F5F2] p-3 sm:p-4 lg:p-6 xl:p-8 max-w-[1600px] mx-auto font-sans">
       {/* Header */}
-      <div className="mb-4 sm:mb-8">
+      <div className="mb-4 sm:mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden flex-shrink-0">
               {dashboardProfilePicture ? (
                 <img
@@ -3530,16 +3497,16 @@ const renderDepartmentsContent = () => {
                 <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-[#5A5A5A]" />
               </div>
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight truncate">
                 Welcome back, {displayUserName}
               </h1>
-              <p className="text-xs sm:text-sm text-[#5A5A5A]">
+              <p className="text-xs sm:text-sm text-[#5A5A5A] truncate">
                 {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap flex-shrink-0">
             <ButtonWithTooltip
               onClick={handleRefresh}
               tooltip="Refresh dashboard"
@@ -3572,8 +3539,8 @@ const renderDepartmentsContent = () => {
       </div>
 
       {/* Tabs with Nigerian green active state */}
-      <div className="border-b border-[#E8E3DC] mb-3 sm:mb-8 overflow-x-auto">
-        <nav className="flex gap-3 sm:gap-6 min-w-max" aria-label="Tabs">
+      <div className="border-b border-[#E8E3DC] mb-3 sm:mb-6 lg:mb-8 overflow-x-auto">
+        <nav className="flex gap-2 sm:gap-4 lg:gap-6 min-w-max" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -3592,7 +3559,7 @@ const renderDepartmentsContent = () => {
                   <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {tab.label}
                   {tab.id === 'alerts' && alerts.filter(a => !a.read).length > 0 && (
-                    <span className="w-4 h-4 sm:w-5 sm:h-5 bg-[#C8553D] text-white text-[10px] flex items-center justify-center">
+                    <span className="w-4 h-4 sm:w-5 sm:h-5 bg-[#C8553D] text-white text-[10px] flex items-center justify-center rounded-full">
                       {alerts.filter(a => !a.read).length}
                     </span>
                   )}
@@ -3604,7 +3571,7 @@ const renderDepartmentsContent = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white border border-[#E8E3DC] p-3 sm:p-5 md:p-8">
+      <div className="bg-white border border-[#E8E3DC] p-3 sm:p-4 lg:p-6 xl:p-8">
         {renderTabContent()}
       </div>
 

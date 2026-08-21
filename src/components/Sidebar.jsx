@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
 import { logout } from '../utils/api';
-import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, LogOut, BarChart3, Share2 } from 'lucide-react';
+import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, CreditCard, LogOut, BarChart3, Share2 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
@@ -24,7 +24,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Shield, label: 'Compliance', path: '/ndpr-compliance' },
       { icon: BarChart3, label: 'Reports', path: '/financial-analytics' },
       { icon: Share2, label: 'External Integrations', path: '/external-integrations' },
-      { icon: Settings, label: 'Settings', path: '/settings' }
+      { icon: Settings, label: 'Settings', path: '/settings' },
+      { icon: CreditCard, label: 'Subscription', path: '/subscription' }
     ],
     doctor: [
       { icon: Home, label: 'Dashboard', path: '/dashboard' },
@@ -66,6 +67,9 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
   const currentMenu = menuItems[userRole] || menuItems.admin;
   const filteredMenu = currentMenu.filter(item => {
     if (item.path === '/settings' && userRole === 'admin' && !isRootAdmin) {
+      return false;
+    }
+    if (item.path === '/subscription' && userRole === 'admin' && !isRootAdmin) {
       return false;
     }
     if (item.path === '/external-integrations' && !['admin', 'super_admin', 'system_admin'].includes(userRole)) {

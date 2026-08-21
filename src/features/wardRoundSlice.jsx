@@ -15,6 +15,24 @@ const ROUND_STATUS = {
   CANCELLED: 'Cancelled'
 };
 
+const normalizeRound = (round) => ({
+  ...round,
+  type: ({
+    'Daily Ward Round': 'DAILY',
+    'Teaching Round': 'TEACHING',
+    'Grand Round': 'GRAND',
+    'Discharge Round': 'DISCHARGE',
+  }[round.type || round.roundType] || round.type || round.roundType || '').toUpperCase(),
+  status: String(round.status || '').toUpperCase().replace(/ /g, '_'),
+  patientsList: round.patientsList || [],
+  teamMembers: round.teamMembers || [],
+});
+
+const findRound = (rounds, payload) => rounds.find((round) =>
+  String(round.id) === String(payload.id) ||
+  String(round.roundId) === String(payload.roundId)
+);
+
 const initialState = {
   wardRounds: [],
   handoverNotes: [],
@@ -31,7 +49,7 @@ export const fetchWardRounds = createAsyncThunk(
     try {
       const data = await wardRoundApi.getRounds();
       const list = Array.isArray(data) ? data : (data.results || []);
-      return list;
+      return list.map(normalizeRound);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to load ward rounds.');
     }
@@ -42,8 +60,13 @@ export const scheduleWardRound = createAsyncThunk(
   'wardRound/scheduleWardRound',
   async (payload, { rejectWithValue }) => {
     try {
-      const data = await wardRoundApi.createRound(payload);
-      return data;
+      const data = await wardRoundApi.createRound({
+        ...payload,
+        roundType: payload.roundType === 'DAILY' ? ROUND_TYPE.DAILY : payload.roundType === 'TEACHING' ? ROUND_TYPE.TEACHING : payload.roundType,
+        status: payload.status === 'SCHEDULED' ? ROUND_STATUS.SCHEDULED : payload.status,
+        date: payload.date && payload.time ? `${payload.date}T${payload.time}:00` : payload.date,
+      });
+      return normalizeRound(data);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to schedule ward round.');
     }
@@ -55,7 +78,7 @@ export const startWardRound = createAsyncThunk(
   async (roundId, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.startRound(roundId);
-      return data;
+      return normalizeRound(data);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to start ward round.');
     }
@@ -66,8 +89,8 @@ export const completeWardRound = createAsyncThunk(
   'wardRound/completeWardRound',
   async ({ roundId, notes, actualDuration }, { rejectWithValue }) => {
     try {
-      const data = await wardRoundApi.completeRound(roundId, { notes, actualDuration });
-      return data;
+      const data = await wardRoundApi.completeRound(roundId, { notes, actual_duration: actualDuration });
+      return normalizeRound(data);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to complete ward round.');
     }
@@ -79,7 +102,7 @@ export const cancelWardRound = createAsyncThunk(
   async ({ roundId, reason }, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.cancelRound(roundId, { reason });
-      return data;
+      return normalizeRound(data);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to cancel ward round.');
     }
@@ -91,7 +114,7 @@ export const addPatientToRound = createAsyncThunk(
   async ({ roundId, patientId }, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.addPatientToRound(roundId, patientId);
-      return data;
+      return { ...normalizeRound(data), patientId };
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to add patient to round.');
     }
@@ -103,7 +126,7 @@ export const removePatientFromRound = createAsyncThunk(
   async ({ roundId, patientId }, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.removePatientFromRound(roundId, patientId);
-      return data;
+      return { ...normalizeRound(data), patientId };
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to remove patient from round.');
     }
@@ -115,7 +138,7 @@ export const addTeamMemberToRound = createAsyncThunk(
   async ({ roundId, member }, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.addTeamMemberToRound(roundId, member);
-      return data;
+      return { ...normalizeRound(data), member };
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to add team member.');
     }
@@ -127,7 +150,7 @@ export const recordRoundDocumentation = createAsyncThunk(
   async ({ roundId, patientId, documentation }, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.recordRoundDocumentation(roundId, patientId, documentation);
-      return data;
+      return { ...normalizeRound(data), patientId, documentation };
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to record documentation.');
     }
@@ -229,9 +252,9 @@ const wardRoundSlice = createSlice({
       .addCase(startWardRound.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(startWardRound.fulfilled, (state, action) => {
         state.loading = false;
-        const round = state.wardRounds.find(r => r.roundId === (action.payload.roundId || action.payload.id));
+        const round = findRound(state.wardRounds, action.payload);
         if (round) {
-          round.status = ROUND_STATUS.IN_PROGRESS;
+          round.status = 'IN_PROGRESS';
           round.startTime = action.payload.startTime || new Date().toISOString();
         }
       })
@@ -240,9 +263,9 @@ const wardRoundSlice = createSlice({
       .addCase(completeWardRound.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(completeWardRound.fulfilled, (state, action) => {
         state.loading = false;
-        const round = state.wardRounds.find(r => r.roundId === (action.payload.roundId || action.payload.id));
+        const round = findRound(state.wardRounds, action.payload);
         if (round) {
-          round.status = ROUND_STATUS.COMPLETED;
+          round.status = 'COMPLETED';
           round.completedTime = action.payload.completedTime || new Date().toISOString();
           if (action.payload.notes) round.notes = action.payload.notes;
           if (action.payload.actualDuration) round.actualDuration = action.payload.actualDuration;
@@ -253,9 +276,9 @@ const wardRoundSlice = createSlice({
       .addCase(cancelWardRound.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(cancelWardRound.fulfilled, (state, action) => {
         state.loading = false;
-        const round = state.wardRounds.find(r => r.roundId === (action.payload.roundId || action.payload.id));
+        const round = findRound(state.wardRounds, action.payload);
         if (round) {
-          round.status = ROUND_STATUS.CANCELLED;
+          round.status = 'CANCELLED';
           round.cancellationReason = action.payload.reason || action.payload.cancellationReason;
         }
       })
@@ -264,7 +287,7 @@ const wardRoundSlice = createSlice({
       .addCase(addPatientToRound.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(addPatientToRound.fulfilled, (state, action) => {
         state.loading = false;
-        const round = state.wardRounds.find(r => r.roundId === (action.payload.roundId || action.payload.id));
+        const round = findRound(state.wardRounds, action.payload);
         if (round && !round.patientsList.includes(action.payload.patientId)) {
           round.patientsList.push(action.payload.patientId);
         }
@@ -274,7 +297,7 @@ const wardRoundSlice = createSlice({
       .addCase(removePatientFromRound.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(removePatientFromRound.fulfilled, (state, action) => {
         state.loading = false;
-        const round = state.wardRounds.find(r => r.roundId === (action.payload.roundId || action.payload.id));
+        const round = findRound(state.wardRounds, action.payload);
         if (round) {
           round.patientsList = round.patientsList.filter(id => id !== action.payload.patientId);
         }
@@ -284,7 +307,7 @@ const wardRoundSlice = createSlice({
       .addCase(addTeamMemberToRound.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(addTeamMemberToRound.fulfilled, (state, action) => {
         state.loading = false;
-        const round = state.wardRounds.find(r => r.roundId === (action.payload.roundId || action.payload.id));
+        const round = findRound(state.wardRounds, action.payload);
         if (round && !round.teamMembers.some(m => m.name === action.payload.member?.name)) {
           round.teamMembers.push(action.payload.member);
         }
@@ -294,7 +317,7 @@ const wardRoundSlice = createSlice({
       .addCase(recordRoundDocumentation.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(recordRoundDocumentation.fulfilled, (state, action) => {
         state.loading = false;
-        const round = state.wardRounds.find(r => r.roundId === (action.payload.roundId || action.payload.id));
+        const round = findRound(state.wardRounds, action.payload);
         if (round) {
           if (!round.roundDocumentation) round.roundDocumentation = {};
           round.roundDocumentation[action.payload.patientId || action.payload.patient_id] = action.payload.documentation;

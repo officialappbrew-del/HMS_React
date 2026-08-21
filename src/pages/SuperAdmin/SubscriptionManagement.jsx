@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   CreditCard, Plus, Edit2, Trash2, X,
   Users, UserPlus, HardDrive, Mail, MessageSquare,
-  DollarSign, TrendingUp, Activity, CheckCircle
+  DollarSign, TrendingUp, Activity, CheckCircle,
+  AlertTriangle, Eye
 } from 'lucide-react';
 import { superAdminApi } from '../../utils/superAdminApi';
 
@@ -16,6 +17,16 @@ const SubscriptionManagement = () => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [actionError, setActionError] = useState('');
+
+  const [subscriptionDetails, setSubscriptionDetails] = useState(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState('');
+  const [upgradeSuccess, setUpgradeSuccess] = useState('');
+
+  const [tenants, setTenants] = useState([]);
+  const [selectedTenantId, setSelectedTenantId] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -142,6 +153,40 @@ const SubscriptionManagement = () => {
     }
   };
 
+  const openSubscriptionDetails = async (tenant) => {
+    setSelectedTenant(tenant);
+    setShowSubscriptionModal(true);
+    setUpgradeError('');
+    setUpgradeSuccess('');
+    try {
+      const details = await superAdminApi.getTenantSubscription(tenant.public_id);
+      setSubscriptionDetails(details);
+    } catch (err) {
+      setUpgradeError(err.message || 'Failed to load subscription details');
+    }
+  };
+
+  const handleUpgradeSubscription = async (e) => {
+    e.preventDefault();
+    if (!selectedTenant) return;
+    setUpgrading(true);
+    setUpgradeError('');
+    setUpgradeSuccess('');
+    try {
+      const newPlanId = document.getElementById('upgrade-plan-select').value;
+      const checkout = await superAdminApi.checkoutSubscription({
+        tenant_id: selectedTenant.public_id,
+        subscription_plan: newPlanId,
+        billing_period: 'monthly',
+      });
+      window.location.assign(checkout.authorization_url);
+    } catch (err) {
+      setUpgradeError(err.message || 'Failed to update subscription');
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -180,6 +225,27 @@ const SubscriptionManagement = () => {
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
+  const loadTenants = async () => {
+    try {
+      const data = await superAdminApi.getTenants({ page_size: 100 });
+      setTenants(parseListResponse(data));
+    } catch {
+      // silently fail
+    }
+  };
+
+  useEffect(() => {
+    loadTenants();
+  }, []);
+
+  const handleViewTenantSubscription = () => {
+    if (!selectedTenantId) return;
+    const tenant = tenants.find(t => String(t.public_id) === String(selectedTenantId));
+    if (tenant) {
+      openSubscriptionDetails(tenant);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -209,13 +275,35 @@ const SubscriptionManagement = () => {
           <h2 className="text-lg font-display font-semibold text-[#1A1A1A]">Subscription Management</h2>
           <p className="text-sm text-[#5A5A5A]">Manage plans, limits, and third-party service costs</p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#008751] px-4 py-2 text-sm font-medium text-white hover:bg-[#006B40] transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Plan
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedTenantId}
+            onChange={(e) => setSelectedTenantId(e.target.value)}
+            className="px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+          >
+            <option value="">Select tenant...</option>
+            {tenants.map((tenant) => (
+              <option key={tenant.public_id} value={tenant.public_id}>
+                {tenant.name} ({tenant.subscription_status})
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleViewTenantSubscription}
+            disabled={!selectedTenantId}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#C79A3D] px-4 py-2 text-sm font-medium text-white hover:bg-[#B8860B] transition-colors disabled:opacity-50"
+          >
+            <Eye className="w-4 h-4" />
+            View
+          </button>
+          <button
+            onClick={handleCreate}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#008751] px-4 py-2 text-sm font-medium text-white hover:bg-[#006B40] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Plan
+          </button>
+        </div>
       </div>
 
       {analytics && (
@@ -295,12 +383,12 @@ const SubscriptionManagement = () => {
                         <div className="flex items-center gap-1 mt-1">
                           {plan.is_default && (
                             <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium bg-[#C79A3D]/10 text-[#B8860B] border border-[#C79A3D]/30 rounded">Default</span>
-                          )}
+                              )}
                           <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium border rounded ${plan.is_active ? 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' : 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]'}`}>
                             {plan.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </div>
-                      </div>
+                        </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-[#5A5A5A]">
                       <div>₦{plan.price_monthly}/mo</div>
@@ -476,7 +564,7 @@ const SubscriptionManagement = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Trial Period (Days)</label>
                     <input type="number" value={formData.trial_period_days} onChange={(e) => updateForm('trial_period_days', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded" />
@@ -508,6 +596,107 @@ const SubscriptionManagement = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {showSubscriptionModal && selectedTenant && subscriptionDetails && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-[#1A1A1A] bg-opacity-60 transition-opacity" onClick={() => setShowSubscriptionModal(false)} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-[#F7F5F2] w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-lg">
+              <div className="sticky top-0 bg-[#F7F5F2] border-b border-[#E8E3DC] px-6 py-4 flex items-center justify-between z-10">
+                <div>
+                  <h3 className="text-lg font-display font-semibold text-[#1A1A1A]">Subscription Details</h3>
+                  <p className="text-sm text-[#5A5A5A]">{selectedTenant.name}</p>
+                </div>
+                <button onClick={() => setShowSubscriptionModal(false)} className="p-1.5 rounded hover:bg-[#E8E3DC] transition-colors">
+                  <X className="w-5 h-5 text-[#5A5A5A]" />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                {upgradeError && (
+                  <div className="rounded-lg border border-[#E8D6D0] bg-[#F5EDEA] p-3 text-sm text-[#C8553D]">{upgradeError}</div>
+                )}
+                {upgradeSuccess && (
+                  <div className="rounded-lg border border-[#D0E3D8] bg-[#EAF3EE] p-3 text-sm text-[#2D7D46]">{upgradeSuccess}</div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white border border-[#E8E3DC] p-4 rounded">
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</p>
+                    <span className={`inline-flex mt-1 px-2 py-0.5 text-xs font-semibold border rounded-lg ${subscriptionDetails.tenant.subscription_status === 'active' ? 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' : 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]'}`}>
+                      {subscriptionDetails.tenant.subscription_status || 'unknown'}
+                    </span>
+                  </div>
+                  <div className="bg-white border border-[#E8E3DC] p-4 rounded">
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Days Remaining</p>
+                    <p className="mt-1 text-sm font-bold text-[#1A1A1A]">
+                      {subscriptionDetails.tenant.days_remaining !== null ? `${subscriptionDetails.tenant.days_remaining} days` : '—'}
+                    </p>
+                  </div>
+                  <div className="bg-white border border-[#E8E3DC] p-4 rounded">
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Start Date</p>
+                    <p className="mt-1 text-sm font-bold text-[#1A1A1A]">
+                      {subscriptionDetails.tenant.subscription_start_date || '—'}
+                    </p>
+                  </div>
+                  <div className="bg-white border border-[#E8E3DC] p-4 rounded">
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">End Date</p>
+                    <p className="mt-1 text-sm font-bold text-[#1A1A1A]">
+                      {subscriptionDetails.tenant.subscription_end_date || '—'}
+                    </p>
+                  </div>
+                </div>
+
+                {subscriptionDetails.tenant.is_subscription_expiring_soon && (
+                  <div className="rounded-lg border border-[#E8D6D0] bg-[#F5EDEA] p-4 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-[#C87D3D] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-[#C87D3D]">Subscription Expiring Soon</p>
+                      <p className="text-xs text-[#5A5A5A] mt-1">This tenant's subscription expires in {subscriptionDetails.tenant.days_remaining} days. Please renew or upgrade to avoid service interruption.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white border border-[#E8E3DC] rounded p-4">
+                  <h4 className="text-sm font-semibold text-[#1A1A1A] mb-3">Upgrade / Downgrade Plan</h4>
+                  <form onSubmit={handleUpgradeSubscription} className="flex flex-col sm:flex-row gap-3">
+                    <select id="upgrade-plan-select" className="flex-1 px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded">
+                      {subscriptionDetails.available_plans.map((plan) => (
+                        <option key={plan.id} value={plan.id} selected={plan.id === subscriptionDetails.tenant.subscription_plan}>
+                          {plan.name} - ₦{plan.price_monthly}/mo
+                        </option>
+                      ))}
+                    </select>
+                    <button type="submit" disabled={upgrading} className="px-4 py-2 text-sm font-medium bg-[#008751] text-white rounded hover:bg-[#006B40] transition-colors disabled:opacity-50">
+                      {upgrading ? 'Updating...' : 'Update Plan'}
+                    </button>
+                  </form>
+                  <p className="text-[10px] text-[#5A5A5A] mt-2">Remaining days will be prorated and added to the new plan.</p>
+                </div>
+
+                <div className="bg-white border border-[#E8E3DC] rounded p-4">
+                  <h4 className="text-sm font-semibold text-[#1A1A1A] mb-3">Expiry Notifications</h4>
+                  {subscriptionDetails.notifications.length === 0 ? (
+                    <p className="text-xs text-[#5A5A5A]">No notifications sent yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {subscriptionDetails.notifications.map((notification) => (
+                        <div key={notification.id} className="flex items-center justify-between p-2 bg-[#F7F5F2] rounded">
+                          <div>
+                            <p className="text-xs font-medium text-[#1A1A1A]">{notification.notification_type_display}</p>
+                            <p className="text-[10px] text-[#5A5A5A]">{new Date(notification.sent_at).toLocaleString()}</p>
+                          </div>
+                          <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium border rounded ${notification.is_sent ? 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' : 'bg-[#F5EDEA] text-[#C8553D] border-[#E8D6D0]'}`}>
+                            {notification.is_sent ? 'Sent' : 'Failed'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -56,6 +56,8 @@ const AdminLogin = () => {
         throw new Error('Authentication token was not returned by the server.');
       }
 
+      const refreshToken = authData.refresh_token || response?.refresh_token || response?.refreshToken || authData.refreshToken;
+
       if (response?.requires_2fa || authData.requires_2fa) {
         setUserId(user.id || response?.user_id);
         setRequires2FA(true);
@@ -69,6 +71,9 @@ const AdminLogin = () => {
       }
 
       completeLogin(user, token);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
     } catch (error) {
       setMessage(error.message || 'Login failed. Please try again.');
       setMessageType('error');

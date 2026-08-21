@@ -189,6 +189,33 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
 
 // ==================== STATS CARD ====================
 const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValue, tooltip, onClick, className = '' }) => {
+  // Helper to format large numbers for display
+  const formatDisplayValue = (val) => {
+    // If value is already a string with currency symbol, extract the number
+    let num = val;
+    if (typeof val === 'string') {
+      // Remove currency symbols, commas, and convert to number
+      const cleaned = val.replace(/[₦,]/g, '');
+      num = parseFloat(cleaned);
+      if (isNaN(num)) return val; // Return original if not a number
+    }
+    
+    // If it's not a number, return as is
+    if (typeof num !== 'number' || isNaN(num)) return val;
+    
+    // Format based on size
+    if (num >= 1000000000) {
+      return `₦${(num / 1000000000).toFixed(1)}B`;
+    }
+    if (num >= 1000000) {
+      return `₦${(num / 1000000).toFixed(1)}M`;
+    }
+    if (num >= 1000) {
+      return `₦${(num / 1000).toFixed(1)}K`;
+    }
+    return `₦${num.toLocaleString()}`;
+  };
+
   const trendColors = {
     up: 'text-[#2D7D46]',
     down: 'text-[#C8553D]',
@@ -214,15 +241,17 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
-            <p className="mt-1 text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">{value}</p>
+            <p className="mt-1 text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight truncate">
+              {formatDisplayValue(value)}
+            </p>
             {subValue && (
-              <p className="text-xs text-[#5A5A5A] mt-0.5">{subValue}</p>
+              <p className="text-xs text-[#5A5A5A] mt-0.5 truncate">{subValue}</p>
             )}
             {trend && (
               <div className={`flex items-center mt-1 text-xs ${trendColors[trend]} font-medium`}>
-                {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5" />}
-                {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5" />}
-                <span>{trendValue}</span>
+                {trend === 'up' && <ArrowUp className="w-3 h-3 mr-0.5 flex-shrink-0" />}
+                {trend === 'down' && <ArrowDown className="w-3 h-3 mr-0.5 flex-shrink-0" />}
+                <span className="truncate">{trendValue}</span>
               </div>
             )}
           </div>
@@ -279,7 +308,7 @@ const Inventory = () => {
     batchNumber: '',
     quantity: '',
     reorderLevel: '',
-    unit: 'tablets',
+    unit: 'tablet',
     supplier: '',
     expiryDate: '',
     unitCost: ''
@@ -371,7 +400,7 @@ const Inventory = () => {
         batchNumber: '',
         quantity: '',
         reorderLevel: '',
-        unit: 'tablets',
+        unit: 'tablet',
         supplier: '',
         expiryDate: '',
         unitCost: ''
@@ -460,7 +489,7 @@ const Inventory = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
-                Inventory Management
+                Inventory Management 
               </h1>
               <p className="text-xs sm:text-sm text-[#5A5A5A]">
                 Manage pharmaceutical stock and inventory
@@ -490,7 +519,7 @@ const Inventory = () => {
                   batchNumber: '',
                   quantity: '',
                   reorderLevel: '',
-                  unit: 'tablets',
+                  unit: 'tablet',
                   supplier: '',
                   expiryDate: '',
                   unitCost: ''
@@ -538,7 +567,7 @@ const Inventory = () => {
         />
         <StatsCard
           title="Total Value"
-          value={`₦${totalValue >= 1000000 ? (totalValue / 1000000).toFixed(1) + 'M' : totalValue.toLocaleString()}`}
+          value={totalValue}
           subValue={`₦${totalValue.toLocaleString()} total`}
           icon={DollarSign}
           color="gold"
@@ -627,7 +656,7 @@ const Inventory = () => {
                   batchNumber: '',
                   quantity: '',
                   reorderLevel: '',
-                  unit: 'tablets',
+                  unit: 'tablet',
                   supplier: '',
                   expiryDate: '',
                   unitCost: ''
@@ -704,13 +733,15 @@ const Inventory = () => {
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               >
-                <option value="tablets">Tablets</option>
-                <option value="capsules">Capsules</option>
-                <option value="bottles">Bottles</option>
-                <option value="boxes">Boxes</option>
-                <option value="vials">Vials</option>
-                <option value="syringes">Syringes</option>
-                <option value="ampoules">Ampoules</option>
+                <option value="tablet">Tablets</option>
+                <option value="capsule">Capsules</option>
+                <option value="syrup">Syrup</option>
+                <option value="injection">Injection</option>
+                <option value="ointment">Ointment</option>
+                <option value="cream">Cream</option>
+                <option value="drops">Drops</option>
+                <option value="inhaler">Inhaler</option>
+                <option value="suppository">Suppository</option>
               </select>
             </div>
             <div>
@@ -779,7 +810,7 @@ const Inventory = () => {
                     batchNumber: '',
                     quantity: '',
                     reorderLevel: '',
-                    unit: 'tablets',
+                    unit: 'tablet',
                     supplier: '',
                     expiryDate: '',
                     unitCost: ''

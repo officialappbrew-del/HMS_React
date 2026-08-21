@@ -46,6 +46,7 @@ const initialState = {
   hpi: {
     chiefComplaint: '',
     duration: '',
+    timing: '',
     onset: '',
     location: '',
     severity: '',

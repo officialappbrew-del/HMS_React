@@ -1,39 +1,118 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense, useCallback, useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import TourModal from '../components/TourModal';
 
-/**
- * DESIGN NOTES (read before editing)
- * ------------------------------------------------------------
- * Palette (defined once, used everywhere — do not introduce new colors ad hoc):
- *   --ink       #0A2540   deep clinical navy — headings, footer, nav-on-scroll
- *   --paper     #F8F7F3   warm, quiet background — not stark white
- *   --forest    #0B6E4F   primary brand action color (Nigeria-rooted, clinical trust)
- *   --forest-d  #084A36   forest hover/pressed
- *   --coral     #E4572E   "vitals" accent — used ONLY for the pulse motif + rare emphasis
- *   --gold      #B98A32   enterprise/compliance accent — used sparingly
- *   --slate     #5B6472   body copy
- *   --line      #E2DFD6   hairline borders
- *
- * Type system:
- *   Display  — Space Grotesk (headlines, nav wordmark, big numbers)
- *   Body     — IBM Plex Sans (paragraphs, nav links, UI copy)
- *   Data/Mono— IBM Plex Mono (eyebrows, stat readouts, module tags — reads like a monitor)
- *
- * MATURITY PASS (v3 → v4)
- *   The brief asked for something more mature. Enterprise clinical software is
- *   trusted, not entertained — so this pass removes decorative motion that
- *   competes for attention (floating blur orbs, pulsing button glow, bouncing
- *   icons, sweeping shine, scattered particle fields, scale-pop hovers on
- *   every element) and keeps exactly one recurring signature: the vitals
- *   waveform. It draws in once, and a slow, quiet opacity sweep marks "LIVE"
- *   states — the same restraint you'd want from an actual monitor on a ward.
- *   Everything else moves with intent: fade-up on scroll, a hairline border
- *   or shadow shift on hover, nothing that asks to be noticed twice.
- * ------------------------------------------------------------
- */
+// Lazy load TourModal - only loads when user clicks "Watch the tour"
+const TourModal = lazy(() => import('../components/TourModal'));
 
+// ============================================================
+// OPTIMIZED ICON COMPONENT - Dynamically imports only needed icons
+// ============================================================
+const Icon = ({ name, className = '', ...props }) => {
+  const [IconComp, setIconComp] = useState(null);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    const loadIcon = async () => {
+      try {
+        const mod = await import('lucide-react');
+        const Comp = mod[name];
+        if (Comp && mounted.current) {
+          setIconComp(() => Comp);
+        }
+      } catch (e) {
+        // Silent fail - placeholder will show
+      }
+    };
+    loadIcon();
+
+    return () => {
+      mounted.current = false;
+    };
+  }, [name]);
+
+  if (!IconComp) {
+    return <span className={`inline-block w-5 h-5 bg-[#E2DFD6] rounded-sm ${className}`} />;
+  }
+
+  return <IconComp className={className} {...props} />;
+};
+
+// ============================================================
+// LAZY IMAGE COMPONENT - Loads only when visible
+// ============================================================
+const LazyImage = ({ src, alt, className = '', priority = false, aspectRatio = 'auto' }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [imgSrc, setImgSrc] = useState(priority ? src : undefined);
+  const imgRef = useRef(null);
+
+  useEffect(() => {
+    if (priority) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setImgSrc(src);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [src, priority]);
+
+  return (
+    <div className="relative overflow-hidden" style={{ aspectRatio }}>
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-[#E2DFD6] animate-pulse" />
+      )}
+      <img
+        ref={imgRef}
+        src={imgSrc || ''}
+        alt={alt}
+        className={`${className} transition-opacity duration-500 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        onLoad={() => setIsLoaded(true)}
+        onError={(e) => {
+          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23E2DFD6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" font-family="sans-serif" font-size="16" fill="%235B6472" text-anchor="middle" dy=".3em"%3ENo image%3C/text%3E%3C/svg%3E';
+          setIsLoaded(true);
+        }}
+      />
+    </div>
+  );
+};
+
+// ============================================================
+// MEMOIZED VITALS COMPONENT - Prevents unnecessary re-renders
+// ============================================================
+const Vitals = React.memo(({ className = '', stroke = '#E4572E', strokeWidth = 2 }) => (
+  <svg viewBox="0 0 400 40" preserveAspectRatio="none" className={className} fill="none">
+    <path
+      d="M0 20 H130 L145 20 L153 4 L163 36 L172 12 L180 20 H400"
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      pathLength="1"
+      className="vitals-path"
+    />
+  </svg>
+));
+
+Vitals.displayName = 'Vitals';
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 const SmartCareHMSRedesigned = () => {
+  // State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [hoveredModule, setHoveredModule] = useState(null);
@@ -41,47 +120,39 @@ const SmartCareHMSRedesigned = () => {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [countedStats, setCountedStats] = useState({});
   const [hoveredBenefit, setHoveredBenefit] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
-  const [icons, setIcons] = useState(null);
   const statsRef = useRef(null);
-
   const currentYear = new Date().getFullYear();
 
+  // Set mounted state after initial render
   useEffect(() => {
-    let cancelled = false;
-    import('lucide-react')
-      .then((mod) => {
-        if (!cancelled) setIcons(mod);
-      })
-      .catch(() => {
-        // Silent fail — placeholders below cover this
-      });
+    setMounted(true);
+  }, []);
 
+  // ============================================================
+  // SCROLL HANDLER - Debounced for performance
+  // ============================================================
+  useEffect(() => {
+    let timeoutId = null;
+    const handleScroll = () => {
+      if (timeoutId) return;
+      timeoutId = setTimeout(() => {
+        setScrolled(window.scrollY > 40);
+        timeoutId = null;
+      }, 10);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
-      cancelled = true;
+      window.removeEventListener('scroll', handleScroll);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 
-  const IconProxy = new Proxy({}, {
-    get: (_, name) => (props) => {
-      if (!icons) return <span className="inline-block w-5 h-5 bg-[#E2DFD6] rounded-sm" />;
-      const Comp = icons[name];
-      return Comp ? <Comp {...props} /> : <span className="inline-block w-5 h-5 bg-[#E2DFD6] rounded-sm" />;
-    }
-  });
-
-  const {
-    ShieldCheck, Stethoscope, Users, Pill, Microscope, Hospital, CreditCard,
-    ArrowRight, Brain, BarChart3, Check, Star, Menu, X, PlayCircle,
-    Building2, Heart, LogIn, Activity, Zap, Lock, Layers, Rocket,
-  } = IconProxy;
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
+  // ============================================================
+  // SECTION OBSERVER - Reveals sections as they scroll into view
+  // ============================================================
   useEffect(() => {
     const sections = document.querySelectorAll('[data-section]');
     if (!sections.length) return;
@@ -102,8 +173,11 @@ const SmartCareHMSRedesigned = () => {
     return () => observer.disconnect();
   }, []);
 
+  // ============================================================
+  // STAT COUNTER - Uses requestAnimationFrame for smooth animation
+  // ============================================================
   useEffect(() => {
-    if (!statsRef.current) return;
+    if (!statsRef.current || !mounted) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -116,22 +190,40 @@ const SmartCareHMSRedesigned = () => {
           { key: 'uptime', value: 99.99 },
         ];
 
-        statList.forEach((stat) => {
-          let start = 0;
-          const step = stat.key === 'uptime' ? 0.1 : Math.max(1, Math.floor(stat.value / 45));
-          const timer = window.setInterval(() => {
-            start += step;
-            if (start >= stat.value) {
-              start = stat.value;
-              window.clearInterval(timer);
-            }
+        let startTime = null;
+        const duration = 1500;
+
+        const animateStats = (timestamp) => {
+          if (!startTime) startTime = timestamp;
+          const progress = Math.min((timestamp - startTime) / duration, 1);
+          
+          // Ease out cubic for smoother deceleration
+          const eased = 1 - Math.pow(1 - progress, 3);
+
+          statList.forEach((stat) => {
+            const current = stat.value * eased;
             setCountedStats(prev => ({
               ...prev,
-              [stat.key]: stat.key === 'uptime' ? Number(start.toFixed(2)) : Math.floor(start)
+              [stat.key]: stat.key === 'uptime' 
+                ? Number(current.toFixed(2)) 
+                : Math.floor(current)
             }));
-          }, 20);
-        });
+          });
 
+          if (progress < 1) {
+            requestAnimationFrame(animateStats);
+          } else {
+            // Set final values
+            statList.forEach((stat) => {
+              setCountedStats(prev => ({
+                ...prev,
+                [stat.key]: stat.key === 'uptime' ? stat.value : stat.value
+              }));
+            });
+          }
+        };
+
+        requestAnimationFrame(animateStats);
         observer.disconnect();
       },
       { threshold: 0.3 }
@@ -139,15 +231,51 @@ const SmartCareHMSRedesigned = () => {
 
     observer.observe(statsRef.current);
     return () => observer.disconnect();
+  }, [mounted]);
+
+  // ============================================================
+  // MEMOIZED HANDLERS
+  // ============================================================
+  const toggleMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(prev => !prev);
   }, []);
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const closeMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(false);
+  }, []);
 
-  const fadeCls = (id) =>
-    `transition-all duration-700 ease-out ${visibleSections[id] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`;
+  const openTour = useCallback(() => {
+    setIsTourOpen(true);
+  }, []);
 
-  const footerSections = {
+  const closeTour = useCallback(() => {
+    setIsTourOpen(false);
+  }, []);
+
+  const handleModuleHover = useCallback((index) => {
+    setHoveredModule(index);
+  }, []);
+
+  const handleModuleLeave = useCallback(() => {
+    setHoveredModule(null);
+  }, []);
+
+  const handleBenefitHover = useCallback((index) => {
+    setHoveredBenefit(index);
+  }, []);
+
+  const handleBenefitLeave = useCallback(() => {
+    setHoveredBenefit(null);
+  }, []);
+
+  // ============================================================
+  // MEMOIZED DATA
+  // ============================================================
+  const fadeCls = useCallback((id) => {
+    return `transition-all duration-700 ease-out ${visibleSections[id] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`;
+  }, [visibleSections]);
+
+  const footerSections = useMemo(() => ({
     product: [
       { label: 'Features', to: '/about' },
       { label: 'Pricing', to: '/terms' },
@@ -166,71 +294,58 @@ const SmartCareHMSRedesigned = () => {
       { label: 'Status', to: '/terms' },
       { label: 'Community', to: '/contact' },
     ],
-  };
+  }), []);
 
-  const coreBenefits = [
-    { icon: ShieldCheck, tag: 'SECURITY', title: 'Enterprise-grade protection', description: 'HIPAA & NDPR compliant, with end-to-end encryption and granular access controls.' },
-    { icon: Users, tag: 'RECORDS', title: 'Unified patient records', description: 'Full history, diagnoses, medication, and care plans in a single chart.' },
-    { icon: Brain, tag: 'AI', title: 'Clinical decision support', description: 'Predictive analytics and automated workflows that reduce clinician load.' },
-    { icon: BarChart3, tag: 'INSIGHT', title: 'Real-time analytics', description: 'Live dashboards built for operational and clinical decision-making.' },
-  ];
+  const coreBenefits = useMemo(() => [
+    { icon: 'ShieldCheck', tag: 'SECURITY', title: 'Enterprise-grade protection', description: 'HIPAA & NDPR compliant, with end-to-end encryption and granular access controls.' },
+    { icon: 'Users', tag: 'RECORDS', title: 'Unified patient records', description: 'Full history, diagnoses, medication, and care plans in a single chart.' },
+    { icon: 'Brain', tag: 'AI', title: 'Clinical decision support', description: 'Predictive analytics and automated workflows that reduce clinician load.' },
+    { icon: 'BarChart3', tag: 'INSIGHT', title: 'Real-time analytics', description: 'Live dashboards built for operational and clinical decision-making.' },
+  ], []);
 
-  const coreModules = [
-    { icon: Stethoscope, label: 'Clinical EMR', category: 'CLINICAL', description: 'Electronic medical records built around Nigerian clinical templates.' },
-    { icon: Users, label: 'Patient Management', category: 'CLINICAL', description: 'Registration, scheduling, and care coordination in one workflow.' },
-    { icon: Pill, label: 'Pharmacy & Inventory', category: 'OPERATIONS', description: 'Medication management with NAFDAC compliance tracking built in.' },
-    { icon: Microscope, label: 'Laboratory Information', category: 'CLINICAL', description: 'End-to-end lab workflow with integrated LIS and result tracking.' },
-    { icon: Hospital, label: 'Ward & Theatre', category: 'OPERATIONS', description: 'Bed management, surgical scheduling, and patient flow, coordinated.' },
-    { icon: CreditCard, label: 'Billing & Revenue Cycle', category: 'FINANCE', description: 'Multi-payer billing, NHIS claims, and revenue cycle optimization.' },
-  ];
+  const coreModules = useMemo(() => [
+    { icon: 'Stethoscope', label: 'Clinical EMR', category: 'CLINICAL', description: 'Electronic medical records built around Nigerian clinical templates.' },
+    { icon: 'Users', label: 'Patient Management', category: 'CLINICAL', description: 'Registration, scheduling, and care coordination in one workflow.' },
+    { icon: 'Pill', label: 'Pharmacy & Inventory', category: 'OPERATIONS', description: 'Medication management with NAFDAC compliance tracking built in.' },
+    { icon: 'Microscope', label: 'Laboratory Information', category: 'CLINICAL', description: 'End-to-end lab workflow with integrated LIS and result tracking.' },
+    { icon: 'Hospital', label: 'Ward & Theatre', category: 'OPERATIONS', description: 'Bed management, surgical scheduling, and patient flow, coordinated.' },
+    { icon: 'CreditCard', label: 'Billing & Revenue Cycle', category: 'FINANCE', description: 'Multi-payer billing, NHIS claims, and revenue cycle optimization.' },
+  ], []);
 
-  const testimonials = [
+  const testimonials = useMemo(() => [
     { name: 'Dr. Adebayo Ogunlesi', role: 'Chief Medical Director', hospital: 'Lagos University Teaching Hospital', quote: 'SmartCare HMS has fundamentally changed how our clinical teams operate. The unified record and integrated modules have measurably improved both patient outcomes and staff satisfaction.', avatar: 'AO' },
     { name: 'Mrs. Chioma Nwosu', role: 'Head of Administration', hospital: 'National Hospital Abuja', quote: 'NHIA claims management and the revenue cycle tools have been genuinely transformative — a 60% drop in claim rejections and a real improvement in cash flow.', avatar: 'CN' },
     { name: 'Dr. Emeka Okonkwo', role: 'Medical Director', hospital: 'Nigerian Army Reference Hospital', quote: 'The clinical decision support and patient-safety tooling hold up against any global platform. Medication error rates fell 45% in our first quarter live.', avatar: 'EO' },
-  ];
+  ], []);
 
-  const stats = [
-    { key: 'hospitals', value: '500+', label: 'Hospitals served', icon: Building2 },
-    { key: 'professionals', value: '25,000+', label: 'Healthcare professionals', icon: Users },
-    { key: 'patients', value: '2M+', label: 'Patients managed', icon: Heart },
-    { key: 'uptime', value: '99.99%', label: 'Uptime guarantee', icon: ShieldCheck },
-  ];
+  const stats = useMemo(() => [
+    { key: 'hospitals', value: '500+', label: 'Hospitals served', icon: 'Building2' },
+    { key: 'professionals', value: '25,000+', label: 'Healthcare professionals', icon: 'Users' },
+    { key: 'patients', value: '2M+', label: 'Patients managed', icon: 'Heart' },
+    { key: 'uptime', value: '99.99%', label: 'Uptime guarantee', icon: 'ShieldCheck' },
+  ], []);
 
-  const complianceBadges = ['HIPAA Compliant', 'NDPR Certified', 'ISO 27001', 'NHIS Accredited', 'SOC 2 Type II'];
-
-  const securityFeatures = [
+  const complianceBadges = useMemo(() => ['HIPAA Compliant', 'NDPR Certified', 'ISO 27001', 'NHIS Accredited', 'SOC 2 Type II'], []);
+  const securityFeatures = useMemo(() => [
     'End-to-end encryption',
     'Role-based access control',
     'Audit trails & logging',
     'Two-factor authentication',
     'Data residency in Nigeria',
     'Regular independent security audits',
-  ];
+  ], []);
 
-  // Signature waveform — the one recurring motif. Reused as a divider and inside the dashboard mock.
-  const Vitals = ({ className = '', stroke = '#E4572E', strokeWidth = 2 }) => (
-    <svg viewBox="0 0 400 40" preserveAspectRatio="none" className={className} fill="none">
-      <path
-        d="M0 20 H130 L145 20 L153 4 L163 36 L172 12 L180 20 H400"
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        pathLength="1"
-        className="vitals-path"
-      />
-    </svg>
-  );
+  const navItems = useMemo(() => ['Features', 'Solutions', 'Security', 'Testimonials'], []);
 
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
     <div className="min-h-screen bg-[#F8F7F3] font-['IBM_Plex_Sans',system-ui,sans-serif] antialiased text-[#0A2540]">
       <style>{`
         .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; }
         .font-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
 
-        /* Signature motif: draws in once, then a quiet, slow opacity sweep
-           reads as "live" without demanding attention. */
         .vitals-path {
           stroke-dasharray: 1;
           stroke-dashoffset: 1;
@@ -244,15 +359,17 @@ const SmartCareHMSRedesigned = () => {
           50% { opacity: 1; }
         }
 
-        /* Quiet status dot for "LIVE" readouts — a single, slow breath. */
+        .pulse-dot {
+          animation: pulse-dot 2.4s ease-in-out infinite;
+          will-change: opacity;
+        }
         @keyframes pulse-dot {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.45; }
         }
-        .pulse-dot { animation: pulse-dot 2.4s ease-in-out infinite; }
 
-        /* Card hover lift — the only interaction motion, used consistently */
         .card-lift {
+          will-change: transform, box-shadow;
           transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
         }
         .card-lift:hover {
@@ -260,11 +377,14 @@ const SmartCareHMSRedesigned = () => {
           box-shadow: 0 16px 32px -16px rgba(10, 37, 64, 0.18);
         }
 
+        .fade-in-up {
+          animation: fadeInUp 0.35s ease-out forwards;
+          will-change: transform, opacity;
+        }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .fade-in-up { animation: fadeInUp 0.35s ease-out forwards; }
 
         @media (prefers-reduced-motion: reduce) {
           .vitals-path { animation: none; stroke-dashoffset: 0; }
@@ -284,7 +404,7 @@ const SmartCareHMSRedesigned = () => {
           <div className="flex items-center justify-between h-16 lg:h-18 py-2">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <div className="flex items-center justify-center w-9 h-9 rounded-md bg-[#0A2540] shrink-0">
-                <ShieldCheck className="h-5 w-5 text-white" strokeWidth={2} />
+                <Icon name="ShieldCheck" className="h-5 w-5 text-white" strokeWidth={2} />
               </div>
               <div className="leading-none min-w-0">
                 <div className="font-display text-base sm:text-lg font-semibold tracking-tight text-[#0A2540] truncate">
@@ -295,7 +415,7 @@ const SmartCareHMSRedesigned = () => {
             </div>
 
             <nav className="hidden lg:flex items-center gap-8">
-              {['Features', 'Solutions', 'Security', 'Testimonials'].map((item) => (
+              {navItems.map((item) => (
                 <a
                   key={item}
                   href={`#${item.toLowerCase()}`}
@@ -310,14 +430,14 @@ const SmartCareHMSRedesigned = () => {
                 className="inline-flex items-center gap-2 rounded-md border border-[#E2DFD6] bg-white px-4 py-2 text-sm font-medium text-[#0A2540] hover:border-[#0A2540] transition-colors duration-200"
               >
                 Sign In
-                <LogIn className="h-4 w-4" />
+                <Icon name="LogIn" className="h-4 w-4" />
               </RouterLink>
               <a
-                href="mailto:official.appbrew@gmail.com"
+                href="/signup"
                 className="group inline-flex items-center gap-2 rounded-md bg-[#0B6E4F] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#084A36] transition-colors duration-200"
               >
                 Book a Demo
-                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                <Icon name="ArrowRight" className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </a>
             </nav>
 
@@ -327,7 +447,7 @@ const SmartCareHMSRedesigned = () => {
               aria-expanded={isMobileMenuOpen}
               className="lg:hidden p-2 -mr-2 rounded-md hover:bg-[#EDEAE1] transition-colors duration-200"
             >
-              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              <Icon name={isMobileMenuOpen ? 'X' : 'Menu'} className="h-6 w-6" />
             </button>
           </div>
         </div>
@@ -335,7 +455,7 @@ const SmartCareHMSRedesigned = () => {
         {isMobileMenuOpen && (
           <div className="lg:hidden bg-[#F8F7F3] border-t border-[#E2DFD6] fade-in-up">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-1">
-              {['Features', 'Solutions', 'Security', 'Testimonials'].map((item) => (
+              {navItems.map((item) => (
                 <a
                   key={item}
                   href={`#${item.toLowerCase()}`}
@@ -350,10 +470,10 @@ const SmartCareHMSRedesigned = () => {
                 onClick={closeMobileMenu}
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-[#E2DFD6] bg-white px-4 py-3 mt-2 text-sm font-medium text-[#0A2540] hover:bg-[#F8F7F3] transition-colors duration-200"
               >
-                Sign In <LogIn className="h-4 w-4" />
+                Sign In <Icon name="LogIn" className="h-4 w-4" />
               </RouterLink>
               <a
-                href="mailto:official.appbrew@gmail.com"
+                href="/signup"
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0B6E4F] px-4 py-3 mt-2 text-sm font-semibold text-white hover:bg-[#084A36] transition-colors duration-200"
               >
                 Book a Demo
@@ -369,15 +489,12 @@ const SmartCareHMSRedesigned = () => {
       <div className="relative w-full bg-[#0A2540] border-b border-[#E2DFD6]/20 mt-16 lg:mt-18">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="relative overflow-hidden rounded-xl shadow-xl">
-            <img
-              src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1200&q=80"
+            <LazyImage
+              src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1200&q=80&fm=webp"
               alt="SmartCare HMS — healthcare management platform"
               className="w-full h-auto max-h-[120px] sm:max-h-[170px] lg:max-h-[220px] object-cover rounded-xl"
-              loading="lazy"
-              decoding="async"
-              onError={(e) => {
-                e.target.src = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1200&q=80';
-              }}
+              priority={true}
+              aspectRatio="1200/220"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[#0A2540]/70 via-[#0A2540]/25 to-transparent rounded-xl" />
             <div className="absolute inset-0 flex items-center px-5 sm:px-8">
@@ -393,8 +510,11 @@ const SmartCareHMSRedesigned = () => {
         </div>
       </div>
 
+      {/* ============================================================ */}
+      {/* MAIN CONTENT */}
+      {/* ============================================================ */}
       <main>
-        {/* Hero */}
+        {/* HERO */}
         <section id="hero" className="relative pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-16 lg:pb-28 overflow-hidden" data-section>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-12 items-start">
@@ -425,17 +545,17 @@ const SmartCareHMSRedesigned = () => {
 
                 <div className="mt-8 sm:mt-9 flex flex-wrap gap-3 sm:gap-4">
                   <a
-                    href="mailto:official.appbrew@gmail.com"
+                    href="/signup"
                     className="group inline-flex items-center gap-2 rounded-md bg-[#0B6E4F] px-6 sm:px-7 py-3 sm:py-3.5 text-base font-semibold text-white hover:bg-[#084A36] transition-colors duration-200"
                   >
                     Book a Demo
-                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                    <Icon name="ArrowRight" className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                   </a>
                   <button
-                    onClick={() => setIsTourOpen(true)}
+                    onClick={openTour}
                     className="group inline-flex items-center gap-2 rounded-md border border-[#0A2540]/15 px-6 sm:px-7 py-3 sm:py-3.5 text-base font-medium text-[#0A2540] hover:bg-white hover:border-[#0A2540]/30 transition-colors duration-200"
                   >
-                    <PlayCircle className="h-4 w-4" />
+                    <Icon name="PlayCircle" className="h-4 w-4" />
                     Watch the tour
                   </button>
                 </div>
@@ -443,22 +563,22 @@ const SmartCareHMSRedesigned = () => {
                 <div className="mt-8 sm:mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[#5B6472]">
                   {['Free demo', '14-day trial', 'No commitment'].map((t) => (
                     <span key={t} className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-[#0B6E4F]" />
+                      <Icon name="Check" className="h-4 w-4 text-[#0B6E4F]" />
                       <span>{t}</span>
                     </span>
                   ))}
                 </div>
               </div>
 
-              {/* Right Column — Image + Dashboard Card */}
+              {/* Right Column */}
               <div className="relative">
                 <div className="relative rounded-xl overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1517120026326-d87759a7b63b?auto=format&fit=crop&w=1200&q=80"
+                  <LazyImage
+                    src="https://images.unsplash.com/photo-1517120026326-d87759a7b63b?auto=format&fit=crop&w=1200&q=80&fm=webp"
                     alt="Clinical staff on a hospital ward"
                     className="w-full h-[220px] sm:h-[300px] lg:h-[380px] object-cover"
-                    loading="lazy"
-                    decoding="async"
+                    priority={true}
+                    aspectRatio="1200/380"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540]/80 via-[#0A2540]/15 to-[#0B6E4F]/10 mix-blend-multiply" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A2540]/40 to-transparent" />
@@ -471,7 +591,7 @@ const SmartCareHMSRedesigned = () => {
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2DFD6]">
                     <span className="font-mono text-xs tracking-widest text-[#5B6472]">COMMAND CENTER</span>
                     <span className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest text-[#0B6E4F]">
-                      <Activity className="h-3.5 w-3.5" /> <span className="pulse-dot">LIVE</span>
+                      <Icon name="Activity" className="h-3.5 w-3.5" /> <span className="pulse-dot">LIVE</span>
                     </span>
                   </div>
 
@@ -516,18 +636,17 @@ const SmartCareHMSRedesigned = () => {
           <Vitals className="w-full h-6 mt-14 sm:mt-16 opacity-60" strokeWidth={1.5} />
         </section>
 
-        {/* Stats */}
+        {/* STATS */}
         <section ref={statsRef} className="py-12 sm:py-14 bg-white border-y border-[#E2DFD6]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
               {stats.map((stat) => {
-                const Icon = stat.icon;
                 const displayValue = countedStats[stat.key] !== undefined
                   ? countedStats[stat.key] + (stat.key === 'uptime' ? '%' : stat.key === 'hospitals' ? '+' : stat.key === 'professionals' ? '+' : stat.key === 'patients' ? '+' : '')
                   : stat.value;
                 return (
                   <div key={stat.label} className="flex items-start gap-3">
-                    <Icon className="h-5 w-5 text-[#0B6E4F] mt-1 shrink-0" strokeWidth={1.75} />
+                    <Icon name={stat.icon} className="h-5 w-5 text-[#0B6E4F] mt-1 shrink-0" strokeWidth={1.75} />
                     <div className="min-w-0">
                       <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold text-[#0A2540]">
                         {displayValue}
@@ -541,12 +660,12 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Benefits */}
+        {/* BENEFITS */}
         <section className="py-16 sm:py-24" data-section id="features">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`max-w-2xl mb-12 sm:mb-16 ${fadeCls('features')}`}>
               <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
-                <Zap className="h-4 w-4" />
+                <Icon name="Zap" className="h-4 w-4" />
                 WHY HOSPITALS CHOOSE SMARTCARE
               </div>
               <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540]">
@@ -556,7 +675,6 @@ const SmartCareHMSRedesigned = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-[#E2DFD6] border border-[#E2DFD6] rounded-lg overflow-hidden">
               {coreBenefits.map((benefit, index) => {
-                const Icon = benefit.icon;
                 const isVisible = visibleSections['features'];
                 return (
                   <div
@@ -565,11 +683,11 @@ const SmartCareHMSRedesigned = () => {
                       isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
                     }`}
                     style={{ transitionDelay: `${index * 90}ms` }}
-                    onMouseEnter={() => setHoveredBenefit(index)}
-                    onMouseLeave={() => setHoveredBenefit(null)}
+                    onMouseEnter={() => handleBenefitHover(index)}
+                    onMouseLeave={handleBenefitLeave}
                   >
                     <div className="font-mono text-[10px] tracking-widest text-[#0B6E4F] mb-5">{benefit.tag}</div>
-                    <Icon className={`h-6 w-6 mb-4 transition-colors duration-200 ${hoveredBenefit === index ? 'text-[#0B6E4F]' : 'text-[#0A2540]'}`} strokeWidth={1.5} />
+                    <Icon name={benefit.icon} className={`h-6 w-6 mb-4 transition-colors duration-200 ${hoveredBenefit === index ? 'text-[#0B6E4F]' : 'text-[#0A2540]'}`} strokeWidth={1.5} />
                     <h3 className="font-display text-base font-semibold text-[#0A2540] mb-2">{benefit.title}</h3>
                     <p className="text-sm text-[#5B6472] leading-relaxed">{benefit.description}</p>
                   </div>
@@ -579,12 +697,12 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Modules */}
+        {/* MODULES */}
         <section className="py-16 sm:py-24 bg-white border-y border-[#E2DFD6]" data-section id="solutions">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`max-w-2xl mb-12 sm:mb-16 ${fadeCls('solutions')}`}>
               <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
-                <Layers className="h-4 w-4" />
+                <Icon name="Layers" className="h-4 w-4" />
                 INTEGRATED MODULES
               </div>
               <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540]">
@@ -597,14 +715,13 @@ const SmartCareHMSRedesigned = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {coreModules.map((module, index) => {
-                const Icon = module.icon;
                 const active = hoveredModule === index;
                 const isVisible = visibleSections['solutions'];
                 return (
                   <div
                     key={module.label}
-                    onMouseEnter={() => setHoveredModule(index)}
-                    onMouseLeave={() => setHoveredModule(null)}
+                    onMouseEnter={() => handleModuleHover(index)}
+                    onMouseLeave={handleModuleLeave}
                     className={`rounded-lg border p-6 transition-opacity transition-transform duration-500 cursor-default card-lift ${
                       isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
                     } ${
@@ -613,7 +730,7 @@ const SmartCareHMSRedesigned = () => {
                     style={{ transitionDelay: `${index * 70}ms` }}
                   >
                     <div className="flex items-center justify-between mb-5">
-                      <Icon className={`h-6 w-6 transition-colors duration-200 ${active ? 'text-[#0B6E4F]' : 'text-[#0A2540]'}`} strokeWidth={1.5} />
+                      <Icon name={module.icon} className={`h-6 w-6 transition-colors duration-200 ${active ? 'text-[#0B6E4F]' : 'text-[#0A2540]'}`} strokeWidth={1.5} />
                       <span className="font-mono text-[10px] tracking-widest text-[#5B6472]">{module.category}</span>
                     </div>
                     <h3 className="font-display text-base font-semibold text-[#0A2540] mb-2">{module.label}</h3>
@@ -625,13 +742,13 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Security */}
+        {/* SECURITY */}
         <section className="py-16 sm:py-24" data-section id="security">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`grid lg:grid-cols-2 gap-12 lg:gap-16 items-start ${fadeCls('security')}`}>
               <div>
                 <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
-                  <Lock className="h-4 w-4" />
+                  <Icon name="Lock" className="h-4 w-4" />
                   ENTERPRISE SECURITY
                 </div>
                 <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540] mb-5">
@@ -650,7 +767,7 @@ const SmartCareHMSRedesigned = () => {
                       }`}
                       style={{ transitionDelay: `${idx * 60}ms`, transition: 'opacity 0.5s ease, transform 0.5s ease, border-color 0.2s ease' }}
                     >
-                      <ShieldCheck className="h-4 w-4 text-[#0B6E4F]" />
+                      <Icon name="ShieldCheck" className="h-4 w-4 text-[#0B6E4F]" />
                       {badge}
                     </span>
                   ))}
@@ -669,7 +786,7 @@ const SmartCareHMSRedesigned = () => {
                     <div key={feature} className={`flex items-center gap-3 transition-all duration-500 ${
                       visibleSections['security'] ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-3'
                     }`} style={{ transitionDelay: `${idx * 70 + 200}ms` }}>
-                      <Check className="h-4 w-4 text-[#0B6E4F] shrink-0" />
+                      <Icon name="Check" className="h-4 w-4 text-[#0B6E4F] shrink-0" />
                       <span className="text-white/85 text-sm">{feature}</span>
                     </div>
                   ))}
@@ -679,12 +796,12 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Testimonials */}
+        {/* TESTIMONIALS */}
         <section className="py-16 sm:py-24 bg-white border-y border-[#E2DFD6]" data-section id="testimonials">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`max-w-2xl mb-12 sm:mb-16 ${fadeCls('testimonials')}`}>
               <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-4 flex items-center gap-2">
-                <Star className="h-4 w-4" />
+                <Icon name="Star" className="h-4 w-4" />
                 FROM THE FIELD
               </div>
               <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#0A2540]">
@@ -703,7 +820,7 @@ const SmartCareHMSRedesigned = () => {
                 >
                   <div className="flex gap-1 mb-4">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-3.5 w-3.5 fill-[#B98A32] text-[#B98A32]" />
+                      <Icon key={i} name="Star" className="h-3.5 w-3.5 fill-[#B98A32] text-[#B98A32]" />
                     ))}
                   </div>
                   <p className="text-[#0A2540]/85 text-sm leading-relaxed">{t.quote}</p>
@@ -723,21 +840,20 @@ const SmartCareHMSRedesigned = () => {
           </div>
         </section>
 
-        {/* Final CTA */}
+        {/* FINAL CTA */}
         <section className="relative py-16 sm:py-24 overflow-hidden">
-          <img
-            src="https://images.unsplash.com/photo-1551601651-09492b5468b6?auto=format&fit=crop&w=1600&q=80"
+          <LazyImage
+            src="https://images.unsplash.com/photo-1551601651-09492b5468b6?auto=format&fit=crop&w=1600&q=80&fm=webp"
             alt=""
-            aria-hidden="true"
             className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
+            aspectRatio="1600/600"
           />
           <div className="absolute inset-0 bg-[#0A2540]/92" />
           <Vitals className="absolute top-0 left-0 w-full h-10 opacity-15" stroke="#ffffff" strokeWidth={1.5} />
 
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
             <div className="font-mono text-xs tracking-widest text-[#0B6E4F] mb-5 flex items-center justify-center gap-2">
-              <Rocket className="h-4 w-4" />
+              <Icon name="Rocket" className="h-4 w-4" />
               GET STARTED
             </div>
             <h2 className="font-display text-2xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-white leading-tight">
@@ -749,17 +865,17 @@ const SmartCareHMSRedesigned = () => {
             </p>
             <div className="mt-9 sm:mt-10 flex flex-wrap justify-center gap-3 sm:gap-4">
               <a
-                href="mailto:official.appbrew@gmail.com"
+                href="/signup"
                 className="group inline-flex items-center gap-2 rounded-md bg-white px-6 sm:px-7 py-3 sm:py-3.5 text-base font-semibold text-[#0A2540] hover:bg-[#F8F7F3] transition-colors duration-200"
               >
                 Book a Demo
-                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                <Icon name="ArrowRight" className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </a>
               <button
-                onClick={() => setIsTourOpen(true)}
+                onClick={openTour}
                 className="inline-flex items-center gap-2 rounded-md border border-white/25 px-6 sm:px-7 py-3 sm:py-3.5 text-base font-medium text-white hover:bg-white/10 hover:border-white/40 transition-colors duration-200"
               >
-                <PlayCircle className="h-4 w-4" />
+                <Icon name="PlayCircle" className="h-4 w-4" />
                 Watch the tour
               </button>
             </div>
@@ -767,14 +883,16 @@ const SmartCareHMSRedesigned = () => {
         </section>
       </main>
 
-      {/* Footer */}
+      {/* ============================================================ */}
+      {/* FOOTER */}
+      {/* ============================================================ */}
       <footer className="bg-[#0A2540] text-white/70 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-14">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
             <div className="lg:col-span-2">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex items-center justify-center w-9 h-9 rounded-md bg-white/10 shrink-0">
-                  <ShieldCheck className="h-5 w-5 text-white" />
+                  <Icon name="ShieldCheck" className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-display text-base font-semibold text-white">
                   SmartCare<span className="text-[#38B387]">HMS</span>
@@ -806,7 +924,20 @@ const SmartCareHMSRedesigned = () => {
         </div>
       </footer>
 
-      <TourModal isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
+      {/* ============================================================ */}
+      {/* TOUR MODAL - Lazy Loaded */}
+      {/* ============================================================ */}
+      {isTourOpen && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8">
+              <div className="animate-pulse">Loading tour...</div>
+            </div>
+          </div>
+        }>
+          <TourModal isOpen={isTourOpen} onClose={closeTour} />
+        </Suspense>
+      )}
     </div>
   );
 };

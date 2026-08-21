@@ -1002,10 +1002,17 @@ const DoctorDashboard = () => {
 
   useEffect(() => {
     const fetchTodaysSchedule = async () => {
+      if (!authUser?.id) return;
       try {
         setScheduleLoading(true);
         setScheduleError(null);
-        const data = await apiRequest('/api/v1/patients/appointments/');
+        const today = new Date().toISOString().split('T')[0];
+        const params = new URLSearchParams({
+          doctor_id: String(authUser.id),
+          start_date: today,
+          end_date: today,
+        });
+        const data = await apiRequest(`/api/v1/patients/appointments/?${params.toString()}`);
         const results = Array.isArray(data) ? data : (data.results || []);
         const mapped = results.map(apt => ({
           id: apt.id,
@@ -1031,7 +1038,7 @@ const DoctorDashboard = () => {
       }
     };
     fetchTodaysSchedule();
-  }, []);
+  }, [authUser?.id]);
 
   const [consultations, setConsultations] = useState([]);
 
@@ -2141,7 +2148,14 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             <p className="text-xs sm:text-sm text-[#C8553D] font-medium">{scheduleError}</p>
             <button
               onClick={() => {
-                apiRequest('/api/v1/patients/appointments/').then(data => {
+                if (!authUser?.id) return;
+                const today = new Date().toISOString().split('T')[0];
+                const params = new URLSearchParams({
+                  doctor_id: String(authUser.id),
+                  start_date: today,
+                  end_date: today,
+                });
+                apiRequest(`/api/v1/patients/appointments/?${params.toString()}`).then(data => {
                   const results = Array.isArray(data) ? data : (data.results || []);
                   const mapped = results.map(apt => ({
                     id: apt.id,

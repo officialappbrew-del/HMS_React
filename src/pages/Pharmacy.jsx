@@ -25,7 +25,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { 
   validateDrug, formatNafdacNumber,
   calculateExpiryStatus, calculateReorderLevel
-} from '../pages/src/utils/pharmacyUtils';
+} from '../utils/pharmacyUtils';
 import { apiRequest } from '../utils/api';
 
 // Icon Button without Tooltip

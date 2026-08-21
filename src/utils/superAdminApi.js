@@ -138,6 +138,14 @@ getTenant: (publicId) => apiRequest(`/api/v1/superadmin/tenants/${publicId}/`),
   updateGlobalAdmin: (adminId, data) => apiRequest(`/api/v1/superadmin/global-admins/${adminId}/`, { method: 'PUT', body: JSON.stringify(data) }),
 
   deleteGlobalAdmin: (adminId) => apiRequest(`/api/v1/superadmin/global-admins/${adminId}/`, { method: 'DELETE' }),
+
+  getTenantSubscription: (publicId) => apiRequest(`/api/v1/superadmin/tenants/${publicId}/subscription/`),
+
+  upgradeTenantSubscription: (publicId, data) =>
+    apiRequest(`/api/v1/superadmin/tenants/${publicId}/subscription/upgrade/`, { method: 'POST', body: JSON.stringify(data) }),
+
+  checkoutSubscription: (data) =>
+    apiRequest('/api/v1/billing/checkout/', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export default superAdminApi;
