@@ -1,42 +1,10 @@
 import { getSubdomain, isAdminSubdomain } from './subdomain';
 
-const isLocalHostname = (hostname = '') => {
-  const normalized = hostname.toLowerCase();
-  return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(normalized) || normalized.endsWith('.localhost');
-};
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim();
 
-const isLocalFrontend = () => {
-  if (typeof window === 'undefined') return false;
-  return isLocalHostname(window.location.hostname);
-};
-
-const isLocalApiUrl = (url = '') => {
-  if (!url) return false;
-
-  try {
-    const parsedUrl = new URL(url);
-    return isLocalHostname(parsedUrl.hostname);
-  } catch {
-    return /^(http|https):\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|::1|.*\.localhost)(:|\/|$)/i.test(url);
-  }
-};
-
-const API_BASE_URL = (() => {
-  const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-
-  if (isLocalFrontend()) {
-    // return 'https://hms-backend-l09g.onrender.com';
-    return configuredUrl || 'http://localhost:8000';
-  }
-
-  if (configuredUrl && !isLocalApiUrl(configuredUrl)) {
-    return configuredUrl;
-  }
-  
-  // return 'http://localhost:8000';
-
-  return 'https://hms-backend-l09g.onrender.com';
-})();
+if (!API_BASE_URL) {
+  throw new Error('VITE_API_BASE_URL is not configured.');
+}
 
 const PUBLIC_AUTH_PATHS = [
   '/api/v1/auth/login/',
