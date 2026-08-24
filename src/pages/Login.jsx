@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import  { apiRequest} from "../utils/api";
 
 // ============================================================
@@ -87,6 +87,7 @@ const parseJwt = (token) => {
 // ============================================================
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mounted, setMounted] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -120,6 +121,18 @@ const Login = () => {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const token = new URLSearchParams(location.search).get('token');
+    if (token) {
+      setResetToken(token);
+      setShowForgotPassword(true);
+      setTokenSent(true);
+      setTokenVerified(false);
+      setMessage('Your reset token is ready. Click Verify token to continue.');
+      setMessageType('success');
+    }
+  }, [location.search]);
 
   // Live clock — reinforces the "monitoring system" feel with a real value.
   const clockIntervalRef = useRef(null);
