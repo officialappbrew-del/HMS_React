@@ -117,20 +117,22 @@ const pharmacySlice = createSlice({
   initialState,
   reducers: {
     setDrugs: (state, action) => {
-      state.drugs = action.payload;
+      state.drugs = action.payload || [];
       updateFilteredDrugs(state);
     },
 
     addDrug: (state, action) => {
-      const existingIndex = state.drugs.findIndex(d => d.id === action.payload.id);
+      const safeDrugs = state.drugs || [];
+      const existingIndex = safeDrugs.findIndex(d => d.id === action.payload.id);
       if (existingIndex === -1) {
-        state.drugs.unshift(action.payload);
+        state.drugs = [action.payload, ...safeDrugs];
         updateFilteredDrugs(state);
       }
     },
 
     updateDrug: (state, action) => {
-      const index = state.drugs.findIndex(d => d.id === action.payload.id);
+      const safeDrugs = state.drugs || [];
+      const index = safeDrugs.findIndex(d => d.id === action.payload.id);
       if (index !== -1) {
         state.drugs[index] = {
           ...state.drugs[index],
@@ -142,12 +144,13 @@ const pharmacySlice = createSlice({
     },
 
     deleteDrug: (state, action) => {
-      state.drugs = state.drugs.filter(d => d.id !== action.payload);
+      state.drugs = (state.drugs || []).filter(d => d.id !== action.payload);
       updateFilteredDrugs(state);
     },
 
     archiveDrug: (state, action) => {
-      const index = state.drugs.findIndex(d => d.id === action.payload);
+      const safeDrugs = state.drugs || [];
+      const index = safeDrugs.findIndex(d => d.id === action.payload);
       if (index !== -1) {
         state.drugs[index] = {
           ...state.drugs[index],
@@ -160,9 +163,10 @@ const pharmacySlice = createSlice({
 
     restockDrug: (state, action) => {
       const { drugId, quantity, batchNumber, expiryDate } = action.payload;
-      const index = state.drugs.findIndex(d => d.id === drugId);
+      const safeDrugs = state.drugs || [];
+      const index = safeDrugs.findIndex(d => d.id === drugId);
       if (index !== -1) {
-        state.drugs[index].quantityInStock += parseInt(quantity);
+        state.drugs[index].quantityInStock = (state.drugs[index].quantityInStock || 0) + parseInt(quantity);
         state.drugs[index].lastRestocked = new Date().toISOString();
         if (batchNumber) state.drugs[index].batchNumber = batchNumber;
         if (expiryDate) state.drugs[index].expiryDate = expiryDate;
@@ -172,9 +176,10 @@ const pharmacySlice = createSlice({
 
     dispenseDrug: (state, action) => {
       const { drugId, quantity } = action.payload;
-      const index = state.drugs.findIndex(d => d.id === drugId);
-      if (index !== -1 && state.drugs[index].quantityInStock >= quantity) {
-        state.drugs[index].quantityInStock -= quantity;
+      const safeDrugs = state.drugs || [];
+      const index = safeDrugs.findIndex(d => d.id === drugId);
+      if (index !== -1 && (state.drugs[index].quantityInStock || 0) >= quantity) {
+        state.drugs[index].quantityInStock = (state.drugs[index].quantityInStock || 0) - quantity;
         updateFilteredDrugs(state);
 
         const sale = {
@@ -186,36 +191,37 @@ const pharmacySlice = createSlice({
           totalPrice: quantity * state.drugs[index].sellingPrice,
           timestamp: new Date().toISOString(),
         };
-        state.salesHistory.unshift(sale);
+        state.salesHistory = [sale, ...(state.salesHistory || [])];
       }
     },
 
     searchDrugs: (state, action) => {
-      state.searchTerm = action.payload;
+      state.searchTerm = action.payload || '';
       updateFilteredDrugs(state);
     },
 
     filterDrugs: (state, action) => {
-      state.filterBy = action.payload;
+      state.filterBy = action.payload || 'all';
       updateFilteredDrugs(state);
     },
 
     sortDrugs: (state, action) => {
-      state.sortBy = action.payload;
+      state.sortBy = action.payload || 'name';
       updateFilteredDrugs(state);
     },
 
     addToCart: (state, action) => {
-      const existingIndex = state.cart.findIndex(item => item.id === action.payload.id);
+      const safeCart = state.cart || [];
+      const existingIndex = safeCart.findIndex(item => item.id === action.payload.id);
       if (existingIndex !== -1) {
-        state.cart[existingIndex].quantity += 1;
+        state.cart[existingIndex].quantity = (state.cart[existingIndex].quantity || 0) + 1;
       } else {
-        state.cart.push({ ...action.payload, quantity: 1 });
+        state.cart = [...safeCart, { ...action.payload, quantity: 1 }];
       }
     },
 
     removeFromCart: (state, action) => {
-      state.cart = state.cart.filter(item => item.id !== action.payload);
+      state.cart = (state.cart || []).filter(item => item.id !== action.payload);
     },
 
     clearCart: (state) => {
@@ -223,10 +229,12 @@ const pharmacySlice = createSlice({
     },
 
     processSale: (state, action) => {
-      action.payload.forEach(item => {
-        const index = state.drugs.findIndex(d => d.id === item.id);
-        if (index !== -1 && state.drugs[index].quantityInStock >= item.quantity) {
-          state.drugs[index].quantityInStock -= item.quantity;
+      const items = action.payload || [];
+      items.forEach(item => {
+        const safeDrugs = state.drugs || [];
+        const index = safeDrugs.findIndex(d => d.id === item.id);
+        if (index !== -1 && (state.drugs[index].quantityInStock || 0) >= item.quantity) {
+          state.drugs[index].quantityInStock = (state.drugs[index].quantityInStock || 0) - item.quantity;
 
           const sale = {
             id: Date.now(),
@@ -237,7 +245,7 @@ const pharmacySlice = createSlice({
             totalPrice: item.quantity * item.sellingPrice,
             timestamp: new Date().toISOString(),
           };
-          state.salesHistory.unshift(sale);
+          state.salesHistory = [sale, ...(state.salesHistory || [])];
         }
       });
       state.cart = [];
@@ -261,25 +269,27 @@ const pharmacySlice = createSlice({
     },
 
     setSuppliers: (state, action) => {
-      state.suppliers = action.payload;
+      state.suppliers = action.payload || [];
     },
 
     setSales: (state, action) => {
-      state.salesHistory = action.payload;
+      state.salesHistory = action.payload || [];
     },
 
     setPrescriptions: (state, action) => {
-      state.prescriptions = action.payload;
+      state.prescriptions = action.payload || [];
     },
 
     exportPharmacyReport: (state) => {
+      const safeDrugs = state.drugs || [];
+      const safeSalesHistory = state.salesHistory || [];
       const report = {
-        totalDrugs: state.drugs.length,
-        lowStockItems: state.lowStockItems.length,
-        expiredDrugs: state.expiredDrugs.length,
-        inventoryValue: state.inventoryValue,
-        salesHistory: state.salesHistory,
-        drugs: state.drugs,
+        totalDrugs: safeDrugs.length,
+        lowStockItems: (state.lowStockItems || []).length,
+        expiredDrugs: (state.expiredDrugs || []).length,
+        inventoryValue: state.inventoryValue || 0,
+        salesHistory: safeSalesHistory,
+        drugs: safeDrugs,
         generatedAt: new Date().toISOString(),
       };
       console.log('Exporting pharmacy report:', report);
@@ -303,23 +313,26 @@ const pharmacySlice = createSlice({
         generatedAt: new Date().toISOString(),
         prescriptionNumber: `RX-${Date.now()}`,
       };
-      state.prescriptions.unshift(prescription);
+      state.prescriptions = [prescription, ...(state.prescriptions || [])];
       return prescription;
     },
+
     acknowledgeLowStockAlert: (state, action) => {
       const { alertId, acknowledgedBy } = action.payload;
-      const alert = state.lowStockAlerts.find(a => a.alertId === alertId);
+      const safeAlerts = state.lowStockAlerts || [];
+      const alert = safeAlerts.find(a => a.alertId === alertId);
       if (alert) {
         alert.acknowledgedBy = acknowledgedBy;
       }
     },
 
     addPurchaseOrder: (state, action) => {
-      state.purchaseOrders.push(action.payload);
+      state.purchaseOrders = [...(state.purchaseOrders || []), action.payload];
     },
 
     updatePurchaseOrder: (state, action) => {
-      const index = state.purchaseOrders.findIndex(po => po.poId === action.payload.poId);
+      const safeOrders = state.purchaseOrders || [];
+      const index = safeOrders.findIndex(po => po.poId === action.payload.poId);
       if (index !== -1) {
         state.purchaseOrders[index] = { ...state.purchaseOrders[index], ...action.payload };
       }
@@ -333,7 +346,7 @@ const pharmacySlice = createSlice({
       })
       .addCase(fetchDrugs.fulfilled, (state, action) => {
         state.loading = false;
-        state.drugs = action.payload;
+        state.drugs = action.payload || [];
         updateFilteredDrugs(state);
       })
       .addCase(fetchDrugs.rejected, (state, action) => {
@@ -341,21 +354,23 @@ const pharmacySlice = createSlice({
         state.error = action.payload;
       })
       .addCase(fetchSuppliers.fulfilled, (state, action) => {
-        state.suppliers = action.payload;
+        state.suppliers = action.payload || [];
       })
       .addCase(fetchSales.fulfilled, (state, action) => {
-        state.salesHistory = action.payload;
+        state.salesHistory = action.payload || [];
       })
       .addCase(fetchPrescriptions.fulfilled, (state, action) => {
-        state.prescriptions = action.payload;
+        state.prescriptions = action.payload || [];
       });
   },
 });
 
-// Helper function to update filtered drugs
+// Helper function to update filtered drugs with proper safety checks
 const updateFilteredDrugs = (state) => {
-  let filtered = [...state.drugs];
+  const safeDrugs = state.drugs || [];
+  let filtered = [...safeDrugs];
 
+  // Search filter
   if (state.searchTerm) {
     const searchTerm = state.searchTerm.toLowerCase();
     filtered = filtered.filter(drug =>
@@ -367,11 +382,14 @@ const updateFilteredDrugs = (state) => {
     );
   }
 
-  if (state.filterBy !== 'all') {
-    filtered = filtered.filter(drug => drug.category === state.filterBy);
+  // Category filter
+  if (state.filterBy && state.filterBy !== 'all') {
+    filtered = filtered.filter(drug => (drug.category || '') === state.filterBy);
   }
 
-  switch (state.sortBy) {
+  // Sorting
+  const sortBy = state.sortBy || 'name';
+  switch (sortBy) {
     case 'name':
       filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       break;
@@ -390,24 +408,30 @@ const updateFilteredDrugs = (state) => {
 
   state.filteredDrugs = filtered;
 
-  state.lowStockItems = state.drugs.filter(drug =>
+  // Low stock items
+  state.lowStockItems = safeDrugs.filter(drug =>
     (drug.quantityInStock || 0) <= (drug.reorderLevel || 0) && drug.status === 'active'
   );
 
-  state.expiredDrugs = state.drugs.filter(drug => {
+  // Expired drugs
+  state.expiredDrugs = safeDrugs.filter(drug => {
     if (!drug.expiryDate) return false;
     return new Date(drug.expiryDate) < new Date() && drug.status === 'active';
   });
 
-  state.inventoryValue = state.drugs.reduce((sum, drug) =>
+  // Inventory value
+  state.inventoryValue = safeDrugs.reduce((sum, drug) =>
     sum + ((drug.quantityInStock || 0) * (parseFloat(drug.unitPrice) || 0)), 0
   );
 
-  const currentLowStock = state.drugs.filter(drug =>
+  // Low stock alerts - SAFE with proper array initialization
+  const currentLowStock = safeDrugs.filter(drug =>
     (drug.quantityInStock || 0) <= (drug.reorderLevel || 0) && drug.status === 'active'
   );
+
+  const safeAlerts = state.lowStockAlerts || [];
   state.lowStockAlerts = currentLowStock.map(drug => {
-    const existingAlert = state.lowStockAlerts.find(a => a.alertId === drug.id);
+    const existingAlert = safeAlerts.find(a => a.alertId === drug.id);
     if (existingAlert) {
       return {
         ...existingAlert,

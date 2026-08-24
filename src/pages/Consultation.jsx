@@ -618,27 +618,27 @@ const PrescriptionCard = ({ prescription, onRemove, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow">
+    <div className="border border-[#e5e7eb] bg-white p-4 hover:bg-[#f9fafb] transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <Pill className="h-4 w-4 text-blue-600" />
-            <p className="font-semibold text-slate-900">{prescription.name}</p>
+            <Pill className="h-4 w-4 text-[#1a5c7a]" />
+            <p className="text-sm font-medium font-sans text-[#1a1f2e]">{prescription.name}</p>
             {medInfo && (
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
+              <span className="bg-[#dbeafe] px-2 py-0.5 text-xs text-[#1a5c7a]">
                 {medInfo.category}
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-600">{prescription.dosage}</p>
+          <p className="mt-1 text-xs font-sans text-[#6b7280]">{prescription.dosage} · {prescription.instruction || 'Instructions not recorded'}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+          <span className="bg-[#f3f5f7] px-2 py-0.5 text-xs font-medium text-[#6b7280]">
             Qty: {prescription.quantity}
           </span>
           <button
             onClick={() => onRemove(prescription.id)}
-            className="rounded-lg p-1 hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+            className="p-1 text-[#6b7280] hover:bg-[#fcd9d9] hover:text-[#b13e3e] transition-colors"
             aria-label="Remove prescription"
           >
             <Trash2 className="h-4 w-4" />

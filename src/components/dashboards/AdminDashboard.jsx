@@ -1463,7 +1463,7 @@ const AdminDashboard = () => {
     { icon: Users, label: 'Register Patient', action: '/patients', color: 'bg-[#008751]' },
     { icon: Calendar, label: 'Schedule Appointment', action: '/appointments', color: 'bg-[#006B40]' },
     { icon: FileText, label: 'Create Bill', action: '/billing', color: 'bg-[#004D2E]' },
-    { icon: Pill, label: 'Check Inventory', action: '/inventory', color: 'bg-[#FFC107]' },
+    { icon: Pill, label: 'Check Inventory', action: '/pharmacy', color: 'bg-[#FFC107]' },
     { icon: Bed, label: 'Bed Status', action: '/bed-allocation', color: 'bg-[#C87D3D]' },
     { icon: Heart, label: 'Admissions', action: '/admissions', color: 'bg-[#C8553D]' },
     { icon: Building2, label: 'Staff Directory', action: '/staff', color: 'bg-[#008751]' },

@@ -1676,15 +1676,15 @@ const PatientPortal = () => {
                   <span className="text-xs text-gray-500">{prescriptions.length} prescriptions</span>
                 </div>
                 <div className="space-y-3">
-                  {prescriptions.map(prescription => (
-                    <div key={prescription.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                  {[...prescriptions].sort((a, b) => new Date(b.prescribedAt || b.prescribed_date || 0) - new Date(a.prescribedAt || a.prescribed_date || 0)).map(prescription => (
+                    <div key={prescription.id} className="bg-white border border-[#e5e7eb] p-4 hover:bg-[#f9fafb] transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-gray-900">{prescription.medication}</h4>
+                            <h4 className="text-sm font-medium text-[#1a1f2e]">{prescription.medication}</h4>
                             <StatusBadge status={prescription.status} />
                           </div>
-                          <p className="text-sm text-gray-600">{prescription.dosage}</p>
+                          <p className="text-xs text-[#6b7280]">{prescription.dosage} · {prescription.frequency || 'Frequency not recorded'} · Qty: {prescription.quantity || 1}</p>
                           <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
                             <div>
                               <span className="text-gray-500">Prescribed:</span>
@@ -1699,6 +1699,14 @@ const PatientPortal = () => {
                             <div>
                               <span className="text-gray-500">Refills Left:</span>
                               <span className="ml-1 font-medium text-gray-700">{prescription.refillsLeft || 0}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Prescribed By :</span>
+                              <span className="ml-1 text-gray-700">{prescription.prescribedBy || prescription.prescribed_by_name || 'Doctor not recorded'}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Batch:</span>
+                              <span className="ml-1 text-gray-700">{prescription.visitNumber || prescription.visit_number || 'Visit batch'}</span>
                             </div>
                           </div>
                         </div>

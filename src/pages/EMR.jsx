@@ -135,7 +135,7 @@ const EMR = () => {
 
       const historyData = await apiRequest(`/api/v1/clinical/prescriptions/history/?patient=${patient.id}`);
       const historyItems = historyData.medications || [];
-      setMedicationHistory(historyItems);
+      setMedicationHistory([...historyItems].sort((a, b) => new Date(b.prescribed_date || 0) - new Date(a.prescribed_date || 0)));
       if (historyItems.length) {
         const interactionData = await apiRequest('/api/v1/clinical/prescriptions/interaction-check/', {
           method: 'POST',
@@ -506,27 +506,30 @@ const EMRTabContent = ({
           )}
         </div>
 
-        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+        <div className="border border-[#e5e7eb] bg-white p-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Medication Safety</h3>
-              <p className="text-sm text-violet-700">Recent prescriptions and possible drug interactions.</p>
+              <p className="text-sm text-[#6b7280]">Recent prescriptions and possible drug interactions.</p>
             </div>
             <Shield className="w-5 h-5 text-violet-600" />
           </div>
           {medicationLoading ? (
-            <div className="mt-3 text-sm text-violet-700">Loading medication history...</div>
+            <div className="mt-3 text-sm text-[#6b7280]">Loading medication history...</div>
           ) : medicationHistory.length === 0 ? (
-            <div className="mt-3 text-sm text-violet-700">No active prescriptions found for this patient.</div>
+            <div className="mt-3 text-sm text-[#6b7280]">No active prescriptions found for this patient.</div>
           ) : (
             <div className="mt-4 space-y-3">
-              <div className="rounded-lg border border-violet-200 bg-white p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">Prescription History</p>
+              <div className="border border-[#e5e7eb] bg-white p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#1a5c7a]">Prescription History</p>
                 <ul className="mt-2 space-y-2 text-sm text-gray-700">
                   {medicationHistory.map(item => (
                     <li key={item.id} className="flex items-center justify-between gap-3 rounded border border-gray-200 px-2 py-2">
-                      <span>{item.drug_name} • {item.dosage} • {item.frequency}</span>
-                      <span className="text-xs text-gray-500">{item.status}</span>
+                      <span>
+                        <strong>{item.drug_name}</strong> • {item.dosage} • {item.frequency} • Qty: {item.quantity || 1}
+                        <span className="block text-xs text-gray-500">Batch: {item.visit_number || item.visit || 'Visit batch'} · {item.prescribed_date ? new Date(item.prescribed_date).toLocaleDateString() : 'Date unavailable'} · Prescribed by: {item.prescribed_by_name || 'Doctor not recorded'}</span>
+                      </span>
+                      <span className="shrink-0 text-xs font-medium uppercase text-gray-500">{item.status}</span>
                     </li>
                   ))}
                 </ul>

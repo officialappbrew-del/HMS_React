@@ -1,18 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-  Package, Search, Filter, Plus,
-  Edit, Trash2, AlertTriangle,
-  Download, Upload, BarChart3, Pill,
-  Shield, Clock, TrendingUp, AlertCircle,
-  CheckCircle, XCircle, ShoppingCart, History,
+  Package, Search, Filter, Plus, Edit, Trash2, AlertTriangle,
+  Download, Upload, BarChart3, Pill, Shield, Clock, TrendingUp,
+  AlertCircle, CheckCircle, XCircle, ShoppingCart, History,
   Eye, FileText, Calculator, Printer, Calendar, Tag,
   X, ChevronLeft, ChevronRight, MoreVertical,
   Layers, Box, Truck, DollarSign, Users,
   Clipboard, BookOpen, Award, ShieldCheck,
-  Menu, Grid, List, Receipt, User, Building2
+  Menu, Grid, List, Receipt, User, Building2,
+  RefreshCw, Loader2, ArrowUp, ArrowDown, Info,
+  ChevronDown, Check, PlusCircle
 } from 'lucide-react';
-import { 
+import {
   addDrug, updateDrug, deleteDrug, dispenseDrug,
   restockDrug, searchDrugs, filterDrugs, sortDrugs,
   setCurrentDrug, archiveDrug, exportPharmacyReport,
@@ -22,347 +22,1133 @@ import {
   setSuppliers, setSales, setPrescriptions
 } from '../features/pharmacySlice';
 import ConfirmModal from '../components/ConfirmModal';
-import { 
-  validateDrug, formatNafdacNumber,
-  calculateExpiryStatus, calculateReorderLevel
-} from '../utils/pharmacyUtils';
-import { apiRequest } from '../utils/api';
+import { apiRequest, pharmacyApi } from '../utils/api';
 
-// Icon Button without Tooltip
-const IconButton = ({ icon: Icon, onClick, variant = 'default', className = '', disabled = false }) => {
-  const variantClasses = {
-    default: 'text-gray-400 hover:text-gray-600',
-    primary: 'text-blue-600 hover:text-blue-700',
-    success: 'text-green-600 hover:text-green-700',
-    danger: 'text-red-600 hover:text-red-700',
-    warning: 'text-yellow-600 hover:text-yellow-700',
-    info: 'text-blue-600 hover:text-blue-700',
+// ==================== REUSABLE COMPONENTS ====================
+
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
+  const variants = {
+    default: 'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
+    primary: 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50',
+    danger: 'text-rose-600 hover:text-rose-700 hover:bg-rose-50',
+    warning: 'text-amber-600 hover:text-amber-700 hover:bg-amber-50',
+    success: 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50',
+  };
+
+  const sizes = {
+    sm: 'p-1.5',
+    md: 'p-2',
+    lg: 'p-2.5',
+  };
+
+  const iconSizes = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6',
   };
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`p-1.5 rounded-lg transition-all duration-200 ${variantClasses[variant]} ${className} ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 active:scale-95'
-      }`}
+      className={`rounded-lg transition-all duration-200 ${variants[variant]} ${sizes[size]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+      title={tooltip}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className={iconSizes[size]} />
     </button>
   );
 };
 
-// Error Modal Component
-const ErrorModal = ({ isOpen, onClose, title, message }) => {
-  if (!isOpen) return null;
-  
+const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false, size = 'md', type = 'button', icon: Icon }) => {
+  const variants = {
+    primary: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow',
+    secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
+    danger: 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow',
+    success: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow',
+    outline: 'border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50',
+    ghost: 'hover:bg-gray-100 text-gray-600',
+  };
+
+  const sizes = {
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-6 py-3 text-base',
+  };
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 ${variants[variant]} ${sizes[size]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      {Icon && <Icon className="w-4 h-4" />}
+      {children}
+    </button>
+  );
+};
+
+const Badge = ({ status, children }) => {
+  const colors = {
+    'active': 'bg-emerald-100 text-emerald-700',
+    'in-stock': 'bg-emerald-100 text-emerald-700',
+    'low-stock': 'bg-amber-100 text-amber-700',
+    'low': 'bg-amber-100 text-amber-700',
+    'out-of-stock': 'bg-rose-100 text-rose-700',
+    'expired': 'bg-rose-100 text-rose-700',
+    'controlled': 'bg-purple-100 text-purple-700',
+    'pending': 'bg-amber-100 text-amber-700',
+    'dispensed': 'bg-emerald-100 text-emerald-700',
+    'completed': 'bg-emerald-100 text-emerald-700',
+    'inactive': 'bg-gray-100 text-gray-600',
+    'cash': 'bg-blue-100 text-blue-700',
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status] || colors['active']}`}>
+      {children}
+    </span>
+  );
+};
+
+const StatsCard = ({ title, value, icon: Icon, color, trend, trendValue, onClick }) => {
+  const colorClasses = {
+    green: 'bg-emerald-500',
+    gold: 'bg-amber-500',
+    red: 'bg-rose-500',
+    warm: 'bg-amber-500',
+    purple: 'bg-purple-500',
+    teal: 'bg-teal-500',
+    blue: 'bg-blue-500',
+  };
+
+  const formatValue = (val) => {
+    if (typeof val === 'number') {
+      if (val >= 1_000_000_000) return `₦${(val / 1_000_000_000).toFixed(1)}B`;
+      if (val >= 1_000_000) return `₦${(val / 1_000_000).toFixed(1)}M`;
+      if (val >= 1_000) return `₦${(val / 1_000).toFixed(1)}K`;
+      return `₦${val.toLocaleString()}`;
+    }
+    return val;
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      className={`bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-emerald-200' : ''}`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{title}</p>
+          <p className="mt-1 text-xl font-bold text-gray-900">{formatValue(value)}</p>
+          {trend && (
+            <div className={`flex items-center mt-1 text-xs font-medium ${trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {trend === 'up' ? <ArrowUp className="w-3 h-3 mr-0.5" /> : <ArrowDown className="w-3 h-3 mr-0.5" />}
+              {trendValue}
             </div>
-            <div className="mb-6">
-              <p className="text-gray-700 whitespace-pre-line">{message}</p>
-            </div>
-            <div className="flex justify-end">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                OK
-              </button>
-            </div>
-          </div>
+          )}
+        </div>
+        <div className={`w-10 h-10 ${colorClasses[color]} rounded-xl flex items-center justify-center flex-shrink-0`}>
+          <Icon className="w-5 h-5 text-white" />
         </div>
       </div>
     </div>
   );
 };
 
-// Button without Tooltip
-const ButtonWithTooltip = ({ children, onClick, variant = 'primary', className = '' }) => {
-  const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
-    secondary: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
-    success: 'bg-green-600 hover:bg-green-700 text-white',
-    danger: 'bg-red-600 hover:bg-red-700 text-white',
-    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+// ==================== MODAL COMPONENTS ====================
+
+const BaseModal = ({ isOpen, onClose, title, children, maxWidth = '2xl' }) => {
+  if (!isOpen) return null;
+
+  const sizes = {
+    sm: 'max-w-md',
+    md: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-3xl',
+    '2xl': 'max-w-4xl',
+    full: 'max-w-6xl',
+  };
+
+  // Handle click outside
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
   };
 
   return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${variantClasses[variant]} ${className}`}
-    >
-      {children}
-    </button>
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+          onClick={handleBackdropClick}
+        />
+        
+        {/* Modal */}
+        <div className={`relative w-full ${sizes[maxWidth]} bg-white rounded-2xl shadow-2xl transform transition-all duration-300 animate-in fade-in zoom-in`}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="p-6">{children}</div>
+        </div>
+      </div>
+    </div>
   );
 };
 
+const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit }) => {
+  const [formData, setFormData] = useState(initialData || getDefaultDrugForm());
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    } else {
+      setFormData(getDefaultDrugForm());
+    }
+  }, [initialData, isOpen]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Drug' : 'Add New Drug'} maxWidth="xl">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Drug Name *</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Generic Name</label>
+            <input
+              type="text"
+              name="genericName"
+              value={formData.genericName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              required
+            >
+              <option value="">Select Category</option>
+              {drugCategories.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dosage Form *</label>
+            <select
+              name="dosageForm"
+              value={formData.dosageForm}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              required
+            >
+              <option value="">Select Form</option>
+              {dosageForms.map(form => (
+                <option key={form.value} value={form.value}>{form.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Strength</label>
+            <input
+              type="text"
+              name="strength"
+              value={formData.strength}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              placeholder="e.g., 500mg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+            <select
+              name="manufacturer"
+              value={formData.manufacturer}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+            >
+              <option value="">Select Manufacturer</option>
+              {nigerianManufacturers.map(man => (
+                <option key={man} value={man}>{man}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Pricing & Inventory */}
+        <div className="border-t border-gray-100 pt-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Pricing & Inventory</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price (₦)</label>
+              <input
+                type="number"
+                name="unitPrice"
+                value={formData.unitPrice}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Selling Price (₦)</label>
+              <input
+                type="number"
+                name="sellingPrice"
+                value={formData.sellingPrice}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity in Stock</label>
+              <input
+                type="number"
+                name="quantityInStock"
+                value={formData.quantityInStock}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
+              <input
+                type="number"
+                name="reorderLevel"
+                value={formData.reorderLevel}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number</label>
+              <input
+                type="text"
+                name="batchNumber"
+                value={formData.batchNumber}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+              <input
+                type="date"
+                name="expiryDate"
+                value={formData.expiryDate}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Regulatory */}
+        <div className="border-t border-gray-100 pt-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Regulatory</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NAFDAC Number</label>
+              <input
+                type="text"
+                name="nafdacNumber"
+                value={formData.nafdacNumber}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                placeholder="NAFDAC-04-1234"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NEML Category</label>
+              <select
+                name="nemlCategory"
+                value={formData.nemlCategory}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              >
+                <option value="">Select Category</option>
+                {nemlCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="border-t border-gray-100 pt-4">
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="controlledSubstance"
+                checked={formData.controlledSubstance}
+                onChange={handleChange}
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              Controlled Substance
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="prescriptionRequired"
+                checked={formData.prescriptionRequired}
+                onChange={handleChange}
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              Prescription Required
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="nhisCovered"
+                checked={formData.nhisCovered}
+                onChange={handleChange}
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              NHIS Covered
+            </label>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
+          <Button
+            type="submit"
+            variant="primary"
+            className="flex-1"
+            disabled={loading}
+            icon={Check}
+          >
+            {loading ? 'Saving...' : (isEdit ? 'Update Drug' : 'Add Drug')}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </BaseModal>
+  );
+};
+
+const SupplierFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit }) => {
+  const [formData, setFormData] = useState(initialData || getDefaultSupplierForm());
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    } else {
+      setFormData(getDefaultSupplierForm());
+    }
+  }, [initialData, isOpen]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Supplier' : 'Add New Supplier'} maxWidth="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+            <input
+              type="text"
+              name="contactPerson"
+              value={formData.contactPerson}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <textarea
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              rows="2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
+            <input
+              type="text"
+              name="licenseNumber"
+              value={formData.licenseNumber}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+            <input
+              type="number"
+              name="rating"
+              value={formData.rating}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              min="0"
+              max="5"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              rows="2"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
+          <Button type="submit" variant="primary" className="flex-1" disabled={loading} icon={Check}>
+            {loading ? 'Saving...' : (isEdit ? 'Update Supplier' : 'Add Supplier')}
+          </Button>
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </BaseModal>
+  );
+};
+
+const RestockModal = ({ isOpen, onClose, onSubmit, loading }) => {
+  const [formData, setFormData] = useState({ quantity: '', batchNumber: '', expiryDate: '' });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Restock Inventory" maxWidth="sm">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Quantity to Add *</label>
+          <input
+            type="number"
+            name="quantity"
+            value={formData.quantity}
+            onChange={handleChange}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+            min="1"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number</label>
+          <input
+            type="text"
+            name="batchNumber"
+            value={formData.batchNumber}
+            onChange={handleChange}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+          <input
+            type="date"
+            name="expiryDate"
+            value={formData.expiryDate}
+            onChange={handleChange}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+          />
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
+          <Button type="submit" variant="primary" className="flex-1" disabled={loading} icon={Package}>
+            {loading ? 'Restocking...' : 'Restock'}
+          </Button>
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </BaseModal>
+  );
+};
+
+const CartModal = ({ isOpen, onClose, items, onRemove, onCheckout, loading }) => {
+  const total = items.reduce((sum, item) => sum + (item.quantity * (item.selling_price || item.sellingPrice || 0)), 0);
+
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} title={`Cart (${items.length} items)`} maxWidth="md">
+      {items.length === 0 ? (
+        <div className="text-center py-8">
+          <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">Your cart is empty</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {items.map((item, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                  <p className="text-xs text-gray-500">
+                    Qty: {item.quantity} × ₦{item.selling_price || item.sellingPrice || 0}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 ml-3">
+                  <span className="text-sm font-semibold text-gray-900">
+                    ₦{(item.quantity * (item.selling_price || item.sellingPrice || 0)).toLocaleString()}
+                  </span>
+                  <IconButton
+                    icon={Trash2}
+                    onClick={() => onRemove(index)}
+                    tooltip="Remove"
+                    variant="danger"
+                    size="sm"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex justify-between mb-4">
+              <span className="font-medium text-gray-700">Total:</span>
+              <span className="text-xl font-bold text-gray-900">₦{total.toLocaleString()}</span>
+            </div>
+            <Button
+              onClick={onCheckout}
+              variant="primary"
+              className="w-full justify-center"
+              disabled={loading || items.length === 0}
+              icon={ShoppingCart}
+            >
+              {loading ? 'Processing...' : 'Process Sale'}
+            </Button>
+          </div>
+        </>
+      )}
+    </BaseModal>
+  );
+};
+
+// ==================== PRESCRIPTION PATIENT MODAL ====================
+
+const PrescriptionPatientModal = ({ patient, onClose, onDispense, drugs }) => {
+  const [dispensingPrescription, setDispensingPrescription] = useState(null);
+  const [selectedDrugId, setSelectedDrugId] = useState('');
+  const [dispenseQuantity, setDispenseQuantity] = useState(1);
+  const [isDispensing, setIsDispensing] = useState(false);
+
+  if (!patient) return null;
+
+  const handleDispense = async (prescription) => {
+    if (!selectedDrugId || !dispenseQuantity) {
+      return;
+    }
+
+    setIsDispensing(true);
+    try {
+      await onDispense(prescription, selectedDrugId, dispenseQuantity);
+      setDispensingPrescription(null);
+      setSelectedDrugId('');
+      setDispenseQuantity(1);
+    } catch (error) {
+      console.error('Dispense error:', error);
+    } finally {
+      setIsDispensing(false);
+    }
+  };
+
+  const startDispense = (prescription) => {
+    setDispensingPrescription(prescription);
+    // Auto-select matching drug if available
+    const matchingDrug = drugs.find(drug => 
+      [drug.name, drug.generic_name, drug.genericName, drug.brand_name, drug.brandName]
+        .filter(Boolean)
+        .some(name => name.toLowerCase() === prescription.drug_name.toLowerCase())
+    );
+    if (matchingDrug) {
+      setSelectedDrugId(String(matchingDrug.id));
+    } else {
+      setSelectedDrugId('');
+    }
+    setDispenseQuantity(1);
+  };
+
+  const cancelDispense = () => {
+    setDispensingPrescription(null);
+    setSelectedDrugId('');
+    setDispenseQuantity(1);
+  };
+
+  return (
+    <BaseModal isOpen={!!patient} onClose={onClose} title={patient.name} maxWidth="lg">
+      <div className="space-y-1 mb-4">
+        <p className="text-sm text-gray-500">MRN: {patient.mrn || 'N/A'} · {patient.items.length} prescription(s)</p>
+      </div>
+
+      {/* Dispense Form */}
+      {dispensingPrescription && (
+        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+          <h4 className="text-sm font-semibold text-gray-900 mb-2">
+            Dispensing: {dispensingPrescription.drug_name}
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Select Drug</label>
+              <select
+                value={selectedDrugId}
+                onChange={(e) => setSelectedDrugId(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+              >
+                <option value="">Select inventory drug</option>
+                {drugs.filter((drug) => 
+                  [drug.name, drug.generic_name, drug.genericName, drug.brand_name, drug.brandName]
+                    .filter(Boolean)
+                    .some((name) => name.toLowerCase() === dispensingPrescription.drug_name.toLowerCase())
+                ).map((drug) => (
+                  <option key={drug.id} value={drug.id}>
+                    {drug.name} ({drug.stock_quantity ?? drug.quantityInStock ?? 0} in stock)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
+              <input
+                type="number"
+                min="1"
+                value={dispenseQuantity}
+                onChange={(e) => setDispenseQuantity(Number(e.target.value))}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button
+                onClick={() => handleDispense(dispensingPrescription)}
+                disabled={isDispensing || !selectedDrugId || !dispenseQuantity}
+                variant="success"
+                size="sm"
+                icon={CheckCircle}
+              >
+                {isDispensing ? 'Dispensing...' : 'Dispense'}
+              </Button>
+              <Button
+                onClick={cancelDispense}
+                variant="secondary"
+                size="sm"
+                icon={X}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prescription List */}
+      <div className="divide-y divide-gray-100">
+        {patient.items.map((prescription) => {
+          const isDispensed = prescription.status === 'dispensed' || prescription.status === 'completed';
+          return (
+            <div key={prescription.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{prescription.drug_name || prescription.drug?.name || 'Unknown'}</p>
+                <p className="text-sm text-gray-500">
+                  {prescription.dosage || 'Dose not recorded'} · {prescription.frequency || 'Frequency not recorded'} · Qty: {prescription.quantity || 1}
+                </p>
+                <p className="text-xs text-gray-400">
+                  Batch: {prescription.visit_number || prescription.visit || 'Visit batch'} · {prescription.prescribed_date ? new Date(prescription.prescribed_date).toLocaleDateString() : 'Date unavailable'}
+                </p>
+                <p className="text-xs text-gray-400">
+                  Prescribed by: {prescription.prescribed_by_name || 'Doctor not recorded'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge status={prescription.status || 'pending'}>
+                  {prescription.status || 'Pending'}
+                </Badge>
+                {!isDispensed && (
+                  <Button
+                    onClick={() => startDispense(prescription)}
+                    variant="success"
+                    size="sm"
+                    icon={ShoppingCart}
+                  >
+                    Dispense
+                  </Button>
+                )}
+                {isDispensed && (
+                  <Badge status="dispensed">✓ Dispensed</Badge>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </BaseModal>
+  );
+};
+
+// ==================== CONSTANTS ====================
+
+const drugCategories = [
+  { value: 'antibiotic', label: 'Antibiotic' },
+  { value: 'analgesic', label: 'Analgesic' },
+  { value: 'antihypertensive', label: 'Antihypertensive' },
+  { value: 'antidiabetic', label: 'Antidiabetic' },
+  { value: 'antimalarial', label: 'Antimalarial' },
+  { value: 'vaccine', label: 'Vaccine' },
+  { value: 'supplement', label: 'Supplement' },
+  { value: 'other', label: 'Other' }
+];
+
+const dosageForms = [
+  { value: 'tablet', label: 'Tablet' },
+  { value: 'capsule', label: 'Capsule' },
+  { value: 'syrup', label: 'Syrup' },
+  { value: 'injection', label: 'Injection' },
+  { value: 'ointment', label: 'Ointment' },
+  { value: 'cream', label: 'Cream' },
+  { value: 'drops', label: 'Drops' },
+  { value: 'inhaler', label: 'Inhaler' },
+  { value: 'suppository', label: 'Suppository' }
+];
+
+const nemlCategories = ['Essential-Core', 'Essential-Complementary', 'Specialist', 'Supplementary', 'Not-in-NEML'];
+
+const nigerianManufacturers = [
+  'Emzor Pharmaceuticals', 'Fidson Healthcare', 'May & Baker Nigeria',
+  'Swiss Pharma Nigeria', 'Chi Pharmaceuticals', 'Greenlife Pharmaceuticals',
+  'Mopson Pharmaceuticals', 'Biotech Pharmaceuticals', 'GSK Nigeria',
+  'Sanofi Nigeria', 'Pfizer Nigeria', 'Other'
+];
+
+const statusFilterOptions = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'in-stock', label: 'In Stock' },
+  { value: 'low-stock', label: 'Low Stock' },
+  { value: 'out-of-stock', label: 'Out of Stock' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'controlled', label: 'Controlled' },
+];
+
+const tabs = [
+  { id: 'inventory', label: 'Inventory', icon: Package },
+  { id: 'prescriptions', label: 'Prescriptions', icon: Clipboard },
+  { id: 'sales', label: 'Sales', icon: History },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck },
+];
+
+// ==================== DEFAULT FORM VALUES ====================
+
+const getDefaultDrugForm = () => ({
+  name: '', genericName: '', brandName: '', drugCode: '', nafdacNumber: '',
+  pcnApprovalNumber: '', strength: '', dosageForm: '', unitOfMeasure: '',
+  category: '', therapeuticClass: '', manufacturer: '', supplier: '',
+  countryOfOrigin: 'Nigeria', unitPrice: '', sellingPrice: '', quantityInStock: '',
+  reorderLevel: '', reorderQuantity: '', expiryDate: '', batchNumber: '',
+  storageConditions: '', prescriptionRequired: false, controlledSubstance: false,
+  narcotic: false, schedule: '', nhisCovered: false, nhisCode: '', nhisPrice: '',
+  nemlCategory: '', sideEffects: '', contraindications: '', interactions: '',
+  dosageInstructions: '', barcode: '', lastRestocked: new Date().toISOString().split('T')[0]
+});
+
+const getDefaultSupplierForm = () => ({
+  name: '', contactPerson: '', phone: '', email: '', address: '',
+  licenseNumber: '', rating: 0, notes: ''
+});
+
+// ==================== MAIN COMPONENT ====================
+
 const Pharmacy = () => {
   const dispatch = useDispatch();
+  const pharmacyState = useSelector(state => state.pharmacy) || {};
+  
   const {
-    drugs, filteredDrugs, currentDrug,
-    loading, error, searchTerm,
-    filterBy, sortBy, cart,
-    salesHistory, lowStockItems,
-    expiredDrugs, prescriptions,
-    inventoryValue, suppliers
-  } = useSelector(state => state.pharmacy);
+    drugs = [], filteredDrugs = [], currentDrug = null,
+    loading = false, error = null, searchTerm = '',
+    filterBy = 'all', sortBy = 'name', cart = [],
+    salesHistory = [], lowStockItems = [], expiredDrugs = [],
+    prescriptions = [], inventoryValue = 0, suppliers = []
+  } = pharmacyState;
 
-  // State
+  // UI State
   const [activeTab, setActiveTab] = useState('inventory');
-  const [showDrugForm, setShowDrugForm] = useState(false);
-  const [editingDrugId, setEditingDrugId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedDrugs, setSelectedDrugs] = useState([]);
-  const [viewMode, setViewMode] = useState('table');
-  const [showCart, setShowCart] = useState(false);
-  const [showReports, setShowReports] = useState(false);
-  const [showDispenseForm, setShowDispenseForm] = useState(false);
-  const [showRestockForm, setShowRestockForm] = useState(false);
-  const [restockDrugId, setRestockDrugId] = useState(null);
-  const [restockForm, setRestockForm] = useState({
-    quantity: '',
-    batchNumber: '',
-    expiryDate: '',
-  });
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [showSupplierForm, setShowSupplierForm] = useState(false);
-  const [editingSupplierId, setEditingSupplierId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [prescriptionSearch, setPrescriptionSearch] = useState('');
+
+  // Modal States
+  const [modals, setModals] = useState({
+    drugForm: { isOpen: false, isEdit: false, data: null },
+    supplierForm: { isOpen: false, isEdit: false, data: null },
+    restock: { isOpen: false, drugId: null },
+    cart: { isOpen: false },
+    prescriptions: { isOpen: false, patient: null },
+    confirm: { isOpen: false, title: '', message: '', onConfirm: null },
+  });
+
+  // Form States
+  const [drugForm, setDrugForm] = useState(getDefaultDrugForm());
+  const [supplierForm, setSupplierForm] = useState(getDefaultSupplierForm());
+  const [restockForm, setRestockForm] = useState({ quantity: '', batchNumber: '', expiryDate: '' });
+  const [dispenseSelection, setDispenseSelection] = useState(null);
+  const [dispenseQuantity, setDispenseQuantity] = useState('');
+  const [isDispensing, setIsDispensing] = useState(false);
+
+  // Notification States
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
   const itemsPerPage = 10;
 
+  // Stats
+  const stats = useMemo(() => {
+    const safeDrugs = drugs || [];
+    const totalDrugs = safeDrugs.length;
+    const totalValue = safeDrugs.reduce((sum, drug) => 
+      sum + (drug.stock_quantity || drug.quantityInStock || 0) * (drug.unit_price || drug.unitPrice || 0), 0);
+    const lowStockCount = safeDrugs.filter(drug => 
+      (drug.stock_quantity || drug.quantityInStock || 0) <= (drug.reorder_level || drug.reorderLevel || 0)).length;
+    const expiredCount = safeDrugs.filter(drug => 
+      new Date(drug.expiry_date || drug.expiryDate) < new Date()).length;
+    const controlledCount = safeDrugs.filter(drug => 
+      drug.is_controlled || drug.controlledSubstance).length;
+    const activeCount = safeDrugs.filter(drug => drug.status === 'active' || drug.status !== 'inactive').length;
+
+    return { totalDrugs, totalValue, lowStockCount, expiredCount, controlledCount, activeCount };
+  }, [drugs]);
+
+  // Get drug status
+  const getStatus = useCallback((drug) => {
+    const qty = drug.stock_quantity || drug.quantityInStock || 0;
+    const reorder = drug.reorder_level || drug.reorderLevel || 0;
+    const isExpired = new Date(drug.expiry_date || drug.expiryDate) < new Date();
+    
+    if (isExpired) return 'expired';
+    if (qty === 0) return 'out-of-stock';
+    if (qty <= reorder) return 'low-stock';
+    if (drug.is_controlled || drug.controlledSubstance) return 'controlled';
+    return 'in-stock';
+  }, []);
+
+  // Filter and paginate
+  const filteredByStatus = useMemo(() => {
+    const safeFilteredDrugs = filteredDrugs || [];
+    if (statusFilter === 'all') return safeFilteredDrugs;
+    return safeFilteredDrugs.filter(drug => getStatus(drug) === statusFilter);
+  }, [filteredDrugs, statusFilter, getStatus]);
+
+  const totalItems = filteredByStatus.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const displayedDrugs = filteredByStatus.slice(startIndex, startIndex + itemsPerPage);
+
+  // Prescription patients
+  const prescriptionPatients = useMemo(() => {
+    const groups = new Map();
+    (prescriptions || []).forEach((prescription) => {
+      const patientId = prescription.patient || prescription.patient_name || 'unknown';
+      if (!groups.has(patientId)) {
+        groups.set(patientId, {
+          id: patientId,
+          name: prescription.patient_name || 'Unknown',
+          mrn: prescription.patient_mrn || '',
+          items: [],
+        });
+      }
+      groups.get(patientId).items.push(prescription);
+    });
+    return Array.from(groups.values()).map((patient) => ({
+      ...patient,
+      items: patient.items.sort((a, b) => new Date(b.prescribed_date || 0) - new Date(a.prescribed_date || 0)),
+    })).map((patient) => ({
+      ...patient,
+      latest: patient.items[0],
+    })).sort((a, b) => new Date(b.latest?.prescribed_date || 0) - new Date(a.latest?.prescribed_date || 0));
+  }, [prescriptions]);
+
+  // Fetch data
   useEffect(() => {
     dispatch(fetchDrugs());
   }, [dispatch]);
 
   useEffect(() => {
     if (activeTab === 'prescriptions') {
-      dispatch(fetchPrescriptions());
+      dispatch(fetchPrescriptions({ search: prescriptionSearch }));
     } else if (activeTab === 'sales') {
       dispatch(fetchSales());
     } else if (activeTab === 'suppliers') {
       dispatch(fetchSuppliers());
     }
-  }, [activeTab, dispatch]);
+  }, [activeTab, dispatch, prescriptionSearch]);
 
-  // Modal state
-  const [modalConfig, setModalConfig] = useState({
-    isOpen: false,
-    type: 'delete',
-    drugData: null,
-    action: null,
-  });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchQuery]);
 
-  // Error modal state
-  const [errorModal, setErrorModal] = useState({
-    isOpen: false,
-    title: 'Error',
-    message: '',
-  });
+  // ==================== HANDLERS ====================
 
-  // Form data with Nigerian context - MATCHING DJANGO MODEL EXACTLY
-  const [drugForm, setDrugForm] = useState({
-    name: '',
-    genericName: '',
-    brandName: '',
-    drugCode: '',
-    nafdacNumber: '',
-    pcnApprovalNumber: '',
-    strength: '',
-    dosageForm: '',
-    unitOfMeasure: '',
-    category: '',
-    therapeuticClass: '',
-    manufacturer: '',
-    supplier: '',
-    countryOfOrigin: 'Nigeria',
-    unitPrice: '',
-    sellingPrice: '',
-    quantityInStock: '',
-    reorderLevel: '',
-    reorderQuantity: '',
-    expiryDate: '',
-    batchNumber: '',
-    storageConditions: '',
-    prescriptionRequired: false,
-    controlledSubstance: false,
-    narcotic: false,
-    schedule: '',
-    nhisCovered: false,
-    nhisCode: '',
-    nhisPrice: '',
-    nemlCategory: '',
-    sideEffects: '',
-    contraindications: '',
-    interactions: '',
-    dosageInstructions: '',
-    barcode: '',
-    lastRestocked: new Date().toISOString().split('T')[0],
-  });
-
-  const [supplierForm, setSupplierForm] = useState({
-    name: '',
-    contactPerson: '',
-    phone: '',
-    email: '',
-    address: '',
-    licenseNumber: '',
-    rating: 0,
-    notes: '',
-  });
-
-  // Constants - MATCHING DJANGO MODEL CHOICES EXACTLY
-  const drugCategories = [
-    { value: 'antibiotic', label: 'Antibiotic' },
-    { value: 'analgesic', label: 'Analgesic' },
-    { value: 'antihypertensive', label: 'Antihypertensive' },
-    { value: 'antidiabetic', label: 'Antidiabetic' },
-    { value: 'antimalarial', label: 'Antimalarial' },
-    { value: 'vaccine', label: 'Vaccine' },
-    { value: 'supplement', label: 'Supplement' },
-    { value: 'other', label: 'Other' }
-  ];
-
-  const dosageForms = [
-    { value: 'tablet', label: 'Tablet' },
-    { value: 'capsule', label: 'Capsule' },
-    { value: 'syrup', label: 'Syrup' },
-    { value: 'injection', label: 'Injection' },
-    { value: 'ointment', label: 'Ointment' },
-    { value: 'cream', label: 'Cream' },
-    { value: 'drops', label: 'Drops' },
-    { value: 'inhaler', label: 'Inhaler' },
-    { value: 'suppository', label: 'Suppository' }
-  ];
-
-  const nemlCategories = [
-    'Essential-Core',
-    'Essential-Complementary',
-    'Specialist',
-    'Supplementary',
-    'Not-in-NEML'
-  ];
-
-  const controlledSchedules = [
-    'C1 - Most Restricted',
-    'C2 - Restricted',
-    'C3 - Less Restricted',
-    'C4 - Least Restricted',
-    'Non-controlled'
-  ];
-
-  const nigerianManufacturers = [
-    'Emzor Pharmaceuticals',
-    'Fidson Healthcare',
-    'May & Baker Nigeria',
-    'Swiss Pharma Nigeria',
-    'Chi Pharmaceuticals',
-    'Greenlife Pharmaceuticals',
-    'Mopson Pharmaceuticals',
-    'Biotech Pharmaceuticals',
-    'GSK Nigeria',
-    'Sanofi Nigeria',
-    'Pfizer Nigeria',
-    'Other'
-  ];
-
-  // Stats
-  const stats = useMemo(() => {
-    const totalDrugs = drugs.length;
-    const totalValue = drugs.reduce((sum, drug) => 
-      sum + (drug.quantityInStock * drug.unitPrice), 0);
-    const lowStockCount = drugs.filter(drug => 
-      drug.quantityInStock <= drug.reorderLevel).length;
-    const expiredCount = drugs.filter(drug => 
-      new Date(drug.expiryDate) < new Date()).length;
-    const controlledCount = drugs.filter(drug => 
-      drug.controlledSubstance).length;
-    const activeCount = drugs.filter(drug => drug.status === 'active').length;
-
-    return {
-      totalDrugs,
-      totalValue,
-      lowStockCount,
-      expiredCount,
-      controlledCount,
-      activeCount,
-      averageStockValue: totalValue / totalDrugs || 0,
-    };
-  }, [drugs]);
-
-  // Pagination
-  const totalItems = filteredDrugs.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const displayedDrugs = filteredDrugs.slice(startIndex, endIndex);
-
-  // Handlers
-const handleDrugFormSubmit = async (e) => {
-    e.preventDefault();
-    const validation = validateDrug(drugForm);
-    if (!validation.isValid) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Validation Error',
-        message: validation.errors.join('\n'),
-      });
-      return;
-    }
-
+  const handleDrugFormSubmit = async (formData) => {
+    setErrorMessage('');
     try {
       const payload = {
-        name: drugForm.name.trim(),
-        generic_name: drugForm.genericName.trim() || null,
-        brand_name: drugForm.brandName.trim() || null,
-        drug_code: drugForm.drugCode.trim() || null,
-        nafdac_number: formatNafdacNumber(drugForm.nafdacNumber) || null,
-        strength: drugForm.strength.trim() || null,
-        form: drugForm.dosageForm,
-        category: drugForm.category,
-        stock_quantity: parseInt(drugForm.quantityInStock) || 0,
-        reorder_level: parseInt(drugForm.reorderLevel) || 10,
-        unit_price: parseFloat(drugForm.unitPrice) || 0,
-        is_controlled: drugForm.controlledSubstance,
+        name: formData.name.trim(),
+        generic_name: formData.genericName.trim() || null,
+        brand_name: formData.brandName.trim() || null,
+        drug_code: formData.drugCode.trim() || null,
+        nafdac_number: formData.nafdacNumber.trim() || null,
+        pcn_approval_number: formData.pcnApprovalNumber.trim() || null,
+        strength: formData.strength.trim() || null,
+        form: formData.dosageForm,
+        category: formData.category,
+        therapeutic_class: formData.therapeuticClass.trim() || null,
+        stock_quantity: parseInt(formData.quantityInStock) || 0,
+        reorder_level: parseInt(formData.reorderLevel) || 10,
+        reorder_quantity: parseInt(formData.reorderQuantity) || 0,
+        unit_price: parseFloat(formData.unitPrice) || 0,
+        selling_price: parseFloat(formData.sellingPrice) || 0,
+        unit_of_measure: formData.unitOfMeasure.trim() || null,
+        batch_number: formData.batchNumber.trim() || null,
+        expiry_date: formData.expiryDate || null,
+        storage_conditions: formData.storageConditions.trim() || null,
+        last_restocked: formData.lastRestocked || null,
+        neml_category: formData.nemlCategory || null,
+        manufacturer: formData.manufacturer.trim() || null,
+        supplier: formData.supplier.trim() || null,
+        country_of_origin: formData.countryOfOrigin.trim() || 'Nigeria',
+        is_controlled: formData.controlledSubstance,
+        narcotic: formData.narcotic,
+        schedule: formData.schedule.trim() || null,
+        nhis_covered: formData.nhisCovered,
+        nhis_code: formData.nhisCode.trim() || null,
+        nhis_price: formData.nhisPrice ? parseFloat(formData.nhisPrice) : null,
+        side_effects: formData.sideEffects.trim() || null,
+        contraindications: formData.contraindications.trim() || null,
+        interactions: formData.interactions.trim() || null,
+        dosage_instructions: formData.dosageInstructions.trim() || null,
+        prescription_required: formData.prescriptionRequired,
+        barcode: formData.barcode.trim() || null,
       };
 
-      if (editingDrugId) {
-        await apiRequest(`/api/v1/pharmacy/drugs/${editingDrugId}/`, {
+      if (modals.drugForm.isEdit) {
+        await apiRequest(`/api/v1/pharmacy/drugs/${modals.drugForm.data.id}/`, {
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
-        dispatch(updateDrug({ ...drugForm, id: editingDrugId }));
+        setSuccessMessage('Drug updated successfully.');
       } else {
-        const response = await apiRequest('/api/v1/pharmacy/drugs/', {
+        await apiRequest('/api/v1/pharmacy/drugs/', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        dispatch(addDrug({ ...drugForm, id: response.id || Date.now() }));
+        setSuccessMessage('Drug added successfully.');
       }
 
-      setErrorModal({
-        isOpen: true,
-        title: 'Success',
-        message: editingDrugId ? 'Drug updated successfully' : 'Drug added successfully',
-      });
-      resetDrugForm();
-      setShowDrugForm(false);
+      dispatch(fetchDrugs());
+      closeModal('drugForm');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      let errorMessage = err.message || 'Failed to save drug. Please try again.';
+      let errorMsg = err.message || 'Failed to save drug.';
       if (err.data && typeof err.data === 'object') {
-        errorMessage = Object.entries(err.data)
+        errorMsg = Object.entries(err.data)
           .map(([field, errors]) => {
             const fieldLabel = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             const msg = Array.isArray(errors) ? errors.join(', ') : errors;
@@ -370,103 +1156,14 @@ const handleDrugFormSubmit = async (e) => {
           })
           .join('\n');
       }
-      setErrorModal({
-        isOpen: true,
-        title: 'Error',
-        message: errorMessage,
-      });
+      setErrorMessage(errorMsg);
     }
-  };
-
-  const resetDrugForm = () => {
-    setDrugForm({
-      name: '',
-      genericName: '',
-      brandName: '',
-      drugCode: '',
-      nafdacNumber: '',
-      pcnApprovalNumber: '',
-      strength: '',
-      dosageForm: '',
-      unitOfMeasure: '',
-      category: '',
-      therapeuticClass: '',
-      manufacturer: '',
-      supplier: '',
-      countryOfOrigin: 'Nigeria',
-      unitPrice: '',
-      sellingPrice: '',
-      quantityInStock: '',
-      reorderLevel: '',
-      reorderQuantity: '',
-      expiryDate: '',
-      batchNumber: '',
-      storageConditions: '',
-      prescriptionRequired: false,
-      controlledSubstance: false,
-      narcotic: false,
-      schedule: '',
-      nhisCovered: false,
-      nhisCode: '',
-      nhisPrice: '',
-      nemlCategory: '',
-      sideEffects: '',
-      contraindications: '',
-      interactions: '',
-      dosageInstructions: '',
-      barcode: '',
-      lastRestocked: new Date().toISOString().split('T')[0],
-    });
-    setEditingDrugId(null);
-  };
-
-  const handleRestockClick = (drug) => {
-    setRestockDrugId(drug.id);
-    setRestockForm({
-      quantity: '',
-      batchNumber: '',
-      expiryDate: '',
-    });
-    setShowRestockForm(true);
-  };
-
-  const handleRestockSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await apiRequest(`/api/v1/pharmacy/drugs/${restockDrugId}/restock/`, {
-        method: 'POST',
-        body: JSON.stringify({
-          quantity: parseInt(restockForm.quantity),
-          batch_number: restockForm.batchNumber,
-          expiry_date: restockForm.expiryDate,
-        }),
-      });
-      dispatch(fetchDrugs());
-      setShowRestockForm(false);
-      setErrorModal({ isOpen: true, title: 'Success', message: 'Drug restocked successfully' });
-    } catch (err) {
-      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to restock drug' });
-    }
-  };
-
-  const resetSupplierForm = () => {
-    setSupplierForm({
-      name: '',
-      contactPerson: '',
-      phone: '',
-      email: '',
-      address: '',
-      licenseNumber: '',
-      rating: 0,
-      notes: '',
-    });
-    setEditingSupplierId(null);
   };
 
   const handleEditDrug = async (drug) => {
     try {
       const freshDrug = await apiRequest(`/api/v1/pharmacy/drugs/${drug.id}/`);
-      setDrugForm({
+      const formData = {
         name: freshDrug.name || '',
         genericName: freshDrug.generic_name || '',
         brandName: freshDrug.brand_name || '',
@@ -503,92 +1200,151 @@ const handleDrugFormSubmit = async (e) => {
         dosageInstructions: freshDrug.dosage_instructions || '',
         barcode: freshDrug.barcode || '',
         lastRestocked: freshDrug.last_restocked || new Date().toISOString().split('T')[0],
-      });
-      setEditingDrugId(drug.id);
-      setShowDrugForm(true);
+      };
+      setDrugForm(formData);
+      openModal('drugForm', { isEdit: true, data: freshDrug });
     } catch (err) {
-      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to load drug details' });
+      setErrorMessage(err.message || 'Failed to load drug details');
     }
   };
 
   const handleDeleteClick = (drug) => {
-    setModalConfig({
-      isOpen: true,
-      type: 'delete',
-      drugData: drug,
-      action: async () => {
-        try {
-          await apiRequest(`/api/v1/pharmacy/drugs/${drug.id}/`, { method: 'DELETE' });
-          dispatch(fetchDrugs());
-          setErrorModal({ isOpen: true, title: 'Success', message: 'Drug deleted successfully' });
-        } catch (err) {
-          setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to delete drug' });
+    setModals(prev => ({
+      ...prev,
+      confirm: {
+        isOpen: true,
+        title: 'Delete Drug',
+        message: `Are you sure you want to delete "${drug.name}"? This action cannot be undone.`,
+        onConfirm: async () => {
+          try {
+            await apiRequest(`/api/v1/pharmacy/drugs/${drug.id}/`, { method: 'DELETE' });
+            dispatch(fetchDrugs());
+            setSuccessMessage('Drug deleted successfully.');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            closeModal('confirm');
+          } catch (err) {
+            setErrorMessage(err.message || 'Failed to delete drug');
+          }
         }
-      },
-    });
+      }
+    }));
   };
 
-  const handleModalConfirm = () => {
-    if (modalConfig.action) modalConfig.action();
-    setModalConfig({ ...modalConfig, isOpen: false });
+  const handleRestockSubmit = async (formData) => {
+    setErrorMessage('');
+    try {
+      await apiRequest(`/api/v1/pharmacy/drugs/${modals.restock.drugId}/restock/`, {
+        method: 'POST',
+        body: JSON.stringify({
+          quantity: parseInt(formData.quantity),
+          batch_number: formData.batchNumber,
+          expiry_date: formData.expiryDate,
+        }),
+      });
+      dispatch(fetchDrugs());
+      closeModal('restock');
+      setSuccessMessage('Drug restocked successfully.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to restock drug');
+    }
   };
 
-  const handleModalClose = () => {
-    setModalConfig({ ...modalConfig, isOpen: false });
+  const handleSupplierSubmit = async (formData) => {
+    setErrorMessage('');
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        contact_person: formData.contactPerson.trim() || null,
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        address: formData.address.trim() || null,
+        license_number: formData.licenseNumber.trim() || null,
+        rating: parseInt(formData.rating) || 0,
+        notes: formData.notes.trim() || null,
+      };
+
+      if (modals.supplierForm.isEdit) {
+        await apiRequest(`/api/v1/pharmacy/suppliers/${modals.supplierForm.data.id}/`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        setSuccessMessage('Supplier updated successfully.');
+      } else {
+        await apiRequest('/api/v1/pharmacy/suppliers/', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        setSuccessMessage('Supplier added successfully.');
+      }
+
+      dispatch(fetchSuppliers());
+      closeModal('supplierForm');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to save supplier');
+    }
   };
 
-  const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    dispatch(searchDrugs(value));
-  };
-
-  const handleFilter = (e) => {
-    dispatch(filterDrugs(e.target.value));
-    setCurrentPage(1);
-  };
-
-  const handleSort = (e) => {
-    dispatch(sortDrugs(e.target.value));
-  };
-
-  const handleExportReport = () => {
-    dispatch(exportPharmacyReport());
-    setErrorModal({
-      isOpen: true,
-      title: 'Success',
-      message: 'Report exported successfully',
-    });
+  const handleDispensePrescription = async (prescription, drugId, quantity) => {
+    setErrorMessage('');
+    try {
+      const drug = drugs.find((item) => item.id === Number(drugId));
+      if (!drug) throw new Error('Select an inventory item that matches this prescription.');
+      
+      await pharmacyApi.createDispense({
+        prescription: prescription.id,
+        patient: prescription.patient,
+        drug: drug.id,
+        quantity: quantity,
+        unit_price: drug.selling_price || drug.sellingPrice || 0,
+        instructions: prescription.instructions || ''
+      });
+      
+      setSuccessMessage('Prescription dispensed and stock updated.');
+      dispatch(fetchPrescriptions({ search: prescriptionSearch }));
+      dispatch(fetchDrugs());
+      
+      // Refresh the patient data in the modal
+      const updatedPatients = prescriptionPatients;
+      const currentPatient = updatedPatients.find(p => p.id === modals.prescriptions.patient?.id);
+      if (currentPatient) {
+        openModal('prescriptions', { patient: currentPatient });
+      }
+      
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to dispense prescription.');
+      throw error;
+    }
   };
 
   const handleAddToCart = (drug) => {
     dispatch(addToCart({
       ...drug,
       quantity: 1,
-      totalPrice: drug.sellingPrice
+      totalPrice: drug.selling_price || drug.sellingPrice || drug.unit_price || drug.unitPrice || 0
     }));
+    setSuccessMessage(`${drug.name} added to cart.`);
+    setTimeout(() => setSuccessMessage(''), 2000);
   };
 
   const handleProcessSale = async () => {
-    if (cart.length === 0) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Error',
-        message: 'Cart is empty',
-      });
+    const safeCart = cart || [];
+    if (safeCart.length === 0) {
+      setErrorMessage('Cart is empty.');
       return;
     }
 
     try {
-      const tenantPublicId = localStorage.getItem('tenantId');
       const payload = {
         payment_method: 'cash',
         payment_status: 'paid',
         status: 'completed',
-        items: cart.map(item => ({
+        items: safeCart.map(item => ({
           drug: item.id,
           quantity: item.quantity,
-          unit_price: item.sellingPrice || item.unitPrice,
+          unit_price: item.selling_price || item.sellingPrice || item.unit_price || item.unitPrice || 0,
         })),
       };
 
@@ -600,73 +1356,78 @@ const handleDrugFormSubmit = async (e) => {
       dispatch(clearCart());
       dispatch(fetchDrugs());
       dispatch(fetchSales());
-      setShowCart(false);
-      setErrorModal({
-        isOpen: true,
-        title: 'Success',
-        message: 'Sale processed successfully',
-      });
+      closeModal('cart');
+      setSuccessMessage('Sale processed successfully.');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Error',
-        message: err.message || 'Failed to process sale',
+      setErrorMessage(err.message || 'Failed to process sale');
+    }
+  };
+
+  const handleExportReport = () => {
+    dispatch(exportPharmacyReport());
+    setSuccessMessage('Report exported successfully.');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
+  const handleRefresh = () => {
+    dispatch(fetchDrugs());
+    setSuccessMessage('Inventory refreshed.');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
+  // ==================== MODAL HELPERS ====================
+
+  const openModal = (modalName, props = {}) => {
+    setModals(prev => ({
+      ...prev,
+      [modalName]: { ...prev[modalName], ...props, isOpen: true }
+    }));
+  };
+
+  const closeModal = (modalName) => {
+    setModals(prev => ({
+      ...prev,
+      [modalName]: { ...prev[modalName], isOpen: false }
+    }));
+  };
+
+  // ==================== RENDER HELPERS ====================
+
+  const formatDate = (date) => {
+    if (!date) return '-';
+    try {
+      return new Date(date).toLocaleDateString('en-NG', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
+    } catch {
+      return '-';
     }
   };
 
-  const getStatusBadge = (drug) => {
-    const isExpired = new Date(drug.expiryDate) < new Date();
-    const isLowStock = drug.quantityInStock <= drug.reorderLevel;
-    
-    if (isExpired) {
-      return { label: 'Expired', color: 'bg-red-100 text-red-800' };
-    }
-    if (isLowStock) {
-      return { label: 'Low Stock', color: 'bg-yellow-100 text-yellow-800' };
-    }
-    if (drug.controlledSubstance) {
-      return { label: 'Controlled', color: 'bg-purple-100 text-purple-800' };
-    }
-    return { label: 'In Stock', color: 'bg-green-100 text-green-800' };
-  };
+  // ==================== RENDER FUNCTIONS ====================
 
-  // Render content based on active tab
-  const renderTabContent = () => {
-    switch(activeTab) {
-      case 'inventory':
-        return renderInventoryContent();
-      case 'prescriptions':
-        return renderPrescriptionsContent();
-      case 'sales':
-        return renderSalesContent();
-      case 'suppliers':
-        return renderSuppliersContent();
-      default:
-        return renderInventoryContent();
-    }
-  };
-
-  // Inventory Tab Content
   const renderInventoryContent = () => {
     return (
       <>
         {/* Alerts */}
         {(lowStockItems.length > 0 || expiredDrugs.length > 0) && (
-          <div className="px-3 sm:px-4 pt-3 sm:pt-4 space-y-1.5 sm:space-y-2">
+          <div className="px-4 pt-4 space-y-2">
             {lowStockItems.length > 0 && (
-              <div className="flex items-center gap-2 p-2 sm:p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-600 flex-shrink-0" />
-                <span className="text-xs sm:text-sm text-yellow-800">
-                  <span className="font-medium">{lowStockItems.length}</span> drug(s) below reorder level
+              <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <span className="text-sm text-amber-700">
+                  <span className="font-semibold">{lowStockItems.length}</span> drug(s) below reorder level
                 </span>
               </div>
             )}
             {expiredDrugs.length > 0 && (
-              <div className="flex items-center gap-2 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
-                <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 flex-shrink-0" />
-                <span className="text-xs sm:text-sm text-red-800">
-                  <span className="font-medium">{expiredDrugs.length}</span> drug(s) have expired
+              <div className="flex items-center gap-3 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <XCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                <span className="text-sm text-rose-700">
+                  <span className="font-semibold">{expiredDrugs.length}</span> drug(s) have expired
                 </span>
               </div>
             )}
@@ -674,135 +1435,82 @@ const handleDrugFormSubmit = async (e) => {
         )}
 
         {/* Drug List */}
-        <div className="p-3 sm:p-4">
-          {filteredDrugs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-8 sm:py-12">
-              {!searchQuery && (
-                <ButtonWithTooltip
-                  onClick={() => setShowDrugForm(true)}
-                  variant="primary"
-                  className="mb-3 sm:mb-4"
-                >
-                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  Add Drug
-                </ButtonWithTooltip>
-              )}
-              <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-              <p className="text-gray-600 font-medium text-sm sm:text-base">No drugs found</p>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                {searchQuery ? 'Try adjusting your search or filters' : 'Start by adding your first drug'}
+        <div className="p-4">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+              <p className="text-gray-500">Loading inventory...</p>
+            </div>
+          ) : displayedDrugs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-12">
+              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 font-medium">No drugs found</p>
+              <p className="text-sm text-gray-400 mt-1">
+                {searchQuery ? 'Try adjusting your search' : 'Click "Add Drug" to get started'}
               </p>
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto -mx-3 sm:mx-0">
-                <table className="w-full min-w-[640px] sm:min-w-0">
+              <div className="overflow-x-auto -mx-4 px-4">
+                <table className="w-full min-w-[640px]">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input
-                          type="checkbox"
-                          className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedDrugs(displayedDrugs.map(d => d.id));
-                            } else {
-                              setSelectedDrugs([]);
-                            }
-                          }}
-                        />
-                      </th>
-                      <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
-                      <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Stock</th>
-                      <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                      <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Status</th>
-                      <th className="pb-2 sm:pb-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <tr className="border-b border-gray-100">
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Stock</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Status</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-50">
                     {displayedDrugs.map((drug) => {
-                      const status = getStatusBadge(drug);
-                      const expiryDays = calculateExpiryStatus(drug.expiryDate);
+                      const status = getStatus(drug);
+                      const qty = drug.stock_quantity || drug.quantityInStock || 0;
+                      const expiryDate = drug.expiry_date || drug.expiryDate;
+                      const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
                       
                       return (
                         <tr key={drug.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="py-2 sm:py-3">
-                            <input
-                              type="checkbox"
-                              className="rounded border-gray-300 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer"
-                              checked={selectedDrugs.includes(drug.id)}
-                              onChange={() => {
-                                setSelectedDrugs(prev =>
-                                  prev.includes(drug.id)
-                                    ? prev.filter(id => id !== drug.id)
-                                    : [...prev, drug.id]
-                                );
-                              }}
-                            />
-                          </td>
-                          <td className="py-2 sm:py-3">
-                            <div className="font-medium text-gray-900 text-xs sm:text-sm">{drug.name}</div>
-                            <div className="text-[10px] sm:text-xs text-gray-500">{drug.genericName}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 sm:mt-1">
-                              {drug.strength} • {drug.dosageForm}
-                            </div>
-                            {drug.nemlCategory && (
-                              <span className="inline-block mt-0.5 sm:mt-1 text-[8px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
-                                {drug.nemlCategory}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 sm:py-3 hidden sm:table-cell">
-                            <div className="font-medium text-xs sm:text-sm">{drug.quantityInStock}</div>
-                            <div className="text-[10px] text-gray-500">
-                              Reorder: {drug.reorderLevel}
-                            </div>
-                            {drug.batchNumber && (
-                              <div className="text-[10px] text-gray-400">
-                                Batch: {drug.batchNumber}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-2 sm:py-3">
-                            <div className="font-medium text-xs sm:text-sm">₦{drug.sellingPrice}</div>
-                            <div className="text-[10px] text-gray-500 hidden sm:block">
-                              Cost: ₦{drug.unitPrice}
+                          <td className="px-3 py-3">
+                            <div>
+                              <p className="font-medium text-gray-900">{drug.name}</p>
+                              <p className="text-sm text-gray-500">{drug.generic_name || drug.genericName}</p>
+                              <p className="text-xs text-gray-400">
+                                {drug.strength} • {drug.form || drug.dosageForm}
+                              </p>
+                              {drug.neml_category && (
+                                <Badge status="active" className="mt-1">
+                                  {drug.neml_category}
+                                </Badge>
+                              )}
                             </div>
                           </td>
-                          <td className="py-2 sm:py-3 hidden md:table-cell">
-                            <span className={`inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full ${status.color}`}>
-                              {status.label}
-                            </span>
-                            {!new Date(drug.expiryDate) < new Date() && (
-                              <div className={`text-[10px] mt-0.5 sm:mt-1 ${expiryDays.days <= 30 ? 'text-yellow-600' : 'text-gray-500'}`}>
-                                {expiryDays.days <= 30 ? (
-                                  <span className="flex items-center gap-0.5 sm:gap-1">
-                                    <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                                    {expiryDays.days}d
-                                  </span>
-                                ) : (
-                                  <span className="hidden sm:inline">{new Date(drug.expiryDate).toLocaleDateString()}</span>
-                                )}
-                              </div>
+                          <td className="px-3 py-3 hidden sm:table-cell">
+                            <div className="font-medium text-gray-900">{qty}</div>
+                            <div className="text-xs text-gray-500">Reorder: {drug.reorder_level || drug.reorderLevel || 0}</div>
+                            {drug.batch_number && (
+                              <div className="text-xs text-gray-400">Batch: {drug.batch_number}</div>
                             )}
                           </td>
-                          <td className="py-2 sm:py-3">
-                            <div className="flex items-center gap-0.5 sm:gap-1">
-                              <IconButton
-                                icon={Edit}
-                                onClick={() => handleEditDrug(drug)}
-                                variant="primary"
-                              />
-                              <IconButton
-                                icon={ShoppingCart}
-                                onClick={() => handleAddToCart(drug)}
-                                variant="success"
-                              />
-                              <IconButton
-                                icon={Trash2}
-                                onClick={() => handleDeleteClick(drug)}
-                                variant="danger"
-                              />
+                          <td className="px-3 py-3">
+                            <div className="font-medium text-gray-900">₦{drug.selling_price || drug.sellingPrice || 0}</div>
+                            <div className="text-xs text-gray-400 hidden sm:block">Cost: ₦{drug.unit_price || drug.unitPrice || 0}</div>
+                          </td>
+                          <td className="px-3 py-3 hidden md:table-cell">
+                            <Badge status={status}>{status.replace('-', ' ')}</Badge>
+                            {!isExpired && expiryDate && (
+                              <div className="text-xs text-gray-400 mt-1">{formatDate(expiryDate)}</div>
+                            )}
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-0.5">
+                              <IconButton icon={Edit} onClick={() => handleEditDrug(drug)} tooltip="Edit" variant="warning" size="sm" />
+                              <IconButton icon={Trash2} onClick={() => handleDeleteClick(drug)} tooltip="Delete" variant="danger" size="sm" />
+                              <IconButton icon={Package} onClick={() => {
+                                setRestockForm({ quantity: '', batchNumber: '', expiryDate: '' });
+                                setModals(prev => ({ ...prev, restock: { isOpen: true, drugId: drug.id } }));
+                              }} tooltip="Restock" variant="primary" size="sm" />
+                              {/* <IconButton icon={ShoppingCart} onClick={() => handleAddToCart(drug)} tooltip="Add to Cart QWERTY" variant="success" size="sm" /> */}
                             </div>
                           </td>
                         </tr>
@@ -813,25 +1521,27 @@ const handleDrugFormSubmit = async (e) => {
               </div>
 
               {/* Pagination */}
-              <div className="flex flex-col sm:flex-row items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 gap-2 sm:gap-0">
-                <div className="text-[10px] sm:text-xs text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-gray-100 gap-3">
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems}
                 </div>
-                <div className="flex items-center gap-1 sm:gap-2">
+                <div className="flex items-center gap-2">
                   <IconButton
                     icon={ChevronLeft}
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    variant="default"
+                    tooltip="Previous"
                     disabled={currentPage === 1}
+                    size="sm"
                   />
-                  <span className="text-[10px] sm:text-xs text-gray-600">
-                    Page {currentPage} of {totalPages || 1}
+                  <span className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
                   </span>
                   <IconButton
                     icon={ChevronRight}
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    variant="default"
+                    tooltip="Next"
                     disabled={currentPage === totalPages}
+                    size="sm"
                   />
                 </div>
               </div>
@@ -842,61 +1552,119 @@ const handleDrugFormSubmit = async (e) => {
     );
   };
 
-  // Prescriptions Tab Content
   const renderPrescriptionsContent = () => {
     return (
-      <div className="p-3 sm:p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-900">Prescriptions</h3>
-          <ButtonWithTooltip
-            variant="primary"
-          >
-            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            New Prescription
-          </ButtonWithTooltip>
+      <div className="p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">Prescriptions</h3>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 sm:flex-none">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                value={prescriptionSearch}
+                onChange={(e) => setPrescriptionSearch(e.target.value)}
+                placeholder="Search by patient..."
+                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all w-full sm:w-56"
+              />
+            </div>
+            <Button variant="secondary" size="sm" icon={Filter}>Filter</Button>
+            <Button variant="secondary" size="sm" icon={Download}>Export</Button>
+          </div>
         </div>
+
+        {dispenseSelection && (
+          <form onSubmit={handleDispensePrescription} className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-end">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Dispense {dispenseSelection.prescription.drug_name}</p>
+                <p className="text-sm text-gray-600">{dispenseSelection.prescription.patient_name}</p>
+                <select
+                  value={dispenseSelection.drugId}
+                  onChange={(e) => setDispenseSelection((current) => ({ ...current, drugId: e.target.value }))}
+                  className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                >
+                  <option value="">Select inventory drug</option>
+                  {drugs.filter((drug) => 
+                    [drug.name, drug.generic_name, drug.genericName, drug.brand_name, drug.brandName]
+                      .filter(Boolean)
+                      .some((name) => name.toLowerCase() === dispenseSelection.prescription.drug_name.toLowerCase())
+                  ).map((drug) => (
+                    <option key={drug.id} value={drug.id}>
+                      {drug.name} ({drug.stock_quantity ?? drug.quantityInStock ?? 0} in stock)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <input
+                type="number"
+                min="1"
+                value={dispenseQuantity}
+                onChange={(e) => setDispenseQuantity(e.target.value)}
+                placeholder="Qty"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+              />
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isDispensing || !dispenseSelection.drugId || !dispenseQuantity} variant="success" icon={CheckCircle}>
+                  Dispense
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setDispenseSelection(null)} icon={X}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </form>
+        )}
+
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading prescriptions...</div>
-        ) : prescriptions.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No prescriptions found</div>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <p className="text-gray-500">Loading prescriptions...</p>
+          </div>
+        ) : prescriptionPatients.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Clipboard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 font-medium">No prescriptions found</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <tr className="border-b border-gray-100">
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latest Batch</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Date</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Prescribed By</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {prescriptions.map((prescription) => (
-                  <tr key={prescription.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm">{prescription.patient_name || prescription.patient?.get_full_name || 'Unknown'}</span>
-                      </div>
+              <tbody className="divide-y divide-gray-50">
+                {prescriptionPatients.map((patient) => (
+                  <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-3 py-3">
+                      <span className="font-medium text-gray-900">{patient.name}</span>
+                      <span className="block text-xs text-gray-400">MRN: {patient.mrn || 'N/A'}</span>
                     </td>
-                    <td className="py-3 text-sm">{prescription.drug_name || prescription.drug?.name || 'Unknown'}</td>
-                    <td className="py-3 text-sm">{prescription.prescribed_by?.get_full_name || 'Unknown'}</td>
-                    <td className="py-3 text-sm">{prescription.prescribed_date ? new Date(prescription.prescribed_date).toLocaleDateString() : '-'}</td>
-                    <td className="py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        prescription.status === 'dispensed' || prescription.status === 'Dispensed' ? 'bg-green-100 text-green-800' :
-                        prescription.status === 'pending' || prescription.status === 'Prescribed' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {(prescription.status || 'Unknown').charAt(0).toUpperCase() + (prescription.status || 'Unknown').slice(1)}
-                      </span>
+                    <td className="px-3 py-3 text-sm text-gray-600">
+                      {patient.latest?.visit_number || patient.latest?.visit || 'Visit batch'}
                     </td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-1">
-                        <IconButton icon={Eye} variant="primary" />
-                        <IconButton icon={Printer} variant="default" />
+                    <td className="px-3 py-3 text-sm text-gray-600 hidden md:table-cell">
+                      {patient.latest?.prescribed_date ? new Date(patient.latest.prescribed_date).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-600 hidden lg:table-cell">
+                      {patient.latest?.prescribed_by_name || 'Doctor not recorded'}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-600">{patient.items.length}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-0.5">
+                        <IconButton 
+                          icon={Eye} 
+                          tooltip="View Details" 
+                          variant="primary" 
+                          size="sm" 
+                          onClick={() => openModal('prescriptions', { patient })}
+                        />
+                        <IconButton icon={Printer} tooltip="Print" variant="default" size="sm" />
                       </div>
                     </td>
                   </tr>
@@ -909,68 +1677,69 @@ const handleDrugFormSubmit = async (e) => {
     );
   };
 
-  // Sales Tab Content
   const renderSalesContent = () => {
     return (
-      <div className="p-3 sm:p-4">
+      <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-900">Sales History</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Sales History</h3>
           <div className="flex items-center gap-2">
-            <ButtonWithTooltip
-              variant="secondary"
-            >
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Button onClick={handleExportReport} variant="secondary" size="sm" icon={Download}>
               Export
-            </ButtonWithTooltip>
-            <ButtonWithTooltip
-              variant="primary"
-            >
-              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </Button>
+            <Button variant="primary" size="sm" icon={BarChart3}>
               Analytics
-            </ButtonWithTooltip>
+            </Button>
           </div>
         </div>
+
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading sales...</div>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <p className="text-gray-500">Loading sales...</p>
+          </div>
         ) : salesHistory.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No sales found</div>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 font-medium">No sales found</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <tr className="border-b border-gray-100">
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Date</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {salesHistory.map((sale) => (
                   <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3">
+                    <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm">{sale.patient_name || sale.patient?.get_full_name || 'Walk-in Customer'}</span>
+                        <span className="text-sm text-gray-900">
+                          {sale.patient_name || sale.patient?.get_full_name || 'Walk-in Customer'}
+                        </span>
                       </div>
                     </td>
-                    <td className="py-3 text-sm font-medium">₦{parseFloat(sale.total_amount || 0).toLocaleString()}</td>
-                    <td className="py-3 text-sm">{sale.sold_at ? new Date(sale.sold_at).toLocaleDateString() : '-'}</td>
-                    <td className="py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        sale.payment_method === 'cash' ? 'bg-green-100 text-green-800' :
-                        sale.payment_method === 'nhis' ? 'bg-blue-100 text-blue-800' :
-                        sale.payment_method === 'hmo' ? 'bg-purple-100 text-purple-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {(sale.payment_method || 'N/A').toUpperCase()}
-                      </span>
+                    <td className="px-3 py-3 font-medium text-gray-900">
+                      ₦{parseFloat(sale.total_amount || 0).toLocaleString()}
                     </td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-1">
-                        <IconButton icon={Receipt} variant="primary" />
-                        <IconButton icon={Printer} variant="default" />
+                    <td className="px-3 py-3 text-sm text-gray-600 hidden sm:table-cell">
+                      {sale.sold_at ? formatDate(sale.sold_at) : '-'}
+                    </td>
+                    <td className="px-3 py-3">
+                      <Badge status={sale.payment_method || 'cash'}>
+                        {sale.payment_method || 'Cash'}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-0.5">
+                        <IconButton icon={Receipt} tooltip="Receipt" variant="primary" size="sm" />
+                        <IconButton icon={Printer} tooltip="Print" variant="default" size="sm" />
                       </div>
                     </td>
                   </tr>
@@ -983,142 +1752,109 @@ const handleDrugFormSubmit = async (e) => {
     );
   };
 
-  const handleAddSupplier = () => {
-    setEditingSupplierId(null);
-    setSupplierForm({
-      name: '',
-      contactPerson: '',
-      phone: '',
-      email: '',
-      address: '',
-      licenseNumber: '',
-      rating: 0,
-      notes: '',
-    });
-    setShowSupplierForm(true);
-  };
-
-  const handleEditSupplier = (supplier) => {
-    setEditingSupplierId(supplier.id);
-    setSupplierForm({
-      name: supplier.name || '',
-      contactPerson: supplier.contact_person || '',
-      phone: supplier.phone || '',
-      email: supplier.email || '',
-      address: supplier.address || '',
-      licenseNumber: supplier.license_number || '',
-      rating: supplier.rating || 0,
-      notes: supplier.notes || '',
-    });
-    setShowSupplierForm(true);
-  };
-
-  const handleDeleteSupplier = (supplier) => {
-    setModalConfig({
-      isOpen: true,
-      type: 'delete',
-      drugData: supplier,
-      action: async () => {
-        try {
-          await apiRequest(`/api/v1/pharmacy/suppliers/${supplier.id}/`, { method: 'DELETE' });
-          dispatch(setSuppliers(suppliers.filter(s => s.id !== supplier.id)));
-          setErrorModal({ isOpen: true, title: 'Success', message: 'Supplier deleted successfully' });
-        } catch (err) {
-          setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to delete supplier' });
-        }
-      },
-    });
-  };
-
-  const handleSupplierSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const tenantPublicId = localStorage.getItem('tenantId');
-      const payload = {
-        name: supplierForm.name.trim(),
-        contact_person: supplierForm.contactPerson.trim() || null,
-        phone: supplierForm.phone.trim() || null,
-        email: supplierForm.email.trim() || null,
-        address: supplierForm.address.trim() || null,
-        license_number: supplierForm.licenseNumber.trim() || null,
-        rating: parseInt(supplierForm.rating) || 0,
-        notes: supplierForm.notes.trim() || null,
-      };
-
-      if (editingSupplierId) {
-        await apiRequest(`/api/v1/pharmacy/suppliers/${editingSupplierId}/`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload),
-        });
-        dispatch(setSuppliers(suppliers.map(s => s.id === editingSupplierId ? { ...s, ...payload } : s)));
-        setErrorModal({ isOpen: true, title: 'Success', message: 'Supplier updated successfully' });
-      } else {
-        const response = await apiRequest('/api/v1/pharmacy/suppliers/', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
-        dispatch(setSuppliers([...suppliers, response]));
-        setErrorModal({ isOpen: true, title: 'Success', message: 'Supplier added successfully' });
-      }
-      setShowSupplierForm(false);
-    } catch (err) {
-      setErrorModal({ isOpen: true, title: 'Error', message: err.message || 'Failed to save supplier' });
-    }
-  };
-
-  // Suppliers Tab Content
   const renderSuppliersContent = () => {
     return (
-      <div className="p-3 sm:p-4">
+      <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-900">Suppliers</h3>
-          <ButtonWithTooltip
-            onClick={handleAddSupplier}
-            variant="primary"
-          >
-            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <h3 className="text-sm font-semibold text-gray-900">Suppliers</h3>
+          <Button onClick={() => {
+            setSupplierForm(getDefaultSupplierForm());
+            openModal('supplierForm', { isEdit: false, data: null });
+          }} variant="primary" size="sm" icon={Plus}>
             Add Supplier
-          </ButtonWithTooltip>
+          </Button>
         </div>
+
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading suppliers...</div>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <p className="text-gray-500">Loading suppliers...</p>
+          </div>
         ) : suppliers.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No suppliers found</div>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Truck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 font-medium">No suppliers found</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <tr className="border-b border-gray-100">
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Phone</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {suppliers.map((supplier) => (
                   <tr key={supplier.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3">
+                    <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm font-medium">{supplier.name}</span>
+                        <span className="font-medium text-gray-900">{supplier.name}</span>
                       </div>
                     </td>
-                    <td className="py-3 text-sm">{supplier.contact_person || '-'}</td>
-                    <td className="py-3 text-sm">{supplier.phone || '-'}</td>
-                    <td className="py-3 text-sm">{supplier.email || '-'}</td>
-                    <td className="py-3">
-                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                        {supplier.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                    <td className="px-3 py-3 text-sm text-gray-600 hidden sm:table-cell">
+                      {supplier.contact_person || '-'}
                     </td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-1">
-                        <IconButton icon={Edit} variant="primary" onClick={() => handleEditSupplier(supplier)} />
-                        <IconButton icon={Eye} variant="default" />
-                        <IconButton icon={Trash2} variant="danger" onClick={() => handleDeleteSupplier(supplier)} />
+                    <td className="px-3 py-3 text-sm text-gray-600 hidden md:table-cell">
+                      {supplier.phone || '-'}
+                    </td>
+                    <td className="px-3 py-3">
+                      <Badge status={supplier.is_active ? 'active' : 'inactive'}>
+                        {supplier.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-0.5">
+                        <IconButton
+                          icon={Edit}
+                          onClick={() => {
+                            setSupplierForm({
+                              name: supplier.name || '',
+                              contactPerson: supplier.contact_person || '',
+                              phone: supplier.phone || '',
+                              email: supplier.email || '',
+                              address: supplier.address || '',
+                              licenseNumber: supplier.license_number || '',
+                              rating: supplier.rating || 0,
+                              notes: supplier.notes || '',
+                            });
+                            openModal('supplierForm', { isEdit: true, data: supplier });
+                          }}
+                          tooltip="Edit"
+                          variant="warning"
+                          size="sm"
+                        />
+                        <IconButton
+                          icon={Trash2}
+                          onClick={() => {
+                            setModals(prev => ({
+                              ...prev,
+                              confirm: {
+                                isOpen: true,
+                                title: 'Delete Supplier',
+                                message: `Are you sure you want to delete "${supplier.name}"? This action cannot be undone.`,
+                                onConfirm: async () => {
+                                  try {
+                                    await apiRequest(`/api/v1/pharmacy/suppliers/${supplier.id}/`, { method: 'DELETE' });
+                                    dispatch(fetchSuppliers());
+                                    setSuccessMessage('Supplier deleted successfully.');
+                                    setTimeout(() => setSuccessMessage(''), 3000);
+                                    closeModal('confirm');
+                                  } catch (err) {
+                                    setErrorMessage(err.message || 'Failed to delete supplier');
+                                  }
+                                }
+                              }
+                            }));
+                          }}
+                          tooltip="Delete"
+                          variant="danger"
+                          size="sm"
+                        />
                       </div>
                     </td>
                   </tr>
@@ -1131,973 +1867,204 @@ const handleDrugFormSubmit = async (e) => {
     );
   };
 
+  // ==================== MAIN RENDER ====================
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 md:p-8 font-sans">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-              Pharmacy Management
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-              NEML • NAFDAC & PCN Compliant
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <ButtonWithTooltip
-              onClick={() => setShowReports(true)}
-              variant="secondary"
-            >
-              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Reports</span>
-            </ButtonWithTooltip>
-            
-            <ButtonWithTooltip
-              onClick={() => setShowCart(true)}
-              variant="secondary"
-              className="relative"
-            >
-              <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Cart</span>
-              {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-blue-600 text-white text-[10px] sm:text-xs rounded-full flex items-center justify-center">
-                  {cart.length}
-                </span>
-              )}
-            </ButtonWithTooltip>
-            
-            <div className="flex-1 flex justify-center">
-              <ButtonWithTooltip
-                onClick={() => setShowDrugForm(true)}
-                variant="primary"
-              >
-                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">Add Drug</span>
-              </ButtonWithTooltip>
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <Package className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Pharmacy Management</h1>
+                <p className="text-sm text-gray-500">NEML • NAFDAC & PCN Compliant</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button onClick={handleRefresh} variant="secondary" size="sm" icon={RefreshCw} className={loading ? 'animate-spin' : ''}>
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+              <Button onClick={() => {}} variant="secondary" size="sm" icon={BarChart3}>
+                <span className="hidden sm:inline">Reports</span>
+              </Button>
+              <Button onClick={() => {
+                setDrugForm(getDefaultDrugForm());
+                openModal('drugForm', { isEdit: false, data: null });
+              }} variant="primary" size="sm" icon={Plus}>
+                <span className="hidden sm:inline">Add Drug</span>
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Total</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.totalDrugs}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-              </div>
-            </div>
+        {/* Messages */}
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {errorMessage}
+            </span>
+            <button onClick={() => setErrorMessage('')} className="text-rose-700 hover:text-rose-900">
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Value</p>
-                <p className="text-sm sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">₦{stats.totalValue.toLocaleString()}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-              </div>
-            </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              {successMessage}
+            </span>
+            <button onClick={() => setSuccessMessage('')} className="text-emerald-700 hover:text-emerald-900">
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Low Stock</p>
-                <p className="text-lg sm:text-2xl font-bold text-yellow-600 mt-0.5 sm:mt-1">{stats.lowStockCount}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Expired</p>
-                <p className="text-lg sm:text-2xl font-bold text-red-600 mt-0.5 sm:mt-1">{stats.expiredCount}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-50 rounded-lg flex items-center justify-center">
-                <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Controlled</p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5 sm:mt-1">{stats.controlledCount}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">Active</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-0.5 sm:mt-1">{stats.activeCount}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
-              </div>
-            </div>
-          </div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+          <StatsCard title="Total Drugs" value={stats.totalDrugs} icon={Package} color="green" />
+          <StatsCard title="Inventory Value" value={stats.totalValue} icon={DollarSign} color="gold" />
+          <StatsCard title="Low Stock" value={stats.lowStockCount} icon={AlertTriangle} color="warm" />
+          <StatsCard title="Expired" value={stats.expiredCount} icon={XCircle} color="red" />
+          <StatsCard title="Controlled" value={stats.controlledCount} icon={Shield} color="purple" />
+          <StatsCard title="Active" value={stats.activeCount} icon={CheckCircle} color="teal" />
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
-          <nav className="flex gap-4 sm:gap-6 min-w-max" aria-label="Tabs">
-            <button
-              onClick={() => {
-                setActiveTab('inventory');
-                setCurrentPage(1);
-              }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'inventory'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Inventory
-            </button>
-            
-            <button
-              onClick={() => {
-                setActiveTab('prescriptions');
-                setCurrentPage(1);
-              }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'prescriptions'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <Clipboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Prescriptions
-            </button>
-            
-            <button
-              onClick={() => {
-                setActiveTab('sales');
-                setCurrentPage(1);
-              }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'sales'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Sales
-            </button>
-            
-            <button
-              onClick={() => {
-                setActiveTab('suppliers');
-                setCurrentPage(1);
-              }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'suppliers'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Suppliers
-            </button>
+        <div className="border-b border-gray-200 mb-4 overflow-x-auto">
+          <nav className="flex gap-6 min-w-max" aria-label="Tabs">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setCurrentPage(1);
+                }}
+                className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
           </nav>
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-          {/* Left Column - Filters (Only for Inventory tab) */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          {/* Toolbar */}
           {activeTab === 'inventory' && (
-            <div className={`lg:col-span-1 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
-              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 sticky top-6">
-                <div className="flex items-center justify-between lg:hidden mb-3">
-                  <h3 className="font-semibold text-gray-900">Filters</h3>
-                  <button
-                    onClick={() => setShowMobileFilters(false)}
-                    className="p-1 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+            <div className="p-4 border-b border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="relative flex-1 max-w-full sm:max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search drugs..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      dispatch(searchDrugs(e.target.value));
+                    }}
+                    className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                  />
                 </div>
-                
-                <h3 className="hidden lg:block font-semibold text-gray-900 mb-4">Filters</h3>
-                
-                <div className="space-y-3 sm:space-y-4">
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-medium text-gray-700 mb-1">Category</label>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
                     <select
-                      value={filterBy}
-                      onChange={handleFilter}
-                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="appearance-none pl-8 pr-8 py-2 text-sm rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all cursor-pointer bg-white"
                     >
-                      <option value="all">All Categories</option>
-                      {drugCategories.map(cat => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      {statusFilterOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
+                    <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                   </div>
-
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-medium text-gray-700 mb-1">Status</label>
-                    <select className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option value="all">All Status</option>
-                      <option value="active">Active</option>
-                      <option value="low">Low Stock</option>
-                      <option value="expired">Expired</option>
-                      <option value="controlled">Controlled</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-medium text-gray-700 mb-1">NEML Category</label>
-                    <select className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option value="all">All</option>
-                      {nemlCategories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-medium text-gray-700 mb-1">Manufacturer</label>
-                    <select className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option value="all">All</option>
-                      {nigerianManufacturers.map(man => (
-                        <option key={man} value={man}>{man}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="pt-3 sm:pt-4 border-t border-gray-200">
-                    <h4 className="text-[10px] sm:text-xs font-medium text-gray-700 mb-2">Quick Actions</h4>
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <ButtonWithTooltip
-                        onClick={() => setShowDispenseForm(true)}
-                        variant="secondary"
-                        className="w-full justify-start"
-                      >
-                        <Pill className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        Dispense Drug
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip
-                        onClick={() => setShowRestockForm(true)}
-                        variant="secondary"
-                        className="w-full justify-start"
-                      >
-                        <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        Restock Inventory
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip
-                        variant="secondary"
-                        className="w-full justify-start"
-                      >
-                        <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        Import Data
-                      </ButtonWithTooltip>
-                    </div>
-                  </div>
+                  <IconButton icon={Printer} onClick={() => window.print()} tooltip="Print" size="sm" />
+                  <IconButton icon={Download} onClick={handleExportReport} tooltip="Export" size="sm" />
+                  <Button onClick={() => {
+                    setDrugForm(getDefaultDrugForm());
+                    openModal('drugForm', { isEdit: false, data: null });
+                  }} variant="primary" size="sm" icon={Plus}>
+                    Add
+                  </Button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Right Column - Content */}
-          <div className={activeTab === 'inventory' ? 'lg:col-span-3' : 'lg:col-span-4'}>
-            <div className="bg-white rounded-lg border border-gray-200">
-              {/* Toolbar - Only for inventory tab */}
-              {activeTab === 'inventory' && (
-                <div className="p-3 sm:p-4 border-b border-gray-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="relative flex-1 max-w-full sm:max-w-sm">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search drugs..."
-                        value={searchQuery}
-                        onChange={handleSearch}
-                        className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <IconButton
-                        icon={Filter}
-                        onClick={() => setShowMobileFilters(!showMobileFilters)}
-                        variant="default"
-                        className="lg:hidden"
-                      />
-                      <IconButton
-                        icon={viewMode === 'table' ? Grid : List}
-                        onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
-                        variant="default"
-                      />
-                      <IconButton
-                        icon={Printer}
-                        onClick={() => window.print()}
-                        variant="default"
-                      />
-                      <IconButton
-                        icon={Download}
-                        onClick={handleExportReport}
-                        variant="default"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab Content */}
-              {renderTabContent()}
-            </div>
-          </div>
+          {/* Tab Content */}
+          {activeTab === 'inventory' && renderInventoryContent()}
+          {activeTab === 'prescriptions' && renderPrescriptionsContent()}
+          {activeTab === 'sales' && renderSalesContent()}
+          {activeTab === 'suppliers' && renderSuppliersContent()}
         </div>
       </div>
 
-      {/* Drug Form Modal */}
-      {showDrugForm && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-4 sm:py-8">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowDrugForm(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  {editingDrugId ? 'Edit Drug' : 'Add New Drug'}
-                </h2>
-                <IconButton
-                  icon={X}
-                  onClick={() => {
-                    setShowDrugForm(false);
-                    resetDrugForm();
-                  }}
-                  variant="default"
-                />
-              </div>
-              
-              <form onSubmit={handleDrugFormSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                {/* Basic Information */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Basic Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Drug Name *</label>
-                      <input
-                        type="text"
-                        value={drugForm.name}
-                        onChange={(e) => setDrugForm({...drugForm, name: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Generic Name</label>
-                      <input
-                        type="text"
-                        value={drugForm.genericName}
-                        onChange={(e) => setDrugForm({...drugForm, genericName: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Brand Name</label>
-                      <input
-                        type="text"
-                        value={drugForm.brandName}
-                        onChange={(e) => setDrugForm({...drugForm, brandName: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Drug Code</label>
-                      <input
-                        type="text"
-                        value={drugForm.drugCode}
-                        onChange={(e) => setDrugForm({...drugForm, drugCode: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="e.g., ANT-MAL-001"
-                      />
-                    </div>
-                  </div>
-                </div>
+      {/* ==================== MODALS ==================== */}
 
-                {/* Regulatory Information */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Regulatory Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">NAFDAC Number</label>
-                      <input
-                        type="text"
-                        value={drugForm.nafdacNumber}
-                        onChange={(e) => setDrugForm({...drugForm, nafdacNumber: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="NAFDAC-04-1234"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">PCN Approval Number</label>
-                      <input
-                        type="text"
-                        value={drugForm.pcnApprovalNumber}
-                        onChange={(e) => setDrugForm({...drugForm, pcnApprovalNumber: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">NEML Category</label>
-                      <select
-                        value={drugForm.nemlCategory}
-                        onChange={(e) => setDrugForm({...drugForm, nemlCategory: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Category</option>
-                        {nemlCategories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Manufacturer</label>
-                      <select
-                        value={drugForm.manufacturer}
-                        onChange={(e) => setDrugForm({...drugForm, manufacturer: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Manufacturer</option>
-                        {nigerianManufacturers.map(man => (
-                          <option key={man} value={man}>{man}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
+      <DrugFormModal
+        isOpen={modals.drugForm.isOpen}
+        onClose={() => closeModal('drugForm')}
+        onSubmit={handleDrugFormSubmit}
+        initialData={modals.drugForm.data}
+        loading={loading}
+        isEdit={modals.drugForm.isEdit}
+      />
 
-                {/* Drug Specifications - MATCHING DJANGO MODEL */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Specifications</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Strength</label>
-                      <input
-                        type="text"
-                        value={drugForm.strength}
-                        onChange={(e) => setDrugForm({...drugForm, strength: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="e.g., 500mg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Dosage Form *</label>
-                      <select
-                        value={drugForm.dosageForm}
-                        onChange={(e) => setDrugForm({...drugForm, dosageForm: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Select Form</option>
-                        {dosageForms.map(form => (
-                          <option key={form.value} value={form.value}>{form.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Category *</label>
-                      <select
-                        value={drugForm.category}
-                        onChange={(e) => setDrugForm({...drugForm, category: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Select Category</option>
-                        {drugCategories.map(cat => (
-                          <option key={cat.value} value={cat.value}>{cat.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Therapeutic Class</label>
-                      <input
-                        type="text"
-                        value={drugForm.therapeuticClass}
-                        onChange={(e) => setDrugForm({...drugForm, therapeuticClass: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
+      <SupplierFormModal
+        isOpen={modals.supplierForm.isOpen}
+        onClose={() => closeModal('supplierForm')}
+        onSubmit={handleSupplierSubmit}
+        initialData={modals.supplierForm.data}
+        loading={loading}
+        isEdit={modals.supplierForm.isEdit}
+      />
 
-                {/* Inventory Information */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Inventory</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price (₦)</label>
-                      <input
-                        type="number"
-                        value={drugForm.unitPrice}
-                        onChange={(e) => setDrugForm({...drugForm, unitPrice: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price (₦)</label>
-                      <input
-                        type="number"
-                        value={drugForm.sellingPrice}
-                        onChange={(e) => setDrugForm({...drugForm, sellingPrice: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Quantity in Stock</label>
-                      <input
-                        type="number"
-                        value={drugForm.quantityInStock}
-                        onChange={(e) => setDrugForm({...drugForm, quantityInStock: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Reorder Level</label>
-                      <input
-                        type="number"
-                        value={drugForm.reorderLevel}
-                        onChange={(e) => setDrugForm({...drugForm, reorderLevel: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Batch Number</label>
-                      <input
-                        type="text"
-                        value={drugForm.batchNumber}
-                        onChange={(e) => setDrugForm({...drugForm, batchNumber: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Date</label>
-                      <input
-                        type="date"
-                        value={drugForm.expiryDate}
-                        onChange={(e) => setDrugForm({...drugForm, expiryDate: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Storage Conditions</label>
-                      <input
-                        type="text"
-                        value={drugForm.storageConditions}
-                        onChange={(e) => setDrugForm({...drugForm, storageConditions: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="e.g., Room temperature, Refrigerated"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Unit of Measure</label>
-                      <input
-                        type="text"
-                        value={drugForm.unitOfMeasure}
-                        onChange={(e) => setDrugForm({...drugForm, unitOfMeasure: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="tablet, capsule, ml, etc."
-                      />
-                    </div>
-                  </div>
-                </div>
+      <RestockModal
+        isOpen={modals.restock.isOpen}
+        onClose={() => closeModal('restock')}
+        onSubmit={handleRestockSubmit}
+        loading={loading}
+      />
 
-                {/* Controlled Substance */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Controlled Substance</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={drugForm.controlledSubstance}
-                        onChange={(e) => setDrugForm({...drugForm, controlledSubstance: e.target.checked})}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label className="text-sm text-gray-700">Controlled Substance</label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={drugForm.narcotic}
-                        onChange={(e) => setDrugForm({...drugForm, narcotic: e.target.checked})}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label className="text-sm text-gray-700">Narcotic</label>
-                    </div>
-                    {drugForm.controlledSubstance && (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Schedule</label>
-                        <select
-                          value={drugForm.schedule}
-                          onChange={(e) => setDrugForm({...drugForm, schedule: e.target.value})}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="">Select Schedule</option>
-                          {controlledSchedules.map(schedule => (
-                            <option key={schedule} value={schedule}>{schedule}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
+      <CartModal
+        isOpen={modals.cart.isOpen}
+        onClose={() => closeModal('cart')}
+        items={cart || []}
+        onRemove={(index) => dispatch(removeFromCart(index))}
+        onCheckout={handleProcessSale}
+        loading={loading}
+      />
 
-                {/* NHIS Information */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">NHIS Information</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={drugForm.nhisCovered}
-                        onChange={(e) => setDrugForm({...drugForm, nhisCovered: e.target.checked})}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label className="text-sm text-gray-700">NHIS Covered</label>
-                    </div>
-                    {drugForm.nhisCovered && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">NHIS Code</label>
-                          <input
-                            type="text"
-                            value={drugForm.nhisCode}
-                            onChange={(e) => setDrugForm({...drugForm, nhisCode: e.target.value})}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">NHIS Price (₦)</label>
-                          <input
-                            type="number"
-                            value={drugForm.nhisPrice}
-                            onChange={(e) => setDrugForm({...drugForm, nhisPrice: e.target.value})}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Clinical Information */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Clinical Information</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Dosage Instructions</label>
-                      <textarea
-                        value={drugForm.dosageInstructions}
-                        onChange={(e) => setDrugForm({...drugForm, dosageInstructions: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        rows="2"
-                        placeholder="e.g., Take 1 tablet twice daily after meals"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Side Effects</label>
-                      <textarea
-                        value={drugForm.sideEffects}
-                        onChange={(e) => setDrugForm({...drugForm, sideEffects: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        rows="2"
-                        placeholder="List common side effects"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Contraindications</label>
-                      <textarea
-                        value={drugForm.contraindications}
-                        onChange={(e) => setDrugForm({...drugForm, contraindications: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        rows="2"
-                        placeholder="List contraindications"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Interactions</label>
-                      <textarea
-                        value={drugForm.interactions}
-                        onChange={(e) => setDrugForm({...drugForm, interactions: e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        rows="2"
-                        placeholder="List drug interactions"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Prescription Requirement */}
-                <div className="border-b border-gray-200 pb-3 sm:pb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Prescription Settings</h4>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={drugForm.prescriptionRequired}
-                      onChange={(e) => setDrugForm({...drugForm, prescriptionRequired: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label className="text-sm text-gray-700">Prescription Required</label>
-                  </div>
-                </div>
-
-                {/* Form Actions */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-                  >
-                    {editingDrugId ? 'Update Drug' : 'Add Drug'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowDrugForm(false);
-                      resetDrugForm();
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Supplier Form Modal */}
-      {showSupplierForm && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-4 sm:py-8">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowSupplierForm(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  {editingSupplierId ? 'Edit Supplier' : 'Add New Supplier'}
-                </h2>
-                <IconButton
-                  icon={X}
-                  onClick={() => {
-                    setShowSupplierForm(false);
-                    resetSupplierForm();
-                  }}
-                  variant="default"
-                />
-              </div>
-
-              <form onSubmit={handleSupplierSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Supplier Name *</label>
-                    <input
-                      type="text"
-                      value={supplierForm.name}
-                      onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person</label>
-                    <input
-                      type="text"
-                      value={supplierForm.contactPerson}
-                      onChange={(e) => setSupplierForm({...supplierForm, contactPerson: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-                    <input
-                      type="text"
-                      value={supplierForm.phone}
-                      onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={supplierForm.email}
-                      onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
-                    <textarea
-                      value={supplierForm.address}
-                      onChange={(e) => setSupplierForm({...supplierForm, address: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows="2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
-                    <input
-                      type="text"
-                      value={supplierForm.licenseNumber}
-                      onChange={(e) => setSupplierForm({...supplierForm, licenseNumber: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Rating</label>
-                    <input
-                      type="number"
-                      value={supplierForm.rating}
-                      onChange={(e) => setSupplierForm({...supplierForm, rating: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      min="0"
-                      max="5"
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea
-                      value={supplierForm.notes}
-                      onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows="2"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-                  >
-                    {editingSupplierId ? 'Update Supplier' : 'Add Supplier'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowSupplierForm(false);
-                      resetSupplierForm();
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Restock Modal */}
-      {showRestockForm && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-4 sm:py-8">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowRestockForm(false)} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Restock Inventory</h2>
-                <IconButton
-                  icon={X}
-                  onClick={() => setShowRestockForm(false)}
-                  variant="default"
-                />
-              </div>
-
-              <form onSubmit={handleRestockSubmit} className="p-4 sm:p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Quantity to Add *</label>
-                  <input
-                    type="number"
-                    value={restockForm.quantity}
-                    onChange={(e) => setRestockForm({...restockForm, quantity: e.target.value})}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="1"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Batch Number</label>
-                  <input
-                    type="text"
-                    value={restockForm.batchNumber}
-                    onChange={(e) => setRestockForm({...restockForm, batchNumber: e.target.value})}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">New Expiry Date</label>
-                  <input
-                    type="date"
-                    value={restockForm.expiryDate}
-                    onChange={(e) => setRestockForm({...restockForm, expiryDate: e.target.value})}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-                  >
-                    Restock
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowRestockForm(false)}
-                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 sm:py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      <PrescriptionPatientModal
+        patient={modals.prescriptions.patient}
+        onClose={() => closeModal('prescriptions')}
+        onDispense={handleDispensePrescription}
+        drugs={drugs}
+      />
 
       {/* Confirm Modal */}
       <ConfirmModal
-        isOpen={modalConfig.isOpen}
-        onClose={handleModalClose}
-        onConfirm={handleModalConfirm}
-        type={modalConfig.type}
-        drugData={modalConfig.drugData}
-      />
-
-      {/* Error Modal */}
-      <ErrorModal
-        isOpen={errorModal.isOpen}
-        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
-        title={errorModal.title}
-        message={errorModal.message}
+        isOpen={modals.confirm.isOpen}
+        onClose={() => closeModal('confirm')}
+        onConfirm={modals.confirm.onConfirm}
+        type="delete"
+        title={modals.confirm.title}
+        message={modals.confirm.message}
+        confirmText="Confirm"
       />
     </div>
   );

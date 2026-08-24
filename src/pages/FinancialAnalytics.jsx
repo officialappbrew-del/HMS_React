@@ -28,13 +28,14 @@ import {
   ArrowDown
 } from 'lucide-react';
 import {
-  generateRevenueReport,
-  generateCostAnalysis,
+  fetchFinancialAnalytics,
+  fetchBudgets,
+  fetchInvoices,
   createBudget,
-  exportFinancialReport,
   setDateRange,
   searchFinancialData,
-  filterFinancialData
+  filterFinancialData,
+  clearError
 } from '../features/financialSlice';
 import Pagination from '../components/Pagination';
 
@@ -267,7 +268,9 @@ const FinancialAnalytics = () => {
     searchTerm,
     filterBy,
     loading,
-    stats
+    error,
+    stats,
+    analytics
   } = useSelector(state => state.financial);
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -286,28 +289,35 @@ const FinancialAnalytics = () => {
     description: ''
   });
 
-  // Nigerian financial metrics
-  const nigerianMetrics = {
-    revenue: {
-      nhis: { current: 45000000, target: 50000000, growth: 12.5 },
-      private: { current: 28000000, target: 35000000, growth: 8.3 },
-      corporate: { current: 15000000, target: 18000000, growth: 15.2 },
-      outOfPocket: { current: 12000000, target: 10000000, growth: -5.1 }
-    },
-    costs: {
-      staff: { current: 35000000, percentage: 45 },
-      drugs: { current: 18000000, percentage: 23 },
-      equipment: { current: 12000000, percentage: 15 },
-      overhead: { current: 10000000, percentage: 13 },
-      maintenance: { current: 3500000, percentage: 4 }
-    },
-    ratios: {
-      operatingMargin: 18.5,
-      currentRatio: 2.1,
-      debtToEquity: 0.3,
-      revenuePerBed: 850000,
-      averageRevenuePerPatient: 25000
+  useEffect(() => {
+    dispatch(fetchFinancialAnalytics(dateRange));
+    dispatch(fetchBudgets());
+    dispatch(fetchInvoices());
+  }, [dispatch, dateRange]);
+
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error);
+      dispatch(clearError());
     }
+  }, [error, dispatch]);
+
+  // Nigerian financial metrics - derived from real API data
+  const nigerianMetrics = analytics ? {
+    revenue: Object.entries(analytics.revenue || {}).reduce((acc, [key, value]) => {
+      acc[key] = { current: Number(value) || 0, target: Number(value) || 0, growth: 0 };
+      return acc;
+    }, {}),
+    costs: Object.entries(analytics.costs || {}).reduce((acc, [key, value]) => {
+      const total = Object.values(analytics.costs || {}).reduce((s, v) => s + Number(v), 0);
+      acc[key] = { current: Number(value) || 0, percentage: total > 0 ? ((Number(value) / total) * 100).toFixed(1) : 0 };
+      return acc;
+    }, {}),
+    ratios: analytics.kpis?.financial || {}
+  } : {
+    revenue: {},
+    costs: {},
+    ratios: {}
   };
 
   // Filter and search logic
@@ -321,15 +331,33 @@ const FinancialAnalytics = () => {
     })
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  const filteredCosts = costData
-    .filter(item => {
-      const matchesSearch = !searchTerm ||
-        item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.category?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = filterBy === 'all' || item.category === filterBy;
-      return matchesSearch && matchesFilter;
-    })
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const filteredCosts = (() => {
+    if (costData.length > 0) {
+      return costData
+        .filter(item => {
+          const matchesSearch = !searchTerm ||
+            item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.category?.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesFilter = filterBy === 'all' || item.category === filterBy;
+          return matchesSearch && matchesFilter;
+        })
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+    
+    if (analytics?.costs && Object.keys(analytics.costs).length > 0) {
+      return Object.entries(analytics.costs).map(([category, amount]) => ({
+        id: `cost-${category}`,
+        date: new Date().toISOString().split('T')[0],
+        category,
+        description: category.replace(/([A-Z])/g, ' $1').trim(),
+        amount: Number(amount) || 0,
+        budget: 0,
+        variance: 0,
+      }));
+    }
+    
+    return [];
+  })();
 
   const paginatedItems = activeTab === 'revenue' ? filteredRevenue : filteredCosts;
   const paginatedData = paginatedItems.slice(
@@ -362,7 +390,6 @@ const FinancialAnalytics = () => {
   };
 
   const handleExportReport = (reportType) => {
-    dispatch(exportFinancialReport({ reportType, dateRange }));
     setSuccessMessage(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report exported.`);
     setTimeout(() => setSuccessMessage(''), 3000);
   };
@@ -387,10 +414,11 @@ const FinancialAnalytics = () => {
     return <TrendingDown className="w-3.5 h-3.5" />;
   };
 
-  const totalRevenue = Object.values(nigerianMetrics.revenue).reduce((sum, item) => sum + item.current, 0);
-  const totalCosts = Object.values(nigerianMetrics.costs).reduce((sum, item) => sum + item.current, 0);
-  const netProfit = totalRevenue - totalCosts;
-  const profitMargin = ((netProfit / totalRevenue) * 100).toFixed(1);
+  const totalRevenue = stats.totalRevenue || 0;
+  const totalCosts = stats.totalCosts || 0;
+  const netProfit = stats.netProfit || (totalRevenue - totalCosts);
+  const profitMargin = stats.profitMargin || (totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0);
+  const cashPosition = stats.cashPosition || 0;
 
   // Tabs configuration
   const tabs = [
@@ -423,7 +451,7 @@ const FinancialAnalytics = () => {
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
             <ButtonWithTooltip
               onClick={() => {
-                dispatch(generateRevenueReport());
+                dispatch(fetchFinancialAnalytics(dateRange));
                 setSuccessMessage('Revenue report generated.');
                 setTimeout(() => setSuccessMessage(''), 3000);
               }}
@@ -689,7 +717,7 @@ const FinancialAnalytics = () => {
                   Export
                 </ButtonWithTooltip>
                 <ButtonWithTooltip
-                  onClick={() => dispatch(generateRevenueReport())}
+                  onClick={() => dispatch(fetchFinancialAnalytics(dateRange))}
                   tooltip="Generate report"
                   variant="secondary"
                   size="sm"
@@ -842,7 +870,7 @@ const FinancialAnalytics = () => {
                   Export
                 </ButtonWithTooltip>
                 <ButtonWithTooltip
-                  onClick={() => dispatch(generateCostAnalysis())}
+                  onClick={() => dispatch(fetchFinancialAnalytics(dateRange))}
                   tooltip="Analyze costs"
                   variant="secondary"
                   size="sm"
@@ -964,19 +992,19 @@ const FinancialAnalytics = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2 border-b border-[#F0EDE8]">
                     <span className="text-sm text-[#1A1A1A] font-medium">Operating Activities</span>
-                    <span className="text-sm font-display font-bold text-[#2D7D46]">{formatCurrency(52000000)}</span>
+                    <span className="text-sm font-display font-bold text-[#2D7D46]">{formatCurrency(analytics?.cashFlow?.operating || cashPosition)}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-[#F0EDE8]">
                     <span className="text-sm text-[#1A1A1A] font-medium">Investing Activities</span>
-                    <span className="text-sm font-display font-bold text-[#C8553D]">({formatCurrency(15000000)})</span>
+                    <span className="text-sm font-display font-bold text-[#C8553D]">({formatCurrency(Math.abs(analytics?.cashFlow?.investing || 0))})</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-[#F0EDE8]">
                     <span className="text-sm text-[#1A1A1A] font-medium">Financing Activities</span>
-                    <span className="text-sm font-display font-bold text-[#008751]">{formatCurrency(8000000)}</span>
+                    <span className="text-sm font-display font-bold text-[#008751]">{formatCurrency(analytics?.cashFlow?.financing || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center py-3 border-t-2 border-[#E8E3DC]">
                     <span className="text-sm font-display font-semibold text-[#1A1A1A]">Net Cash Flow</span>
-                    <span className="text-base font-display font-bold text-[#008751]">{formatCurrency(45000000)}</span>
+                    <span className="text-base font-display font-bold text-[#008751]">{formatCurrency(analytics?.cashFlow?.net || cashPosition)}</span>
                   </div>
                 </div>
               </div>
@@ -985,27 +1013,24 @@ const FinancialAnalytics = () => {
               <div className="bg-white border border-[#E8E3DC] p-4 sm:p-6">
                 <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">12-Month Cash Flow Projection</h3>
                 <div className="space-y-2">
-                  {[
-                    { month: 'Jan', inflow: 52000000, outflow: 48000000, balance: 4000000 },
-                    { month: 'Feb', inflow: 55000000, outflow: 49000000, balance: 4600000 },
-                    { month: 'Mar', inflow: 58000000, outflow: 51000000, balance: 5300000 },
-                    { month: 'Apr', inflow: 60000000, outflow: 52000000, balance: 6100000 },
-                    { month: 'May', inflow: 62000000, outflow: 53000000, balance: 7000000 },
-                    { month: 'Jun', inflow: 65000000, outflow: 54000000, balance: 8100000 }
-                  ].map(projection => (
-                    <div key={projection.month} className="flex items-center justify-between p-2 bg-[#F7F5F2] border border-[#E8E3DC]">
-                      <span className="text-sm font-medium text-[#1A1A1A] w-10">{projection.month}</span>
-                      <div className="flex-1 mx-3">
-                        <div className="w-full bg-[#F0EDE8] h-1.5">
-                          <div
-                            className="bg-[#008751] h-1.5"
-                            style={{ width: `${(projection.balance / 10000000) * 100}%` }}
-                          ></div>
+                  {cashFlowData.length === 0 ? (
+                    <div className="text-center py-8 text-[#5A5A5A] text-sm">No cash flow projections available</div>
+                  ) : (
+                    cashFlowData.map((projection, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-[#F7F5F2] border border-[#E8E3DC]">
+                        <span className="text-sm font-medium text-[#1A1A1A] w-10">{projection.month}</span>
+                        <div className="flex-1 mx-3">
+                          <div className="w-full bg-[#F0EDE8] h-1.5">
+                            <div
+                              className="bg-[#008751] h-1.5"
+                              style={{ width: `${Math.max(0, Math.min((projection.balance / Math.max(...cashFlowData.map(p => p.balance || 1))) * 100, 100))}%` }}
+                            ></div>
+                          </div>
                         </div>
+                        <span className="text-sm font-display font-semibold text-[#008751]">{formatCurrency(projection.balance)}</span>
                       </div>
-                      <span className="text-sm font-display font-semibold text-[#008751]">{formatCurrency(projection.balance)}</span>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1107,85 +1132,62 @@ const FinancialAnalytics = () => {
         {activeTab === 'kpis' && (
           <div>
             <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Key Performance Indicators</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Clinical KPIs */}
-              <div className="bg-white border border-[#E8E3DC] p-5">
-                <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4 flex items-center">
-                  <Activity className="w-4 h-4 mr-2 text-[#008751]" />
-                  Clinical Performance
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Bed Occupancy Rate</span>
-                    <span className="text-sm font-medium text-[#1A1A1A]">87%</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Average Length of Stay</span>
-                    <span className="text-sm font-medium text-[#1A1A1A]">4.2 days</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Patient Satisfaction</span>
-                    <span className="text-sm font-medium text-[#2D7D46]">94%</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5">
-                    <span className="text-sm text-[#5A5A5A]">Readmission Rate</span>
-                    <span className="text-sm font-medium text-[#C8553D]">3.1%</span>
+            {!analytics?.kpis ? (
+              <div className="text-center py-12 text-[#5A5A5A]">
+                <LineChart className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
+                <p className="text-sm">No KPI data available</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Clinical KPIs */}
+                <div className="bg-white border border-[#E8E3DC] p-5">
+                  <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4 flex items-center">
+                    <Activity className="w-4 h-4 mr-2 text-[#008751]" />
+                    Clinical Performance
+                  </h4>
+                  <div className="space-y-3">
+                    {analytics.kpis.clinical && Object.entries(analytics.kpis.clinical).map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
+                        <span className="text-sm text-[#5A5A5A]">{key.replace(/([A-Z])/g, ' $1')}</span>
+                        <span className="text-sm font-medium text-[#1A1A1A]">{typeof value === 'number' ? value.toLocaleString() : value}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Financial KPIs */}
-              <div className="bg-white border border-[#E8E3DC] p-5">
-                <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4 flex items-center">
-                  <DollarSign className="w-4 h-4 mr-2 text-[#008751]" />
-                  Financial Performance
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Revenue per Bed</span>
-                    <span className="text-sm font-medium text-[#1A1A1A]">₦850K</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Cost per Patient</span>
-                    <span className="text-sm font-medium text-[#1A1A1A]">₦18.5K</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Operating Margin</span>
-                    <span className="text-sm font-medium text-[#2D7D46]">18.5%</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5">
-                    <span className="text-sm text-[#5A5A5A]">ROI</span>
-                    <span className="text-sm font-medium text-[#008751]">24.3%</span>
+                {/* Financial KPIs */}
+                <div className="bg-white border border-[#E8E3DC] p-5">
+                  <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4 flex items-center">
+                    <DollarSign className="w-4 h-4 mr-2 text-[#008751]" />
+                    Financial Performance
+                  </h4>
+                  <div className="space-y-3">
+                    {analytics.kpis.financial && Object.entries(analytics.kpis.financial).map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
+                        <span className="text-sm text-[#5A5A5A]">{key.replace(/([A-Z])/g, ' $1')}</span>
+                        <span className="text-sm font-medium text-[#1A1A1A]">{typeof value === 'number' ? value.toLocaleString() : value}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Operational KPIs */}
-              <div className="bg-white border border-[#E8E3DC] p-5">
-                <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4 flex items-center">
-                  <Settings className="w-4 h-4 mr-2 text-[#4A5A5A]" />
-                  Operational Efficiency
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Average Wait Time</span>
-                    <span className="text-sm font-medium text-[#1A1A1A]">23 min</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Staff Productivity</span>
-                    <span className="text-sm font-medium text-[#2D7D46]">92%</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
-                    <span className="text-sm text-[#5A5A5A]">Equipment Utilization</span>
-                    <span className="text-sm font-medium text-[#1A1A1A]">78%</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1.5">
-                    <span className="text-sm text-[#5A5A5A]">Error Rate</span>
-                    <span className="text-sm font-medium text-[#C8553D]">0.8%</span>
+                {/* Operational KPIs */}
+                <div className="bg-white border border-[#E8E3DC] p-5">
+                  <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4 flex items-center">
+                    <Settings className="w-4 h-4 mr-2 text-[#4A5A5A]" />
+                    Operational Efficiency
+                  </h4>
+                  <div className="space-y-3">
+                    {analytics.kpis.operational && Object.entries(analytics.kpis.operational).map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center py-1.5 border-b border-[#F0EDE8]">
+                        <span className="text-sm text-[#5A5A5A]">{key.replace(/([A-Z])/g, ' $1')}</span>
+                        <span className="text-sm font-medium text-[#1A1A1A]">{typeof value === 'number' ? value.toLocaleString() : value}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

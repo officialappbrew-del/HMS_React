@@ -142,25 +142,6 @@ const EquipmentManagement = () => {
   const endIndex = startIndex + itemsPerPage;
   const displayedEquipment = equipment.slice(startIndex, endIndex);
 
-  // Get modal configuration based on type
-  const getModalConfig = () => {
-    const configs = {
-      delete: {
-        title: 'Delete Equipment Record',
-        message: 'Are you sure you want to permanently delete this equipment record? This action is irreversible and will remove all associated maintenance history.',
-        confirmText: 'Delete Permanently',
-        showSoftDeleteOption: false,
-      },
-      edit: {
-        title: 'Edit Equipment Details',
-        message: 'You are about to modify equipment information. Please ensure all changes are accurate and properly documented.',
-        confirmText: 'Save Changes',
-        showSoftDeleteOption: false,
-      },
-    };
-    return configs[modalConfig.type] || configs.delete;
-  };
-
   const getStatusColor = (status) => {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800';
@@ -474,7 +455,13 @@ const EquipmentManagement = () => {
         isOpen={modalConfig.isOpen}
         onClose={handleModalClose}
         onConfirm={handleModalConfirm}
-        config={getModalConfig()}
+        title={modalConfig.type === 'edit' ? 'Edit Equipment' : 'Delete Equipment'}
+        message={modalConfig.type === 'edit'
+          ? 'Load this equipment record for editing?'
+          : `Are you sure you want to delete ${modalConfig.equipmentData?.name || 'this equipment'}? This action cannot be undone.`}
+        confirmText={modalConfig.type === 'edit' ? 'Edit' : 'Delete'}
+        type={modalConfig.type}
+        patientData={modalConfig.equipmentData}
       />
     </div>
   );

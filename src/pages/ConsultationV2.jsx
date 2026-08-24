@@ -532,7 +532,7 @@ const ConsultationV2 = () => {
     frequency: '',
     duration: '',
     quantity: '',
-    route: 'Oral',
+    route: 'oral',
     reason: ''
   });
   const [newAllergy, setNewAllergy] = useState({
@@ -840,7 +840,7 @@ const ConsultationV2 = () => {
           quantity: med.quantity,
           route: med.route,
           instructions: med.reason,
-          status: med.status || 'active'
+          status: 'prescribed'
         })
       );
 
@@ -1348,7 +1348,7 @@ const ConsultationV2 = () => {
     }
     dispatch(addMedication(newMedication));
     dispatch(addAuditLog({ action: `Added medication ${newMedication.name}` }));
-    setNewMedication({ name: '', dosage: '', frequency: '', duration: '', quantity: '', route: 'Oral', reason: '' });
+    setNewMedication({ name: '', dosage: '', frequency: '', duration: '', quantity: '', route: 'oral', reason: '' });
     showSuccess('Medication added.');
   };
 
@@ -1507,7 +1507,7 @@ const ConsultationV2 = () => {
           quantity: p.quantity,
           route: p.route,
           instructions: p.reason,
-          status: p.status || 'prescribed'
+          status: 'prescribed'
         })),
         allergies: consultation.allergies,
         lab_orders: consultation.orders.laboratory.map(order => ({
@@ -2596,12 +2596,12 @@ const ConsultationV2 = () => {
                     value={newMedication.route}
                     onChange={(v) => setNewMedication(prev => ({ ...prev, route: v }))}
                     options={[
-                      { value: 'Oral', label: 'Oral' },
-                      { value: 'IV', label: 'IV' },
-                      { value: 'IM', label: 'IM' },
-                      { value: 'SC', label: 'SC' },
-                      { value: 'Topical', label: 'Topical' },
-                      { value: 'Inhalation', label: 'Inhalation' }
+                      { value: 'oral', label: 'Oral' },
+                      { value: 'iv', label: 'IV' },
+                      { value: 'im', label: 'IM' },
+                      { value: 'sc', label: 'SC' },
+                      { value: 'topical', label: 'Topical' },
+                      { value: 'inhalation', label: 'Inhalation' }
                     ]}
                   />
                 </div>

@@ -217,7 +217,7 @@ const SuperAdminDashboard = () => {
           message="Are you sure you want to sign out of the admin dashboard?"
           confirmText="Yes, Logout"
           cancelText="Cancel"
-          type="edit"
+          type="logout"
           isLoading={isLoggingOut}
           loadingText="Signing out..."
         />

@@ -19,8 +19,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Building2, label: 'Staff Management', path: '/staff' },
       { icon: Bed, label: 'Bed Allocation', path: '/bed-allocation' },
       { icon: Heart, label: 'Admissions', path: '/admissions' },
-      { icon: Pill, label: 'Pharmacy', path: '/pharmacy' },
-      { icon: Activity, label: 'Inventory', path: '/inventory' },
+      { icon: Pill, label: 'Inventory', path: '/pharmacy' },
       { icon: Shield, label: 'Compliance', path: '/ndpr-compliance' },
       { icon: BarChart3, label: 'Reports', path: '/financial-analytics' },
       { icon: Share2, label: 'External Integrations', path: '/external-integrations' },
@@ -56,8 +55,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
     ],
     pharmacist: [
       { icon: Home, label: 'Dashboard', path: '/dashboard' },
-      { icon: Pill, label: 'Pharmacy', path: '/pharmacy' },
-      { icon: Activity, label: 'Inventory', path: '/inventory' },
+      { icon: Pill, label: 'Inventory', path: '/pharmacy' },
       { icon: Users, label: 'Patient Profiles', path: '/patients' },
       { icon: FileText, label: 'Billing', path: '/billing' },
       { icon: Clipboard, label: 'Reports', path: '/financial-analytics' }
@@ -203,7 +201,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
         message="Are you sure you want to sign out of your account?"
         confirmText="Yes, Logout"
         cancelText="Cancel"
-        type="edit"
+        type="logout"
         isLoading={isLoggingOut}
         loadingText="Signing out..."
       />

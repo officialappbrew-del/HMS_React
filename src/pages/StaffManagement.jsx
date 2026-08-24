@@ -1259,7 +1259,7 @@ const StaffManagement = () => {
           isOpen: true,
           employeeId: created.employee_id || `STAFF-${created.id}`,
           email: created.email,
-          password: createPayload.password,
+          password: created.credentials?.password || created.temporary_password || createPayload.password,
           welcomeEmailStatus: created.welcome_email_status || 'not_queued',
           showPassword: false,
         });
@@ -1848,12 +1848,14 @@ const StaffManagement = () => {
                   The user can login with their Employee ID and the password above.
                 </p>
                 <div className={`mb-3 rounded-lg border px-2.5 py-2 text-xs ${
-                  credentialsModal.welcomeEmailStatus === 'queued'
+                  ['queued', 'sent'].includes(credentialsModal.welcomeEmailStatus)
                     ? 'border-green-200 bg-green-50 text-green-700'
                     : 'border-yellow-200 bg-yellow-50 text-yellow-700'
                 }`}>
-                  {credentialsModal.welcomeEmailStatus === 'queued'
-                    ? `Welcome email queued for ${credentialsModal.email}.`
+                  {['queued', 'sent'].includes(credentialsModal.welcomeEmailStatus)
+                    ? credentialsModal.welcomeEmailStatus === 'queued'
+                      ? `Welcome email queued for ${credentialsModal.email}.`
+                      : `Welcome email sent to ${credentialsModal.email}.`
                     : 'Welcome email was not queued. Share the credentials securely with the staff member.'}
                 </div>
                 

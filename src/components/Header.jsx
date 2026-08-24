@@ -94,7 +94,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   ];
 
   const stockManagementLinks = [
-    { to: '/pharmacy-inventory', label: 'Pharmacy Inventory' },
+    { to: '/pharmacy', label: 'Pharmacy Inventory' },
     { to: '/medical-supplies', label: 'Medical Supplies' },
     { to: '/procurement', label: 'Procurement' },
   ];
@@ -125,7 +125,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
       { path: '/consultation', label: 'Consultation', aliases: ['doctor notes', 'visits', 'clinical'] },
       { path: '/laboratory', label: 'Laboratory', aliases: ['lab', 'tests', 'results'] },
       { path: '/staff', label: 'Staff Management', aliases: ['employees', 'staff directory', 'personnel'] },
-      { path: '/inventory', label: 'Inventory', aliases: ['stock', 'supplies'] },
+      { path: '/pharmacy', label: 'Inventory', aliases: ['inventory', 'stock', 'supplies'] },
       { path: '/bed-allocation', label: 'Bed Allocation', aliases: ['beds', 'ward beds'] },
       { path: '/admissions', label: 'Admissions', aliases: ['admit', 'inpatients'] },
       { path: '/ward-rounds', label: 'Duty Roster', aliases: ['roster', 'schedule'] },
@@ -145,7 +145,6 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
       { path: '/fleet-operations', label: 'Fleet Operations', aliases: ['vehicles'] },
       { path: '/emergency-response', label: 'Emergency Response', aliases: ['emergency'] },
       { path: '/referral-transport', label: 'Referral Transport', aliases: ['referrals'] },
-      { path: '/pharmacy-inventory', label: 'Pharmacy Inventory', aliases: ['drug inventory'] },
       { path: '/medical-supplies', label: 'Medical Supplies', aliases: ['supplies'] },
       { path: '/central-store', label: 'Central Store', aliases: ['store'] },
       { path: '/procurement', label: 'Procurement', aliases: ['procurement'] },
@@ -472,7 +471,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
         message="Are you sure you want to sign out of your account?"
         confirmText="Yes, Logout"
         cancelText="Cancel"
-        type="edit"
+        type="logout"
         isLoading={isLoggingOut}
         loadingText="Signing out..."
       />

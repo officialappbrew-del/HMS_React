@@ -677,6 +677,35 @@ export const consultationApi = {
   submitInsuranceClaim: (id) => apiRequest(`/api/v1/billing/insurance-claims/${id}/submit/`, { method: 'POST' }),
 };
 
+export const financialApi = {
+  getAnalytics: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/billing/analytics/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getInvoices: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/billing/invoices/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getInvoiceSummary: () => apiRequest('/api/v1/billing/invoices/summary/'),
+  getPayments: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/billing/payments/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getBudgets: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/budgeting/budgets/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createBudget: (data) => apiRequest('/api/v1/budgeting/budgets/', { method: 'POST', body: JSON.stringify(data) }),
+};
+
 export const vitalsApi = {
   getVitalSigns: (params = {}) => {
     const qs = new URLSearchParams();

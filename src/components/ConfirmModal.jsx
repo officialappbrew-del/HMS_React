@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Trash2, Edit, Archive, Pill, Package, AlertTriangle } from 'lucide-react';
+import { Trash2, Edit, Archive, Pill, Package, AlertTriangle, LogOut } from 'lucide-react';
 
 const ConfirmModal = ({
   isOpen,
@@ -42,6 +42,8 @@ const ConfirmModal = ({
         return 'bg-blue-600 hover:bg-blue-700';
       case 'archive':
         return 'bg-orange-600 hover:bg-orange-700';
+      case 'logout':
+        return 'bg-red-600 hover:bg-red-700';
       default:
         return 'bg-gray-600 hover:bg-gray-700';
     }
@@ -98,6 +100,8 @@ const getIcon = () => {
       return <Pill className="w-12 h-12 text-purple-600" />;
     case 'restock':
       return <Package className="w-12 h-12 text-green-600" />;
+    case 'logout':
+      return <LogOut className="w-12 h-12 text-red-600" />;
     default:
       return <AlertTriangle className="w-12 h-12 text-yellow-600" />;
   }

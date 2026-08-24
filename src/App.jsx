@@ -30,7 +30,6 @@ const ConsultationV2 = lazy(() => import('./pages/ConsultationV2'));
 const Laboratory = lazy(() => import('./pages/Laboratory'));
 const StaffManagement = lazy(() => import('./pages/StaffManagement'));
 const Appointments = lazy(() => import('./pages/Appointments'));
-const Inventory = lazy(() => import('./pages/Inventory'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const BedAllocation = lazy(() => import('./pages/BedAllocation'));
@@ -54,7 +53,6 @@ const AmbulanceTracking = lazy(() => import('./pages/AmbulanceTracking'));
 const FleetOperations = lazy(() => import('./pages/FleetOperations'));
 const EmergencyResponse = lazy(() => import('./pages/EmergencyResponse'));
 const ReferralTransport = lazy(() => import('./pages/ReferralTransport'));
-const PharmacyInventory = lazy(() => import('./pages/PharmacyInventory'));
 const MedicalSupplies = lazy(() => import('./pages/MedicalSupplies'));
 const CentralStore = lazy(() => import('./pages/CentralStore'));
 const Procurement = lazy(() => import('./pages/Procurement'));
@@ -422,7 +420,7 @@ function AppLayout() {
                 <Route path="/laboratory" element={<ProtectedRoute><Laboratory /></ProtectedRoute>} />
                 <Route path="/staff" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
                 <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
-                <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+                <Route path="/inventory" element={<ProtectedRoute><Navigate to="/pharmacy" replace /></ProtectedRoute>} />
                 <Route path="/bed-allocation" element={<ProtectedRoute><BedAllocation /></ProtectedRoute>} />
                 <Route path="/admissions" element={<ProtectedRoute><AdmissionManagement /></ProtectedRoute>} />
                 <Route path="/ward-rounds" element={<ProtectedRoute><WardRoundManagement /></ProtectedRoute>} />
@@ -439,7 +437,6 @@ function AppLayout() {
                 <Route path="/fleet-operations" element={<ProtectedRoute><FleetOperations /></ProtectedRoute>} />
                 <Route path="/emergency-response" element={<ProtectedRoute><EmergencyResponse /></ProtectedRoute>} />
                 <Route path="/referral-transport" element={<ProtectedRoute><ReferralTransport /></ProtectedRoute>} />
-                <Route path="/pharmacy-inventory" element={<ProtectedRoute><PharmacyInventory /></ProtectedRoute>} />
                 <Route path="/medical-supplies" element={<ProtectedRoute><MedicalSupplies /></ProtectedRoute>} />
                 <Route path="/central-store" element={<ProtectedRoute><CentralStore /></ProtectedRoute>} />
                 <Route path="/procurement" element={<ProtectedRoute><Procurement /></ProtectedRoute>} />
