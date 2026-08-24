@@ -858,6 +858,7 @@ const ConsultationV2 = () => {
       );
 
       await Promise.all([...medPromises, ...allergyPromises]);
+      window.dispatchEvent(new Event('prescriptionCreated'));
       dispatch(addAuditLog({ action: 'Saved Drug History' }));
       showSuccess('Drug history saved successfully.');
     } catch (error) {

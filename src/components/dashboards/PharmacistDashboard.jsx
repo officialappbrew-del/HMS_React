@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Eye,
   Clock,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Grid,
@@ -1300,6 +1301,41 @@ const PharmacistDashboard = () => {
     }
   };
 
+  const fetchPendingPrescriptions = async () => {
+    setLoadingPrescriptions(true);
+    setErrorPrescriptions(null);
+    try {
+      const data = await apiRequest('/api/v1/clinical/prescriptions/?status=prescribed');
+      const list = Array.isArray(data) ? data : (data.results || []);
+      const normalized = list.map(rx => ({
+        ...rx,
+        patient: rx.patient_name || 'Unknown',
+        medication: rx.drug_name || 'Unknown',
+        date: rx.prescribed_date ? new Date(rx.prescribed_date).toISOString().split('T')[0] : '',
+        priority: 'Normal',
+        prescriptionId: rx.id,
+        patientId: rx.patient,
+        patientMrn: rx.patient_mrn || '',
+        batch: rx.visit_number || `Visit ${rx.visit || ''}`,
+        prescriber: rx.prescribed_by_name || 'Doctor not recorded',
+        status: rx.status || 'prescribed',
+        dosage: rx.dosage || '',
+        frequency: rx.frequency || '',
+        quantity: rx.quantity || 1,
+      }));
+      setApiPrescriptions(normalized.sort((a, b) => new Date(b.prescribed_date || 0) - new Date(a.prescribed_date || 0)));
+    } catch (err) {
+      setErrorPrescriptions(err.message || 'Failed to load prescriptions');
+      showErrorModal(
+        'Load Error',
+        'Failed to load prescriptions',
+        err.message || 'Please try refreshing the page.'
+      );
+    } finally {
+      setLoadingPrescriptions(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoadingDrugs(true);
@@ -1341,43 +1377,19 @@ const PharmacistDashboard = () => {
       }
     };
 
-    const fetchPrescriptions = async () => {
-      setLoadingPrescriptions(true);
-      setErrorPrescriptions(null);
-      try {
-        const data = await apiRequest('/api/v1/clinical/prescriptions/?status=prescribed');
-        const list = Array.isArray(data) ? data : (data.results || []);
-        const normalized = list.map(rx => ({
-          ...rx,
-          patient: rx.patient_name || 'Unknown',
-          medication: rx.drug_name || 'Unknown',
-          date: rx.prescribed_date ? new Date(rx.prescribed_date).toISOString().split('T')[0] : '',
-          priority: 'Normal',
-          prescriptionId: rx.id,
-          patientId: rx.patient,
-          patientMrn: rx.patient_mrn || '',
-          batch: rx.visit_number || `Visit ${rx.visit || ''}`,
-          prescriber: rx.prescribed_by_name || 'Doctor not recorded',
-          status: rx.status || 'prescribed',
-          dosage: rx.dosage || '',
-          frequency: rx.frequency || '',
-          quantity: rx.quantity || 1,
-        }));
-        setApiPrescriptions(normalized.sort((a, b) => new Date(b.prescribed_date || 0) - new Date(a.prescribed_date || 0)));
-      } catch (err) {
-        setErrorPrescriptions(err.message || 'Failed to load prescriptions');
-        showErrorModal(
-          'Load Error',
-          'Failed to load prescriptions',
-          err.message || 'Please try refreshing the page.'
-        );
-      } finally {
-        setLoadingPrescriptions(false);
-      }
-    };
-
     fetchData();
-    fetchPrescriptions();
+    fetchPendingPrescriptions();
+  }, []);
+
+  useEffect(() => {
+    const refreshOnFocus = () => fetchPendingPrescriptions();
+    const refreshAfterPrescriptionCreated = () => fetchPendingPrescriptions();
+    window.addEventListener('focus', refreshOnFocus);
+    window.addEventListener('prescriptionCreated', refreshAfterPrescriptionCreated);
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      window.removeEventListener('prescriptionCreated', refreshAfterPrescriptionCreated);
+    };
   }, []);
 
   const handleReorderDrug = async (id) => {

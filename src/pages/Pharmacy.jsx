@@ -82,7 +82,7 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
       disabled={disabled}
       className={`inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 ${variants[variant]} ${sizes[size]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
-      {Icon && <Icon className="w-4 h-4" />}
+      {Icon && <Icon className={`w-4 h-4 ${Icon === Loader2 ? 'animate-spin' : ''}`} />}
       {children}
     </button>
   );
@@ -252,6 +252,17 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Drug Code *</label>
+            <input
+              type="text"
+              name="drugCode"
+              value={formData.drugCode}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+              required
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Generic Name</label>
             <input
               type="text"
@@ -260,6 +271,10 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
+            <input type="text" name="brandName" value={formData.brandName} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
@@ -316,11 +331,27 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Therapeutic Class</label>
+            <input type="text" name="therapeuticClass" value={formData.therapeuticClass} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
+            <input type="text" name="unitOfMeasure" value={formData.unitOfMeasure} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+            <input type="text" name="supplier" value={formData.supplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Country of Origin</label>
+            <input type="text" name="countryOfOrigin" value={formData.countryOfOrigin} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+          </div>
         </div>
 
         {/* Pricing & Inventory */}
-        <div className="border-t border-gray-100 pt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Pricing & Inventory</h4>
+        <details className="border-t border-gray-100 pt-4">
+          <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-3">Pricing & Inventory</summary>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price (₦)</label>
@@ -369,6 +400,10 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reorder Quantity</label>
+              <input type="number" name="reorderQuantity" value={formData.reorderQuantity} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" min="0" />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number</label>
               <input
                 type="text"
@@ -388,12 +423,16 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Storage Conditions</label>
+              <input type="text" name="storageConditions" value={formData.storageConditions} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
           </div>
-        </div>
+        </details>
 
         {/* Regulatory */}
-        <div className="border-t border-gray-100 pt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Regulatory</h4>
+        <details className="border-t border-gray-100 pt-4">
+          <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-3">Regulatory</summary>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">NAFDAC Number</label>
@@ -405,6 +444,10 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                 placeholder="NAFDAC-04-1234"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">PCN Approval Number</label>
+              <input type="text" name="pcnApprovalNumber" value={formData.pcnApprovalNumber} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">NEML Category</label>
@@ -421,7 +464,46 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
               </select>
             </div>
           </div>
-        </div>
+        </details>
+
+        {/* Clinical & NHIS */}
+        <details className="border-t border-gray-100 pt-4">
+          <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-3">Clinical & NHIS</summary>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
+              <input type="text" name="schedule" value={formData.schedule} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NHIS Code</label>
+              <input type="text" name="nhisCode" value={formData.nhisCode} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NHIS Price (₦)</label>
+              <input type="number" name="nhisPrice" value={formData.nhisPrice} onChange={handleChange} min="0" step="0.01" className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Barcode</label>
+              <input type="text" name="barcode" value={formData.barcode} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Side Effects</label>
+              <textarea name="sideEffects" value={formData.sideEffects} onChange={handleChange} rows="2" className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contraindications</label>
+              <textarea name="contraindications" value={formData.contraindications} onChange={handleChange} rows="2" className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Interactions</label>
+              <textarea name="interactions" value={formData.interactions} onChange={handleChange} rows="2" className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dosage Instructions</label>
+              <textarea name="dosageInstructions" value={formData.dosageInstructions} onChange={handleChange} rows="2" className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all" />
+            </div>
+          </div>
+        </details>
 
         {/* Controls */}
         <div className="border-t border-gray-100 pt-4">
@@ -456,6 +538,10 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
               />
               NHIS Covered
             </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" name="narcotic" checked={formData.narcotic} onChange={handleChange} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+              Narcotic
+            </label>
           </div>
         </div>
 
@@ -466,7 +552,7 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
             variant="primary"
             className="flex-1"
             disabled={loading}
-            icon={Check}
+            icon={loading ? Loader2 : Check}
           >
             {loading ? 'Saving...' : (isEdit ? 'Update Drug' : 'Add Drug')}
           </Button>
@@ -595,7 +681,7 @@ const SupplierFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, is
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
-          <Button type="submit" variant="primary" className="flex-1" disabled={loading} icon={Check}>
+          <Button type="submit" variant="primary" className="flex-1" disabled={loading} icon={loading ? Loader2 : Check}>
             {loading ? 'Saving...' : (isEdit ? 'Update Supplier' : 'Add Supplier')}
           </Button>
           <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
@@ -657,7 +743,7 @@ const RestockModal = ({ isOpen, onClose, onSubmit, loading }) => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
-          <Button type="submit" variant="primary" className="flex-1" disabled={loading} icon={Package}>
+            <Button type="submit" variant="primary" className="flex-1" disabled={loading} icon={loading ? Loader2 : Package}>
             {loading ? 'Restocking...' : 'Restock'}
           </Button>
           <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
@@ -696,7 +782,7 @@ const CartModal = ({ isOpen, onClose, items, onRemove, onCheckout, loading }) =>
                   </span>
                   <IconButton
                     icon={Trash2}
-                    onClick={() => onRemove(index)}
+                    onClick={() => onRemove(item.id)}
                     tooltip="Remove"
                     variant="danger"
                     size="sm"
@@ -728,7 +814,7 @@ const CartModal = ({ isOpen, onClose, items, onRemove, onCheckout, loading }) =>
 
 // ==================== PRESCRIPTION PATIENT MODAL ====================
 
-const PrescriptionPatientModal = ({ patient, onClose, onDispense, drugs }) => {
+const PrescriptionPatientModal = ({ isOpen, patient, onClose, onDispense, drugs }) => {
   const [dispensingPrescription, setDispensingPrescription] = useState(null);
   const [selectedDrugId, setSelectedDrugId] = useState('');
   const [dispenseQuantity, setDispenseQuantity] = useState(1);
@@ -777,7 +863,7 @@ const PrescriptionPatientModal = ({ patient, onClose, onDispense, drugs }) => {
   };
 
   return (
-    <BaseModal isOpen={!!patient} onClose={onClose} title={patient.name} maxWidth="lg">
+    <BaseModal isOpen={isOpen && !!patient} onClose={onClose} title={patient.name} maxWidth="lg">
       <div className="space-y-1 mb-4">
         <p className="text-sm text-gray-500">MRN: {patient.mrn || 'N/A'} · {patient.items.length} prescription(s)</p>
       </div>
@@ -931,6 +1017,7 @@ const statusFilterOptions = [
 const tabs = [
   { id: 'inventory', label: 'Inventory', icon: Package },
   { id: 'prescriptions', label: 'Prescriptions', icon: Clipboard },
+  { id: 'dispensing-audit', label: 'Dispensing Audit', icon: ShieldCheck },
   { id: 'sales', label: 'Sales', icon: History },
   { id: 'suppliers', label: 'Suppliers', icon: Truck },
 ];
@@ -974,6 +1061,11 @@ const Pharmacy = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [prescriptionSearch, setPrescriptionSearch] = useState('');
+  const [prescriptionStatus, setPrescriptionStatus] = useState('');
+  const [showPrescriptionFilters, setShowPrescriptionFilters] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+  const [dispenses, setDispenses] = useState([]);
+  const [dispensesLoading, setDispensesLoading] = useState(false);
 
   // Modal States
   const [modals, setModals] = useState({
@@ -982,6 +1074,7 @@ const Pharmacy = () => {
     restock: { isOpen: false, drugId: null },
     cart: { isOpen: false },
     prescriptions: { isOpen: false, patient: null },
+    analytics: { isOpen: false },
     confirm: { isOpen: false, title: '', message: '', onConfirm: null },
   });
 
@@ -1065,6 +1158,14 @@ const Pharmacy = () => {
     })).sort((a, b) => new Date(b.latest?.prescribed_date || 0) - new Date(a.latest?.prescribed_date || 0));
   }, [prescriptions]);
 
+  const fetchDispensingAudit = useCallback(() => {
+    setDispensesLoading(true);
+    pharmacyApi.getDispenses()
+      .then((data) => setDispenses(Array.isArray(data) ? data : (data.results || [])))
+      .catch((err) => setErrorMessage(err.message || 'Failed to load dispensing audit.'))
+      .finally(() => setDispensesLoading(false));
+  }, []);
+
   // Fetch data
   useEffect(() => {
     dispatch(fetchDrugs());
@@ -1072,13 +1173,15 @@ const Pharmacy = () => {
 
   useEffect(() => {
     if (activeTab === 'prescriptions') {
-      dispatch(fetchPrescriptions({ search: prescriptionSearch }));
+      dispatch(fetchPrescriptions({ search: prescriptionSearch, status: prescriptionStatus }));
     } else if (activeTab === 'sales') {
       dispatch(fetchSales());
+    } else if (activeTab === 'dispensing-audit') {
+      fetchDispensingAudit();
     } else if (activeTab === 'suppliers') {
       dispatch(fetchSuppliers());
     }
-  }, [activeTab, dispatch, prescriptionSearch]);
+  }, [activeTab, dispatch, prescriptionSearch, prescriptionStatus, fetchDispensingAudit]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1091,41 +1194,41 @@ const Pharmacy = () => {
     try {
       const payload = {
         name: formData.name.trim(),
-        generic_name: formData.genericName.trim() || null,
-        brand_name: formData.brandName.trim() || null,
-        drug_code: formData.drugCode.trim() || null,
-        nafdac_number: formData.nafdacNumber.trim() || null,
-        pcn_approval_number: formData.pcnApprovalNumber.trim() || null,
-        strength: formData.strength.trim() || null,
+        generic_name: formData.genericName.trim(),
+        brand_name: formData.brandName.trim(),
+        drug_code: formData.drugCode.trim(),
+        nafdac_number: formData.nafdacNumber.trim(),
+        pcn_approval_number: formData.pcnApprovalNumber.trim(),
+        strength: formData.strength.trim(),
         form: formData.dosageForm,
         category: formData.category,
-        therapeutic_class: formData.therapeuticClass.trim() || null,
+        therapeutic_class: formData.therapeuticClass.trim(),
         stock_quantity: parseInt(formData.quantityInStock) || 0,
         reorder_level: parseInt(formData.reorderLevel) || 10,
         reorder_quantity: parseInt(formData.reorderQuantity) || 0,
         unit_price: parseFloat(formData.unitPrice) || 0,
         selling_price: parseFloat(formData.sellingPrice) || 0,
-        unit_of_measure: formData.unitOfMeasure.trim() || null,
-        batch_number: formData.batchNumber.trim() || null,
+        unit_of_measure: formData.unitOfMeasure.trim(),
+        batch_number: formData.batchNumber.trim(),
         expiry_date: formData.expiryDate || null,
-        storage_conditions: formData.storageConditions.trim() || null,
+        storage_conditions: formData.storageConditions.trim(),
         last_restocked: formData.lastRestocked || null,
-        neml_category: formData.nemlCategory || null,
-        manufacturer: formData.manufacturer.trim() || null,
-        supplier: formData.supplier.trim() || null,
+        neml_category: formData.nemlCategory || '',
+        manufacturer: formData.manufacturer.trim(),
+        supplier: formData.supplier.trim(),
         country_of_origin: formData.countryOfOrigin.trim() || 'Nigeria',
         is_controlled: formData.controlledSubstance,
         narcotic: formData.narcotic,
-        schedule: formData.schedule.trim() || null,
+        schedule: formData.schedule.trim(),
         nhis_covered: formData.nhisCovered,
-        nhis_code: formData.nhisCode.trim() || null,
+        nhis_code: formData.nhisCode.trim(),
         nhis_price: formData.nhisPrice ? parseFloat(formData.nhisPrice) : null,
-        side_effects: formData.sideEffects.trim() || null,
-        contraindications: formData.contraindications.trim() || null,
-        interactions: formData.interactions.trim() || null,
-        dosage_instructions: formData.dosageInstructions.trim() || null,
+        side_effects: formData.sideEffects.trim(),
+        contraindications: formData.contraindications.trim(),
+        interactions: formData.interactions.trim(),
+        dosage_instructions: formData.dosageInstructions.trim(),
         prescription_required: formData.prescriptionRequired,
-        barcode: formData.barcode.trim() || null,
+        barcode: formData.barcode.trim(),
       };
 
       if (modals.drugForm.isEdit) {
@@ -1302,7 +1405,7 @@ const Pharmacy = () => {
       });
       
       setSuccessMessage('Prescription dispensed and stock updated.');
-      dispatch(fetchPrescriptions({ search: prescriptionSearch }));
+      dispatch(fetchPrescriptions({ search: prescriptionSearch, status: prescriptionStatus }));
       dispatch(fetchDrugs());
       
       // Refresh the patient data in the modal
@@ -1364,10 +1467,76 @@ const Pharmacy = () => {
     }
   };
 
-  const handleExportReport = () => {
-    dispatch(exportPharmacyReport());
-    setSuccessMessage('Report exported successfully.');
+  const downloadJson = (data, filename) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportReport = async () => {
+    try {
+      const report = await pharmacyApi.getReport();
+      downloadJson(report, `pharmacy-report-${new Date().toISOString().split('T')[0]}.json`);
+      setSuccessMessage('Report exported successfully.');
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to export pharmacy report.');
+    }
     setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
+  const handleExportPrescriptions = async () => {
+    try {
+      const report = await pharmacyApi.exportPrescriptions({ search: prescriptionSearch, status: prescriptionStatus });
+      downloadJson(report, `prescriptions-${new Date().toISOString().split('T')[0]}.json`);
+      setSuccessMessage('Prescriptions exported successfully.');
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to export prescriptions.');
+    }
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
+  const handleShowAnalytics = async () => {
+    try {
+      const data = await pharmacyApi.getAnalytics();
+      setAnalytics(data);
+      openModal('analytics');
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to load sales analytics.');
+    }
+  };
+
+  const printServerData = (title, data, printWindow = window.open('', '_blank')) => {
+    if (!printWindow) throw new Error('Allow pop-ups to print pharmacy records.');
+    printWindow.document.write(`<html><head><title>${title}</title></head><body><pre>${JSON.stringify(data, null, 2)}</pre></body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const handlePrintReceipt = async (sale) => {
+    const printWindow = window.open('', '_blank');
+    try {
+      const receipt = await pharmacyApi.getReceipt(sale.id);
+      printServerData(`Receipt ${sale.id}`, receipt, printWindow);
+    } catch (err) {
+      printWindow?.close();
+      setErrorMessage(err.message || 'Failed to load receipt.');
+    }
+  };
+
+  const handlePrintPrescriptions = async (patient) => {
+    const printWindow = window.open('', '_blank');
+    try {
+      const result = await pharmacyApi.exportPrescriptions({ patient: patient.id });
+      printServerData(`Prescriptions ${patient.name}`, result, printWindow);
+    } catch (err) {
+      printWindow?.close();
+      setErrorMessage(err.message || 'Failed to load prescriptions for printing.');
+    }
   };
 
   const handleRefresh = () => {
@@ -1510,7 +1679,7 @@ const Pharmacy = () => {
                                 setRestockForm({ quantity: '', batchNumber: '', expiryDate: '' });
                                 setModals(prev => ({ ...prev, restock: { isOpen: true, drugId: drug.id } }));
                               }} tooltip="Restock" variant="primary" size="sm" />
-                              {/* <IconButton icon={ShoppingCart} onClick={() => handleAddToCart(drug)} tooltip="Add to Cart QWERTY" variant="success" size="sm" /> */}
+                              <IconButton icon={ShoppingCart} onClick={() => handleAddToCart(drug)} tooltip="Add to cart" variant="success" size="sm" />
                             </div>
                           </td>
                         </tr>
@@ -1567,10 +1736,26 @@ const Pharmacy = () => {
                 className="pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all w-full sm:w-56"
               />
             </div>
-            <Button variant="secondary" size="sm" icon={Filter}>Filter</Button>
-            <Button variant="secondary" size="sm" icon={Download}>Export</Button>
+            <Button onClick={() => setShowPrescriptionFilters((visible) => !visible)} variant="secondary" size="sm" icon={Filter}>Filter</Button>
+            <Button onClick={handleExportPrescriptions} variant="secondary" size="sm" icon={Download}>Export</Button>
           </div>
         </div>
+
+        {showPrescriptionFilters && (
+          <div className="mb-4 flex items-center gap-2">
+            <label className="text-sm text-gray-600" htmlFor="prescription-status">Status</label>
+            <select
+              id="prescription-status"
+              value={prescriptionStatus}
+              onChange={(e) => setPrescriptionStatus(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+            >
+              <option value="">All statuses</option>
+              <option value="prescribed">Prescribed</option>
+              <option value="dispensed">Dispensed</option>
+            </select>
+          </div>
+        )}
 
         {dispenseSelection && (
           <form onSubmit={handleDispensePrescription} className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
@@ -1664,7 +1849,7 @@ const Pharmacy = () => {
                           size="sm" 
                           onClick={() => openModal('prescriptions', { patient })}
                         />
-                        <IconButton icon={Printer} tooltip="Print" variant="default" size="sm" />
+                        <IconButton icon={Printer} onClick={() => handlePrintPrescriptions(patient)} tooltip="Print" variant="default" size="sm" />
                       </div>
                     </td>
                   </tr>
@@ -1686,7 +1871,7 @@ const Pharmacy = () => {
             <Button onClick={handleExportReport} variant="secondary" size="sm" icon={Download}>
               Export
             </Button>
-            <Button variant="primary" size="sm" icon={BarChart3}>
+            <Button onClick={handleShowAnalytics} variant="primary" size="sm" icon={BarChart3}>
               Analytics
             </Button>
           </div>
@@ -1738,8 +1923,8 @@ const Pharmacy = () => {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-0.5">
-                        <IconButton icon={Receipt} tooltip="Receipt" variant="primary" size="sm" />
-                        <IconButton icon={Printer} tooltip="Print" variant="default" size="sm" />
+                        <IconButton icon={Receipt} onClick={() => handlePrintReceipt(sale)} tooltip="Receipt" variant="primary" size="sm" />
+                        <IconButton icon={Printer} onClick={() => handlePrintReceipt(sale)} tooltip="Print" variant="default" size="sm" />
                       </div>
                     </td>
                   </tr>
@@ -1751,6 +1936,61 @@ const Pharmacy = () => {
       </div>
     );
   };
+
+  const renderDispensingAuditContent = () => (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Dispensing Audit</h3>
+          <p className="text-xs text-gray-500 mt-1">Complete record of dispensed prescriptions and dispensing staff.</p>
+        </div>
+        <Button onClick={fetchDispensingAudit} variant="secondary" size="sm" icon={RefreshCw}>
+          Refresh
+        </Button>
+      </div>
+
+      {dispensesLoading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+          <p className="text-gray-500">Loading dispensing records...</p>
+        </div>
+      ) : dispenses.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <ShieldCheck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 font-medium">No dispensing records found</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto -mx-4 px-4">
+          <table className="w-full min-w-[760px]">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescription</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescribed By</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dispensed By</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {dispenses.map((dispense) => (
+                <tr key={dispense.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-3 py-3 text-sm text-gray-900">{dispense.patient_name || 'Unknown patient'}</td>
+                  <td className="px-3 py-3 text-sm text-gray-600">#{dispense.prescription}</td>
+                  <td className="px-3 py-3 text-sm text-gray-600">{dispense.drug_name || 'Unknown drug'}</td>
+                  <td className="px-3 py-3 text-sm text-gray-600">{dispense.quantity}</td>
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900">{dispense.prescribed_by_name || 'Not recorded'}</td>
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900">{dispense.dispensed_by_name || 'Not recorded'}</td>
+                  <td className="px-3 py-3 text-sm text-gray-600">{formatDate(dispense.dispensed_date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 
   const renderSuppliersContent = () => {
     return (
@@ -1888,7 +2128,7 @@ const Pharmacy = () => {
               <Button onClick={handleRefresh} variant="secondary" size="sm" icon={RefreshCw} className={loading ? 'animate-spin' : ''}>
                 <span className="hidden sm:inline">Refresh</span>
               </Button>
-              <Button onClick={() => {}} variant="secondary" size="sm" icon={BarChart3}>
+              <Button onClick={handleExportReport} variant="secondary" size="sm" icon={BarChart3}>
                 <span className="hidden sm:inline">Reports</span>
               </Button>
               <Button onClick={() => {
@@ -1992,7 +2232,16 @@ const Pharmacy = () => {
                     <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                     <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                   </div>
-                  <IconButton icon={Printer} onClick={() => window.print()} tooltip="Print" size="sm" />
+                  <IconButton icon={Printer} onClick={async () => {
+                    const printWindow = window.open('', '_blank');
+                    try {
+                      const report = await pharmacyApi.getReport();
+                      printServerData('Pharmacy Report', report, printWindow);
+                    } catch (err) {
+                      printWindow?.close();
+                      setErrorMessage(err.message || 'Failed to load pharmacy report.');
+                    }
+                  }} tooltip="Print" size="sm" />
                   <IconButton icon={Download} onClick={handleExportReport} tooltip="Export" size="sm" />
                   <Button onClick={() => {
                     setDrugForm(getDefaultDrugForm());
@@ -2008,6 +2257,7 @@ const Pharmacy = () => {
           {/* Tab Content */}
           {activeTab === 'inventory' && renderInventoryContent()}
           {activeTab === 'prescriptions' && renderPrescriptionsContent()}
+          {activeTab === 'dispensing-audit' && renderDispensingAuditContent()}
           {activeTab === 'sales' && renderSalesContent()}
           {activeTab === 'suppliers' && renderSuppliersContent()}
         </div>
@@ -2019,7 +2269,7 @@ const Pharmacy = () => {
         isOpen={modals.drugForm.isOpen}
         onClose={() => closeModal('drugForm')}
         onSubmit={handleDrugFormSubmit}
-        initialData={modals.drugForm.data}
+        initialData={drugForm}
         loading={loading}
         isEdit={modals.drugForm.isEdit}
       />
@@ -2028,7 +2278,7 @@ const Pharmacy = () => {
         isOpen={modals.supplierForm.isOpen}
         onClose={() => closeModal('supplierForm')}
         onSubmit={handleSupplierSubmit}
-        initialData={modals.supplierForm.data}
+        initialData={supplierForm}
         loading={loading}
         isEdit={modals.supplierForm.isEdit}
       />
@@ -2044,17 +2294,35 @@ const Pharmacy = () => {
         isOpen={modals.cart.isOpen}
         onClose={() => closeModal('cart')}
         items={cart || []}
-        onRemove={(index) => dispatch(removeFromCart(index))}
+        onRemove={(itemId) => dispatch(removeFromCart(itemId))}
         onCheckout={handleProcessSale}
         loading={loading}
       />
 
       <PrescriptionPatientModal
+        isOpen={modals.prescriptions.isOpen}
         patient={modals.prescriptions.patient}
         onClose={() => closeModal('prescriptions')}
         onDispense={handleDispensePrescription}
         drugs={drugs}
       />
+
+      <BaseModal isOpen={modals.analytics.isOpen} onClose={() => closeModal('analytics')} title="Sales Analytics" maxWidth="md">
+        {analytics && (
+          <div className="space-y-3 text-sm text-gray-700">
+            <p>Total sales: <strong>{analytics.sale_count}</strong></p>
+            <p>Total revenue: <strong>₦{Number(analytics.total_revenue).toLocaleString()}</strong></p>
+            <p>Paid sales: <strong>{analytics.paid_sales}</strong></p>
+            <p>Pending sales: <strong>{analytics.pending_sales}</strong></p>
+            <div>
+              <p className="font-medium mb-1">Payment methods</p>
+              {analytics.by_payment_method.map((item) => (
+                <p key={item.payment_method}>{item.payment_method}: {item.count}</p>
+              ))}
+            </div>
+          </div>
+        )}
+      </BaseModal>
 
       {/* Confirm Modal */}
       <ConfirmModal

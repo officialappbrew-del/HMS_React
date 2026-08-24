@@ -497,6 +497,15 @@ export const pharmacyApi = {
     return apiRequest(`/api/v1/pharmacy/sales/${qsStr ? '?' + qsStr : ''}`);
   },
   createSale: (data) => apiRequest('/api/v1/pharmacy/sales/', { method: 'POST', body: JSON.stringify(data) }),
+  getReport: () => apiRequest('/api/v1/pharmacy/sales/report/'),
+  getAnalytics: () => apiRequest('/api/v1/pharmacy/sales/analytics/'),
+  getReceipt: (id) => apiRequest(`/api/v1/pharmacy/sales/${id}/receipt/`),
+  exportPrescriptions: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/clinical/prescriptions/export/${qsStr ? '?' + qsStr : ''}`);
+  },
   getTenant: () => apiRequest('/api/v1/tenants/active-tenants/'),
 };
 
