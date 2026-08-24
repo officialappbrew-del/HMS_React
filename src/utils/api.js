@@ -21,7 +21,7 @@ const PUBLIC_AUTH_PATHS = [
   '/api/v1/patients/login',
 ];
 
-export const getCsrfToken = () => {
+const getCsrfToken = () => {
   if (typeof document === 'undefined') return '';
   const name = 'csrftoken=';
   const decodedCookie = decodeURIComponent(document.cookie);

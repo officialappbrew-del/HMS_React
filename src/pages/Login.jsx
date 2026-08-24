@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { apiRequest, API_BASE_URL, getCsrfToken } from '../utils/api';
+import  { apiRequest} from "../utils/api";
 
 // ============================================================
 // OPTIMIZED ICON COMPONENT - Dynamically imports only needed icons
