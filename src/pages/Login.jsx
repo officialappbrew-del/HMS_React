@@ -112,6 +112,7 @@ const Login = () => {
     }
   });
   const [tokenSent, setTokenSent] = useState(false);
+  const [tokenVerified, setTokenVerified] = useState(false);
   const [isFocused, setIsFocused] = useState({ email: false, password: false });
   const [now, setNow] = useState(() => new Date());
 
@@ -350,9 +351,32 @@ const Login = () => {
     }
   }, [resetToken, newPassword, confirmPassword]);
 
+  const handleVerifyToken = useCallback(async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setMessageType('');
+
+    try {
+      const response = await apiRequest('/api/v1/auth/password-reset/verify/', {
+        method: 'POST',
+        body: JSON.stringify({ token: resetToken.trim() }),
+      });
+      setMessage(response?.detail || 'Reset token verified. You can now choose a new password.');
+      setMessageType('success');
+      setTokenVerified(true);
+    } catch (error) {
+      setMessage(error.message || 'Invalid or expired reset token.');
+      setMessageType('error');
+    } finally {
+      setLoading(false);
+    }
+  }, [resetToken]);
+
   const handleBackToLogin = useCallback(() => {
     setShowForgotPassword(false);
     setTokenSent(false);
+    setTokenVerified(false);
     setForgotIdentifier('');
     setResetToken('');
     setNewPassword('');
@@ -508,12 +532,16 @@ const Login = () => {
               {showForgotPassword ? 'Password recovery' : 'Secure sign-in'}
             </p>
             <h2 className="mt-1.5 font-['Lora'] text-xl font-semibold leading-snug text-[#1C2B27] sm:text-[22px]">
-              {showForgotPassword ? (tokenSent ? 'Set a new password' : 'Forgot your password?') : 'Welcome back'}
+              {showForgotPassword
+                ? tokenVerified ? 'Set a new password' : tokenSent ? 'Verify your reset token' : 'Forgot your password?'
+                : 'Welcome back'}
             </h2>
             <p className="mt-1.5 text-[13px] leading-snug text-[#5C6D67]">
               {showForgotPassword
-                ? tokenSent
-                  ? 'Enter the reset token sent to your email, then choose a new password.'
+                ? tokenVerified
+                  ? 'Your token is verified. Choose and confirm your new password.'
+                  : tokenSent
+                    ? 'Enter the reset token sent to your email to continue.'
                   : 'Enter your email or user ID and we\u2019ll send you a reset token.'
                 : 'Sign in to access your healthcare workspace.'}
             </p>
@@ -643,7 +671,7 @@ const Login = () => {
                   By signing in, you agree to our Terms of Service and Privacy Policy.
                 </p>
               </form>
-            ) : tokenSent ? (
+            ) : tokenVerified ? (
               // Reset Password Form
               <form className="mt-5 space-y-3.5" onSubmit={handleResetPassword}>
                 <div>
@@ -746,6 +774,40 @@ const Login = () => {
                   onClick={handleBackToLogin}
                   className="flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-[#3E6E58] transition-colors hover:text-[#2C5245]"
                 >
+                  <Icon name="ChevronLeft" className="h-3.5 w-3.5" />
+                  Back to login
+                </button>
+              </form>
+            ) : tokenSent ? (
+              <form className="mt-5 space-y-3.5" onSubmit={handleVerifyToken}>
+                <div>
+                  <label htmlFor="resetToken" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
+                    Reset token
+                  </label>
+                  <div className="relative">
+                    <Icon name="Key" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA6A0]" />
+                    <input
+                      id="resetToken"
+                      name="resetToken"
+                      type="text"
+                      required
+                      value={resetToken}
+                      onChange={(e) => setResetToken(e.target.value)}
+                      placeholder="Enter the reset token"
+                      className="w-full rounded-lg border border-[#1C2B27]/12 bg-white py-2.5 pl-10 pr-3.5 text-[13.5px] text-[#1C2B27] outline-none transition-colors placeholder:text-[#9AA6A0] focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-[#9AA6A0]">Check your email for the reset token.</p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group flex w-full items-center justify-center gap-2 rounded-lg bg-[#16302A] px-4 py-2.5 text-[13.5px] font-semibold text-[#F6F2E7] transition-colors hover:bg-[#1C3B33] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? 'Verifying' : 'Verify token'}
+                  {!loading && <Icon name="CheckCircle" className="h-3.5 w-3.5" />}
+                </button>
+                <button type="button" onClick={handleBackToLogin} className="flex w-full items-center justify-center gap-1.5 text-[13px] font-medium text-[#3E6E58]">
                   <Icon name="ChevronLeft" className="h-3.5 w-3.5" />
                   Back to login
                 </button>
