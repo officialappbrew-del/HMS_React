@@ -653,7 +653,7 @@ const PrescriptionPatientModal = ({ patient, drugs, onClose, onDispense }) => {
 };
 
 // Enhanced Prescriptions Table Component
-const PrescriptionsTable = ({ patients, onViewPatient, onDispense, drugs }) => {
+const PrescriptionsTable = ({ patients, onViewPatient, onViewJourney, onDispense, drugs }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
@@ -774,6 +774,13 @@ const PrescriptionsTable = ({ patients, onViewPatient, onDispense, drugs }) => {
                         variant="primary" 
                         size="sm" 
                         onClick={() => onViewPatient(patient)}
+                      />
+                      <IconButton
+                        icon={FileText}
+                        tooltip="View patient journey and bill"
+                        variant="info"
+                        size="sm"
+                        onClick={() => onViewJourney(patient.patientId || patient.id)}
                       />
                       <IconButton icon={Printer} tooltip="Print" variant="default" size="sm" />
                     </div>
@@ -1760,6 +1767,7 @@ const PharmacistDashboard = () => {
           <PrescriptionsTable
             patients={prescriptionPatients}
             onViewPatient={setSelectedPrescriptionPatient}
+            onViewJourney={(id) => navigate(`/patients/${id}/journey`)}
             onDispense={handleDispensePrescription}
             drugs={apiDrugs}
           />

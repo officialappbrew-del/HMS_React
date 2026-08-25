@@ -2714,6 +2714,13 @@ const handleRestorePatient = (patient) => {
                                   size="sm"
                                 />
                                 <IconButton
+                                  icon={Map}
+                                  onClick={() => navigate(`/patients/${patient.id}/journey`)}
+                                  tooltip="View patient journey and bill"
+                                  variant="info"
+                                  size="sm"
+                                />
+                                <IconButton
                                   icon={Edit}
                                   onClick={() => handleEditPatient(patient)}
                                   tooltip="Edit patient"

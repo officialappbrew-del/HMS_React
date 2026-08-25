@@ -62,6 +62,7 @@ import {
   Phone,
   Mail,
   MapPin,
+  Map,
   Building2,
   Globe,
   BookOpen,
@@ -2075,6 +2076,12 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             <IconButton
                               icon={FileText}
                               onClick={() => navigate(`/patients/${patient.id}/emr`)}
+                              variant="info"
+                            />
+                            <IconButton
+                              icon={Map}
+                              onClick={() => navigate(`/patients/${patient.id}/journey`)}
+                              tooltip="View patient journey and bill"
                               variant="info"
                             />
                             {isInactive && (

@@ -66,6 +66,7 @@ import {
   Droplets,
   Baby,
   MapPin,
+  Map,
   Building2,
   User as UserIcon,
   Upload,
@@ -2009,6 +2010,12 @@ const displayTenantName = authTenant?.name || 'Hospital';
                             icon={FileText}
                             onClick={() => navigate(`/patients/${patient.id}/emr`)}
                             tooltip="View EMR"
+                            variant="info"
+                          />
+                          <IconButton
+                            icon={Map}
+                            onClick={() => navigate(`/patients/${patient.id}/journey`)}
+                            tooltip="View patient journey and bill"
                             variant="info"
                           />
                           {isInactive && (

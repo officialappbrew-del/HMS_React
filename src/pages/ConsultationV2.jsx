@@ -1551,6 +1551,22 @@ const ConsultationV2 = () => {
 
       await consultationApi.endConsultation(visitId, payload);
 
+      const consultationCharges = billingOverride?.charges || consultation.billing.charges;
+      await Promise.all(consultationCharges.map((charge, index) => (
+        apiRequest('/api/v1/billing/patient-charges/', {
+          method: 'POST',
+          body: JSON.stringify({
+            patient: consultation.patient.patientId,
+            visit: visitId,
+            item_type: 'consultation',
+            description: charge.item,
+            quantity: 1,
+            unit_price: Number(charge.amount),
+            source_id: `consultation-${visitId}-${index}`,
+          }),
+        })
+      )));
+
       showSuccess('Consultation saved successfully.');
     } catch (error) {
       showError(error.message || 'Unable to save consultation.');

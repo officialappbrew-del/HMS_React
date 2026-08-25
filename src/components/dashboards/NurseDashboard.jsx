@@ -2982,7 +2982,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
 };
 
 // ==================== PATIENT DETAIL MODAL ====================
-const PatientDetailModal = ({ patient, onClose }) => {
+const PatientDetailModal = ({ patient, onClose, onJourney }) => {
   if (!patient) return null;
 
   const formatDate = (date) => {
@@ -3315,6 +3315,14 @@ const PatientDetailModal = ({ patient, onClose }) => {
           </div>
 
           <div className="border-t border-[#E8E3DC] p-4 flex flex-wrap justify-end gap-2 bg-white">
+            <ButtonWithTooltip
+              onClick={onJourney}
+              tooltip="View patient journey and bill"
+              variant="outline"
+            >
+              <Map className="w-3.5 h-3.5" />
+              Journey & Bill
+            </ButtonWithTooltip>
             <ButtonWithTooltip
               onClick={onClose}
               tooltip="Close patient details"
@@ -4418,6 +4426,7 @@ const NurseDashboard = () => {
           <PatientDetailModal 
             patient={selectedPatient} 
             onClose={handleClosePatientModal} 
+            onJourney={() => navigate(`/patients/${selectedPatient.id}/journey`)}
           />
         )}
       </div>

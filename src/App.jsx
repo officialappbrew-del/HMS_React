@@ -23,6 +23,7 @@ const Sidebar = lazy(() => import('./components/Sidebar'));
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const PatientManagement = lazy(() => import('./pages/PatientManagement'));
+const PatientJourney = lazy(() => import('./pages/PatientJourney'));
 const Billing = lazy(() => import('./pages/Billing'));
 const Pharmacy = lazy(() => import('./pages/Pharmacy'));
 const Consultation = lazy(() => import('./pages/Consultation'));
@@ -413,6 +414,7 @@ function AppLayout() {
                 <Route path="/activity-log" element={<ProtectedRoute><ActivityLog onBack={() => navigate(-1)} /></ProtectedRoute>} />
                 <Route path="/patients" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
                 <Route path="/patients/add" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
+                <Route path="/patients/:patientId/journey" element={<ProtectedRoute><PatientJourney /></ProtectedRoute>} />
                 <Route path="/billing" element={<ProtectedRoute allowedRoles={['admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin']}><Billing /></ProtectedRoute>} />
                 <Route path="/pharmacy" element={<ProtectedRoute><Pharmacy /></ProtectedRoute>} />
                 <Route path="/consultation" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin', 'super_admin', 'system_admin']}><ConsultationV2 /></ProtectedRoute>} />

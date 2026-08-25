@@ -657,6 +657,8 @@ export const consultationApi = {
     return apiRequest(`/api/v1/billing/invoices/${qsStr ? '?' + qsStr : ''}`);
   },
   createBillingItem: (data) => apiRequest('/api/v1/billing/invoices/', { method: 'POST', body: JSON.stringify(data) }),
+  addPatientCharge: (data) => apiRequest('/api/v1/billing/patient-charges/', { method: 'POST', body: JSON.stringify(data) }),
+  recordPatientPayment: (data) => apiRequest('/api/v1/billing/patient-payments/', { method: 'POST', body: JSON.stringify(data) }),
   getInvoices: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v) qs.append(k, v); });

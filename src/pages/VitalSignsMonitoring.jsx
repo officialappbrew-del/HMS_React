@@ -3,19 +3,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
   Heart,
-  Thermometer,
-  Wind,
   Activity,
   AlertTriangle,
-  TrendingUp,
   Plus,
   Search,
-  Filter,
   RefreshCw,
   Bell,
-  CheckCircle,
-  XCircle,
-  Clock,
+  Check,
   Loader2,
   X,
   ArrowUp,
@@ -23,36 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Calendar,
-  Eye,
-  Edit,
-  Trash2,
-  FileText,
-  Shield,
-  Award,
-  Target,
-  BarChart3,
-  PieChart,
-  LineChart,
-  DollarSign,
-  CreditCard,
-  Banknote,
-  Calculator,
-  Settings,
-  MapPin,
-  Globe,
-  Mail,
-  Phone,
-  UserPlus,
-  Smartphone,
-  Droplets,
-  Baby,
-  Brain,
-  Bone,
-  EyeOff,
-  Star,
-  Info,
-  Zap,
+  Eye
 } from 'lucide-react';
 import {
   fetchVitalSigns,
@@ -117,13 +82,11 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
     md: 'p-1.5',
     lg: 'p-2',
   };
-
   const iconSizes = {
     sm: 'w-3.5 h-3.5',
     md: 'w-4 h-4',
     lg: 'w-5 h-5',
   };
-
   return (
     <Tooltip text={tooltip}>
       <button
@@ -138,7 +101,6 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
     </Tooltip>
   );
 };
-
 // ==================== BUTTON WITH TOOLTIP ====================
 const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm', type = 'button' }) => {
   const variantClasses = {
@@ -149,7 +111,6 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
     warning: 'bg-[#C87D3D] hover:bg-[#A8662E] text-white',
     outline: 'border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
   };
-
   const sizeClasses = {
     sm: 'px-2.5 py-1.5 text-xs',
     md: 'px-3.5 py-2 text-sm',
@@ -179,7 +140,6 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
     down: 'text-[#C8553D]',
     neutral: 'text-[#5A5A5A]'
   };
-
   const colorMap = {
     green: 'bg-[#008751]',
     gold: 'bg-[#FFC107]',
@@ -190,7 +150,6 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
     purple: 'bg-[#4A5A5A]',
     red: 'bg-[#C8553D]',
   };
-
   return (
     <Tooltip text={tooltip}>
       <div 
@@ -421,6 +380,8 @@ const VitalSignsMonitoring = () => {
     consciousness: 'Alert',
     notes: '',
     visitId: '',
+    chargeAmount: '',
+    consultationFee: '',
   });
   const [ewsResult, setEwsResult] = useState(null);
   const [acknowledgingId, setAcknowledgingId] = useState(null);
@@ -429,6 +390,14 @@ const VitalSignsMonitoring = () => {
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
   const [allPatientsCache, setAllPatientsCache] = useState([]);
   const [globalPatientSearch, setGlobalPatientSearch] = useState('');
+
+  const [medicines, setMedicines] = useState([]);
+  const [medicineSearch, setMedicineSearch] = useState('');
+  const [medicineSearchLoading, setMedicineSearchLoading] = useState(false);
+  const [medicineOptions, setMedicineOptions] = useState([]);
+  const [selectedMedicine, setSelectedMedicine] = useState(null);
+  const [medicineQuantity, setMedicineQuantity] = useState('');
+  const [dispensedMedicines, setDispensedMedicines] = useState([]);
 
   const loadAllPatients = async () => {
     try {
@@ -440,6 +409,40 @@ const VitalSignsMonitoring = () => {
       setAllPatientsCache(patients || []);
       setPatientOptions(patients || []);
     }
+  };
+
+  const searchMedicines = async (query) => {
+    if (!query || query.length < 2) {
+      setMedicineOptions([]);
+      return;
+    }
+    setMedicineSearchLoading(true);
+    try {
+      const data = await apiRequest(`/api/v1/pharmacy/drugs/?search=${encodeURIComponent(query)}`);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      setMedicineOptions(list);
+    } catch {
+      setMedicineOptions([]);
+    } finally {
+      setMedicineSearchLoading(false);
+    }
+  };
+
+  const addMedicine = () => {
+    if (!selectedMedicine || !medicineQuantity || Number(medicineQuantity) <= 0) return;
+    setDispensedMedicines(prev => [...prev, {
+      drug: selectedMedicine,
+      quantity: Number(medicineQuantity),
+      unit_price: Number(selectedMedicine.unit_price || selectedMedicine.price || 0),
+    }]);
+    setSelectedMedicine(null);
+    setMedicineQuantity('');
+    setMedicineSearch('');
+    setMedicineOptions([]);
+  };
+
+  const removeMedicine = (index) => {
+    setDispensedMedicines(prev => prev.filter((_, i) => i !== index));
   };
 
   useEffect(() => {
@@ -544,7 +547,9 @@ const VitalSignsMonitoring = () => {
 
   const handleSelectPatient = (patient) => {
     const name = patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
-    setSelectedPatient(name);
+    const mrn = patient.hospital_number || patient.phone || '';
+    const display = mrn ? `${name} (${mrn})` : name;
+    setSelectedPatient(display);
     setGlobalPatientSearch(name);
     setFormData(prev => ({
       ...prev,
@@ -600,6 +605,72 @@ const VitalSignsMonitoring = () => {
       return;
     }
 
+    let billingError = '';
+    const chargePromises = [];
+
+    if (formData.consultationFee && Number(formData.consultationFee) >= 0) {
+      chargePromises.push(
+        apiRequest('/api/v1/billing/patient-charges/', {
+          method: 'POST',
+          body: JSON.stringify({
+            patient: formData.patientId,
+            visit: formData.visitId || undefined,
+            item_type: 'service',
+            description: 'Consultation fee',
+            quantity: 1,
+            unit_price: Number(formData.consultationFee),
+            source_id: `consultation-${vs.id}`,
+          }),
+        }).catch(err => ({ error: err.message || 'Consultation billing failed' }))
+      );
+    }
+
+    if (formData.chargeAmount && Number(formData.chargeAmount) >= 0) {
+      chargePromises.push(
+        apiRequest('/api/v1/billing/patient-charges/', {
+          method: 'POST',
+          body: JSON.stringify({
+            patient: formData.patientId,
+            visit: formData.visitId || undefined,
+            item_type: 'service',
+            description: 'Vital signs monitoring',
+            quantity: 1,
+            unit_price: Number(formData.chargeAmount),
+            source_id: `vital-${vs.id}`,
+          }),
+        }).catch(err => ({ error: err.message || 'Vital signs billing failed' }))
+      );
+    }
+
+    if (dispensedMedicines.length > 0) {
+      for (const med of dispensedMedicines) {
+        chargePromises.push(
+          apiRequest('/api/v1/billing/patient-charges/', {
+            method: 'POST',
+            body: JSON.stringify({
+              patient: formData.patientId,
+              visit: formData.visitId || undefined,
+              item_type: 'drug',
+              description: med.drug.name || med.drug.drug_name || 'Medication',
+              quantity: med.quantity,
+              unit_price: med.unit_price,
+              source_id: `dispense-${vs.id}-${med.drug.id}`,
+            }),
+          }).catch(err => ({ error: err.message || 'Medicine billing failed' }))
+        );
+      }
+    }
+
+    try {
+      const results = await Promise.allSettled(chargePromises);
+      const failures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value?.error));
+      if (failures.length > 0) {
+        billingError = ` Vital signs recorded, but ${failures.length} billing item(s) failed.`;
+      }
+    } catch (err) {
+      billingError = ` Billing error: ${err.message || 'Unable to process charges.'}`;
+    }
+
     let ewsText = '';
     if (vs && vs.temperature && vs.oxygen_saturation && vs.blood_pressure_systolic &&
       vs.pulse && vs.respiratory_rate) {
@@ -626,7 +697,7 @@ const VitalSignsMonitoring = () => {
       }
     }
 
-    setSuccessMessage(`Vital signs recorded successfully for ${selectedPatient || 'patient'}.${ewsText}`);
+    setSuccessMessage(`Vital signs recorded successfully for ${selectedPatient || 'patient'}.${ewsText}${billingError}`);
     dispatch(fetchVitalSigns());
 
     setFormData({
@@ -644,8 +715,11 @@ const VitalSignsMonitoring = () => {
       consciousness: 'Alert',
       notes: '',
       visitId: '',
+      chargeAmount: '',
+      consultationFee: '',
     });
     setSelectedPatient('');
+    setDispensedMedicines([]);
 
     setTimeout(() => {
       setShowForm(false);
@@ -918,7 +992,7 @@ const VitalSignsMonitoring = () => {
               <option value="all">All Patients</option>
               {allPatientsCache.map(patient => (
                 <option key={patient.id} value={patient.id}>
-                  {patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim() || patient.id}
+                  {patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim()} {patient.hospital_number ? `(${patient.hospital_number})` : ''}
                 </option>
               ))}
             </select>
@@ -1161,7 +1235,7 @@ const VitalSignsMonitoring = () => {
                             <span className="text-sm font-medium text-[#1A1A1A]">
                               {patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim()}
                             </span>
-                            <div className="text-xs text-[#5A5A5A]">{patient.hospital_number || patient.phone || patient.id}</div>
+                            <div className="text-xs text-[#5A5A5A]">{patient.hospital_number || patient.phone || ''}</div>
                           </div>
                         </button>
                       ))}
@@ -1335,6 +1409,111 @@ const VitalSignsMonitoring = () => {
                     className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors" 
                     placeholder="Additional observations..." 
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Vital Signs Charge (₦)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.chargeAmount}
+                      onChange={(e) => setFormData({ ...formData, chargeAmount: e.target.value })}
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Consultation Fee (₦)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.consultationFee}
+                      onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })}
+                      className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+
+                <div className="border border-[#E8E3DC] bg-white p-3">
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-2">Dispensed Medicines / Drugs</label>
+                  <div className="flex gap-2 mb-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B0A89E]" />
+                      <input
+                        type="text"
+                        placeholder="Search drug by name..."
+                        value={medicineSearch}
+                        onChange={(e) => {
+                          setMedicineSearch(e.target.value);
+                          searchMedicines(e.target.value);
+                        }}
+                        className="w-full pl-9 pr-3 py-2 text-sm bg-[#F7F5F2] border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                      />
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Qty"
+                      value={medicineQuantity}
+                      onChange={(e) => setMedicineQuantity(e.target.value)}
+                      className="w-20 px-3 py-2 text-sm bg-[#F7F5F2] border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                    />
+                    <ButtonWithTooltip
+                      type="button"
+                      onClick={addMedicine}
+                      tooltip="Add medicine"
+                      variant="primary"
+                      disabled={!selectedMedicine || !medicineQuantity}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add
+                    </ButtonWithTooltip>
+                  </div>
+                  {medicineSearchLoading && <div className="text-xs text-[#5A5A5A] mb-2">Searching...</div>}
+                  {medicineOptions.length > 0 && medicineSearch && (
+                    <div className="mb-2 max-h-32 overflow-y-auto border border-[#E8E3DC] bg-white">
+                      {medicineOptions.map(drug => (
+                        <button
+                          key={drug.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedMedicine(drug);
+                            setMedicineSearch(drug.name || drug.drug_name);
+                            setMedicineOptions([]);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-[#F7F5F2] border-b border-[#F0EDE8] last:border-0 ${selectedMedicine?.id === drug.id ? 'bg-[#E8F5EF]' : ''}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-[#1A1A1A]">{drug.name || drug.drug_name}</span>
+                            <span className="text-xs text-[#5A5A5A]">₦{drug.unit_price || drug.price || 0}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {dispensedMedicines.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      {dispensedMedicines.map((med, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-[#F7F5F2] border border-[#E8E3DC]">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-[#1A1A1A] truncate">{med.drug.name || med.drug.drug_name}</span>
+                            <span className="text-xs text-[#5A5A5A] ml-2">x{med.quantity} @ ₦{med.unit_price}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeMedicine(index)}
+                            className="p-1 text-[#C8553D] hover:text-[#A8442E]"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {formError && <div className="text-sm text-[#C8553D]">{formError}</div>}
