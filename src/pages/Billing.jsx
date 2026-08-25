@@ -1707,6 +1707,47 @@ const Billing = () => {
                 <StatusBadge status={selectedInvoice.status} type="invoice" />
               </div>
             </div>
+            <div className="border-t border-[#E8E3DC] pt-4">
+              <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-3">Charge Breakdown</p>
+              {selectedInvoice.items?.length ? (
+                <div className="divide-y divide-[#F0EDE8] border border-[#E8E3DC]">
+                  {selectedInvoice.items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4 px-3 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-[#1A1F2E]">{item.description}</p>
+                        <p className="text-xs text-[#5A5A5A]">
+                          {item.item_type === 'drug' ? 'Dispensed drug' : item.item_type === 'service' ? 'Vital/medical service' : item.item_type}
+                          {' · '}Qty {item.quantity} · Unit {formatCurrency(item.unit_price)}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-[#1A1F2E]">{formatCurrency(item.line_total)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[#5A5A5A]">No charge line items recorded.</p>
+              )}
+            </div>
+            <div className="border-t border-[#E8E3DC] pt-4">
+              <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-3">Payment History</p>
+              {selectedInvoice.payments?.length ? (
+                <div className="space-y-2">
+                  {selectedInvoice.payments.map((payment) => (
+                    <div key={payment.id} className="flex items-start justify-between gap-4 text-sm">
+                      <div>
+                        <p className="text-[#1A1F2E]">{formatCurrency(payment.amount)} · {payment.payment_method}</p>
+                        <p className="text-xs text-[#5A5A5A]">
+                          {payment.payment_date ? new Date(payment.payment_date).toLocaleString('en-NG') : 'Date unavailable'} · Confirmed by: {payment.received_by || 'Not recorded'}
+                        </p>
+                      </div>
+                      <StatusBadge status={payment.status} type="payment" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[#5A5A5A]">No payments recorded.</p>
+              )}
+            </div>
             {selectedInvoice.notes && (
               <div className="border-t border-[#E8E3DC] pt-4">
                 <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">Notes</p>
