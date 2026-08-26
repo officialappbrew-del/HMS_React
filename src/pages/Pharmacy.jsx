@@ -570,7 +570,7 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
   );
 };
 
-const SupplierFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit }) => {
+const SupplierFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit, error }) => {
   const [formData, setFormData] = useState(initialData || getDefaultSupplierForm());
 
   useEffect(() => {
@@ -679,6 +679,20 @@ const SupplierFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, is
             />
           </div>
         </div>
+
+        {error?.length > 0 && (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
+            <div className="flex items-center gap-2 font-medium">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>Unable to save supplier</span>
+            </div>
+            <ul className="mt-2 ml-6 space-y-1 list-disc">
+              {error.map(({ field, message }) => (
+                <li key={field}><span className="font-medium capitalize">{field.replace(/_/g, ' ')}:</span> {message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
           <Button type="submit" variant="primary" className="flex-1" disabled={loading} icon={loading ? Loader2 : Check}>
@@ -1089,6 +1103,7 @@ const Pharmacy = () => {
   // Notification States
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [supplierError, setSupplierError] = useState([]);
 
   const itemsPerPage = 10;
 
@@ -1355,6 +1370,7 @@ const Pharmacy = () => {
 
   const handleSupplierSubmit = async (formData) => {
     setErrorMessage('');
+    setSupplierError([]);
     try {
       const payload = {
         name: formData.name.trim(),
@@ -1385,7 +1401,14 @@ const Pharmacy = () => {
       closeModal('supplierForm');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to save supplier');
+      if (err.data && typeof err.data === 'object' && !Array.isArray(err.data)) {
+        const validationErrors = Object.entries(err.data).flatMap(([field, errors]) => (
+          (Array.isArray(errors) ? errors : [errors]).map((message) => ({ field, message }))
+        ));
+        setSupplierError(validationErrors.length ? validationErrors : [{ field: 'error', message: err.message || 'Failed to save supplier' }]);
+      } else {
+        setSupplierError([{ field: 'error', message: err.message || 'Failed to save supplier' }]);
+      }
     }
   };
 
@@ -1999,6 +2022,7 @@ const Pharmacy = () => {
           <h3 className="text-sm font-semibold text-gray-900">Suppliers</h3>
           <Button onClick={() => {
             setSupplierForm(getDefaultSupplierForm());
+            setSupplierError([]);
             openModal('supplierForm', { isEdit: false, data: null });
           }} variant="primary" size="sm" icon={Plus}>
             Add Supplier
@@ -2062,6 +2086,7 @@ const Pharmacy = () => {
                               rating: supplier.rating || 0,
                               notes: supplier.notes || '',
                             });
+                            setSupplierError([]);
                             openModal('supplierForm', { isEdit: true, data: supplier });
                           }}
                           tooltip="Edit"
@@ -2281,6 +2306,7 @@ const Pharmacy = () => {
         initialData={supplierForm}
         loading={loading}
         isEdit={modals.supplierForm.isEdit}
+        error={supplierError}
       />
 
       <RestockModal

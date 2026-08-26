@@ -310,6 +310,942 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 };
 
 // Compact Edit/View Patient Modal
+// const PatientModal = ({ 
+//   isOpen, 
+//   onClose, 
+//   patient, 
+//   mode = 'view',
+//   onSave,
+//   isSubmitting = false,
+//   formError,
+// }) => {
+//   const [formData, setFormData] = useState({});
+//   const [initialCharges, setInitialCharges] = useState([]);
+//   const [activeTab, setActiveTab] = useState('personal');
+//   const [dupCheck, setDupCheck] = useState({ loading: false, duplicate: false, existing: null });
+//   const [forceDuplicate, setForceDuplicate] = useState(false);
+  
+//   useEffect(() => {
+//     if (patient && mode === 'edit') {
+//       setInitialCharges([]);
+//       setFormData({
+//         mrn: patient.mrn || '',
+//         hospital_number: patient.hospital_number || patient.hospitalNumber || '',
+//         name: patient.name || patient.full_name || '',
+//         nin: patient.nin || '',
+//         phone: patient.phone || '',
+//         email: patient.email || '',
+//         address: patient.address || '',
+//         tribe: patient.tribe || patient.ethnicity || '',
+//         country: patient.country || 'Nigeria',
+//         lga: patient.lga || '',
+//         state: patient.state || '',
+//         city: patient.city || '',
+//         dateOfBirth: patient.dateOfBirth || '',
+//         bloodType: patient.bloodType || patient.blood_group || '',
+//         gender: (patient.gender || '').toLowerCase(),
+//         maritalStatus: (patient.maritalStatus || patient.marital_status || '').toLowerCase(),
+//         occupation: patient.occupation || '',
+//         emergencyContact: patient.emergencyContact || patient.next_of_kin_name || '',
+//         next_of_kin_relationship: patient.next_of_kin_relationship || patient.relationship || '',
+//         emergencyPhone: patient.emergencyPhone || patient.next_of_kin_phone || '',
+//         next_of_kin_address: patient.next_of_kin_address || patient.emergencyAddress || '',
+//         religion: patient.religion || '',
+//         preferred_language: patient.preferred_language || patient.language_spoken || 'English',
+//         patient_status: patient.patient_status || 'active',
+//         genotype: patient.genotype || '',
+//         has_insurance: patient.has_insurance || false,
+//         insurance_company: patient.insurance_company || '',
+//         insurance_policy_number: patient.insurance_policy_number || '',
+//         nhis_number: patient.nhis_number || '',
+//         known_allergies: patient.known_allergies || '',
+//         chronic_conditions: patient.chronic_conditions || '',
+//         current_medications: patient.current_medications || '',
+//         surgical_history: patient.surgical_history || '',
+//         family_history: patient.family_history || '',
+//         notes: patient.notes || '',
+//       });
+//     } else if (mode === 'add') {
+//       setInitialCharges([{ item_type: 'service', description: 'Opening Folder', quantity: 1, unit_price: '' }]);
+//       setFormData({
+//         mrn: '',
+//         hospital_number: '',
+//         name: '',
+//         nin: '',
+//         phone: '',
+//         email: '',
+//         address: '',
+//         tribe: '',
+//         country: 'Nigeria',
+//         lga: '',
+//         state: '',
+//         city: '',
+//         dateOfBirth: '',
+//         bloodType: '',
+//         gender: '',
+//         maritalStatus: '',
+//         occupation: '',
+//         emergencyContact: '',
+//         next_of_kin_relationship: '',
+//         emergencyPhone: '',
+//         next_of_kin_address: '',
+//         religion: '',
+//         preferred_language: 'English',
+//         patient_status: 'active',
+//         genotype: '',
+//         has_insurance: false,
+//         insurance_company: '',
+//         insurance_policy_number: '',
+//         nhis_number: '',
+//         known_allergies: '',
+//         chronic_conditions: '',
+//         current_medications: '',
+//         surgical_history: '',
+//         family_history: '',
+//         notes: '',
+//       });
+//     }
+//   }, [patient, mode]);
+
+//   useEffect(() => {
+//     const handleEscape = (e) => {
+//       if (e.key === 'Escape') onClose();
+//     };
+//     if (isOpen) {
+//       document.addEventListener('keydown', handleEscape);
+//       document.body.style.overflow = 'hidden';
+//     }
+//     return () => {
+//       document.removeEventListener('keydown', handleEscape);
+//       document.body.style.overflow = 'unset';
+//     };
+//   }, [isOpen, onClose]);
+
+//   // Live duplicate check (add mode only) — warns before submit.
+//   useEffect(() => {
+//     setForceDuplicate(false);
+//     setDupCheck({ loading: false, duplicate: false, existing: null });
+
+//     if (mode !== 'add' || !isOpen) return;
+
+//     const name = (formData.name || '').trim();
+//     const dob = (formData.dateOfBirth || '').trim();
+//     if (!name || !dob) return;
+
+//     const parts = name.split(/\s+/);
+//     const firstName = parts.shift() || '';
+//     const lastName = parts.join(' ') || 'Unknown';
+
+//     const handler = setTimeout(async () => {
+//       setDupCheck((prev) => ({ ...prev, loading: true }));
+//       try {
+//         const data = await apiRequest('/api/v1/patients/patients/check_duplicate/', {
+//           method: 'POST',
+//           body: JSON.stringify({
+//             first_name: firstName,
+//             last_name: lastName,
+//             date_of_birth: dob,
+//           }),
+//         });
+//         setDupCheck({
+//           loading: false,
+//           duplicate: !!data.duplicate,
+//           existing: data.existing_patient || null,
+//         });
+//       } catch {
+//         setDupCheck({ loading: false, duplicate: false, existing: null });
+//       }
+//     }, 500);
+
+//     return () => clearTimeout(handler);
+//   }, [mode, isOpen, formData.name, formData.dateOfBirth]);
+
+
+//   if (!isOpen) return null;
+
+//   const handleChange = (e) => {
+//     const { name, value, type, checked } = e.target;
+//     setFormData(prev => ({ 
+//       ...prev, 
+//       [name]: type === 'checkbox' ? checked : value 
+//     }));
+//   };
+
+//   const updateCharge = (index, field, value) => {
+//     setInitialCharges((charges) => charges.map((charge, chargeIndex) => (
+//       chargeIndex === index ? { ...charge, [field]: value } : charge
+//     )));
+//   };
+
+//   const addCharge = () => {
+//     setInitialCharges((charges) => [...charges, { item_type: 'service', description: '', quantity: 1, unit_price: '' }]);
+//   };
+
+//   const removeCharge = (index) => {
+//     setInitialCharges((charges) => charges.filter((_, chargeIndex) => chargeIndex !== index));
+//   };
+
+//   const handleSubmit = (e) => {
+//     e.preventDefault();
+//     if (onSave) onSave({ ...formData, initialCharges }, forceDuplicate);
+//   };
+
+//   const getStatusColor = (status) => {
+//     const statusMap = {
+//       'active': 'bg-green-100 text-green-800 border-green-200',
+//       'inactive': 'bg-gray-100 text-gray-800 border-gray-200',
+//       'archived': 'bg-gray-100 text-gray-800 border-gray-200',
+//       'critical': 'bg-red-100 text-red-800 border-red-200',
+//       'stable': 'bg-green-100 text-green-800 border-green-200',
+//       'monitoring': 'bg-blue-100 text-blue-800 border-blue-200',
+//     };
+//     return statusMap[status?.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
+//   };
+
+//   const renderPersonalInfo = () => {
+//     if (mode === 'view') {
+//       const patientStatus = patient?.patient_status || 'active';
+//       const isActive = patientStatus === 'active' || patientStatus === 'Active';
+      
+//       return (
+//         <>
+//           <div className="mb-3 flex items-center gap-2 flex-wrap">
+//             <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusColor(patientStatus)}`}>
+//               {isActive ? 'Active' : 'Inactive'}
+//             </span>
+//             {patient?.bloodType && (
+//               <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-200">
+//                 <Droplets className="w-3 h-3 mr-0.5" />
+//                 {patient.bloodType}
+//               </span>
+//             )}
+//             {patient?.has_insurance && (
+//               <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-200">
+//                 <Shield className="w-3 h-3 mr-0.5" />
+//                 Insured
+//               </span>
+//             )}
+//             {patient?.genotype && (
+//               <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+//                 <Brain className="w-3 h-3 mr-0.5" />
+//                 {patient.genotype}
+//               </span>
+//             )}
+//           </div>
+
+//           <div className="grid grid-cols-2 gap-2 text-sm">
+//             <div className="bg-gray-50 rounded p-2 col-span-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Patient Identifiers</p>
+//               <p className="font-medium text-gray-900">
+//                 {patient?.mrn ? `MRN: ${patient.mrn}` : 'MRN: Pending'}
+//                 {patient?.hospital_number ? ` • HN: ${patient.hospital_number}` : ''}
+//               </p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Full Name</p>
+//               <p className="font-medium text-gray-900">{patient?.name || patient?.full_name || 'N/A'}</p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Gender</p>
+//               <p className="font-medium text-gray-900 capitalize">{patient?.gender || 'N/A'}</p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Date of Birth</p>
+//               <p className="font-medium text-gray-900">
+//                 {patient?.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString() : 'N/A'}
+//                 {patient?.age && ` (${patient.age}y)`}
+//               </p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">NIN</p>
+//               <p className="font-medium text-gray-900">{patient?.nin || 'N/A'}</p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Marital Status</p>
+//               <p className="font-medium text-gray-900 capitalize">{patient?.maritalStatus || 'N/A'}</p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Religion</p>
+//               <p className="font-medium text-gray-900">{patient?.religion || 'N/A'}</p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2 col-span-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Ethnicity</p>
+//               <p className="font-medium text-gray-900">{patient?.tribe || patient?.ethnicity || 'N/A'}</p>
+//             </div>
+//             <div className="bg-gray-50 rounded p-2 col-span-2">
+//               <p className="text-[10px] text-gray-500 uppercase font-medium">Occupation</p>
+//               <p className="font-medium text-gray-900">{patient?.occupation || 'N/A'}</p>
+//             </div>
+//           </div>
+//         </>
+//       );
+//     }
+
+//     return (
+//       <div className="grid grid-cols-2 gap-2">
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Full Name *</label>
+//           <input
+//             type="text"
+//             name="name"
+//             value={formData.name}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             required
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">MRN</label>
+//           <input
+//             type="text"
+//             value={formData.mrn ? formData.mrn : 'Auto-generated after save'}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600"
+//             disabled
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Hospital Number</label>
+//           <input
+//             type="text"
+//             value={formData.hospital_number ? formData.hospital_number : 'Auto-generated after save'}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600"
+//             disabled
+//           />
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Date of Birth</label>
+//           <input
+//             type="date"
+//             name="dateOfBirth"
+//             value={formData.dateOfBirth}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Gender</label>
+//           <select
+//             name="gender"
+//             value={formData.gender}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           >
+//             <option value="">Select</option>
+//             <option value="male">Male</option>
+//             <option value="female">Female</option>
+//             <option value="other">Other</option>
+//           </select>
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NIN</label>
+//           <input
+//             type="text"
+//             name="nin"
+//             value={formData.nin}
+//             onChange={handleChange}
+//             placeholder="National Identity Number"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone Number *</label>
+//           <input
+//             type="tel"
+//             name="phone"
+//             value={formData.phone}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             required
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Email</label>
+//           <input
+//             type="email"
+//             name="email"
+//             value={formData.email}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
+//           <input
+//             type="text"
+//             name="address"
+//             value={formData.address}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">State</label>
+//           <input
+//             type="text"
+//             name="state"
+//             value={formData.state}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">LGA</label>
+//           <input
+//             type="text"
+//             name="lga"
+//             value={formData.lga}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
+//           <select
+//             name="bloodType"
+//             value={formData.bloodType}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           >
+//             <option value="">Select</option>
+//             <option value="O+">O+</option>
+//             <option value="O-">O-</option>
+//             <option value="A+">A+</option>
+//             <option value="A-">A-</option>
+//             <option value="B+">B+</option>
+//             <option value="B-">B-</option>
+//             <option value="AB+">AB+</option>
+//             <option value="AB-">AB-</option>
+//           </select>
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Genotype</label>
+//           <select
+//             name="genotype"
+//             value={formData.genotype}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           >
+//             <option value="">Select</option>
+//             <option value="AA">AA</option>
+//             <option value="AS">AS</option>
+//             <option value="SS">SS</option>
+//             <option value="AC">AC</option>
+//             <option value="SC">SC</option>
+//           </select>
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
+//           <select
+//             name="maritalStatus"
+//             value={formData.maritalStatus}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           >
+//             <option value="">Select</option>
+//             <option value="single">Single</option>
+//             <option value="married">Married</option>
+//             <option value="divorced">Divorced</option>
+//             <option value="widowed">Widowed</option>
+//             <option value="separated">Separated</option>
+//           </select>
+//         </div>
+//         <div>
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Religion</label>
+//           <input
+//             type="text"
+//             name="religion"
+//             value={formData.religion}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Occupation</label>
+//           <input
+//             type="text"
+//             name="occupation"
+//             value={formData.occupation}
+//             onChange={handleChange}
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Preferred Language</label>
+//           <input
+//             type="text"
+//             name="preferred_language"
+//             value={formData.preferred_language || ''}
+//             onChange={handleChange}
+//             placeholder="e.g. English, Hausa, Yoruba"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Ethnicity / Tribe</label>
+//           <input
+//             type="text"
+//             name="tribe"
+//             value={formData.tribe}
+//             onChange={handleChange}
+//             placeholder="e.g. Hausa, Igbo, Yoruba"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Next of Kin (Emergency Contact)</label>
+//           <input
+//             type="text"
+//             name="emergencyContact"
+//             value={formData.emergencyContact}
+//             onChange={handleChange}
+//             placeholder="Name"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+//             disabled={isSubmitting}
+//           />
+//           <input
+//             type="text"
+//             name="next_of_kin_relationship"
+//             value={formData.next_of_kin_relationship}
+//             onChange={handleChange}
+//             placeholder="Relationship (e.g. Spouse, Sister)"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+//             disabled={isSubmitting}
+//           />
+//           <input
+//             type="tel"
+//             name="emergencyPhone"
+//             value={formData.emergencyPhone}
+//             onChange={handleChange}
+//             placeholder="Phone"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+//             disabled={isSubmitting}
+//           />
+//           <input
+//             type="text"
+//             name="next_of_kin_address"
+//             value={formData.next_of_kin_address}
+//             onChange={handleChange}
+//             placeholder="Address"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Known Allergies</label>
+//           <input
+//             type="text"
+//             name="known_allergies"
+//             value={formData.known_allergies}
+//             onChange={handleChange}
+//             placeholder="e.g. Penicillin, Latex"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Chronic Conditions</label>
+//           <input
+//             type="text"
+//             name="chronic_conditions"
+//             value={formData.chronic_conditions}
+//             onChange={handleChange}
+//             placeholder="e.g. Diabetes, Hypertension"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Current Medications</label>
+//           <input
+//             type="text"
+//             name="current_medications"
+//             value={formData.current_medications}
+//             onChange={handleChange}
+//             placeholder="e.g. Metformin 500mg"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Surgical History</label>
+//           <input
+//             type="text"
+//             name="surgical_history"
+//             value={formData.surgical_history}
+//             onChange={handleChange}
+//             placeholder="e.g. Appendectomy 2020"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Family History</label>
+//           <input
+//             type="text"
+//             name="family_history"
+//             value={formData.family_history}
+//             onChange={handleChange}
+//             placeholder="e.g. Diabetes (Mother)"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//         <div className="col-span-2">
+//           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Notes</label>
+//           <textarea
+//             name="notes"
+//             value={formData.notes}
+//             onChange={handleChange}
+//             rows="2"
+//             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//             disabled={isSubmitting}
+//           />
+//         </div>
+//       </div>
+//     );
+//   };
+
+//   return (
+//     <div className="fixed inset-0 z-50 overflow-y-auto">
+//       <div 
+//         className="fixed inset-0 bg-black bg-opacity-40 transition-opacity"
+//         onClick={onClose}
+//       />
+
+//       <div className="flex min-h-full items-center justify-center p-3">
+//         <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200 max-h-[90vh] flex flex-col">
+//           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+//             <div className="flex items-center gap-2">
+//               <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+//                 mode === 'view' ? 'bg-blue-100' : 'bg-green-100'
+//               }`}>
+//                 {mode === 'view' ? (
+//                   <Eye className="w-3.5 h-3.5 text-blue-600" />
+//                 ) : (
+//                   <UserPlus className="w-3.5 h-3.5 text-green-600" />
+//                 )}
+//               </div>
+//               <h3 className="text-sm font-semibold text-gray-900">
+//                 {mode === 'view' ? 'Patient Details' : mode === 'edit' ? 'Edit Patient' : 'Add Patient'}
+//               </h3>
+//             </div>
+//             <button
+//               onClick={onClose}
+//               className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+//               disabled={isSubmitting}
+//             >
+//               <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+//             </button>
+//           </div>
+
+//           {mode === 'view' && (
+//             <div className="flex border-b border-gray-100 px-4 flex-shrink-0">
+//               {['personal', 'contact', 'medical'].map((tab) => (
+//                 <button
+//                   key={tab}
+//                   onClick={() => setActiveTab(tab)}
+//                   className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+//                     activeTab === tab
+//                       ? 'border-blue-600 text-blue-600'
+//                       : 'border-transparent text-gray-500 hover:text-gray-700'
+//                   }`}
+//                 >
+//                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
+//                 </button>
+//               ))}
+//             </div>
+//           )}
+
+//           <div className="flex-1 overflow-y-auto p-4">
+//             {mode === 'view' ? (
+//               <div>
+//                 {activeTab === 'personal' && (
+//                   <div className="space-y-3">
+//                     {renderPersonalInfo()}
+//                   </div>
+//                 )}
+//                 {activeTab === 'contact' && (
+//                   <div className="grid grid-cols-2 gap-2 text-sm">
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Phone</p>
+//                       <p className="font-medium text-gray-900">{patient?.phone || 'N/A'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Email</p>
+//                       <p className="font-medium text-gray-900">{patient?.email || 'N/A'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Address</p>
+//                       <p className="font-medium text-gray-900">{patient?.address || 'N/A'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">State</p>
+//                       <p className="font-medium text-gray-900">{patient?.state || 'N/A'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">LGA</p>
+//                       <p className="font-medium text-gray-900">{patient?.lga || 'N/A'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">City</p>
+//                       <p className="font-medium text-gray-900">{patient?.city || 'N/A'}</p>
+//                     </div>
+//                   </div>
+//                 )}
+//                 {activeTab === 'medical' && (
+//                   <div className="grid grid-cols-2 gap-2 text-sm">
+//                     <div className="bg-gray-50 rounded p-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Blood Type</p>
+//                       <p className="font-medium text-gray-900">{patient?.bloodType || patient?.blood_group || 'N/A'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Genotype</p>
+//                       <p className="font-medium text-gray-900">{patient?.genotype || 'N/A'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Known Allergies</p>
+//                       <p className="font-medium text-gray-900">{patient?.known_allergies || 'None'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Chronic Conditions</p>
+//                       <p className="font-medium text-gray-900">{patient?.chronic_conditions || 'None'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Current Medications</p>
+//                       <p className="font-medium text-gray-900">{patient?.current_medications || 'None'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Surgical History</p>
+//                       <p className="font-medium text-gray-900">{patient?.surgical_history || 'None'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Family History</p>
+//                       <p className="font-medium text-gray-900">{patient?.family_history || 'None'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Notes</p>
+//                       <p className="font-medium text-gray-900 whitespace-pre-line">{patient?.notes || 'None'}</p>
+//                     </div>
+//                     <div className="bg-gray-50 rounded p-2 col-span-2">
+//                       <p className="text-[10px] text-gray-500 uppercase font-medium">Emergency Contact</p>
+//                       <p className="font-medium text-gray-900">
+//                         {patient?.emergencyContact || patient?.next_of_kin_name || 'N/A'}
+//                         {patient?.emergencyPhone && ` (${patient.emergencyPhone})`}
+//                       </p>
+//                     </div>
+//                     {patient?.has_insurance && (
+//                       <div className="bg-gray-50 rounded p-2 col-span-2">
+//                         <p className="text-[10px] text-gray-500 uppercase font-medium">Insurance</p>
+//                         <p className="font-medium text-gray-900">
+//                           {patient?.insurance_company || 'N/A'}
+//                           {patient?.insurance_policy_number && ` (${patient.insurance_policy_number})`}
+//                         </p>
+//                       </div>
+//                     )}
+//                   </div>
+//                 )}
+//               </div>
+//             ) : (
+//               <form onSubmit={handleSubmit} className="space-y-3">
+//                 {formError && (
+//                   <div className="bg-red-50 border border-red-200 rounded-lg p-2.5">
+//                     <div className="flex items-center gap-2">
+//                       <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+//                       <p className="text-sm text-red-800">{formError}</p>
+//                     </div>
+//                   </div>
+//                 )}
+//                 {renderPersonalInfo()}
+
+//                 <div className="border-t border-gray-100 pt-3">
+//                   <div className="flex items-center gap-2 mb-2">
+//                     <input
+//                       id="has_insurance"
+//                       type="checkbox"
+//                       name="has_insurance"
+//                       checked={formData.has_insurance}
+//                       onChange={handleChange}
+//                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+//                       disabled={isSubmitting}
+//                     />
+//                     <label htmlFor="has_insurance" className="text-xs font-medium text-gray-700">
+//                       Has Insurance
+//                     </label>
+//                   </div>
+//                   {formData.has_insurance && (
+//                     <div className="grid grid-cols-2 gap-2">
+//                       <div className="col-span-2">
+//                         <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Insurance Company</label>
+//                         <input
+//                           type="text"
+//                           name="insurance_company"
+//                           value={formData.insurance_company}
+//                           onChange={handleChange}
+//                           className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//                           disabled={isSubmitting}
+//                         />
+//                       </div>
+//                       <div>
+//                         <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Policy Number</label>
+//                         <input
+//                           type="text"
+//                           name="insurance_policy_number"
+//                           value={formData.insurance_policy_number}
+//                           onChange={handleChange}
+//                           className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//                           disabled={isSubmitting}
+//                         />
+//                       </div>
+//                       <div>
+//                         <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NHIS Number</label>
+//                         <input
+//                           type="text"
+//                           name="nhis_number"
+//                           value={formData.nhis_number}
+//                           onChange={handleChange}
+//                           className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+//                           disabled={isSubmitting}
+//                         />
+//                       </div>
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 {mode === 'add' && (
+//                   <div className="border-t border-gray-100 pt-3">
+//                     <div className="flex items-center justify-between gap-2 mb-2">
+//                       <div>
+//                         <h3 className="text-xs font-semibold text-gray-800">Initial Charges</h3>
+//                         <p className="text-[10px] text-gray-500">These charges will be added to the patient&apos;s first bill.</p>
+//                       </div>
+//                       <button type="button" onClick={addCharge} disabled={isSubmitting} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">
+//                         + Add charge
+//                       </button>
+//                     </div>
+//                     <div className="space-y-2">
+//                       {initialCharges.map((charge, index) => (
+//                         <div key={index} className="grid grid-cols-12 gap-1.5 items-center">
+//                           <select value={charge.item_type} onChange={(e) => updateCharge(index, 'item_type', e.target.value)} className="col-span-3 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting}>
+//                             <option value="service">Service</option><option value="other">Other</option><option value="consultation">Consultation</option><option value="test">Lab test</option><option value="procedure">Procedure</option>
+//                           </select>
+//                           <input value={charge.description} onChange={(e) => updateCharge(index, 'description', e.target.value)} placeholder="Charge description" required className="col-span-5 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
+//                           <input type="number" min="1" value={charge.quantity} onChange={(e) => updateCharge(index, 'quantity', e.target.value)} placeholder="Qty" required className="col-span-1 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
+//                           <input type="number" min="0" step="0.01" value={charge.unit_price} onChange={(e) => updateCharge(index, 'unit_price', e.target.value)} placeholder="Price" required className="col-span-2 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
+//                           <button type="button" onClick={() => removeCharge(index)} disabled={isSubmitting} className="col-span-1 text-gray-400 hover:text-red-600 text-lg leading-none" title="Remove charge" aria-label="Remove charge">×</button>
+//                         </div>
+//                       ))}
+//                     </div>
+//                   </div>
+//                 )}
+
+//                 <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+//                   <label className="relative inline-flex items-center cursor-pointer">
+//                     <input
+//                       type="checkbox"
+//                       checked={formData.patient_status === 'active'}
+//                       onChange={(e) => setFormData({ ...formData, patient_status: e.target.checked ? 'active' : 'inactive' })}
+//                       className="sr-only peer"
+//                       disabled={isSubmitting}
+//                     />
+//                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+//                   </label>
+//                   <span className="text-xs text-gray-700">
+//                     {formData.patient_status === 'active' ? 'Active' : 'Inactive'}
+//                   </span>
+//                 </div>
+
+//                 {dupCheck.duplicate && dupCheck.existing && (
+//                   <div className="mb-3 p-2.5 rounded-lg border border-yellow-300 bg-yellow-50">
+//                     <div className="flex items-start gap-2">
+//                       <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+//                       <div className="flex-1 min-w-0">
+//                         <p className="text-xs font-semibold text-yellow-800">
+//                           Possible duplicate patient found
+//                         </p>
+//                         <p className="text-[11px] text-yellow-700 truncate">
+//                           {dupCheck.existing.full_name || dupCheck.existing.name} ·{' '}
+//                           {dupCheck.existing.hospital_number}
+//                         </p>
+//                       </div>
+//                     </div>
+//                     {!forceDuplicate && (
+//                       <button
+//                         type="button"
+//                         onClick={() => setForceDuplicate(true)}
+//                         className="mt-2 w-full text-xs font-medium text-yellow-800 bg-yellow-100 hover:bg-yellow-200 rounded-lg py-1.5 transition-colors"
+//                       >
+//                         This is a different patient — Create Anyway
+//                       </button>
+//                     )}
+//                   </div>
+//                 )}
+
+//                 <div className="flex gap-2 pt-2 border-t border-gray-100">
+//                   <button
+//                     type="submit"
+//                     disabled={isSubmitting || (dupCheck.duplicate && !forceDuplicate)}
+//                     className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+//                   >
+//                     {isSubmitting ? (
+//                       <>
+//                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
+//                         Saving...
+//                       </>
+//                     ) : (
+//                       <>
+//                         {mode === 'edit' ? 'Update' : 'Add'} Patient
+//                       </>
+//                     )}
+//                   </button>
+//                   <button
+//                     type="button"
+//                     onClick={onClose}
+//                     className="flex-1 bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+//                     disabled={isSubmitting}
+//                   >
+//                     Cancel
+//                   </button>
+//                 </div>
+//               </form>
+//             )}
+//           </div>
+
+//           {mode === 'view' && (
+//             <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-100 flex-shrink-0">
+//               <ButtonWithTooltip
+//                 onClick={onClose}
+//                 tooltip="Close details"
+//                 variant="secondary"
+//                 size="sm"
+//               >
+//                 Close
+//               </ButtonWithTooltip>
+//             </div>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+
+// Compact Edit/View Patient Modal
 const PatientModal = ({ 
   isOpen, 
   onClose, 
@@ -320,12 +1256,14 @@ const PatientModal = ({
   formError,
 }) => {
   const [formData, setFormData] = useState({});
+  const [initialCharges, setInitialCharges] = useState([]);
   const [activeTab, setActiveTab] = useState('personal');
   const [dupCheck, setDupCheck] = useState({ loading: false, duplicate: false, existing: null });
   const [forceDuplicate, setForceDuplicate] = useState(false);
   
   useEffect(() => {
     if (patient && mode === 'edit') {
+      setInitialCharges([]);
       setFormData({
         mrn: patient.mrn || '',
         hospital_number: patient.hospital_number || patient.hospitalNumber || '',
@@ -364,6 +1302,7 @@ const PatientModal = ({
         notes: patient.notes || '',
       });
     } else if (mode === 'add') {
+      setInitialCharges([{ item_type: 'service', description: 'Opening Folder', quantity: 1, unit_price: '' }]);
       setFormData({
         mrn: '',
         hospital_number: '',
@@ -378,7 +1317,7 @@ const PatientModal = ({
         state: '',
         city: '',
         dateOfBirth: '',
-        bloodType: '',
+        // REMOVED from ADD mode: bloodType, genotype
         gender: '',
         maritalStatus: '',
         occupation: '',
@@ -389,16 +1328,11 @@ const PatientModal = ({
         religion: '',
         preferred_language: 'English',
         patient_status: 'active',
-        genotype: '',
         has_insurance: false,
         insurance_company: '',
         insurance_policy_number: '',
         nhis_number: '',
-        known_allergies: '',
-        chronic_conditions: '',
-        current_medications: '',
-        surgical_history: '',
-        family_history: '',
+        // REMOVED from ADD mode: known_allergies, chronic_conditions, current_medications, surgical_history, family_history
         notes: '',
       });
     }
@@ -468,9 +1402,23 @@ const PatientModal = ({
     }));
   };
 
+  const updateCharge = (index, field, value) => {
+    setInitialCharges((charges) => charges.map((charge, chargeIndex) => (
+      chargeIndex === index ? { ...charge, [field]: value } : charge
+    )));
+  };
+
+  const addCharge = () => {
+    setInitialCharges((charges) => [...charges, { item_type: 'service', description: '', quantity: 1, unit_price: '' }]);
+  };
+
+  const removeCharge = (index) => {
+    setInitialCharges((charges) => charges.filter((_, chargeIndex) => chargeIndex !== index));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onSave) onSave(formData, forceDuplicate);
+    if (onSave) onSave({ ...formData, initialCharges }, forceDuplicate);
   };
 
   const getStatusColor = (status) => {
@@ -564,6 +1512,353 @@ const PatientModal = ({
       );
     }
 
+    // EDIT mode - KEEP all fields (including Genotype, Blood Type, Hospital Number, MRN, etc.)
+    if (mode === 'edit') {
+      return (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Full Name *</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">MRN</label>
+            <input
+              type="text"
+              name="mrn"
+              value={formData.mrn}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Hospital Number</label>
+            <input
+              type="text"
+              name="hospital_number"
+              value={formData.hospital_number}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Date of Birth</label>
+            <input
+              type="date"
+              name="dateOfBirth"
+              value={formData.dateOfBirth}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Gender</label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            >
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
+            <select
+              name="bloodType"
+              value={formData.bloodType}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            >
+              <option value="">Select</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Genotype</label>
+            <select
+              name="genotype"
+              value={formData.genotype}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            >
+              <option value="">Select</option>
+              <option value="AA">AA</option>
+              <option value="AS">AS</option>
+              <option value="SS">SS</option>
+              <option value="AC">AC</option>
+              <option value="SC">SC</option>
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">NIN</label>
+            <input
+              type="text"
+              name="nin"
+              value={formData.nin}
+              onChange={handleChange}
+              placeholder="National Identity Number"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone Number *</label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
+            <input
+              type="text"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">State</label>
+            <input
+              type="text"
+              name="state"
+              value={formData.state}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">LGA</label>
+            <input
+              type="text"
+              name="lga"
+              value={formData.lga}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
+            <select
+              name="maritalStatus"
+              value={formData.maritalStatus}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            >
+              <option value="">Select</option>
+              <option value="single">Single</option>
+              <option value="married">Married</option>
+              <option value="divorced">Divorced</option>
+              <option value="widowed">Widowed</option>
+              <option value="separated">Separated</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Religion</label>
+            <input
+              type="text"
+              name="religion"
+              value={formData.religion}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Occupation</label>
+            <input
+              type="text"
+              name="occupation"
+              value={formData.occupation}
+              onChange={handleChange}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Preferred Language</label>
+            <input
+              type="text"
+              name="preferred_language"
+              value={formData.preferred_language || ''}
+              onChange={handleChange}
+              placeholder="e.g. English, Hausa, Yoruba"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Ethnicity / Tribe</label>
+            <input
+              type="text"
+              name="tribe"
+              value={formData.tribe}
+              onChange={handleChange}
+              placeholder="e.g. Hausa, Igbo, Yoruba"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Known Allergies</label>
+            <input
+              type="text"
+              name="known_allergies"
+              value={formData.known_allergies}
+              onChange={handleChange}
+              placeholder="e.g. Penicillin, Latex"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Chronic Conditions</label>
+            <input
+              type="text"
+              name="chronic_conditions"
+              value={formData.chronic_conditions}
+              onChange={handleChange}
+              placeholder="e.g. Diabetes, Hypertension"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Current Medications</label>
+            <input
+              type="text"
+              name="current_medications"
+              value={formData.current_medications}
+              onChange={handleChange}
+              placeholder="e.g. Metformin 500mg"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Surgical History</label>
+            <input
+              type="text"
+              name="surgical_history"
+              value={formData.surgical_history}
+              onChange={handleChange}
+              placeholder="e.g. Appendectomy 2020"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Family History</label>
+            <input
+              type="text"
+              name="family_history"
+              value={formData.family_history}
+              onChange={handleChange}
+              placeholder="e.g. Diabetes (Mother)"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Next of Kin (Emergency Contact)</label>
+            <input
+              type="text"
+              name="emergencyContact"
+              value={formData.emergencyContact}
+              onChange={handleChange}
+              placeholder="Name"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+              disabled={isSubmitting}
+            />
+            <input
+              type="text"
+              name="next_of_kin_relationship"
+              value={formData.next_of_kin_relationship}
+              onChange={handleChange}
+              placeholder="Relationship (e.g. Spouse, Sister)"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+              disabled={isSubmitting}
+            />
+            <input
+              type="tel"
+              name="emergencyPhone"
+              value={formData.emergencyPhone}
+              onChange={handleChange}
+              placeholder="Phone"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-1"
+              disabled={isSubmitting}
+            />
+            <input
+              type="text"
+              name="next_of_kin_address"
+              value={formData.next_of_kin_address}
+              onChange={handleChange}
+              placeholder="Address"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Notes</label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              rows="2"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // ADD mode - REMOVED: Genotype, Blood Type, Hospital Number, MRN, Family History, Surgical History, Chronic Conditions, Current Medications, Known Allergies
     return (
       <div className="grid grid-cols-2 gap-2">
         <div className="col-span-2">
@@ -576,24 +1871,6 @@ const PatientModal = ({
             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
             disabled={isSubmitting}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">MRN</label>
-          <input
-            type="text"
-            value={formData.mrn ? formData.mrn : 'Auto-generated after save'}
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600"
-            disabled
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Hospital Number</label>
-          <input
-            type="text"
-            value={formData.hospital_number ? formData.hospital_number : 'Auto-generated after save'}
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600"
-            disabled
           />
         </div>
         <div>
@@ -689,43 +1966,6 @@ const PatientModal = ({
             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={isSubmitting}
           />
-        </div>
-        <div>
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Blood Type</label>
-          <select
-            name="bloodType"
-            value={formData.bloodType}
-            onChange={handleChange}
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-          >
-            <option value="">Select</option>
-            <option value="O+">O+</option>
-            <option value="O-">O-</option>
-            <option value="A+">A+</option>
-            <option value="A-">A-</option>
-            <option value="B+">B+</option>
-            <option value="B-">B-</option>
-            <option value="AB+">AB+</option>
-            <option value="AB-">AB-</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Genotype</label>
-          <select
-            name="genotype"
-            value={formData.genotype}
-            onChange={handleChange}
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-          >
-            <option value="">Select</option>
-            <option value="AA">AA</option>
-            <option value="AS">AS</option>
-            <option value="SS">SS</option>
-            <option value="AC">AC</option>
-            <option value="SC">SC</option>
-          </select>
         </div>
         <div>
           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Marital Status</label>
@@ -825,66 +2065,6 @@ const PatientModal = ({
             value={formData.next_of_kin_address}
             onChange={handleChange}
             placeholder="Address"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Known Allergies</label>
-          <input
-            type="text"
-            name="known_allergies"
-            value={formData.known_allergies}
-            onChange={handleChange}
-            placeholder="e.g. Penicillin, Latex"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Chronic Conditions</label>
-          <input
-            type="text"
-            name="chronic_conditions"
-            value={formData.chronic_conditions}
-            onChange={handleChange}
-            placeholder="e.g. Diabetes, Hypertension"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Current Medications</label>
-          <input
-            type="text"
-            name="current_medications"
-            value={formData.current_medications}
-            onChange={handleChange}
-            placeholder="e.g. Metformin 500mg"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Surgical History</label>
-          <input
-            type="text"
-            name="surgical_history"
-            value={formData.surgical_history}
-            onChange={handleChange}
-            placeholder="e.g. Appendectomy 2020"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Family History</label>
-          <input
-            type="text"
-            name="family_history"
-            value={formData.family_history}
-            onChange={handleChange}
-            placeholder="e.g. Diabetes (Mother)"
             className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={isSubmitting}
           />
@@ -1109,6 +2289,33 @@ const PatientModal = ({
                     </div>
                   )}
                 </div>
+
+                {mode === 'add' && (
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div>
+                        <h3 className="text-xs font-semibold text-gray-800">Initial Charges</h3>
+                        <p className="text-[10px] text-gray-500">These charges will be added to the patient&apos;s first bill.</p>
+                      </div>
+                      <button type="button" onClick={addCharge} disabled={isSubmitting} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">
+                        + Add charge
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {initialCharges.map((charge, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-1.5 items-center">
+                          <select value={charge.item_type} onChange={(e) => updateCharge(index, 'item_type', e.target.value)} className="col-span-3 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting}>
+                            <option value="service">Service</option><option value="other">Other</option><option value="consultation">Consultation</option><option value="test">Lab test</option><option value="procedure">Procedure</option>
+                          </select>
+                          <input value={charge.description} onChange={(e) => updateCharge(index, 'description', e.target.value)} placeholder="Charge description" className="col-span-5 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
+                          <input type="number" min="1" value={charge.quantity} onChange={(e) => updateCharge(index, 'quantity', e.target.value)} placeholder="Qty" className="col-span-1 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
+                          <input type="number" min="0" step="0.01" value={charge.unit_price} onChange={(e) => updateCharge(index, 'unit_price', e.target.value)} placeholder="Price" className="col-span-2 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
+                          <button type="button" onClick={() => removeCharge(index)} disabled={isSubmitting} className="col-span-1 text-gray-400 hover:text-red-600 text-lg leading-none" title="Remove charge" aria-label="Remove charge">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -2023,6 +3230,14 @@ const handleRestorePatient = (patient) => {
       surgical_history: formData.surgical_history || '',
       family_history: formData.family_history || '',
       notes: formData.notes || '',
+      ...(Array.isArray(formData.initialCharges) ? {
+        initial_charges: formData.initialCharges.map((charge) => ({
+          item_type: charge.item_type || 'service',
+          description: charge.description.trim(),
+          quantity: Number(charge.quantity),
+          unit_price: Number(charge.unit_price),
+        })),
+      } : {}),
       ...(forceDuplicate ? { confirm_duplicate: true } : {}),
     };
   };
