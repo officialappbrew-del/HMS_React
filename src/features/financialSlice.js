@@ -1,6 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { financialApi } from '../utils/api';
 
+const asList = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.results)) return response.results;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+};
+
 export const fetchFinancialAnalytics = createAsyncThunk(
   'financial/fetchAnalytics',
   async (dateRange = '30d', { rejectWithValue }) => {
@@ -18,7 +25,7 @@ export const fetchBudgets = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await financialApi.getBudgets();
-      return response;
+      return asList(response);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to fetch budgets');
     }
@@ -30,7 +37,7 @@ export const fetchInvoices = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await financialApi.getInvoices();
-      return response;
+      return asList(response);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to fetch invoices');
     }
@@ -124,7 +131,7 @@ const financialSlice = createSlice({
         state.analytics = data;
         state.stats = data.stats || state.stats;
         state.kpis = data.kpis || state.kpis;
-        state.cashFlowData = data.cashFlow || state.cashFlowData;
+        state.cashFlowData = asList(data.cashFlow);
       })
       .addCase(fetchFinancialAnalytics.rejected, (state, action) => {
         state.loading = false;
@@ -134,7 +141,7 @@ const financialSlice = createSlice({
         state.budgets = action.payload || [];
       })
       .addCase(fetchInvoices.fulfilled, (state, action) => {
-        const invoices = action.payload || [];
+        const invoices = asList(action.payload);
         state.revenueData = invoices.map(invoice => ({
           id: invoice.id,
           date: invoice.invoice_date || invoice.created_at,

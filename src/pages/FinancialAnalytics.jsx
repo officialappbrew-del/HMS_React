@@ -273,6 +273,8 @@ const FinancialAnalytics = () => {
     analytics
   } = useSelector(state => state.financial);
 
+  const safeCashFlowData = Array.isArray(cashFlowData) ? cashFlowData : [];
+
   const [activeTab, setActiveTab] = useState('overview');
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -1013,17 +1015,17 @@ const FinancialAnalytics = () => {
               <div className="bg-white border border-[#E8E3DC] p-4 sm:p-6">
                 <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">12-Month Cash Flow Projection</h3>
                 <div className="space-y-2">
-                  {cashFlowData.length === 0 ? (
+                  {safeCashFlowData.length === 0 ? (
                     <div className="text-center py-8 text-[#5A5A5A] text-sm">No cash flow projections available</div>
                   ) : (
-                    cashFlowData.map((projection, idx) => (
+                    safeCashFlowData.map((projection, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 bg-[#F7F5F2] border border-[#E8E3DC]">
                         <span className="text-sm font-medium text-[#1A1A1A] w-10">{projection.month}</span>
                         <div className="flex-1 mx-3">
                           <div className="w-full bg-[#F0EDE8] h-1.5">
                             <div
                               className="bg-[#008751] h-1.5"
-                              style={{ width: `${Math.max(0, Math.min((projection.balance / Math.max(...cashFlowData.map(p => p.balance || 1))) * 100, 100))}%` }}
+                              style={{ width: `${Math.max(0, Math.min((projection.balance / Math.max(...safeCashFlowData.map(p => p.balance || 1))) * 100, 100))}%` }}
                             ></div>
                           </div>
                         </div>
