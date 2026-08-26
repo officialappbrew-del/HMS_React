@@ -684,7 +684,7 @@ const Appointments = () => {
               <span className="truncate">Appointments</span>
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-              Schedule and manage patient appointments
+              Schedule and manage patient appointments QWERTY
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
