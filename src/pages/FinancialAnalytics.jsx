@@ -25,7 +25,10 @@ import {
   Edit,
   Check,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Package,
+  Pill,
+  AlertCircle
 } from 'lucide-react';
 import {
   fetchFinancialAnalytics,
@@ -37,7 +40,6 @@ import {
   filterFinancialData,
   clearError
 } from '../features/financialSlice';
-import Pagination from '../components/Pagination';
 
 // ==================== TOOLTIP COMPONENT ====================
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -196,7 +198,7 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
 };
 
 // ==================== STATUS BADGE ====================
-const StatusBadge = ({ status, type = 'default' }) => {
+const StatusBadge = ({ status }) => {
   const statusMap = {
     'nhis': { label: 'NHIS', color: 'bg-[#E8F5EF] text-[#008751] border-[#C8E0D5]' },
     'private': { label: 'Private', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
@@ -263,7 +265,6 @@ const FinancialAnalytics = () => {
     costData,
     cashFlowData,
     budgets,
-    kpis,
     dateRange,
     searchTerm,
     filterBy,
@@ -274,6 +275,8 @@ const FinancialAnalytics = () => {
   } = useSelector(state => state.financial);
 
   const safeCashFlowData = Array.isArray(cashFlowData) ? cashFlowData : [];
+  const pharmacy = analytics?.pharmacy || {};
+  const invoicesSummary = analytics?.invoices || {};
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showBudgetModal, setShowBudgetModal] = useState(false);
@@ -307,7 +310,7 @@ const FinancialAnalytics = () => {
   // Nigerian financial metrics - derived from real API data
   const nigerianMetrics = analytics ? {
     revenue: Object.entries(analytics.revenue || {}).reduce((acc, [key, value]) => {
-      acc[key] = { current: Number(value) || 0, target: Number(value) || 0, growth: 0 };
+      acc[key] = { current: Number(value) || 0 };
       return acc;
     }, {}),
     costs: Object.entries(analytics.costs || {}).reduce((acc, [key, value]) => {
@@ -397,7 +400,7 @@ const FinancialAnalytics = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-NG', {
+    return new globalThis.Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
       minimumFractionDigits: 0,
@@ -405,22 +408,16 @@ const FinancialAnalytics = () => {
     }).format(amount);
   };
 
-  const getGrowthColor = (growth) => {
-    if (growth > 10) return 'text-[#2D7D46]';
-    if (growth > 0) return 'text-[#008751]';
-    return 'text-[#C8553D]';
-  };
-
-  const getGrowthIcon = (growth) => {
-    if (growth > 0) return <TrendingUp className="w-3.5 h-3.5" />;
-    return <TrendingDown className="w-3.5 h-3.5" />;
-  };
+  const formatNumber = (value) => new globalThis.Intl.NumberFormat('en-NG').format(Number(value) || 0);
 
   const totalRevenue = stats.totalRevenue || 0;
   const totalCosts = stats.totalCosts || 0;
   const netProfit = stats.netProfit || (totalRevenue - totalCosts);
   const profitMargin = stats.profitMargin || (totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0);
   const cashPosition = stats.cashPosition || 0;
+  const financialHealth = totalRevenue === 0
+    ? 'No revenue recorded'
+    : netProfit >= 0 ? 'Operating profit' : 'Operating loss';
 
   // Tabs configuration
   const tabs = [
@@ -507,21 +504,21 @@ const FinancialAnalytics = () => {
         <StatsCard
           title="Total Revenue"
           value={formatCurrency(totalRevenue)}
-          subValue="+12.5% YoY"
+          subValue={`${formatNumber(invoicesSummary.total)} invoices in period`}
           icon={DollarSign}
           color="green"
-          trend="up"
-          trendValue="12.5% growth"
+          trend="neutral"
+          trendValue="Recorded revenue"
           tooltip="Total revenue from all sources"
         />
         <StatsCard
           title="Total Costs"
           value={formatCurrency(totalCosts)}
-          subValue="+8.2% YoY"
+          subValue={`${formatNumber(invoicesSummary.pending)} pending invoices`}
           icon={CreditCard}
           color="red"
-          trend="down"
-          trendValue="8.2% increase"
+          trend="neutral"
+          trendValue="Recorded costs"
           tooltip="Total operational costs"
         />
         <StatsCard
@@ -530,20 +527,68 @@ const FinancialAnalytics = () => {
           subValue={`${profitMargin}% margin`}
           icon={Calculator}
           color="blue"
-          trend="up"
-          trendValue="18.5% margin"
+          trend={netProfit >= 0 ? 'up' : 'down'}
+          trendValue={financialHealth}
           tooltip="Net profit after all costs"
         />
         <StatsCard
           title="Cash Position"
-          value="₦45.2M"
-          subValue="Healthy"
+          value={formatCurrency(cashPosition)}
+          subValue={`${formatNumber(invoicesSummary.paid)} paid invoices`}
           icon={Banknote}
           color="purple"
-          trend="up"
-          trendValue="Stable"
+          trend={cashPosition >= 0 ? 'up' : 'down'}
+          trendValue={cashPosition >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
           tooltip="Current cash position"
         />
+      </div>
+
+      <div className="bg-white border border-[#E8E3DC] p-4 sm:p-5 mb-4 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div>
+            <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Pharmacy financial position</h2>
+            <p className="text-xs text-[#5A5A5A]">Recorded inventory and completed sales for {dateRange}</p>
+          </div>
+          <span className={`text-xs font-medium ${pharmacy.lowStockCount > 0 ? 'text-[#C8553D]' : 'text-[#2D7D46]'}`}>
+            {pharmacy.lowStockCount > 0 ? `${formatNumber(pharmacy.lowStockCount)} items need restocking` : 'No low-stock items recorded'}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <MetricCard title="Active drug types" value={formatNumber(pharmacy.drugCount)} icon={Pill} color="blue" />
+          <MetricCard title="Units in stock" value={formatNumber(pharmacy.unitsInStock)} icon={Package} color="green" />
+          <MetricCard title="Stock value" value={formatCurrency(pharmacy.stockValue)} icon={Calculator} color="gold" />
+          <MetricCard title="Units sold" value={formatNumber(pharmacy.unitsSold)} subtitle={formatCurrency(pharmacy.salesRevenue)} icon={TrendingUp} color="red" />
+        </div>
+      </div>
+
+      <div className="bg-white border border-[#E8E3DC] p-4 sm:p-5 mb-4 sm:mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">Pharmacy sales over time</h2>
+            <p className="text-xs text-[#5A5A5A]">Completed sale totals by recorded sale date</p>
+          </div>
+          <LineChart className="w-4 h-4 text-[#008751]" />
+        </div>
+        {pharmacy.salesTrend?.length ? (
+          <div className="space-y-2">
+            {(() => {
+              const maximum = Math.max(...pharmacy.salesTrend.map(item => item.amount), 1);
+              return pharmacy.salesTrend.map(item => (
+                <div key={item.date} className="flex items-center gap-3 text-xs">
+                  <span className="w-20 text-[#5A5A5A]">{new Date(item.date).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}</span>
+                  <div className="flex-1 h-2 bg-[#F0EDE8]">
+                    <div className="h-2 bg-[#008751]" style={{ width: `${(item.amount / maximum) * 100}%` }} />
+                  </div>
+                  <span className="w-28 text-right font-medium text-[#1A1A1A]">{formatCurrency(item.amount)}</span>
+                </div>
+              ));
+            })()}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 py-6 text-sm text-[#5A5A5A]">
+            <AlertCircle className="w-4 h-4" /> No completed pharmacy sales recorded for this period.
+          </div>
+        )}
       </div>
 
       {/* Tab Navigation */}
@@ -583,28 +628,13 @@ const FinancialAnalytics = () => {
                         <h4 className="text-sm font-medium text-[#1A1A1A] capitalize">
                           {source.replace(/([A-Z])/g, ' $1')}
                         </h4>
-                        <div className={`flex items-center ${getGrowthColor(data.growth)}`}>
-                          {getGrowthIcon(data.growth)}
-                          <span className="ml-1 text-xs">{data.growth}%</span>
-                        </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-lg font-display font-bold text-[#1A1A1A]">
                             {formatCurrency(data.current)}
                           </p>
-                          <p className="text-xs text-[#5A5A5A]">Target: {formatCurrency(data.target)}</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="w-24 bg-[#F0EDE8] h-1.5">
-                            <div
-                              className="bg-[#008751] h-1.5"
-                              style={{ width: `${Math.min((data.current / data.target) * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-[10px] text-[#B0A89E] mt-0.5">
-                            {((data.current / data.target) * 100).toFixed(0)}% of target
-                          </p>
+                          <p className="text-xs text-[#5A5A5A]">Recorded in selected period</p>
                         </div>
                       </div>
                     </div>
@@ -740,13 +770,12 @@ const FinancialAnalytics = () => {
                       <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Category</th>
                       <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Description</th>
                       <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Amount</th>
-                      <th className="px-4 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Growth</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F0EDE8]">
                     {paginatedData.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-[#5A5A5A]">
+                        <td colSpan={4} className="px-4 py-8 text-center text-[#5A5A5A]">
                           <DollarSign className="w-10 h-10 text-[#D8D4CD] mx-auto mb-2" />
                           <p className="text-sm">No revenue data found</p>
                         </td>
@@ -765,12 +794,6 @@ const FinancialAnalytics = () => {
                           </td>
                           <td className="px-4 py-3 text-sm font-medium text-[#1A1A1A]">
                             {formatCurrency(item.amount)}
-                          </td>
-                          <td className="px-4 py-3 hidden md:table-cell">
-                            <div className={`flex items-center ${getGrowthColor(item.growth)}`}>
-                              {getGrowthIcon(item.growth)}
-                              <span className="ml-1 text-sm">{item.growth}%</span>
-                            </div>
                           </td>
                         </tr>
                       ))
@@ -883,15 +906,17 @@ const FinancialAnalytics = () => {
               </div>
             </div>
 
-            {/* Cost Analysis Chart Placeholder */}
             <div className="bg-white border border-[#E8E3DC] p-4 sm:p-6 mb-4">
-              <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Cost Trend Analysis</h4>
-              <div className="h-48 bg-[#F7F5F2] border border-[#E8E3DC] flex items-center justify-center">
-                <div className="text-center text-[#5A5A5A]">
-                  <LineChart className="w-10 h-10 mx-auto mb-2 text-[#D8D4CD]" />
-                  <p className="text-sm">Cost trend visualization</p>
-                  <p className="text-xs text-[#B0A89E]">Integration with charting library needed</p>
-                </div>
+              <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Recorded cost breakdown</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {Object.entries(nigerianMetrics.costs).map(([category, data]) => (
+                  <MetricCard key={category} title={category.replace(/([A-Z])/g, ' $1')} value={formatCurrency(data.current)} icon={CreditCard} color="red" />
+                ))}
+                {Object.keys(nigerianMetrics.costs).length === 0 && (
+                  <div className="col-span-full flex items-center gap-2 text-sm text-[#5A5A5A]">
+                    <AlertCircle className="w-4 h-4" /> No recorded cost data for this period.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1085,9 +1110,9 @@ const FinancialAnalytics = () => {
                       <div className="flex justify-between text-xs">
                         <span className="text-[#5A5A5A]">Utilized:</span>
                         <span className={`font-medium ${
-                          (budget.utilized || 0) > 90 ? 'text-[#C8553D]' : 'text-[#008751]'
+                          (budget.amount > 0 && (budget.utilized || 0) / budget.amount > 0.9) ? 'text-[#C8553D]' : 'text-[#008751]'
                         }`}>
-                          {budget.utilized || 0}%
+                          {formatCurrency(budget.utilized || 0)}
                         </span>
                       </div>
                     </div>
@@ -1095,8 +1120,8 @@ const FinancialAnalytics = () => {
                     <div className="mt-3">
                       <div className="w-full bg-[#F0EDE8] h-1.5">
                         <div
-                          className={`h-1.5 ${(budget.utilized || 0) > 90 ? 'bg-[#C8553D]' : 'bg-[#008751]'}`}
-                          style={{ width: `${budget.utilized || 0}%` }}
+                          className={`h-1.5 ${(budget.amount > 0 && (budget.utilized || 0) / budget.amount > 0.9) ? 'bg-[#C8553D]' : 'bg-[#008751]'}`}
+                          style={{ width: `${Math.min((budget.amount > 0 ? ((budget.utilized || 0) / budget.amount) * 100 : 0), 100)}%` }}
                         ></div>
                       </div>
                     </div>

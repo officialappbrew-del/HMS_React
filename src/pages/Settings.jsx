@@ -49,7 +49,251 @@ import {
   faCircle,
 } from '@fortawesome/free-solid-svg-icons';
 
+// ==================== TOOLTIP COMPONENT ====================
+const Tooltip = ({ children, text, position = 'top' }) => {
+  const [show, setShow] = useState(false);
+  
+  const positionClasses = {
+    top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
+    bottom: 'top-full left-1/2 -translate-x-1/2 mt-1.5',
+    left: 'right-full top-1/2 -translate-y-1/2 mr-1.5',
+    right: 'left-full top-1/2 -translate-y-1/2 ml-1.5',
+  };
+
+  return (
+    <div 
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onTouchStart={() => setShow(!show)}
+    >
+      {children}
+      {show && (
+        <div className={`absolute z-50 ${positionClasses[position]} whitespace-nowrap`}>
+          <div className="bg-[#1A1A1A] text-white text-[10px] px-2 py-1 shadow-lg">
+            {text}
+            <div className={`absolute w-1.5 h-1.5 bg-[#1A1A1A] transform rotate-45 ${
+              position === 'top' ? 'bottom-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'bottom' ? 'top-[-3px] left-1/2 -translate-x-1/2' :
+              position === 'left' ? 'right-[-3px] top-1/2 -translate-y-1/2' :
+              'left-[-3px] top-1/2 -translate-y-1/2'
+            }`} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== ICON BUTTON ====================
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
+  const variantClasses = {
+    default: 'text-[#5A5A5A] hover:text-[#1A1A1A] hover:bg-[#F0EDE8]',
+    primary: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+    success: 'text-[#2D7D46] hover:text-[#1E5F33] hover:bg-[#EAF3EE]',
+    danger: 'text-[#C8553D] hover:text-[#A8442E] hover:bg-[#F5EDEA]',
+    warning: 'text-[#C87D3D] hover:text-[#A8662E] hover:bg-[#F5F0EA]',
+    info: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
+  };
+
+  const sizeClasses = {
+    sm: 'p-1',
+    md: 'p-1.5',
+    lg: 'p-2',
+  };
+
+  const iconSizes = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-5 h-5',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <Icon className={iconSizes[size]} />
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== BUTTON WITH TOOLTIP ====================
+const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false, size = 'sm', type = 'button' }) => {
+  const variantClasses = {
+    primary: 'bg-[#008751] hover:bg-[#006B40] text-white',
+    secondary: 'bg-white border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+    success: 'bg-[#2D7D46] hover:bg-[#1E5F33] text-white',
+    danger: 'bg-[#C8553D] hover:bg-[#A8442E] text-white',
+    warning: 'bg-[#C87D3D] hover:bg-[#A8662E] text-white',
+    outline: 'border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
+  };
+
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3.5 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-sm',
+  };
+
+  return (
+    <Tooltip text={tooltip}>
+      <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        className={`rounded transition-all duration-200 flex items-center gap-1.5 font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==================== PAGINATION COMPONENT ====================
+const Pagination = ({ 
+  currentPage, 
+  totalPages, 
+  onPageChange, 
+  itemsPerPage, 
+  totalItems,
+  onItemsPerPageChange,
+  siblingCount = 1 
+}) => {
+  const generatePaginationItems = () => {
+    const pages = [];
+    const totalPageNumbers = siblingCount * 2 + 3;
+    
+    if (totalPages <= totalPageNumbers) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push({ type: 'page', value: i });
+      }
+    } else {
+      const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
+      const rightSiblingIndex = Math.min(currentPage + siblingCount, totalPages);
+      const shouldShowLeftEllipsis = leftSiblingIndex > 2;
+      const shouldShowRightEllipsis = rightSiblingIndex < totalPages - 1;
+
+      if (shouldShowLeftEllipsis) {
+        pages.push({ type: 'page', value: 1 });
+        pages.push({ type: 'ellipsis', value: '...' });
+      }
+
+      for (let i = leftSiblingIndex; i <= rightSiblingIndex; i++) {
+        pages.push({ type: 'page', value: i });
+      }
+
+      if (shouldShowRightEllipsis) {
+        pages.push({ type: 'ellipsis', value: '...' });
+        pages.push({ type: 'page', value: totalPages });
+      }
+    }
+
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-[#E8E3DC]">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs text-[#5A5A5A] w-full xs:w-auto">
+          <span className="hidden xs:inline">Showing</span>
+          <select
+            value={itemsPerPage}
+            onChange={onItemsPerPageChange}
+            className="px-2 py-1 border border-[#D8D4CD] rounded focus:ring-2 focus:ring-[#008751] focus:border-[#008751] outline-none text-xs bg-white min-w-[60px]"
+          >
+            {[5, 10, 20, 50].map(value => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+          <span>per page</span>
+          <span className="hidden sm:inline text-[#B0A89E] ml-1">
+            (Total: {totalItems})
+          </span>
+        </div>
+        <div className="text-xs text-[#B0A89E] sm:hidden">
+          Total: {totalItems} items
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-2 sm:px-3 py-1.5 rounded text-xs transition-all ${
+            currentPage === 1
+              ? 'text-[#D8D4CD] cursor-not-allowed'
+              : 'text-[#5A5A5A] hover:bg-[#F0EDE8] hover:text-[#1A1A1A]'
+          }`}
+          aria-label="Previous page"
+        >
+          <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
+          <span className="hidden xs:inline ml-1">Prev</span>
+        </button>
+
+        <div className="flex flex-wrap items-center gap-0.5 sm:gap-1">
+          {generatePaginationItems().map((item, index) => {
+            if (item.type === 'ellipsis') {
+              return (
+                <span key={`ellipsis-${index}`} className="px-1.5 sm:px-3 py-1.5 text-[#B0A89E] text-xs">
+                  <FontAwesomeIcon icon={faEllipsisH} className="text-xs" />
+                </span>
+              );
+            }
+
+            const page = item.value;
+            const isActive = page === currentPage;
+            return (
+              <button
+                key={page}
+                onClick={() => onPageChange(page)}
+                className={`px-2.5 sm:px-3.5 py-1.5 rounded text-xs transition-all min-w-[32px] sm:min-w-[40px] text-center ${
+                  isActive
+                    ? 'bg-[#008751] text-white font-semibold'
+                    : 'text-[#5A5A5A] hover:bg-[#F0EDE8] hover:text-[#1A1A1A]'
+                }`}
+                aria-label={`Go to page ${page}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                {page}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-2 sm:px-3 py-1.5 rounded text-xs transition-all ${
+            currentPage === totalPages
+              ? 'text-[#D8D4CD] cursor-not-allowed'
+              : 'text-[#5A5A5A] hover:bg-[#F0EDE8] hover:text-[#1A1A1A]'
+          }`}
+          aria-label="Next page"
+        >
+          <span className="hidden xs:inline mr-1">Next</span>
+          <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
+        </button>
+      </div>
+
+      <div className="text-center text-xs text-[#B0A89E] xs:hidden">
+        Page {currentPage} of {totalPages}
+      </div>
+    </div>
+  );
+};
+
+// ==================== MAIN SETTINGS COMPONENT ====================
 const Settings = () => {
+  // State declarations - all hooks must be at the top level
   const [settings, setSettings] = useState({
     system_name: 'SmartCare HMS',
     system_logo: null,
@@ -76,16 +320,18 @@ const Settings = () => {
     nhis_claim_submission_days: 7,
     custom_settings: {},
   });
+  
   const [tenantInfo, setTenantInfo] = useState({
     name: typeof window !== 'undefined' ? localStorage.getItem('tenantName') || '' : '',
     domain: typeof window !== 'undefined' ? localStorage.getItem('tenantDomain') || '' : '',
     publicId: typeof window !== 'undefined' ? localStorage.getItem('tenantId') || '' : '',
   });
+  
   const [communication, setCommunication] = useState({
     id: null,
     email_enabled: true,
     sms_enabled: true,
-email_from: '',
+    email_from: '',
     from_name: '',
     email_provider: 'default',
     email_host: '',
@@ -108,6 +354,7 @@ email_from: '',
     daily_email_limit: 1000,
     daily_sms_limit: 500,
   });
+  
   const [logo, setLogo] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -130,10 +377,12 @@ email_from: '',
   const [pendingUsersLoading, setPendingUsersLoading] = useState(false);
   const [invitations, setInvitations] = useState([]);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
-const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [communicationTab, setCommunicationTab] = useState('email');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleteTargetName, setDeleteTargetName] = useState('');
 
-  // Pagination state for combined table
   const [tablePagination, setTablePagination] = useState({
     currentPage: 1,
     itemsPerPage: 5,
@@ -141,14 +390,21 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     totalPages: 0,
   });
 
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState(null);
-  const [deleteTargetName, setDeleteTargetName] = useState('');
-
   const isBusy = loading || saving;
   const busyMessage = saving ? 'Saving settings...' : 'Loading settings...';
 
-  // Combined data for the table - merge pending users and invitations
+  // Sections - defined outside of component logic
+  const sections = [
+    { id: 'general', label: 'General', icon: faCog },
+    { id: 'billing', label: 'Billing', icon: faMoneyBillWave },
+    { id: 'notifications', label: 'Notifications', icon: faBell },
+    { id: 'communication', label: 'Communication', icon: faCommentDots },
+    { id: 'security', label: 'Security', icon: faLock },
+    { id: 'backup', label: 'Backup', icon: faDatabase },
+    { id: 'nhis', label: 'NHIS', icon: faHospital },
+  ];
+
+  // Functions
   const getCombinedTableData = () => {
     const pendingItems = pendingUsers.map(user => ({
       id: user.id,
@@ -177,12 +433,10 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     return allItems.sort((a, b) => {
       if (a.type === 'pending' && b.type !== 'pending') return -1;
       if (a.type !== 'pending' && b.type === 'pending') return 1;
-      
       if (a.type === 'invitation' && b.type === 'invitation') {
         if (a.archived && !b.archived) return 1;
         if (!a.archived && b.archived) return -1;
       }
-      
       if (a.expiresAt && b.expiresAt) {
         return new Date(a.expiresAt) - new Date(b.expiresAt);
       }
@@ -192,7 +446,6 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     });
   };
 
-  // Get paginated table data
   const getPaginatedTableData = () => {
     const allData = getCombinedTableData();
     const { currentPage, itemsPerPage } = tablePagination;
@@ -201,15 +454,10 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     return allData.slice(startIndex, endIndex);
   };
 
-  // Handle page change
   const handlePageChange = (page) => {
-    setTablePagination(prev => ({
-      ...prev,
-      currentPage: page,
-    }));
+    setTablePagination(prev => ({ ...prev, currentPage: page }));
   };
 
-  // Handle items per page change
   const handleItemsPerPageChange = (e) => {
     const newItemsPerPage = parseInt(e.target.value);
     setTablePagination(prev => ({
@@ -218,22 +466,6 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
       currentPage: 1,
     }));
   };
-
-  // Update pagination when data changes
-  useEffect(() => {
-    const allData = getCombinedTableData();
-    setTablePagination(prev => {
-      const totalItems = allData.length;
-      const totalPages = Math.ceil(totalItems / prev.itemsPerPage) || 1;
-      const currentPage = Math.min(prev.currentPage, totalPages);
-      return {
-        ...prev,
-        totalItems,
-        totalPages,
-        currentPage,
-      };
-    });
-  }, [pendingUsers, invitations]);
 
   const loadPendingUsers = async () => {
     setPendingUsersLoading(true);
@@ -261,6 +493,7 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     }
   };
 
+  // Main load effect
   useEffect(() => {
     const loadSettings = async () => {
       setLoading(true);
@@ -296,10 +529,7 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
           setLogoPreview(response.system_logo);
         }
         if (response.tenant_name) {
-          setTenantInfo((current) => ({
-            ...current,
-            name: response.tenant_name,
-          }));
+          setTenantInfo((current) => ({ ...current, name: response.tenant_name }));
         }
       } catch (error) {
         console.error('Unable to load settings:', error);
@@ -310,7 +540,7 @@ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
       }
     };
 
-loadSettings();
+    loadSettings();
     loadPendingUsers();
     loadInvitations();
 
@@ -322,7 +552,7 @@ loadSettings();
           id: profile.id || prev.id,
           email_enabled: profile.email_enabled ?? prev.email_enabled,
           sms_enabled: profile.sms_enabled ?? prev.sms_enabled,
-email_from: profile.email_from || prev.email_from,
+          email_from: profile.email_from || prev.email_from,
           from_name: profile.from_name || prev.from_name,
           email_provider: profile.email_provider || prev.email_provider,
           email_host: profile.email_host || prev.email_host,
@@ -350,7 +580,19 @@ email_from: profile.email_from || prev.email_from,
     loadCommunicationProfile();
   }, []);
 
-const handleCommunicationChange = (e) => {
+  // Update pagination when data changes
+  useEffect(() => {
+    const allData = getCombinedTableData();
+    setTablePagination(prev => {
+      const totalItems = allData.length;
+      const totalPages = Math.ceil(totalItems / prev.itemsPerPage) || 1;
+      const currentPage = Math.min(prev.currentPage, totalPages);
+      return { ...prev, totalItems, totalPages, currentPage };
+    });
+  }, [pendingUsers, invitations]);
+
+  // Handlers
+  const handleCommunicationChange = (e) => {
     const { name, value, type, checked } = e.target;
     setCommunication((prev) => ({
       ...prev,
@@ -370,7 +612,7 @@ const handleCommunicationChange = (e) => {
       setUserPreferences({ refreshInterval: intervalSeconds });
       window.dispatchEvent(new Event('preferencesChanged'));
       setRefreshHint(`Dashboard refresh interval set to ${intervalSeconds} seconds.`);
-      window.setTimeout(() => setRefreshHint(''), 4000);
+      setTimeout(() => setRefreshHint(''), 4000);
     }
   };
 
@@ -410,10 +652,7 @@ const handleCommunicationChange = (e) => {
     try {
       const response = await tenantSettingsApi.updateCurrent({ system_logo: logo });
       if (response?.system_logo) {
-        setSettings((prev) => ({
-          ...prev,
-          system_logo: response.system_logo,
-        }));
+        setSettings((prev) => ({ ...prev, system_logo: response.system_logo }));
         setLogoPreview(response.system_logo);
       }
       setMessage('Logo uploaded successfully!');
@@ -430,10 +669,7 @@ const handleCommunicationChange = (e) => {
   const handleRemoveLogo = () => {
     setLogo(null);
     setLogoPreview(null);
-    setSettings(prev => ({
-      ...prev,
-      system_logo: null,
-    }));
+    setSettings(prev => ({ ...prev, system_logo: null }));
   };
 
   const handleCreateInvitation = async (e) => {
@@ -610,12 +846,12 @@ const handleCommunicationChange = (e) => {
         payload.system_logo = null;
       }
 
-await tenantSettingsApi.updateCurrent(payload);
+      await tenantSettingsApi.updateCurrent(payload);
 
       const communicationPayload = {
         email_enabled: communication.email_enabled,
         sms_enabled: communication.sms_enabled,
-email_from: communication.email_from,
+        email_from: communication.email_from,
         from_name: communication.from_name,
         email_provider: communication.email_provider,
         email_host: communication.email_host,
@@ -658,1339 +894,1120 @@ email_from: communication.email_from,
     }
   };
 
-const sections = [
-    { id: 'general', label: 'General', icon: faCog },
-    { id: 'billing', label: 'Billing', icon: faMoneyBillWave },
-    { id: 'notifications', label: 'Notifications', icon: faBell },
-    { id: 'communication', label: 'Communication', icon: faCommentDots },
-    { id: 'security', label: 'Security', icon: faLock },
-    { id: 'backup', label: 'Backup', icon: faDatabase },
-    { id: 'nhis', label: 'NHIS', icon: faHospital },
-  ];
-
-  // Fully Responsive Pagination Component
-  const Pagination = ({ 
-    currentPage, 
-    totalPages, 
-    onPageChange, 
-    itemsPerPage, 
-    totalItems,
-    onItemsPerPageChange,
-    siblingCount = 1 
-  }) => {
-    const generatePaginationItems = () => {
-      const pages = [];
-      const totalPageNumbers = siblingCount * 2 + 3;
-      
-      if (totalPages <= totalPageNumbers) {
-        for (let i = 1; i <= totalPages; i++) {
-          pages.push({ type: 'page', value: i });
-        }
-      } else {
-        const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
-        const rightSiblingIndex = Math.min(currentPage + siblingCount, totalPages);
-        const shouldShowLeftEllipsis = leftSiblingIndex > 2;
-        const shouldShowRightEllipsis = rightSiblingIndex < totalPages - 1;
-
-        if (shouldShowLeftEllipsis) {
-          pages.push({ type: 'page', value: 1 });
-          pages.push({ type: 'ellipsis', value: '...' });
-        }
-
-        for (let i = leftSiblingIndex; i <= rightSiblingIndex; i++) {
-          pages.push({ type: 'page', value: i });
-        }
-
-        if (shouldShowRightEllipsis) {
-          pages.push({ type: 'ellipsis', value: '...' });
-          pages.push({ type: 'page', value: totalPages });
-        }
-      }
-
-      return pages;
-    };
-
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-slate-200">
-        {/* Top row: Items per page and total count */}
-        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 w-full xs:w-auto">
-            <span className="hidden xs:inline">Showing</span>
-            <select
-              value={itemsPerPage}
-              onChange={onItemsPerPageChange}
-              className="px-2 py-1 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs sm:text-sm bg-white min-w-[60px]"
-            >
-              {[5, 10, 20, 50].map(value => (
-                <option key={value} value={value}>{value}</option>
-              ))}
-            </select>
-            <span>per page</span>
-            <span className="hidden sm:inline text-slate-400 ml-1">
-              (Total: {totalItems})
-            </span>
-          </div>
-          <div className="text-xs text-slate-400 sm:hidden">
-            Total: {totalItems} items
-          </div>
-        </div>
-
-        {/* Bottom row: Pagination buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-1">
-          {/* Previous button */}
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all ${
-              currentPage === 1
-                ? 'text-slate-300 cursor-not-allowed'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-            }`}
-            aria-label="Previous page"
-          >
-            <FontAwesomeIcon icon={faChevronLeft} className="text-xs sm:text-sm" />
-            <span className="hidden xs:inline ml-1">Prev</span>
-          </button>
-
-          {/* Page numbers */}
-          <div className="flex flex-wrap items-center gap-0.5 sm:gap-1">
-            {generatePaginationItems().map((item, index) => {
-              if (item.type === 'ellipsis') {
-                return (
-                  <span key={`ellipsis-${index}`} className="px-1.5 sm:px-3 py-1.5 text-slate-400 text-xs sm:text-sm">
-                    <FontAwesomeIcon icon={faEllipsisH} className="text-xs" />
-                  </span>
-                );
-              }
-
-              const page = item.value;
-              const isActive = page === currentPage;
-              return (
-                <button
-                  key={page}
-                  onClick={() => onPageChange(page)}
-                  className={`px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all min-w-[32px] sm:min-w-[40px] text-center ${
-                    isActive
-                      ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                  }`}
-                  aria-label={`Go to page ${page}`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  {page}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Next button */}
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm transition-all ${
-              currentPage === totalPages
-                ? 'text-slate-300 cursor-not-allowed'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-            }`}
-            aria-label="Next page"
-          >
-            <span className="hidden xs:inline mr-1">Next</span>
-            <FontAwesomeIcon icon={faChevronRight} className="text-xs sm:text-sm" />
-          </button>
-        </div>
-
-        {/* Mobile page indicator */}
-        <div className="text-center text-xs text-slate-400 xs:hidden">
-          Page {currentPage} of {totalPages}
-        </div>
-      </div>
-    );
+  // Render functions
+  const renderSectionContent = () => {
+    switch(activeSection) {
+      case 'general':
+        return renderGeneralSection();
+      case 'billing':
+        return renderBillingSection();
+      case 'notifications':
+        return renderNotificationsSection();
+      case 'communication':
+        return renderCommunicationSection();
+      case 'security':
+        return renderSecuritySection();
+      case 'backup':
+        return renderBackupSection();
+      case 'nhis':
+        return renderNHISSection();
+      default:
+        return renderGeneralSection();
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 p-3 sm:p-4 md:p-6 lg:p-8">
-      {/* Loading Overlay */}
-      {isBusy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-2xl max-w-sm w-full mx-4">
-            <div className="flex flex-col items-center">
-              <div className="relative">
-                <div className="h-12 w-12 sm:h-16 sm:w-16 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-blue-600/20 animate-pulse"></div>
+  const renderGeneralSection = () => (
+    <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+      <div className="bg-[#F7F5F2] border border-[#E8E3DC] p-3 sm:p-4">
+        <label className="block text-xs sm:text-sm font-semibold text-[#1A1A1A] mb-2 sm:mb-3">
+          <FontAwesomeIcon icon={faImage} className="mr-1.5 text-[#008751] text-xs" />
+          Facility Logo
+          <span className="ml-1.5 text-[11px] font-normal text-[#5A5A5A]">(Recommended: 400×400px)</span>
+        </label>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex-shrink-0 flex flex-col items-center sm:items-start">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden">
+              {logoPreview ? (
+                <img
+                  src={logoPreview}
+                  alt="Facility logo"
+                  className="w-full h-full object-contain p-1.5 sm:p-2"
+                />
+              ) : (
+                <div className="text-center text-[#B0A89E]">
+                  <FontAwesomeIcon icon={faImage} className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-0.5" />
+                  <p className="text-[10px] sm:text-xs">No logo</p>
                 </div>
+              )}
+            </div>
+            {logoPreview && (
+              <button
+                type="button"
+                onClick={handleRemoveLogo}
+                className="mt-1.5 text-[11px] sm:text-xs text-[#C8553D] hover:text-[#A8442E] font-medium transition-colors"
+              >
+                <FontAwesomeIcon icon={faTrash} className="mr-1 text-[10px]" />
+                Remove
+              </button>
+            )}
+          </div>
+          
+          <div className="flex-1 space-y-2 min-w-0">
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+                Upload new logo
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="cursor-pointer bg-white hover:bg-[#F7F5F2] text-[#1A1A1A] px-2.5 sm:px-3 py-1.5 border border-[#D8D4CD] transition-all hover:border-[#008751] font-medium text-xs sm:text-sm">
+                  <FontAwesomeIcon icon={faUpload} className="mr-1.5 text-[10px]" />
+                  Choose file
+                  <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                </label>
+                {logo && (
+                  <span className="text-[11px] sm:text-xs text-[#5A5A5A] bg-[#F0EDE8] px-2 py-0.5 truncate max-w-[120px] sm:max-w-[180px]">
+                    {logo.name} ({(logo.size / 1024).toFixed(1)} KB)
+                  </span>
+                )}
               </div>
-              <p className="mt-4 sm:mt-6 text-base sm:text-lg font-semibold text-slate-800 text-center">{busyMessage}</p>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500 text-center">Please wait...</p>
+              <p className="mt-1 text-[11px] text-[#B0A89E]">JPG, PNG, or SVG • Max 5MB</p>
+            </div>
+            {logo && (
+              <ButtonWithTooltip
+                onClick={handleLogoUpload}
+                tooltip="Upload new logo"
+                variant="primary"
+                size="sm"
+                disabled={logoUploading}
+              >
+                {logoUploading ? (
+                  <>
+                    <FontAwesomeIcon icon={faSpinner} className="mr-1.5 animate-spin text-[10px]" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <FontAwesomeIcon icon={faUpload} className="mr-1.5 text-[10px]" />
+                    Upload logo
+                  </>
+                )}
+              </ButtonWithTooltip>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faClock} className="mr-1.5 text-[#008751] text-[11px]" />
+            Dashboard refresh interval
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="15"
+              max="300"
+              name="dashboard_refresh_interval"
+              value={settings.dashboard_refresh_interval}
+              onChange={handleChange}
+              className="w-16 sm:w-20 px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+            />
+            <span className="text-[11px] sm:text-xs text-[#5A5A5A]">seconds</span>
+          </div>
+          <p className="mt-1 text-[11px] text-[#B0A89E]">Reloads sidebar insights at this interval (min 15 sec).</p>
+          {refreshHint && (
+            <p className="mt-1 text-[11px] sm:text-xs text-[#2D7D46]">{refreshHint}</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-1.5 text-[#008751] text-[11px]" />
+            Default Ward
+          </label>
+          <input
+            type="text"
+            name="default_ward"
+            value={settings.default_ward}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBillingSection = () => (
+    <div className="p-3 sm:p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faGlobe} className="mr-1.5 text-[#008751] text-[11px]" />
+            Currency
+          </label>
+          <input
+            type="text"
+            name="currency"
+            value={settings.currency}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faCreditCard} className="mr-1.5 text-[#008751] text-[11px]" />
+            Currency Symbol
+          </label>
+          <input
+            type="text"
+            name="currency_symbol"
+            value={settings.currency_symbol}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faPercentage} className="mr-1.5 text-[#008751] text-[11px]" />
+            Tax Rate (%)
+          </label>
+          <input
+            type="number"
+            name="tax_rate"
+            min="0"
+            max="100"
+            step="0.01"
+            value={settings.tax_rate}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faClock} className="mr-1.5 text-[#008751] text-[11px]" />
+            Billing Cycle
+          </label>
+          <select
+            name="billing_cycle"
+            value={settings.billing_cycle}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderNotificationsSection = () => (
+    <div className="p-3 sm:p-4">
+      <div className="space-y-3 sm:space-y-4">
+        {[
+          { name: 'email_notifications', label: 'Email notifications', desc: 'Receive updates via email', icon: faEnvelope },
+          { name: 'sms_notifications', label: 'SMS notifications', desc: 'Receive updates via text message', icon: faSms },
+          { name: 'push_notifications', label: 'Push notifications', desc: 'Receive real-time in-app alerts', icon: faMobileAlt },
+        ].map((item) => (
+          <div key={item.name} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-[#F7F5F2] border border-[#E8E3DC] transition-colors gap-2 sm:gap-4">
+            <div>
+              <label className="text-sm font-medium text-[#1A1A1A] cursor-pointer">
+                <FontAwesomeIcon icon={item.icon} className="mr-2 text-[#008751]" />
+                {item.label}
+              </label>
+              <p className="text-xs text-[#5A5A5A] mt-0.5">{item.desc}</p>
+            </div>
+            <div className="relative inline-block w-12 h-7 flex-shrink-0">
+              <input
+                type="checkbox"
+                name={item.name}
+                checked={settings[item.name]}
+                onChange={handleChange}
+                className="sr-only peer"
+              />
+              <div className="w-12 h-7 bg-[#D8D4CD] rounded-full peer peer-checked:bg-[#008751] transition-colors duration-200"></div>
+              <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderCommunicationSection = () => (
+    <div className="p-3 sm:p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex gap-1.5 sm:gap-2 p-1 bg-[#F0EDE8] rounded w-full sm:w-auto overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setCommunicationTab('email')}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none justify-center ${
+              communicationTab === 'email'
+                ? 'bg-white text-[#008751] border border-[#C8E0D5]'
+                : 'text-[#5A5A5A] hover:text-[#1A1A1A]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faEnvelope} className="text-[#008751] text-xs sm:text-sm" />
+            <span>Email</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCommunicationTab('sms')}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none justify-center ${
+              communicationTab === 'sms'
+                ? 'bg-white text-[#008751] border border-[#C8E0D5]'
+                : 'text-[#5A5A5A] hover:text-[#1A1A1A]'
+            }`}
+          >
+            <FontAwesomeIcon icon={faSms} className="text-[#008751] text-xs sm:text-sm" />
+            <span>SMS</span>
+          </button>
+        </div>
+        <ButtonWithTooltip
+          type="submit"
+          form="settings-form"
+          tooltip="Save communication settings"
+          variant="primary"
+        >
+          <FontAwesomeIcon icon={faSave} className="text-xs sm:text-sm" />
+          Save settings
+        </ButtonWithTooltip>
+      </div>
+
+      {communicationTab === 'email' && (
+        <div className="space-y-3 sm:space-y-4">
+          <div className="border border-[#E8E3DC] p-3 sm:p-4">
+            <h3 className="text-sm font-semibold text-[#1A1A1A] flex items-center gap-2 mb-3 sm:mb-4">
+              <FontAwesomeIcon icon={faEnvelope} className="text-[#008751]" />
+              <span>Email Identity</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">From Email</label>
+                <input
+                  type="email"
+                  name="email_from"
+                  value={communication.email_from}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                  placeholder="no-reply@hospital.org"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">From Name</label>
+                <input
+                  type="text"
+                  name="from_name"
+                  value={communication.from_name}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                  placeholder="St. Mary's Hospital"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">Email Provider</label>
+                <select
+                  name="email_provider"
+                  value={communication.email_provider}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                >
+                  <option value="default">Default</option>
+                  <option value="sendgrid">SendGrid</option>
+                  <option value="ses">Amazon SES</option>
+                  <option value="smtp">Custom SMTP</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">Email Host</label>
+                <input
+                  type="text"
+                  name="email_host"
+                  value={communication.email_host}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                  placeholder="smtp.hospital.org"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">Email Port</label>
+                <input
+                  type="number"
+                  name="email_port"
+                  value={communication.email_port}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                  placeholder="587"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">Email Username</label>
+                <input
+                  type="text"
+                  name="email_username"
+                  value={communication.email_username}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">Email Password</label>
+                <input
+                  type="password"
+                  name="email_password"
+                  value={communication.email_password}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-[#1A1A1A] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="email_use_tls"
+                    checked={communication.email_use_tls}
+                    onChange={handleCommunicationChange}
+                    className="w-4 h-4 text-[#008751] rounded focus:ring-[#008751]"
+                  />
+                  <span>Use TLS</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-[#1A1A1A] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="email_enabled"
+                    checked={communication.email_enabled}
+                    onChange={handleCommunicationChange}
+                    className="w-4 h-4 text-[#008751] rounded focus:ring-[#008751]"
+                  />
+                  <span>Email enabled</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto">
-        {/* Page Header */}
-        <div className="mb-4 sm:mb-6 md:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-800 flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  System Settings
-                </span>
-                <span className="text-xs sm:text-sm font-normal text-slate-400 bg-slate-100 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
-                  v2.0
-                </span>
-              </h1>
-              <p className="mt-1 sm:mt-2 text-sm sm:text-base text-slate-500 max-w-2xl">
-                Manage your healthcare facility's configuration and preferences
-              </p>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 bg-white px-3 sm:px-4 py-2 rounded-xl shadow-sm border border-slate-200 flex-shrink-0">
-              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs sm:text-sm font-semibold">
-                {tenantInfo.name?.charAt(0) || 'T'}
+      {communicationTab === 'sms' && (
+        <div className="space-y-3 sm:space-y-4">
+          <div className="border border-[#E8E3DC] p-3 sm:p-4">
+            <h3 className="text-sm font-semibold text-[#1A1A1A] flex items-center gap-2 mb-3 sm:mb-4">
+              <FontAwesomeIcon icon={faSms} className="text-[#008751]" />
+              <span>SMS Identity</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">SMS Provider</label>
+                <select
+                  name="sms_provider"
+                  value={communication.sms_provider}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                >
+                  <option value="default">Default</option>
+                  <option value="twilio">Twilio</option>
+                  <option value="messagebird">MessageBird</option>
+                  <option value="vonage">Vonage</option>
+                </select>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm font-medium text-slate-700 truncate">{tenantInfo.name || 'Unknown Tenant'}</p>
-                <p className="text-[10px] sm:text-xs text-slate-400">Active</p>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">Sender ID</label>
+                <input
+                  type="text"
+                  name="sms_sender_id"
+                  value={communication.sms_sender_id}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                  placeholder="HOSPITAL"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">SMS Phone Number</label>
+                <input
+                  type="text"
+                  name="sms_phone_number"
+                  value={communication.sms_phone_number}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                  placeholder="+1234567890"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">SMS API Key</label>
+                <input
+                  type="password"
+                  name="sms_api_key"
+                  value={communication.sms_api_key}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">Country Code</label>
+                <input
+                  type="text"
+                  name="sms_country_code"
+                  value={communication.sms_country_code}
+                  onChange={handleCommunicationChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+                  placeholder="NG"
+                />
+              </div>
+              <div className="flex items-center pt-1">
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-[#1A1A1A] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="sms_enabled"
+                    checked={communication.sms_enabled}
+                    onChange={handleCommunicationChange}
+                    className="w-4 h-4 text-[#008751] rounded focus:ring-[#008751]"
+                  />
+                  <span>SMS enabled</span>
+                </label>
               </div>
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
 
-        {/* Notification Toast */}
-        {message && (
-          <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-xl border ${
-            messageType === 'success' 
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          } flex items-center justify-between shadow-sm animate-slideDown gap-2`}>
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <FontAwesomeIcon 
-                icon={messageType === 'success' ? faCheckCircle : faExclamationCircle}
-                className={`${messageType === 'success' ? 'text-emerald-500' : 'text-red-500'} flex-shrink-0`}
-              />
-              <p className="font-medium text-sm sm:text-base break-words">{message}</p>
+  const renderSecuritySection = () => (
+    <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faClock} className="mr-1.5 text-[#C8553D] text-[11px]" />
+            Session Timeout (minutes)
+          </label>
+          <input
+            type="number"
+            name="session_timeout"
+            min="5"
+            value={settings.session_timeout}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faUserShield} className="mr-1.5 text-[#C8553D] text-[11px]" />
+            Max Login Attempts
+          </label>
+          <input
+            type="number"
+            name="max_login_attempts"
+            min="1"
+            value={settings.max_login_attempts}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-[#F7F5F2] border border-[#E8E3DC] gap-2 sm:gap-4">
+        <div>
+          <label className="text-sm font-medium text-[#1A1A1A] cursor-pointer">
+            <FontAwesomeIcon icon={faShieldAlt} className="mr-1.5 text-[#C8553D]" />
+            Two-factor authentication
+          </label>
+          <p className="text-xs text-[#5A5A5A] mt-0.5">Require 2FA for all users</p>
+        </div>
+        <div className="relative inline-block w-12 h-7 flex-shrink-0">
+          <input
+            type="checkbox"
+            name="require_2fa"
+            checked={settings.require_2fa}
+            onChange={handleChange}
+            className="sr-only peer"
+          />
+          <div className="w-12 h-7 bg-[#D8D4CD] rounded-full peer peer-checked:bg-[#008751] transition-colors duration-200"></div>
+          <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBackupSection = () => (
+    <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-[#F7F5F2] border border-[#E8E3DC] gap-2 sm:gap-4">
+        <div>
+          <label className="text-sm font-medium text-[#1A1A1A] cursor-pointer">
+            <FontAwesomeIcon icon={faSync} className="mr-1.5 text-[#4A5A5A]" />
+            Automatic backups
+          </label>
+          <p className="text-xs text-[#5A5A5A] mt-0.5">Schedule regular data backups</p>
+        </div>
+        <div className="relative inline-block w-12 h-7 flex-shrink-0">
+          <input
+            type="checkbox"
+            name="auto_backup"
+            checked={settings.auto_backup}
+            onChange={handleChange}
+            className="sr-only peer"
+          />
+          <div className="w-12 h-7 bg-[#D8D4CD] rounded-full peer peer-checked:bg-[#008751] transition-colors duration-200"></div>
+          <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faClock} className="mr-1.5 text-[#4A5A5A] text-[11px]" />
+            Backup Frequency
+          </label>
+          <select
+            name="backup_frequency"
+            value={settings.backup_frequency}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faCalendarDay} className="mr-1.5 text-[#4A5A5A] text-[11px]" />
+            Retention (days)
+          </label>
+          <input
+            type="number"
+            name="backup_retention_days"
+            min="1"
+            value={settings.backup_retention_days}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderNHISSection = () => (
+    <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-[#F7F5F2] border border-[#E8E3DC] gap-2 sm:gap-4">
+        <div>
+          <label className="text-sm font-medium text-[#1A1A1A] cursor-pointer">
+            <FontAwesomeIcon icon={faHospital} className="mr-1.5 text-[#008751]" />
+            NHIS Integration
+          </label>
+          <p className="text-xs text-[#5A5A5A] mt-0.5">Enable NHIS claims and billing</p>
+        </div>
+        <div className="relative inline-block w-12 h-7 flex-shrink-0">
+          <input
+            type="checkbox"
+            name="nhis_enabled"
+            checked={settings.nhis_enabled}
+            onChange={handleChange}
+            className="sr-only peer"
+          />
+          <div className="w-12 h-7 bg-[#D8D4CD] rounded-full peer peer-checked:bg-[#008751] transition-colors duration-200"></div>
+          <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faFileInvoice} className="mr-1.5 text-[#008751] text-[11px]" />
+            Default Tariff
+          </label>
+          <input
+            type="text"
+            name="nhis_default_tariff"
+            value={settings.nhis_default_tariff}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-[#5A5A5A] mb-1">
+            <FontAwesomeIcon icon={faCalendarDay} className="mr-1.5 text-[#008751] text-[11px]" />
+            Claim Submission Days
+          </label>
+          <input
+            type="number"
+            name="nhis_claim_submission_days"
+            min="1"
+            value={settings.nhis_claim_submission_days}
+            onChange={handleChange}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white text-xs sm:text-sm"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  // Main render
+  return (
+    <div className="dashboard min-h-screen bg-[#F7F5F2] p-3 sm:p-4 lg:p-6 xl:p-8 max-w-[1600px] mx-auto font-sans">
+      {/* Loading Overlay */}
+      {isBusy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A1A1A] bg-opacity-30 backdrop-blur-sm p-4">
+          <div className="bg-white p-6 sm:p-8 shadow-2xl max-w-sm w-full mx-4">
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <div className="h-12 w-12 sm:h-16 sm:w-16 animate-spin rounded-full border-4 border-[#E8E3DC] border-t-[#008751]"></div>
+              </div>
+              <p className="mt-4 sm:mt-6 text-base sm:text-lg font-semibold text-[#1A1A1A] text-center">{busyMessage}</p>
+              <p className="mt-1 text-xs sm:text-sm text-[#5A5A5A] text-center">Please wait...</p>
             </div>
-            <button 
-              onClick={() => { setMessage(''); setMessageType(''); }}
-              className="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0 p-1"
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="mb-4 sm:mb-6 lg:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-[#1A1A1A] flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className="text-[#008751]">
+                System Settings
+              </span>
+            </h1>
+            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-[#5A5A5A]">
+              Manage your healthcare facility's configuration and preferences
+            </p>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 bg-white border border-[#E8E3DC] px-3 sm:px-4 py-2 flex-shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#008751] flex items-center justify-center text-white text-xs sm:text-sm font-semibold">
+              {tenantInfo.name?.charAt(0) || 'T'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-[#1A1A1A] truncate">{tenantInfo.name || 'Unknown Tenant'}</p>
+              <p className="text-[10px] sm:text-xs text-[#5A5A5A]">Active</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Notification Toast */}
+      {message && (
+        <div className={`mb-4 sm:mb-6 p-3 sm:p-4 border ${
+          messageType === 'success' 
+            ? 'bg-[#EAF3EE] border-[#D0E3D8] text-[#2D7D46]' 
+            : 'bg-[#F5EDEA] border-[#E8D6D0] text-[#C8553D]'
+        } flex items-center justify-between shadow-sm gap-2`}>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <FontAwesomeIcon 
+              icon={messageType === 'success' ? faCheckCircle : faExclamationCircle}
+              className={`${messageType === 'success' ? 'text-[#2D7D46]' : 'text-[#C8553D]'} flex-shrink-0`}
+            />
+            <p className="font-medium text-sm sm:text-base break-words">{message}</p>
+          </div>
+          <button 
+            onClick={() => { setMessage(''); setMessageType(''); }}
+            className="text-[#5A5A5A] hover:text-[#1A1A1A] transition-colors flex-shrink-0 p-1"
+          >
+            <FontAwesomeIcon icon={faTimes} />
+          </button>
+        </div>
+      )}
+
+      <form id="settings-form" onSubmit={handleSubmit}>
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
+          {/* Mobile Navigation */}
+          <div className="lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="w-full flex items-center justify-between bg-white border border-[#E8E3DC] px-4 py-3"
             >
-              <FontAwesomeIcon icon={faTimes} />
+              <div className="flex items-center gap-3">
+                <FontAwesomeIcon icon={faBars} className="text-[#5A5A5A]" />
+                <span className="font-medium text-[#1A1A1A]">{sections.find(s => s.id === activeSection)?.label || 'General'}</span>
+              </div>
+              <FontAwesomeIcon icon={faChevronDown} className={`text-[#5A5A5A] transition-transform duration-200 ${mobileMenuOpen ? 'rotate-180' : ''}`} />
             </button>
+            
+            {mobileMenuOpen && (
+              <div className="mt-2 bg-white border border-[#E8E3DC] p-2 animate-slideDown">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveSection(section.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-200 text-left ${
+                      activeSection === section.id
+                        ? 'bg-[#E8F5EF] text-[#008751] border-l-2 border-[#008751]'
+                        : 'text-[#5A5A5A] hover:bg-[#F7F5F2] hover:text-[#1A1A1A]'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={section.icon} className="text-base" />
+                    <span className="font-medium text-sm">{section.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar Navigation - Desktop */}
+          <div className="hidden lg:block lg:w-64 xl:w-72 flex-shrink-0">
+            <div className="bg-white border border-[#E8E3DC] p-4 sticky top-8">
+              <nav className="space-y-1">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 text-left ${
+                      activeSection === section.id
+                        ? 'bg-[#E8F5EF] text-[#008751] border-l-2 border-[#008751]'
+                        : 'text-[#5A5A5A] hover:bg-[#F7F5F2] hover:text-[#1A1A1A]'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={section.icon} className="text-lg" />
+                    <span className="font-medium text-sm">{section.label}</span>
+                  </button>
+                ))}
+              </nav>
+              
+              <div className="mt-6 pt-6 border-t border-[#E8E3DC] hidden xl:block">
+                <div className="bg-[#F7F5F2] p-4">
+                  <p className="text-[10px] text-[#5A5A5A] font-medium uppercase tracking-wider">Quick Tips</p>
+                  <p className="mt-2 text-sm text-[#5A5A5A]">
+                    Settings are automatically saved to your tenant profile
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 min-w-0 space-y-4 sm:space-y-6">
+            <div className="bg-white border border-[#E8E3DC] overflow-hidden">
+              <div className="px-4 sm:px-5 py-2.5 sm:py-3 border-b border-[#E8E3DC] bg-[#F7F5F2]">
+                <h2 className="text-base sm:text-lg font-display font-semibold text-[#1A1A1A] flex items-center gap-2">
+                  <FontAwesomeIcon icon={sections.find(s => s.id === activeSection)?.icon || faCog} className="text-[#008751] text-sm" />
+                  {sections.find(s => s.id === activeSection)?.label || 'General'} Settings
+                </h2>
+                <p className="text-xs text-[#5A5A5A] mt-0.5">
+                  {activeSection === 'general' && 'Configure your facility\'s basic information and branding'}
+                  {activeSection === 'billing' && 'Configure financial and currency preferences'}
+                  {activeSection === 'notifications' && 'Manage how your facility receives alerts and updates'}
+                  {activeSection === 'communication' && 'Configure your hospital\'s unique email and SMS sender identity'}
+                  {activeSection === 'security' && 'Protect your facility\'s data with these security measures'}
+                  {activeSection === 'backup' && 'Configure automated backup strategies for your data'}
+                  {activeSection === 'nhis' && 'Configure National Health Insurance Scheme integration'}
+                </p>
+              </div>
+              {renderSectionContent()}
+            </div>
+          </div>
+        </div>
+      </form>
+
+      {/* Invitation Section */}
+      <div className="mt-4 sm:mt-6 border border-[#E8E3DC] bg-white p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-display font-semibold text-[#1A1A1A] flex items-center gap-2">
+              <FontAwesomeIcon icon={faUserPlus} className="text-[#008751]" />
+              Invite staff to this tenant
+            </h3>
+            <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-[#5A5A5A]">
+              Create a tenant-scoped registration link that expires after a chosen time and requires admin approval.
+            </p>
+          </div>
+          <div className="bg-[#F7F5F2] px-3 py-1 text-xs sm:text-sm font-medium text-[#008751] flex-shrink-0 border border-[#E8E3DC]">
+            {tablePagination.totalItems} total
+          </div>
+        </div>
+
+        {inviteFeedback && (
+          <div className={`mt-4 border px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm ${
+            inviteFeedbackType === 'success' 
+              ? 'border-[#D0E3D8] bg-[#EAF3EE] text-[#2D7D46]' 
+              : 'border-[#E8D6D0] bg-[#F5EDEA] text-[#C8553D]'
+          }`}>
+            {inviteFeedback}
           </div>
         )}
 
-<form id="settings-form" onSubmit={handleSubmit}>
-          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
-            {/* Mobile Navigation Toggle */}
-            <div className="lg:hidden">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="w-full flex items-center justify-between bg-white rounded-xl shadow-sm border border-slate-200 px-4 py-3"
+        <div className="mt-4 sm:mt-5 space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="mb-1 block text-xs sm:text-sm font-medium text-[#5A5A5A]">Email address</label>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="w-full border border-[#D8D4CD] px-3 sm:px-4 py-2 sm:py-2.5 focus:border-[#008751] focus:outline-none transition-colors text-sm bg-white"
+                placeholder="staff@facility.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs sm:text-sm font-medium text-[#5A5A5A]">Role</label>
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                className="w-full border border-[#D8D4CD] px-3 sm:px-4 py-2 sm:py-2.5 focus:border-[#008751] focus:outline-none transition-colors text-sm bg-white"
               >
-                <div className="flex items-center gap-3">
-                  <FontAwesomeIcon icon={faBars} className="text-slate-600" />
-                  <span className="font-medium text-slate-700">{sections.find(s => s.id === activeSection)?.label || 'General'}</span>
-                </div>
-                <FontAwesomeIcon icon={faChevronDown} className={`text-slate-400 transition-transform duration-200 ${mobileMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {mobileMenuOpen && (
-                <div className="mt-2 bg-white rounded-xl shadow-lg border border-slate-200 p-2 animate-slideDown">
-                  {sections.map((section) => (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveSection(section.id);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${
-                        activeSection === section.id
-                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm border border-blue-200'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-                      }`}
-                    >
-                      <FontAwesomeIcon icon={section.icon} className="text-base" />
-                      <span className="font-medium text-sm">{section.label}</span>
-                      {activeSection === section.id && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-600"></span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Sidebar Navigation - Desktop */}
-            <div className="hidden lg:block lg:w-64 xl:w-72 flex-shrink-0">
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sticky top-8">
-                <nav className="space-y-1">
-                  {sections.map((section) => (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => setActiveSection(section.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left ${
-                        activeSection === section.id
-                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm border border-blue-200'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-                      }`}
-                    >
-                      <FontAwesomeIcon icon={section.icon} className="text-lg" />
-                      <span className="font-medium text-sm">{section.label}</span>
-                      {activeSection === section.id && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-600"></span>
-                      )}
-                    </button>
-                  ))}
-                </nav>
-                
-                <div className="mt-6 pt-6 border-t border-slate-200 hidden xl:block">
-                  <div className="bg-slate-50 rounded-xl p-4">
-                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Quick Tips</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Settings are automatically saved to your tenant profile
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 min-w-0 space-y-4 sm:space-y-6">
-              {/* General Section */}
-              {activeSection === 'general' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                  <div className="px-4 sm:px-5 py-2.5 sm:py-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/30">
-                    <h2 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
-                      <FontAwesomeIcon icon={faCog} className="text-blue-600 text-sm" />
-                      General Settings
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">Configure your facility's basic information and branding</p>
-                  </div>
-                  <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-                    {/* Logo Section */}
-                    <div className="bg-gradient-to-br from-slate-50 to-blue-50/20 rounded-lg p-3 sm:p-4 border border-dashed border-slate-200">
-                      <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2 sm:mb-3">
-                        <FontAwesomeIcon icon={faImage} className="mr-1.5 text-blue-600 text-xs" />
-                        Facility Logo
-                        <span className="ml-1.5 text-[11px] font-normal text-slate-400">(Recommended: 400×400px)</span>
-                      </label>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                        <div className="flex-shrink-0 flex flex-col items-center sm:items-start">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
-                            {logoPreview ? (
-                              <img
-                                src={logoPreview}
-                                alt="Facility logo"
-                                className="w-full h-full object-contain p-1.5 sm:p-2"
-                              />
-                            ) : (
-                              <div className="text-center text-slate-400">
-                                <FontAwesomeIcon icon={faImage} className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-0.5" />
-                                <p className="text-[10px] sm:text-xs">No logo</p>
-                              </div>
-                            )}
-                          </div>
-                          {logoPreview && (
-                            <button
-                              type="button"
-                              onClick={handleRemoveLogo}
-                              className="mt-1.5 text-[11px] sm:text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
-                            >
-                              <FontAwesomeIcon icon={faTrash} className="mr-1 text-[10px]" />
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 space-y-2 min-w-0">
-                          <div>
-                            <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                              Upload new logo
-                            </label>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <label className="cursor-pointer bg-white hover:bg-slate-50 text-slate-700 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-300 transition-all hover:border-blue-400 hover:shadow-sm font-medium text-xs sm:text-sm">
-                                <FontAwesomeIcon icon={faUpload} className="mr-1.5 text-[10px]" />
-                                Choose file
-                                <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
-                              </label>
-                              {logo && (
-                                <span className="text-[11px] sm:text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg truncate max-w-[120px] sm:max-w-[180px]">
-                                  {logo.name} ({(logo.size / 1024).toFixed(1)} KB)
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-1 text-[11px] text-slate-400">JPG, PNG, or SVG • Max 5MB</p>
-                          </div>
-                          {logo && (
-                            <button
-                              type="button"
-                              onClick={handleLogoUpload}
-                              disabled={logoUploading}
-                              className={`px-3 sm:px-3.5 py-1.5 rounded-lg font-medium text-xs transition-all ${
-                                logoUploading 
-                                  ? 'bg-slate-200 text-slate-500 cursor-not-allowed' 
-                                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow'
-                              }`}
-                            >
-                              {logoUploading ? (
-                                <>
-                                  <FontAwesomeIcon icon={faSpinner} className="mr-1.5 animate-spin text-[10px]" />
-                                  Uploading...
-                                </>
-                              ) : (
-                                <>
-                                  <FontAwesomeIcon icon={faUpload} className="mr-1.5 text-[10px]" />
-                                  Upload logo
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* System Information */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                          <FontAwesomeIcon icon={faClock} className="mr-1.5 text-blue-600 text-[11px]" />
-                          Dashboard refresh interval
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="15"
-                            max="300"
-                            name="dashboard_refresh_interval"
-                            value={settings.dashboard_refresh_interval}
-                            onChange={handleChange}
-                            className="w-16 sm:w-20 px-2 sm:px-3 py-1.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-xs sm:text-sm"
-                          />
-                          <span className="text-[11px] sm:text-xs text-slate-500">seconds</span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-slate-400">Reloads sidebar insights at this interval (min 15 sec).</p>
-                        {refreshHint && (
-                          <p className="mt-1 text-[11px] sm:text-xs text-emerald-700">{refreshHint}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                          <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-1.5 text-blue-600 text-[11px]" />
-                          Default Ward
-                        </label>
-                        <input
-                          type="text"
-                          name="default_ward"
-                          value={settings.default_ward}
-                          onChange={handleChange}
-                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-xs sm:text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Billing Section */}
-              {activeSection === 'billing' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-emerald-50/30">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
-                      <FontAwesomeIcon icon={faMoneyBillWave} className="text-emerald-600" />
-                      Billing Settings
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Configure financial and currency preferences</p>
-                  </div>
-                  <div className="p-4 sm:p-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faGlobe} className="mr-2 text-emerald-600" />
-                          Currency
-                        </label>
-                        <input
-                          type="text"
-                          name="currency"
-                          value={settings.currency}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faCreditCard} className="mr-2 text-emerald-600" />
-                          Currency Symbol
-                        </label>
-                        <input
-                          type="text"
-                          name="currency_symbol"
-                          value={settings.currency_symbol}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faPercentage} className="mr-2 text-emerald-600" />
-                          Tax Rate (%)
-                        </label>
-                        <input
-                          type="number"
-                          name="tax_rate"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={settings.tax_rate}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faClock} className="mr-2 text-emerald-600" />
-                          Billing Cycle
-                        </label>
-                        <select
-                          name="billing_cycle"
-                          value={settings.billing_cycle}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 appearance-none text-sm sm:text-base"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="quarterly">Quarterly</option>
-                          <option value="yearly">Yearly</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Notification Section */}
-              {activeSection === 'notifications' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-amber-50/30">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
-                      <FontAwesomeIcon icon={faBell} className="text-amber-600" />
-                      Notification Settings
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Manage how your facility receives alerts and updates</p>
-                  </div>
-                  <div className="p-4 sm:p-6">
-                    <div className="space-y-3 sm:space-y-4">
-                      {[
-                        { name: 'email_notifications', label: 'Email notifications', desc: 'Receive updates via email', icon: faEnvelope },
-                        { name: 'sms_notifications', label: 'SMS notifications', desc: 'Receive updates via text message', icon: faSms },
-                        { name: 'push_notifications', label: 'Push notifications', desc: 'Receive real-time in-app alerts', icon: faMobileAlt },
-                      ].map((item) => (
-                        <div key={item.name} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-slate-50/50 rounded-xl hover:bg-slate-50 transition-colors gap-2 sm:gap-4">
-                          <div>
-                            <label className="text-sm font-medium text-slate-700 cursor-pointer">
-                              <FontAwesomeIcon icon={item.icon} className="mr-2 text-amber-600" />
-                              {item.label}
-                            </label>
-                            <p className="text-xs text-slate-400 mt-0.5">{item.desc}</p>
-                          </div>
-                          <div className="relative inline-block w-12 h-7 flex-shrink-0">
-                            <input
-                              type="checkbox"
-                              name={item.name}
-                              checked={settings[item.name]}
-                              onChange={handleChange}
-                              className="sr-only peer"
-                            />
-                            <div className="w-12 h-7 bg-slate-300 rounded-full peer peer-checked:bg-blue-600 transition-colors duration-200"></div>
-                            <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Communication Section */}
-              {activeSection === 'communication' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-teal-50/30">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
-                      <FontAwesomeIcon icon={faEnvelopeOpenText} className="text-teal-600" />
-                      Communication Settings
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Configure your hospital's unique email and SMS sender identity</p>
-                  </div>
-                  
-                  <div className="p-3 sm:p-4 md:p-6">
-                    {/* Tab Switcher + Save button - properly responsive */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
-                      <div className="flex gap-1.5 sm:gap-2 p-1 bg-slate-100 rounded-xl w-full sm:w-auto overflow-x-auto">
-                        <button
-                          type="button"
-                          onClick={() => setCommunicationTab('email')}
-                          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none justify-center ${
-                            communicationTab === 'email'
-                              ? 'bg-white text-teal-700 shadow-sm border border-teal-200'
-                              : 'text-slate-600 hover:text-slate-800'
-                          }`}
-                        >
-                          <FontAwesomeIcon icon={faEnvelope} className="text-teal-600 text-xs sm:text-sm" />
-                          <span>Email</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCommunicationTab('sms')}
-                          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none justify-center ${
-                            communicationTab === 'sms'
-                              ? 'bg-white text-teal-700 shadow-sm border border-teal-200'
-                              : 'text-slate-600 hover:text-slate-800'
-                          }`}
-                        >
-                          <FontAwesomeIcon icon={faSms} className="text-teal-600 text-xs sm:text-sm" />
-                          <span>SMS</span>
-                        </button>
-                      </div>
-                      <button
-                        type="submit"
-                        form="settings-form"
-                        className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl font-medium shadow-sm hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
-                      >
-                        <FontAwesomeIcon icon={faSave} className="text-xs sm:text-sm" />
-                        <span>Save communication settings</span>
-                      </button>
-                    </div>
-
-                    {/* Email Tab */}
-                    {communicationTab === 'email' && (
-                      <div className="space-y-4 sm:space-y-5">
-                        <div className="rounded-xl border border-slate-200 p-3 sm:p-4">
-                          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-3 sm:mb-4">
-                            <FontAwesomeIcon icon={faEnvelope} className="text-teal-600" />
-                            <span>Email Identity</span>
-                          </h3>
-                          
-                          {/* Responsive grid - 1 column on mobile, 2 on tablet/desktop */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                From Email
-                              </label>
-                              <input
-                                type="email"
-                                name="email_from"
-                                value={communication.email_from}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
-                                placeholder="no-reply@hospital.org"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                From Name
-                              </label>
-                              <input
-                                type="text"
-                                name="from_name"
-                                value={communication.from_name}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
-                                placeholder="St. Mary's Hospital"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                Email Provider
-                              </label>
-                              <select
-                                name="email_provider"
-                                value={communication.email_provider}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white"
-                              >
-                                <option value="default">Default</option>
-                                <option value="sendgrid">SendGrid</option>
-                                <option value="ses">Amazon SES</option>
-                                <option value="smtp">Custom SMTP</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                Email Host
-                              </label>
-                              <input
-                                type="text"
-                                name="email_host"
-                                value={communication.email_host}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
-                                placeholder="smtp.hospital.org"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                Email Port
-                              </label>
-                              <input
-                                type="number"
-                                name="email_port"
-                                value={communication.email_port}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
-                                placeholder="587"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                Email Username
-                              </label>
-                              <input
-                                type="text"
-                                name="email_username"
-                                value={communication.email_username}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                Email Password
-                              </label>
-                              <input
-                                type="password"
-                                name="email_password"
-                                value={communication.email_password}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm"
-                              />
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
-                              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  name="email_use_tls"
-                                  checked={communication.email_use_tls}
-                                  onChange={handleCommunicationChange}
-                                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
-                                />
-                                <span className="text-xs sm:text-sm">Use TLS</span>
-                              </label>
-                              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  name="email_enabled"
-                                  checked={communication.email_enabled}
-                                  onChange={handleCommunicationChange}
-                                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
-                                />
-                                <span className="text-xs sm:text-sm">Email enabled</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* SMS Tab */}
-                    {communicationTab === 'sms' && (
-                      <div className="space-y-4 sm:space-y-5">
-                        <div className="rounded-xl border border-slate-200 p-3 sm:p-4">
-                          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-3 sm:mb-4">
-                            <FontAwesomeIcon icon={faSms} className="text-teal-600" />
-                            <span>SMS Identity</span>
-                          </h3>
-                          
-                          {/* Responsive grid - 1 column on mobile, 2 on tablet/desktop */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                SMS Provider
-                              </label>
-                              <select
-                                name="sms_provider"
-                                value={communication.sms_provider}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white"
-                              >
-                                <option value="default">Default</option>
-                                <option value="twilio">Twilio</option>
-                                <option value="messagebird">MessageBird</option>
-                                <option value="vonage">Vonage</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                Sender ID
-                              </label>
-                              <input
-                                type="text"
-                                name="sms_sender_id"
-                                value={communication.sms_sender_id}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
-                                placeholder="HOSPITAL"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                SMS Phone Number
-                              </label>
-                              <input
-                                type="text"
-                                name="sms_phone_number"
-                                value={communication.sms_phone_number}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
-                                placeholder="+1234567890"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                SMS API Key
-                              </label>
-                              <input
-                                type="password"
-                                name="sms_api_key"
-                                value={communication.sms_api_key}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">
-                                Country Code
-                              </label>
-                              <input
-                                type="text"
-                                name="sms_country_code"
-                                value={communication.sms_country_code}
-                                onChange={handleCommunicationChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm placeholder:text-xs"
-                                placeholder="NG"
-                              />
-                            </div>
-                            <div className="flex items-center pt-1">
-                              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  name="sms_enabled"
-                                  checked={communication.sms_enabled}
-                                  onChange={handleCommunicationChange}
-                                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
-                                />
-                                <span className="text-xs sm:text-sm">SMS enabled</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Security Section */}
-              {activeSection === 'security' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-red-50/30">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
-                      <FontAwesomeIcon icon={faLock} className="text-red-600" />
-                      Security Settings
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Protect your facility's data with these security measures</p>
-                  </div>
-                  <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faClock} className="mr-2 text-red-600" />
-                          Session Timeout (minutes)
-                        </label>
-                        <input
-                          type="number"
-                          name="session_timeout"
-                          min="5"
-                          value={settings.session_timeout}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faUserShield} className="mr-2 text-red-600" />
-                          Max Login Attempts
-                        </label>
-                        <input
-                          type="number"
-                          name="max_login_attempts"
-                          min="1"
-                          value={settings.max_login_attempts}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-slate-50/50 rounded-xl hover:bg-slate-50 transition-colors gap-2 sm:gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 cursor-pointer">
-                          <FontAwesomeIcon icon={faShieldAlt} className="mr-2 text-red-600" />
-                          Two-factor authentication
-                        </label>
-                        <p className="text-xs text-slate-400 mt-0.5">Require 2FA for all users</p>
-                      </div>
-                      <div className="relative inline-block w-12 h-7 flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          name="require_2fa"
-                          checked={settings.require_2fa}
-                          onChange={handleChange}
-                          className="sr-only peer"
-                        />
-                        <div className="w-12 h-7 bg-slate-300 rounded-full peer peer-checked:bg-blue-600 transition-colors duration-200"></div>
-                        <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Backup Section */}
-              {activeSection === 'backup' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-purple-50/30">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
-                      <FontAwesomeIcon icon={faDatabase} className="text-purple-600" />
-                      Backup Settings
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Configure automated backup strategies for your data</p>
-                  </div>
-                  <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-slate-50/50 rounded-xl hover:bg-slate-50 transition-colors gap-2 sm:gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 cursor-pointer">
-                          <FontAwesomeIcon icon={faSync} className="mr-2 text-purple-600" />
-                          Automatic backups
-                        </label>
-                        <p className="text-xs text-slate-400 mt-0.5">Schedule regular data backups</p>
-                      </div>
-                      <div className="relative inline-block w-12 h-7 flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          name="auto_backup"
-                          checked={settings.auto_backup}
-                          onChange={handleChange}
-                          className="sr-only peer"
-                        />
-                        <div className="w-12 h-7 bg-slate-300 rounded-full peer peer-checked:bg-blue-600 transition-colors duration-200"></div>
-                        <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faClock} className="mr-2 text-purple-600" />
-                          Backup Frequency
-                        </label>
-                        <select
-                          name="backup_frequency"
-                          value={settings.backup_frequency}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 appearance-none text-sm sm:text-base"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faCalendarDay} className="mr-2 text-purple-600" />
-                          Retention (days)
-                        </label>
-                        <input
-                          type="number"
-                          name="backup_retention_days"
-                          min="1"
-                          value={settings.backup_retention_days}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* NHIS Section */}
-              {activeSection === 'nhis' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-green-50/30">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
-                      <FontAwesomeIcon icon={faHospital} className="text-green-600" />
-                      NHIS Settings
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Configure National Health Insurance Scheme integration</p>
-                  </div>
-                  <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-slate-50/50 rounded-xl hover:bg-slate-50 transition-colors gap-2 sm:gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 cursor-pointer">
-                          <FontAwesomeIcon icon={faHospital} className="mr-2 text-green-600" />
-                          NHIS Integration
-                        </label>
-                        <p className="text-xs text-slate-400 mt-0.5">Enable NHIS claims and billing</p>
-                      </div>
-                      <div className="relative inline-block w-12 h-7 flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          name="nhis_enabled"
-                          checked={settings.nhis_enabled}
-                          onChange={handleChange}
-                          className="sr-only peer"
-                        />
-                        <div className="w-12 h-7 bg-slate-300 rounded-full peer peer-checked:bg-blue-600 transition-colors duration-200"></div>
-                        <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-all duration-200 peer-checked:translate-x-5 shadow-sm"></div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faFileInvoice} className="mr-2 text-green-600" />
-                          Default Tariff
-                        </label>
-                        <input
-                          type="text"
-                          name="nhis_default_tariff"
-                          value={settings.nhis_default_tariff}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1.5">
-                          <FontAwesomeIcon icon={faCalendarDay} className="mr-2 text-green-600" />
-                          Claim Submission Days
-                        </label>
-                        <input
-                          type="number"
-                          name="nhis_claim_submission_days"
-                          min="1"
-                          value={settings.nhis_claim_submission_days}
-                          onChange={handleChange}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none bg-slate-50/50 text-sm sm:text-base"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                <option value="doctor">Doctor</option>
+                <option value="nurse">Nurse</option>
+                <option value="pharmacist">Pharmacist</option>
+                <option value="receptionist">Receptionist</option>
+                <option value="admin">Administrator</option>
+                <option value="hr_manager">HR Manager</option>
+                <option value="accountant">Accountant</option>
+              </select>
             </div>
           </div>
-        </form>
 
-        {/* Full-width Invitation Section */}
-        <div className="mt-4 sm:mt-6">
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/70 p-4 sm:p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
-                  <FontAwesomeIcon icon={faUserPlus} className="text-blue-600" />
-                  Invite staff to this tenant
-                </h3>
-                <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-slate-600">Create a tenant-scoped registration link that expires after a chosen time and requires admin approval.</p>
-              </div>
-              <div className="rounded-full bg-white px-3 py-1 text-xs sm:text-sm font-medium text-blue-700 shadow-sm flex-shrink-0">
-                {tablePagination.totalItems} total
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="mb-1 block text-xs sm:text-sm font-medium text-[#5A5A5A]">Expiry (hours)</label>
+              <input
+                type="number"
+                min="1"
+                max="720"
+                value={inviteExpiryHours}
+                onChange={(e) => setInviteExpiryHours(e.target.value)}
+                className="w-full border border-[#D8D4CD] px-3 sm:px-4 py-2 sm:py-2.5 focus:border-[#008751] focus:outline-none transition-colors text-sm bg-white"
+              />
             </div>
-
-            {inviteFeedback && (
-              <div className={`mt-4 rounded-xl border px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm ${inviteFeedbackType === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-                {inviteFeedback}
-              </div>
-            )}
-
-            <div className="mt-4 sm:mt-5 space-y-3 sm:space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="mb-1 block text-xs sm:text-sm font-medium text-slate-700">Email address</label>
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-blue-500 text-sm"
-                    placeholder="staff@facility.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs sm:text-sm font-medium text-slate-700">Role</label>
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-blue-500 text-sm"
-                  >
-                    <option value="doctor">Doctor</option>
-                    <option value="nurse">Nurse</option>
-                    <option value="pharmacist">Pharmacist</option>
-                    <option value="receptionist">Receptionist</option>
-                    <option value="admin">Administrator</option>
-                    <option value="hr_manager">HR Manager</option>
-                    <option value="accountant">Accountant</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="mb-1 block text-xs sm:text-sm font-medium text-slate-700">Expiry (hours)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="720"
-                    value={inviteExpiryHours}
-                    onChange={(e) => setInviteExpiryHours(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-blue-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs sm:text-sm font-medium text-slate-700">Message (optional)</label>
-                  <input
-                    type="text"
-                    value={inviteMessage}
-                    onChange={(e) => setInviteMessage(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 sm:px-4 py-2 sm:py-2.5 outline-none focus:border-blue-500 text-sm"
-                    placeholder="Welcome to the team"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={handleCreateInvitation}
-                  disabled={inviteLoading}
-                  className="rounded-xl bg-blue-600 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
-                >
-                  {inviteLoading ? 'Creating link...' : 'Create invitation link'}
-                </button>
-                {inviteLink && (
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(inviteLink).then(() => setInviteCopied(true))}
-                    className="rounded-xl border border-slate-300 bg-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 transition-colors"
-                  >
-                    <FontAwesomeIcon icon={faCopy} className="mr-2" />
-                    {inviteCopied ? 'Copied' : 'Copy link'}
-                  </button>
-                )}
-              </div>
-
-              {inviteLink && (
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-700 break-all">
-                  <p className="mb-2 font-medium text-slate-800">Invitation link</p>
-                  <p className="break-all">{inviteLink}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Combined Table */}
-            <div className="mt-5 sm:mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gradient-to-r from-slate-50 to-blue-50/50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        <span className="flex items-center gap-1">
-                          <FontAwesomeIcon icon={faUser} className="text-slate-400" />
-                          <span className="hidden xs:inline">Email/Name</span>
-                          <span className="xs:hidden">User</span>
-                        </span>
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden sm:table-cell">
-                        <FontAwesomeIcon icon={faUserShield} className="mr-1 text-slate-400" />
-                        Role
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden md:table-cell">
-                        <FontAwesomeIcon icon={faClipboardList} className="mr-1 text-slate-400" />
-                        Type
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        <FontAwesomeIcon icon={faClock} className="mr-1 text-slate-400" />
-                        Status
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden lg:table-cell">
-                        Expires
-                      </th>
-                      <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {pendingUsersLoading || invitationsLoading ? (
-                      <tr>
-                        <td colSpan="6" className="px-4 py-8 text-center text-slate-500">
-                          <FontAwesomeIcon icon={faSpinner} className="mr-2 animate-spin" />
-                          Loading...
-                        </td>
-                      </tr>
-                    ) : getPaginatedTableData().length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="px-4 py-8 text-center text-slate-500">
-                          No pending approvals or invitations.
-                        </td>
-                      </tr>
-                    ) : (
-                      getPaginatedTableData().map((item) => (
-                        <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors ${item.archived ? 'bg-slate-50/40' : ''}`}>
-                          <td className="px-3 py-3">
-                            <div>
-                              <p className="font-medium text-slate-800 text-xs sm:text-sm truncate max-w-[120px] xs:max-w-[180px] sm:max-w-[200px]">
-                                {item.name || item.email}
-                              </p>
-                              <p className="text-[10px] sm:text-xs text-slate-400 truncate max-w-[120px] xs:max-w-[180px] sm:max-w-[200px]">
-                                {item.email}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 hidden sm:table-cell">
-                            <span className="text-xs font-medium text-slate-600 capitalize">
-                              {item.role}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3 hidden md:table-cell">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                              item.type === 'pending'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : item.archived
-                                ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                                : 'bg-blue-50 text-blue-700 border border-blue-200'
-                            }`}>
-                              {item.type === 'pending' ? 'Approval' : item.archived ? 'Archived' : 'Invitation'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3">
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                              item.status === 'pending'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : item.status === 'accepted'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-slate-50 text-slate-600 border border-slate-200'
-                            }`} title={item.status}>
-                              {item.status === 'pending' ? (
-                                <FontAwesomeIcon icon={faClock} />
-                              ) : item.status === 'accepted' ? (
-                                <FontAwesomeIcon icon={faCheck} />
-                              ) : (
-                                <FontAwesomeIcon icon={faCircle} />
-                              )}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3 hidden lg:table-cell">
-                            <span className="text-xs text-slate-500">
-                              {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : '—'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex items-center justify-center gap-1 sm:gap-2">
-                              {item.type === 'pending' ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleApproveUser(item.user.id)}
-                                    className="rounded-lg bg-emerald-600 p-1.5 text-white hover:bg-emerald-700 transition-colors"
-                                    title="Approve user"
-                                  >
-                                    <FontAwesomeIcon icon={faCheck} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRejectUser(item.user.id)}
-                                    className="rounded-lg bg-red-600 p-1.5 text-white hover:bg-red-700 transition-colors"
-                                    title="Reject user"
-                                  >
-                                    <FontAwesomeIcon icon={faTimes} />
-                                  </button>
-                                </>
-                              ) : (
-                                <div className="flex items-center gap-1">
-                                  {item.archived ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUnarchiveInvitation(item.id)}
-                                      className="rounded-lg bg-slate-600 p-1.5 text-white hover:bg-slate-700 transition-colors"
-                                      title="Unarchive"
-                                    >
-                                      <FontAwesomeIcon icon={faUndo} />
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleArchiveInvitation(item.id)}
-                                      className="rounded-lg bg-amber-600 p-1.5 text-white hover:bg-amber-700 transition-colors"
-                                      title="Archive"
-                                    >
-                                      <FontAwesomeIcon icon={faArchive} />
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteInvitation(item.id)}
-                                    className="rounded-lg bg-red-600 p-1.5 text-white hover:bg-red-700 transition-colors"
-                                    title="Delete permanently"
-                                  >
-                                    <FontAwesomeIcon icon={faTrash} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <Pagination
-                currentPage={tablePagination.currentPage}
-                totalPages={tablePagination.totalPages}
-                totalItems={tablePagination.totalItems}
-                itemsPerPage={tablePagination.itemsPerPage}
-                onPageChange={handlePageChange}
-                onItemsPerPageChange={handleItemsPerPageChange}
+            <div>
+              <label className="mb-1 block text-xs sm:text-sm font-medium text-[#5A5A5A]">Message (optional)</label>
+              <input
+                type="text"
+                value={inviteMessage}
+                onChange={(e) => setInviteMessage(e.target.value)}
+                className="w-full border border-[#D8D4CD] px-3 sm:px-4 py-2 sm:py-2.5 focus:border-[#008751] focus:outline-none transition-colors text-sm bg-white"
+                placeholder="Welcome to the team"
               />
             </div>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <ButtonWithTooltip
+              onClick={handleCreateInvitation}
+              tooltip="Create invitation link"
+              variant="primary"
+              disabled={inviteLoading}
+            >
+              {inviteLoading ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} className="mr-1.5 animate-spin text-[10px]" />
+                  Creating link...
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUserPlus} className="mr-1.5" />
+                  Create invitation link
+                </>
+              )}
+            </ButtonWithTooltip>
+            {inviteLink && (
+              <ButtonWithTooltip
+                onClick={() => navigator.clipboard.writeText(inviteLink).then(() => setInviteCopied(true))}
+                tooltip="Copy invitation link"
+                variant="secondary"
+              >
+                <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
+                {inviteCopied ? 'Copied' : 'Copy link'}
+              </ButtonWithTooltip>
+            )}
+          </div>
+
+          {inviteLink && (
+            <div className="border border-[#E8E3DC] bg-[#F7F5F2] p-3 text-xs sm:text-sm text-[#1A1A1A] break-all">
+              <p className="mb-2 font-medium text-[#1A1A1A]">Invitation link</p>
+              <p className="break-all">{inviteLink}</p>
+            </div>
+          )}
         </div>
 
-        {/* Full-width Action Buttons */}
-        <div className="mt-4 sm:mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-4">
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end">
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="px-4 sm:px-6 py-2 sm:py-2.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-400 font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <FontAwesomeIcon icon={faUndo} />
-              Discard changes
-            </button>
-<button
-              type="submit"
-              form="settings-form"
-              className="px-6 sm:px-8 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-sm hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <FontAwesomeIcon icon={faSave} />
-              Save all settings
-            </button>
+        {/* Combined Table */}
+        <div className="mt-5 sm:mt-6 border border-[#E8E3DC] bg-white overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[#F7F5F2] border-b border-[#E8E3DC]">
+                <tr>
+                  <th className="px-3 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">
+                    <span className="flex items-center gap-1">
+                      <FontAwesomeIcon icon={faUser} className="text-[#5A5A5A]" />
+                      <span className="hidden xs:inline">Email/Name</span>
+                      <span className="xs:hidden">User</span>
+                    </span>
+                  </th>
+                  <th className="px-3 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">
+                    <FontAwesomeIcon icon={faUserShield} className="mr-1 text-[#5A5A5A]" />
+                    Role
+                  </th>
+                  <th className="px-3 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">
+                    <FontAwesomeIcon icon={faClipboardList} className="mr-1 text-[#5A5A5A]" />
+                    Type
+                  </th>
+                  <th className="px-3 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">
+                    <FontAwesomeIcon icon={faClock} className="mr-1 text-[#5A5A5A]" />
+                    Status
+                  </th>
+                  <th className="px-3 py-3 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">
+                    Expires
+                  </th>
+                  <th className="px-3 py-3 text-center text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EDE8]">
+                {pendingUsersLoading || invitationsLoading ? (
+                  <tr>
+                    <td colSpan="6" className="px-4 py-8 text-center text-[#5A5A5A]">
+                      <FontAwesomeIcon icon={faSpinner} className="mr-2 animate-spin" />
+                      Loading...
+                    </td>
+                  </tr>
+                ) : getPaginatedTableData().length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-4 py-8 text-center text-[#5A5A5A]">
+                      No pending approvals or invitations.
+                    </td>
+                  </tr>
+                ) : (
+                  getPaginatedTableData().map((item) => (
+                    <tr key={item.id} className={`hover:bg-[#F7F5F2] transition-colors ${item.archived ? 'bg-[#F7F5F2]' : ''}`}>
+                      <td className="px-3 py-3">
+                        <div>
+                          <p className="font-medium text-[#1A1A1A] text-xs sm:text-sm truncate max-w-[120px] xs:max-w-[180px] sm:max-w-[200px]">
+                            {item.name || item.email}
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-[#5A5A5A] truncate max-w-[120px] xs:max-w-[180px] sm:max-w-[200px]">
+                            {item.email}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 hidden sm:table-cell">
+                        <span className="text-xs font-medium text-[#5A5A5A] capitalize">
+                          {item.role}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 hidden md:table-cell">
+                        <span className={`text-xs font-medium px-2 py-0.5 ${
+                          item.type === 'pending'
+                            ? 'bg-[#F5F0EA] text-[#C87D3D] border border-[#F0E8DC]'
+                            : item.archived
+                            ? 'bg-[#F0EDE8] text-[#5A5A5A] border border-[#E8E3DC]'
+                            : 'bg-[#E8F5EF] text-[#008751] border border-[#C8E0D5]'
+                        }`}>
+                          {item.type === 'pending' ? 'Approval' : item.archived ? 'Archived' : 'Invitation'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`text-xs font-medium px-2 py-1 ${
+                          item.status === 'pending'
+                            ? 'bg-[#F5F0EA] text-[#C87D3D] border border-[#F0E8DC]'
+                            : item.status === 'accepted'
+                            ? 'bg-[#EAF3EE] text-[#2D7D46] border border-[#D0E3D8]'
+                            : 'bg-[#F0EDE8] text-[#5A5A5A] border border-[#E8E3DC]'
+                        }`} title={item.status}>
+                          {item.status === 'pending' ? (
+                            <FontAwesomeIcon icon={faClock} />
+                          ) : item.status === 'accepted' ? (
+                            <FontAwesomeIcon icon={faCheck} />
+                          ) : (
+                            <FontAwesomeIcon icon={faCircle} />
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 hidden lg:table-cell">
+                        <span className="text-xs text-[#5A5A5A]">
+                          {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : '—'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center justify-center gap-1 sm:gap-2">
+                          {item.type === 'pending' ? (
+                            <>
+                              <IconButton
+                                icon={faCheck}
+                                onClick={() => handleApproveUser(item.user.id)}
+                                tooltip="Approve user"
+                                variant="success"
+                                size="sm"
+                              />
+                              <IconButton
+                                icon={faTimes}
+                                onClick={() => handleRejectUser(item.user.id)}
+                                tooltip="Reject user"
+                                variant="danger"
+                                size="sm"
+                              />
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              {item.archived ? (
+                                <IconButton
+                                  icon={faUndo}
+                                  onClick={() => handleUnarchiveInvitation(item.id)}
+                                  tooltip="Unarchive"
+                                  variant="primary"
+                                  size="sm"
+                                />
+                              ) : (
+                                <IconButton
+                                  icon={faArchive}
+                                  onClick={() => handleArchiveInvitation(item.id)}
+                                  tooltip="Archive"
+                                  variant="warning"
+                                  size="sm"
+                                />
+                              )}
+                              <IconButton
+                                icon={faTrash}
+                                onClick={() => handleDeleteInvitation(item.id)}
+                                tooltip="Delete permanently"
+                                variant="danger"
+                                size="sm"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
+
+          <Pagination
+            currentPage={tablePagination.currentPage}
+            totalPages={tablePagination.totalPages}
+            totalItems={tablePagination.totalItems}
+            itemsPerPage={tablePagination.itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="mt-4 sm:mt-6 bg-white border border-[#E8E3DC] p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end">
+          <ButtonWithTooltip
+            type="button"
+            onClick={() => window.location.reload()}
+            tooltip="Discard all changes"
+            variant="secondary"
+          >
+            <FontAwesomeIcon icon={faUndo} />
+            Discard changes
+          </ButtonWithTooltip>
+          <ButtonWithTooltip
+            type="submit"
+            form="settings-form"
+            tooltip="Save all settings"
+            variant="primary"
+          >
+            <FontAwesomeIcon icon={faSave} />
+            Save all settings
+          </ButtonWithTooltip>
         </div>
       </div>
 
@@ -2025,7 +2042,6 @@ const sections = [
           animation: fadeIn 0.4s ease-out;
         }
 
-        /* Custom xs breakpoint for responsive table */
         @media (min-width: 480px) {
           .xs\\:inline {
             display: inline;
