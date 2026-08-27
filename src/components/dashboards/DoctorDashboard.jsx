@@ -9,7 +9,7 @@ import MyRosterTab from './MyRosterTab';
 import { setPatients } from '../../features/patientSlice';
 import {
   Users,
-  Stethoscope,
+  // Stethoscope,
   Activity,
   AlertCircle,
   RotateCcw,
@@ -21,7 +21,7 @@ import {
   PlusCircle,
   CheckCircle2,
   ChevronLeft,
-  ChevronRight,
+  // ChevronRight,
   Grid,
   List,
   Printer,

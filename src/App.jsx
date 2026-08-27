@@ -468,6 +468,7 @@ function AppLayout() {
                 <Route path="/settings" element={<SettingsRoute><Settings /></SettingsRoute>} />
                 <Route path="/subscription" element={<SettingsRoute><TenantSubscription /></SettingsRoute>} />
                  <Route path="/404" element={<NotFoundLayout><NotFound /></NotFoundLayout>} />
+                <Route path="*" element={<Navigate to="/404" replace />} />
                 </Routes>
               </Suspense>
             </PageErrorBoundary>
