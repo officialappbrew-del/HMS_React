@@ -1,3 +1,4 @@
+import { useState } from 'react';  // <-- ADD THIS LINE
 import { useNavigate } from 'react-router-dom';
 import { Home, ArrowLeft, Search, Compass, AlertCircle, ArrowRight, X, FileQuestion } from 'lucide-react';
 import PublicPageShell from '../components/PublicPageShell';

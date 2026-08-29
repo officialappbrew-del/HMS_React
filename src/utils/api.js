@@ -111,27 +111,8 @@ const redirectToLogin = () => {
 };
 
 const clearAuthData = () => {
-  localStorage.removeItem('patientAccessToken');
-  localStorage.removeItem('patientRefreshToken');
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('isPatientAuthenticated');
-  localStorage.removeItem('tenantId');
-  localStorage.removeItem('tenantDomain');
-  localStorage.removeItem('tenantName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userIsRootAdmin');
-  localStorage.removeItem('userEmail');
-  localStorage.removeItem('userName');
-  localStorage.removeItem('userFirstName');
-  localStorage.removeItem('userLastName');
-  localStorage.removeItem('userFullName');
-  localStorage.removeItem('licenseNumber');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('userProfilePicture');
-  localStorage.removeItem('rememberMe');
-  sessionStorage.removeItem('isAuthenticated');
-  sessionStorage.removeItem('adminAuthenticated');
+  localStorage.clear();
+  sessionStorage.clear();
   window.dispatchEvent(new Event('authChanged'));
 };
 
@@ -559,6 +540,8 @@ updateCurrent: (data) => {
 getCommunicationProfile: () => apiRequest('/api/v1/tenants/communication-profile/current/'),
   createCommunicationProfile: (data) => apiRequest('/api/v1/tenants/communication-profile/', { method: 'POST', body: JSON.stringify(data) }),
   updateCommunicationProfile: (id, data) => apiRequest(`/api/v1/tenants/communication-profile/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getExternalServiceProfile: () => apiRequest('/api/v1/tenants/external-services/current/'),
+  updateExternalServiceProfile: (data) => apiRequest('/api/v1/tenants/external-services/current/', { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 export const admissionApi = {

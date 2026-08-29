@@ -4,6 +4,7 @@ import DoctorDashboard from '../components/dashboards/DoctorDashboard';
 import NurseDashboard from '../components/dashboards/NurseDashboard';
 import ReceptionistDashboard from '../components/dashboards/ReceptionistDashboard';
 import PharmacistDashboard from '../components/dashboards/PharmacistDashboard';
+import LaboratoryDashboard from '../components/dashboards/LaboratoryDashboard';
 
 const Dashboard = () => {
   const [userRole, setUserRole] = useState(() => localStorage.getItem('userRole') || 'admin');
@@ -35,6 +36,9 @@ const Dashboard = () => {
         return <ReceptionistDashboard />;
       case 'pharmacist':
         return <PharmacistDashboard />;
+      case 'lab_tech':
+      case 'lab_manager':
+        return <LaboratoryDashboard />;
       default:
         return <AdminDashboard />;
     }

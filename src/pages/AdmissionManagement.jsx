@@ -1,6 +1,8 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import BedAllocation from './BedAllocation';
+import IPDManagement from './IPDManagement';
 import {
   Plus,
   FileText,
@@ -360,6 +362,7 @@ const AdmissionManagement = () => {
   const [showAdmissionForm, setShowAdmissionForm] = useState(false);
   const [showDischargeForm, setShowDischargeForm] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
+  const [viewMode, setViewMode] = useState('overview');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsData, setDetailsData] = useState(null);
   const [notificationModal, setNotificationModal] = useState({ show: false, message: '', type: 'success' });
@@ -511,6 +514,12 @@ const AdmissionManagement = () => {
     { id: 'pending', label: 'Pending Requests', count: pendingRequests.length, icon: Clock },
     { id: 'approved', label: 'Approved Requests', count: approvedRequests.length, icon: CheckCircle },
     { id: 'discharged', label: 'Discharged', count: dischargedPatients.length, icon: Home },
+  ];
+
+  const viewTabs = [
+    { id: 'overview', label: 'Overview', icon: FileText },
+    { id: 'bed-allocation', label: 'Patient Admin', icon: UserPlus },
+    { id: 'ipd', label: 'IPD Command Centre', icon: Stethoscope },
   ];
 
   // Handlers
@@ -1175,13 +1184,13 @@ const AdmissionManagement = () => {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
               <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-              Admission Management 
+              Patient Administration
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-              Manage patient admissions, transfers, and discharges
+              Admissions, bed coordination, and inpatient command centre in one workflow
             </p>
             <span className="inline-flex mt-2 items-center rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
-              {summaryBadge} admission sync
+              {summaryBadge} patient admin sync
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1216,42 +1225,70 @@ const AdmissionManagement = () => {
           })}
         </div>
 
-        {/* Tabs */}
         <div className="border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
-          <nav className="flex gap-4 sm:gap-6 min-w-max" aria-label="Tabs">
-            {tabs.map((tab) => {
+          <nav className="flex gap-4 sm:gap-6 min-w-max" aria-label="Clinical workflow tabs">
+            {viewTabs.map((tab) => {
               const Icon = tab.icon;
               return (
-                <Tooltip key={tab.id} text={`View ${tab.label.toLowerCase()}`}>
-                  <button
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setCurrentPage(1);
-                      setSearchQuery('');
-                    }}
-                    className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden xs:inline">{tab.label}</span>
-                    <span className="xs:hidden">{tab.id}</span>
-                    <span className="ml-1 text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
-                      {tab.count}
-                    </span>
-                  </button>
-                </Tooltip>
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setViewMode(tab.id)}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    viewMode === tab.id
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>{tab.label}</span>
+                </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-          {renderTabContent()}
-        </div>
+        {viewMode === 'overview' && (
+          <>
+            <div className="border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
+              <nav className="flex gap-4 sm:gap-6 min-w-max" aria-label="Admission tabs">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <Tooltip key={tab.id} text={`View ${tab.label.toLowerCase()}`}>
+                      <button
+                        onClick={() => {
+                          setActiveTab(tab.id);
+                          setCurrentPage(1);
+                          setSearchQuery('');
+                        }}
+                        className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                          activeTab === tab.id
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span className="hidden xs:inline">{tab.label}</span>
+                        <span className="xs:hidden">{tab.id}</span>
+                        <span className="ml-1 text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
+                          {tab.count}
+                        </span>
+                      </button>
+                    </Tooltip>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+              {renderTabContent()}
+            </div>
+          </>
+        )}
+
+        {viewMode === 'bed-allocation' && <BedAllocation />}
+        {viewMode === 'ipd' && <IPDManagement />}
       </div>
 
       {/* Admission Request Form Modal */}

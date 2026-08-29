@@ -2,94 +2,17 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { apiRequest, API_BASE_URL } from '../../utils/api';
+import { apiRequest } from '../../utils/api';
 import ConsultationV2 from '../../pages/ConsultationV2';
 import ChangePasswordModal from '../ChangePasswordModal';
 import MyRosterTab from './MyRosterTab';
 import { setPatients } from '../../features/patientSlice';
-import {
-  Users,
-  // Stethoscope,
-  Activity,
-  AlertCircle,
-  RotateCcw,
-  Calendar,
-  FileText,
-  Heart,
-  Clock,
-  Eye,
-  PlusCircle,
-  CheckCircle2,
-  ChevronLeft,
-  // ChevronRight,
-  Grid,
-  List,
-  Printer,
-  Download,
-  Search,
-  Filter,
-  Edit,
-  Trash2,
-  X,
-  UserPlus,
-  Bell,
-  Settings,
-  LogOut,
-  Menu,
-  Home,
-  Briefcase,
-  Clipboard,
-  Pill,
-  Syringe,
-  Thermometer,
-  Weight,
-  Ruler,
-  HeartPulse,
-  Brain,
-  Bone,
-  EyeOff,
-  Shield,
-  Star,
-  Award,
-  TrendingUp,
-  Users as UsersIcon,
-  Calendar as CalendarIcon,
-  Clock as ClockIcon,
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  Plus,
-  Phone,
-  Mail,
-  MapPin,
-  Map,
-  Building2,
-  Globe,
-  BookOpen,
-  Award as AwardIcon,
-  UserCircle,
-  IdCard,
-  Droplets,
-  Baby,
-  Activity as ActivityIcon,
-  Heart as HeartIcon,
-  Stethoscope as StethoscopeIcon,
-  Calendar as CalendarIcon2,
-  Clock as ClockIcon2,
-  User as UserIcon,
-  Home as HomeIcon,
-  Briefcase as BriefcaseIcon,
-  Shield as ShieldIcon,
-  HeartPulse as HeartPulseIcon,
-  Brain as BrainIcon,
-  Bone as BoneIcon,
-  Droplets as DropletsIcon,
-  Pill as PillIcon,
-  Syringe as SyringeIcon,
-  MoreVertical,
-  Upload,
-  Loader2,
-} from 'lucide-react';
+import {  Users,  Stethoscope,  Activity,  AlertCircle,  RotateCcw,  Calendar,
+FileText,  Heart,  Clock,  Eye,  ChevronLeft,  Edit,  Trash2,  X, 
+Clipboard, Stethoscope as StethoscopeIcon,
+CheckCircle, UserPlus, Plus,  Phone,   MapPin,  Map, Building2, UserCircle,  IdCard, 
+Calendar as CalendarIcon2, User as UserIcon, HeartPulse as HeartPulseIcon,  Brain as BrainIcon,  
+Droplets as DropletsIcon, MoreVertical,  Upload,  Loader2,} from 'lucide-react';
 
 // ==================== TOOLTIP COMPONENT ====================
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -103,7 +26,7 @@ const Tooltip = ({ children, text, position = 'top' }) => {
   };
 
   return (
-    <div 
+    <div
       className="relative inline-flex"
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
 import { logout } from '../utils/api';
-import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, CreditCard, LogOut, BarChart3, Share2 } from 'lucide-react';
+import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, CreditCard, LogOut, BarChart3, Share2, FlaskConical, PackageSearch, GitMerge } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
@@ -14,15 +14,16 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
     admin: [
       { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: Users, label: 'Patient Management', path: '/patients' },
+      { icon: GitMerge, label: 'Master Patient Index', path: '/patients/mpi' },
       { icon: Calendar, label: 'Appointments', path: '/appointments' },
       { icon: FileText, label: 'Billing', path: '/billing' },
       { icon: Building2, label: 'Staff Management', path: '/staff' },
-      { icon: Bed, label: 'Bed Allocation', path: '/bed-allocation' },
       { icon: Heart, label: 'Admissions', path: '/admissions' },
       { icon: Pill, label: 'Inventory', path: '/pharmacy' },
       { icon: Shield, label: 'Compliance', path: '/ndpr-compliance' },
       { icon: BarChart3, label: 'Reports', path: '/financial-analytics' },
       { icon: Share2, label: 'External Integrations', path: '/external-integrations' },
+      { icon: FlaskConical, label: 'Mirth Connect', path: '/mirth-connect' },
       { icon: Settings, label: 'Settings', path: '/settings' },
       { icon: CreditCard, label: 'Subscription', path: '/subscription' }
     ],
@@ -41,7 +42,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Users, label: 'Assigned Patients', path: '/patients' },
       { icon: Activity, label: 'Vital Signs', path: '/vital-signs' },
       { icon: Pill, label: 'Medications', path: '/pharmacy' },
-      { icon: Bed, label: 'Bed Status', path: '/bed-allocation' },
       { icon: Heart, label: 'Admissions', path: '/admissions' },
       { icon: Stethoscope, label: 'Ward Rounds', path: '/ward-rounds' },
       { icon: Calendar, label: 'Schedule', path: '/appointments' }
@@ -59,6 +59,21 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Users, label: 'Patient Profiles', path: '/patients' },
       { icon: FileText, label: 'Billing', path: '/billing' },
       { icon: Clipboard, label: 'Reports', path: '/financial-analytics' }
+    ],
+    lab_tech: [
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
+      { icon: FlaskConical, label: 'Laboratory', path: '/laboratory' },
+      { icon: Users, label: 'Patients', path: '/patients' },
+      { icon: FileText, label: 'EMR', path: '/emr' },
+      { icon: PackageSearch, label: 'Supplies', path: '/medical-supplies' }
+    ],
+    lab_manager: [
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
+      { icon: FlaskConical, label: 'Laboratory', path: '/laboratory' },
+      { icon: Users, label: 'Patients', path: '/patients' },
+      { icon: FileText, label: 'EMR', path: '/emr' },
+      { icon: PackageSearch, label: 'Supplies', path: '/medical-supplies' },
+      { icon: BarChart3, label: 'Reports', path: '/financial-analytics' }
     ]
   };
 
@@ -71,6 +86,9 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       return false;
     }
     if (item.path === '/external-integrations' && !['admin', 'super_admin', 'system_admin'].includes(userRole)) {
+      return false;
+    }
+    if (item.path === '/mirth-connect' && !['admin', 'tenant_admin', 'super_admin', 'system_admin'].includes(userRole)) {
       return false;
     }
     return true;

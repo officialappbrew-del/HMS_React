@@ -24,17 +24,19 @@ const Sidebar = lazy(() => import('./components/Sidebar'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const PatientManagement = lazy(() => import('./pages/PatientManagement'));
 const PatientJourney = lazy(() => import('./pages/PatientJourney'));
+const PatientMPI = lazy(() => import('./pages/PatientMPI'));
 const Billing = lazy(() => import('./pages/Billing'));
 const Pharmacy = lazy(() => import('./pages/Pharmacy'));
 const Consultation = lazy(() => import('./pages/Consultation'));
 const ConsultationV2 = lazy(() => import('./pages/ConsultationV2'));
-const Laboratory = lazy(() => import('./pages/Laboratory'));
+const LaboratoryDashboard = lazy(() => import('./components/dashboards/LaboratoryDashboard'));
 const StaffManagement = lazy(() => import('./pages/StaffManagement'));
 const Appointments = lazy(() => import('./pages/Appointments'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const BedAllocation = lazy(() => import('./pages/BedAllocation'));
 const AdmissionManagement = lazy(() => import('./pages/AdmissionManagement'));
+const IPDManagement = lazy(() => import('./pages/IPDManagement'));
 const WardRoundManagement = lazy(() => import('./pages/WardRoundManagement'));
 const StaffDirectory = lazy(() => import('./pages/StaffDirectory'));
 const LicenseTracking = lazy(() => import('./pages/LicenseTracking'));
@@ -69,6 +71,7 @@ const MobileMoneyIntegration = lazy(() => import('./pages/MobileMoneyIntegration
 const AppointmentReminders = lazy(() => import('./pages/AppointmentReminders'));
 const NCDCDiseaseSurveillance = lazy(() => import('./pages/NCDCDiseaseSurveillance'));
 const ExternalIntegrations = lazy(() => import('./pages/ExternalIntegrations'));
+const MirthConnect = lazy(() => import('./pages/MirthConnect'));
 const FinancialAnalytics = lazy(() => import('./pages/FinancialAnalytics'));
 const ClinicalAudit = lazy(() => import('./pages/ClinicalAudit'));
 const PatientFeedback = lazy(() => import('./pages/PatientFeedback'));
@@ -142,7 +145,7 @@ const NotFoundLayout = ({ children }) => {
       () => import('./pages/Billing'),
       () => import('./pages/Pharmacy'),
       () => import('./pages/ConsultationV2'),
-      () => import('./pages/Laboratory'),
+      () => import('./components/dashboards/LaboratoryDashboard'),
       () => import('./pages/StaffManagement'),
       () => import('./pages/Appointments'),
       () => import('./pages/Settings'),
@@ -413,18 +416,20 @@ function AppLayout() {
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/activity-log" element={<ProtectedRoute><ActivityLog onBack={() => navigate(-1)} /></ProtectedRoute>} />
                 <Route path="/patients" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
+                <Route path="/patients/mpi" element={<ProtectedRoute allowedRoles={['admin', 'tenant_admin', 'super_admin', 'system_admin']}><PatientMPI /></ProtectedRoute>} />
                 <Route path="/patients/add" element={<ProtectedRoute><PatientManagement /></ProtectedRoute>} />
                 <Route path="/patients/:patientId/journey" element={<ProtectedRoute><PatientJourney /></ProtectedRoute>} />
                 <Route path="/billing" element={<ProtectedRoute allowedRoles={['admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin']}><Billing /></ProtectedRoute>} />
                 <Route path="/pharmacy" element={<ProtectedRoute><Pharmacy /></ProtectedRoute>} />
                 <Route path="/consultation" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin', 'super_admin', 'system_admin']}><ConsultationV2 /></ProtectedRoute>} />
                 <Route path="/consultation-legacy" element={<ProtectedRoute><Consultation /></ProtectedRoute>} />
-                <Route path="/laboratory" element={<ProtectedRoute><Laboratory /></ProtectedRoute>} />
+                <Route path="/laboratory" element={<ProtectedRoute allowedRoles={['lab_tech', 'lab_manager', 'admin', 'super_admin', 'system_admin']}><LaboratoryDashboard /></ProtectedRoute>} />
                 <Route path="/staff" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
                 <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
                 <Route path="/inventory" element={<ProtectedRoute><Navigate to="/pharmacy" replace /></ProtectedRoute>} />
-                <Route path="/bed-allocation" element={<ProtectedRoute><BedAllocation /></ProtectedRoute>} />
+                <Route path="/bed-allocation" element={<ProtectedRoute><Navigate to="/admissions" replace /></ProtectedRoute>} />
                 <Route path="/admissions" element={<ProtectedRoute><AdmissionManagement /></ProtectedRoute>} />
+                <Route path="/ipd" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin', 'tenant_admin', 'super_admin', 'system_admin']}><Navigate to="/admissions" replace /></ProtectedRoute>} />
                 <Route path="/ward-rounds" element={<ProtectedRoute><WardRoundManagement /></ProtectedRoute>} />
                 <Route path="/staff-directory" element={<ProtectedRoute><StaffDirectory /></ProtectedRoute>} />
                 <Route path="/license-tracking" element={<ProtectedRoute><LicenseTracking /></ProtectedRoute>} />
@@ -459,6 +464,7 @@ function AppLayout() {
                 <Route path="/appointment-reminders" element={<ProtectedRoute><AppointmentReminders /></ProtectedRoute>} />
                 <Route path="/ncdc-surveillance" element={<ProtectedRoute><NCDCDiseaseSurveillance /></ProtectedRoute>} />
                 <Route path="/external-integrations" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'system_admin']}><ExternalIntegrations /></ProtectedRoute>} />
+                <Route path="/mirth-connect" element={<ProtectedRoute allowedRoles={['admin', 'tenant_admin', 'super_admin', 'system_admin']}><MirthConnect /></ProtectedRoute>} />
                 <Route path="/financial-analytics" element={<ProtectedRoute allowedRoles={['admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin']}><FinancialAnalytics /></ProtectedRoute>} />
                 <Route path="/clinical-audit" element={<ProtectedRoute><ClinicalAudit /></ProtectedRoute>} />
                 <Route path="/patient-feedback" element={<ProtectedRoute><PatientFeedback /></ProtectedRoute>} />

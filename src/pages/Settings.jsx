@@ -23,7 +23,6 @@ import {
   faClipboardList,
   faClock,
   faEnvelope,
-  faEnvelopeOpenText,
   faSms,
   faMobileAlt,
   faCommentDots,
@@ -354,6 +353,13 @@ const Settings = () => {
     daily_email_limit: 1000,
     daily_sms_limit: 500,
   });
+
+  const [externalServices, setExternalServices] = useState({
+    mirth_endpoint: '', mirth_channel_id: '', mirth_api_key: '', mirth_api_key_configured: false,
+    lis_endpoint: '', lis_api_key: '', lis_api_key_configured: false,
+    pacs_endpoint: '', pacs_api_key: '', pacs_api_key_configured: false,
+    fhir_endpoint: '', fhir_api_key: '', fhir_api_key_configured: false,
+  });
   
   const [logo, setLogo] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
@@ -399,6 +405,7 @@ const Settings = () => {
     { id: 'billing', label: 'Billing', icon: faMoneyBillWave },
     { id: 'notifications', label: 'Notifications', icon: faBell },
     { id: 'communication', label: 'Communication', icon: faCommentDots },
+    { id: 'external-services', label: 'External Services', icon: faGlobe },
     { id: 'security', label: 'Security', icon: faLock },
     { id: 'backup', label: 'Backup', icon: faDatabase },
     { id: 'nhis', label: 'NHIS', icon: faHospital },
@@ -419,7 +426,7 @@ const Settings = () => {
 
     const invitationItems = invitations.map(inv => ({
       id: inv.id,
-      type: 'invitation',
+      type: 'invitation', 
       email: inv.email,
       name: inv.name || inv.email,
       role: inv.role || 'User',
@@ -578,6 +585,17 @@ const Settings = () => {
     };
 
     loadCommunicationProfile();
+
+    const loadExternalServices = async () => {
+      try {
+        const profile = await tenantSettingsApi.getExternalServiceProfile();
+        setExternalServices((previous) => ({ ...previous, ...profile }));
+      } catch (error) {
+        console.error('Unable to load external service profile:', error);
+      }
+    };
+
+    loadExternalServices();
   }, []);
 
   // Update pagination when data changes
@@ -878,6 +896,12 @@ const Settings = () => {
         await tenantSettingsApi.createCommunicationProfile(communicationPayload);
       }
 
+      const externalPayload = Object.fromEntries(Object.entries(externalServices).filter(([key, value]) => {
+        if (key.endsWith('_configured')) return false;
+        return !key.endsWith('_api_key') || value || !externalServices[`${key.replace('_api_key', '')}_api_key_configured`];
+      }));
+      await tenantSettingsApi.updateExternalServiceProfile(externalPayload);
+
       setMessage('Settings saved successfully.');
       setMessageType('success');
       
@@ -905,6 +929,8 @@ const Settings = () => {
         return renderNotificationsSection();
       case 'communication':
         return renderCommunicationSection();
+      case 'external-services':
+        return renderExternalServicesSection();
       case 'security':
         return renderSecuritySection();
       case 'backup':
@@ -1135,6 +1161,72 @@ const Settings = () => {
       </div>
     </div>
   );
+
+  const renderExternalServicesSection = () => {
+    const serviceFields = [
+      { key: 'mirth', label: 'Mirth Connect', description: 'HL7 v2 transformation middleware' },
+      { key: 'lis', label: 'Laboratory Information System', description: 'External LIS endpoint' },
+      { key: 'pacs', label: 'PACS / Radiology', description: 'Imaging and radiology endpoint' },
+      { key: 'fhir', label: 'FHIR Server', description: 'External FHIR R4 endpoint' },
+    ];
+
+    return (
+      <div className="space-y-4 p-3 sm:p-4">
+        <div className="border border-[#D8D4CD] bg-[#F7F5F2] p-4">
+          <h3 className="text-sm font-semibold text-[#1A1A1A]">Tenant external services</h3>
+          <p className="mt-1 text-xs leading-5 text-[#5A5A5A]">These connections belong to this hospital tenant. Credentials are encrypted at rest and never returned after saving.</p>
+        </div>
+        {serviceFields.map(({ key, label, description }) => (
+          <div key={key} className="border border-[#E8E3DC] bg-white p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-[#1A1A1A]">{label}</h3>
+                <p className="text-xs text-[#5A5A5A]">{description}</p>
+              </div>
+              <span className={`text-[10px] font-semibold uppercase ${externalServices[`${key}_api_key_configured`] ? 'text-[#2D7D46]' : 'text-[#C87D3D]'}`}>
+                {externalServices[`${key}_api_key_configured`] ? 'Credential configured' : 'Credential not configured'}
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Endpoint URL</label>
+                <input
+                  type="url"
+                  value={externalServices[`${key}_endpoint`] || ''}
+                  onChange={(event) => setExternalServices((previous) => ({ ...previous, [`${key}_endpoint`]: event.target.value }))}
+                  placeholder={`https://${key}.example.com/api`}
+                  className="w-full border border-[#D8D4CD] px-3 py-2 text-sm outline-none focus:border-[#008751]"
+                />
+              </div>
+              {key === 'mirth' && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">Channel ID</label>
+                  <input
+                    type="text"
+                    value={externalServices.mirth_channel_id || ''}
+                    onChange={(event) => setExternalServices((previous) => ({ ...previous, mirth_channel_id: event.target.value }))}
+                    placeholder="Mirth channel ID"
+                    className="w-full border border-[#D8D4CD] px-3 py-2 text-sm outline-none focus:border-[#008751]"
+                  />
+                </div>
+              )}
+              <div className={key === 'mirth' ? '' : 'sm:col-span-2'}>
+                <label className="mb-1 block text-xs font-medium text-[#5A5A5A]">API key / token</label>
+                <input
+                  type="password"
+                  value={externalServices[`${key}_api_key`] || ''}
+                  onChange={(event) => setExternalServices((previous) => ({ ...previous, [`${key}_api_key`]: event.target.value }))}
+                  placeholder={externalServices[`${key}_api_key_configured`] ? 'Leave blank to keep current credential' : 'Enter credential'}
+                  autoComplete="new-password"
+                  className="w-full border border-[#D8D4CD] px-3 py-2 text-sm outline-none focus:border-[#008751]"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const renderCommunicationSection = () => (
     <div className="p-3 sm:p-4">
