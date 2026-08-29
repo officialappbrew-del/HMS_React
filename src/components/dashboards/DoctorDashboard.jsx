@@ -1,4 +1,4 @@
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -7,12 +7,44 @@ import ConsultationV2 from '../../pages/ConsultationV2';
 import ChangePasswordModal from '../ChangePasswordModal';
 import MyRosterTab from './MyRosterTab';
 import { setPatients } from '../../features/patientSlice';
-import {  Users,  Stethoscope,  Activity,  AlertCircle,  RotateCcw,  Calendar,
-FileText,  Heart,  Clock,  Eye,  ChevronLeft,  Edit,  Trash2,  X, 
-Clipboard, Stethoscope as StethoscopeIcon,
-CheckCircle, UserPlus, Plus,  Phone,   MapPin,  Map, Building2, UserCircle,  IdCard, 
-Calendar as CalendarIcon2, User as UserIcon, HeartPulse as HeartPulseIcon,  Brain as BrainIcon,  
-Droplets as DropletsIcon, MoreVertical,  Upload,  Loader2,} from 'lucide-react';
+import {
+  Users,
+  Stethoscope,
+  MoreVertical,
+  Activity,
+  AlertCircle,
+  RotateCcw,
+  Calendar,
+  FileText,
+  Heart,
+  Clock,
+  Eye,
+  ChevronLeft,
+  Edit,
+  Trash2,
+  X,
+  Clipboard,
+  CheckCircle,
+  UserPlus,
+  Plus,
+  Phone,
+  MapPin,
+  Map,
+  Building2,
+  UserCircle,
+  IdCard,
+  Calendar as CalendarIcon2,
+  User as UserIcon,
+  HeartPulse as HeartPulseIcon,
+  Brain as BrainIcon,
+  Droplets as DropletsIcon,
+  Upload,
+  Bell,
+  Settings,
+  Home,
+  AlertTriangle,
+  Shield,
+} from 'lucide-react';
 
 // ==================== TOOLTIP COMPONENT ====================
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -74,21 +106,6 @@ const IconButton = ({ icon: Icon, onClick, variant = 'default', className = '', 
   );
 };
 
-// ==================== ICON BUTTON WITH TOOLTIP ====================
-const IconButtonWithTooltip = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
-  return (
-    <Tooltip text={tooltip}>
-      <IconButton
-        icon={Icon}
-        onClick={onClick}
-        variant={variant}
-        className={className}
-        disabled={disabled}
-      />
-    </Tooltip>
-  );
-};
-
 // ==================== BUTTON ====================
 const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false }) => {
   const variantClasses = {
@@ -110,22 +127,6 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
     >
       {children}
     </button>
-  );
-};
-
-// ==================== BUTTON WITH TOOLTIP ====================
-const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false }) => {
-  return (
-    <Tooltip text={tooltip}>
-      <Button
-        onClick={onClick}
-        variant={variant}
-        className={className}
-        disabled={disabled}
-      >
-        {children}
-      </Button>
-    </Tooltip>
   );
 };
 
@@ -279,7 +280,7 @@ const PatientDetailModal = ({ patient, onClose }) => {
               )}
               {patient.has_insurance && (
                 <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 text-[8px] xs:text-[10px] sm:text-xs font-medium border border-[#D0E3D8] bg-[#EAF3EE] text-[#2D7D46] rounded">
-                  <ShieldIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" />
+                  <Shield className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" />
                   Insured
                 </span>
               )}
@@ -418,7 +419,7 @@ const PatientDetailModal = ({ patient, onClose }) => {
 
               <div className="bg-white border border-[#E8E3DC] p-3 sm:p-4 rounded">
                 <h3 className="text-xs sm:text-sm font-display font-semibold text-[#1A1A1A] mb-2 sm:mb-3 flex items-center gap-2">
-                  <ShieldIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FFC107]" />
+                  <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FFC107]" />
                   Emergency Contact
                 </h3>
                 <div className="space-y-1.5 sm:space-y-2">
@@ -519,7 +520,7 @@ const PatientDetailModal = ({ patient, onClose }) => {
               onClick={() => window.open(`/patients/${patient.id}/consult`, '_blank')}
               variant="primary"
             >
-              <StethoscopeIcon className="w-3.5 h-3.5" />
+              <Stethoscope className="w-3.5 h-3.5" />
               <span className="hidden xs:inline">Consult</span>
               <span className="xs:hidden">Consult</span>
             </Button>
@@ -797,19 +798,17 @@ const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { patients } = useSelector(state => state.patient || { patients: [] });
   const { wardRounds } = useSelector(state => state.wardRound || { wardRounds: [] });
-  const { admissions } = useSelector(state => state.admission || { admissions: [] });
 
   const displayTenantName = authTenant?.name || 'Hospital';
   const displayUserName = authUser?.full_name || [authUser?.first_name, authUser?.last_name].filter(Boolean).join(' ') || authUser?.username || authUser?.email || 'User';
   const displayRole = authUser?.role || 'doctor';
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState('table');
-  const [errorMessage, setErrorMessage] = useState(null);
-  const itemsPerPage = 10;
+  const [dashboardPatients, setDashboardPatients] = useState([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [patientsCount, setPatientsCount] = useState(0);
+  const [patientsNextPage, setPatientsNextPage] = useState(null);
+  const [patientsPreviousPage, setPatientsPreviousPage] = useState(null);
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showPatientModal, setShowPatientModal] = useState(false);
@@ -820,38 +819,6 @@ const DoctorDashboard = () => {
     pendingReviews: 0,
     criticalPatients: 0,
   });
-  const [patientsCount, setPatientsCount] = useState(0);
-  const [patientsNextPage, setPatientsNextPage] = useState(null);
-  const [patientsPreviousPage, setPatientsPreviousPage] = useState(null);
-  const [dashboardPatients, setDashboardPatients] = useState([]);
-  const [patientsLoading, setPatientsLoading] = useState(false);
-
-  const [consultationForm, setConsultationForm] = useState({
-    patientId: '',
-    patientName: '',
-    patientAge: '',
-    patientGender: '',
-    patientBloodType: '',
-    patientPhone: '',
-    patientEmail: '',
-    patientAddress: '',
-    temperature: '',
-    weight: '',
-    bloodPressure: '',
-    heartRate: '',
-    respiratoryRate: '',
-    oxygenSaturation: '',
-    presentingComplaints: '',
-    medicalHistory: '',
-    drugPrescription: '',
-    diagnosis: '',
-    notes: ''
-  });
-
-  const [savedConsultation, setSavedConsultation] = useState(null);
-  const [showConsultationForm, setShowConsultationForm] = useState(false);
-  const [editingConsultationId, setEditingConsultationId] = useState(null);
-  const [consultationPatientSearch, setConsultationPatientSearch] = useState('');
 
   const [alerts, setAlerts] = useState([]);
 
@@ -964,8 +931,6 @@ const DoctorDashboard = () => {
     fetchTodaysSchedule();
   }, [authUser?.id]);
 
-  const [consultations, setConsultations] = useState([]);
-
   const handleViewPatient = (patient) => {
     setSelectedPatient(patient);
     setShowPatientModal(true);
@@ -996,7 +961,6 @@ const DoctorDashboard = () => {
       await loadDashboardPatients('/api/v1/patients/patients/');
     } catch (err) {
       console.error('Failed to restore patient:', err);
-      setErrorMessage(err.message || 'Failed to restore patient');
     }
   };
 
@@ -1087,15 +1051,9 @@ const DoctorDashboard = () => {
   const loadDashboardPatients = async (url = '/api/v1/patients/patients/') => {
     try {
       setPatientsLoading(true);
-      let data;
-      let apiUrl = url;
-      
-      data = await apiRequest(url);
-      apiUrl = url;
-      
+      const data = await apiRequest(url);
       const results = Array.isArray(data) ? data : (data.results || []);
       const normalized = results.map(normalizePatientForDisplay);
-      
       dispatch(setPatients(normalized));
       setDashboardPatients(normalized);
       setPatientsCount(data.count || normalized.length);
@@ -1134,28 +1092,6 @@ const DoctorDashboard = () => {
   }, []);
 
   const totalItems = patientsCount || dashboardPatients.length;
-  const totalPages = Math.ceil(totalItems / 20);
-  const startIndex = dashboardPatients.length > 0 ? (totalItems - dashboardPatients.length + 1) : 0;
-  const endIndex = startIndex + dashboardPatients.length - 1;
-
-  const recentPatients = dashboardPatients
-    .filter(p => p.name && p.name !== 'Unnamed Patient')
-    .sort((a, b) => {
-      const dateA = new Date(a.registration_date || a.last_visit || a.createdAt || 0);
-      const dateB = new Date(b.registration_date || b.last_visit || b.createdAt || 0);
-      return dateB - dateA;
-    })
-    .slice(0, 10);
-
-  const filteredConsultationPatients = dashboardPatients
-    .filter(p => {
-      if (!consultationPatientSearch) return true;
-      const searchLower = consultationPatientSearch.toLowerCase();
-      return (p.name || '').toLowerCase().includes(searchLower) || 
-             (p.phone || '').includes(searchLower) ||
-             (p.hospital_number || '').toLowerCase().includes(searchLower);
-    })
-    .slice(0, 20);
 
   useEffect(() => {
     const activePatients = dashboardPatients.filter(p => 
@@ -1165,130 +1101,10 @@ const DoctorDashboard = () => {
     setStats({
       myPatients: patientsCount || dashboardPatients.length || 0,
       todaysRounds: wardRounds.filter(r => r.status === 'Scheduled').length || 0,
-      pendingReviews: consultations.filter(c => c.status === 'pending').length || 0,
+      pendingReviews: 0,
       criticalPatients: alerts.filter(a => a.type === 'critical').length || 0,
     });
-  }, [dashboardPatients, patientsCount, wardRounds, alerts, consultations]);
-
-  const resetConsultationForm = () => {
-    setConsultationForm({
-      patientId: '',
-      patientName: '',
-      patientAge: '',
-      patientGender: '',
-      patientBloodType: '',
-      patientPhone: '',
-      patientEmail: '',
-      patientAddress: '',
-      temperature: '',
-      weight: '',
-      bloodPressure: '',
-      heartRate: '',
-      respiratoryRate: '',
-      oxygenSaturation: '',
-      presentingComplaints: '',
-      medicalHistory: '',
-      drugPrescription: '',
-      diagnosis: '',
-      notes: ''
-    });
-    setConsultationPatientSearch('');
-    setEditingConsultationId(null);
-  };
-
-  const handleSelectPatientForConsultation = (patient) => {
-    setConsultationForm(prev => ({
-      ...prev,
-      patientId: patient.id,
-      patientName: patient.name,
-      patientAge: patient.age ? `${patient.age} years` : '',
-      patientGender: patient.gender || '',
-      patientBloodType: patient.bloodType || '',
-      patientPhone: patient.phone || '',
-      patientEmail: patient.email || '',
-      patientAddress: patient.address || '',
-      medicalHistory: patient.chronic_conditions || patient.notes || ''
-    }));
-    setConsultationPatientSearch(patient.name || '');
-  };
-
-  const handleConsultationChange = (field, value) => {
-    setConsultationForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleSaveConsultation = () => {
-    if (!consultationForm.patientName || !consultationForm.presentingComplaints) {
-      setErrorMessage('Please fill in patient name and presenting complaints');
-      return;
-    }
-
-    const newConsultation = {
-      id: Date.now(),
-      patient: consultationForm.patientName,
-      patientId: consultationForm.patientId,
-      date: new Date().toISOString().split('T')[0],
-      diagnosis: consultationForm.diagnosis || 'Under review',
-      status: 'completed',
-      temperature: consultationForm.temperature,
-      weight: consultationForm.weight,
-      bloodPressure: consultationForm.bloodPressure,
-      heartRate: consultationForm.heartRate,
-      respiratoryRate: consultationForm.respiratoryRate,
-      oxygenSaturation: consultationForm.oxygenSaturation,
-      presentingComplaints: consultationForm.presentingComplaints,
-      medicalHistory: consultationForm.medicalHistory,
-      drugPrescription: consultationForm.drugPrescription,
-      notes: consultationForm.notes,
-      savedAt: new Date().toLocaleString()
-    };
-
-    if (editingConsultationId) {
-      setConsultations(prev => prev.map(c => 
-        c.id === editingConsultationId ? { ...newConsultation, id: editingConsultationId } : c
-      ));
-    } else {
-      setConsultations(prev => [newConsultation, ...prev]);
-    }
-    
-    setShowConsultationForm(false);
-    resetConsultationForm();
-  };
-
-  const handleEditConsultation = (consultation) => {
-    setConsultationForm({
-      patientId: consultation.patientId || '',
-      patientName: consultation.patient,
-      patientAge: '',
-      patientGender: '',
-      patientBloodType: '',
-      patientPhone: '',
-      patientEmail: '',
-      patientAddress: '',
-      temperature: consultation.temperature || '',
-      weight: consultation.weight || '',
-      bloodPressure: consultation.bloodPressure || '',
-      heartRate: consultation.heartRate || '',
-      respiratoryRate: consultation.respiratoryRate || '',
-      oxygenSaturation: consultation.oxygenSaturation || '',
-      presentingComplaints: consultation.presentingComplaints || '',
-      medicalHistory: consultation.medicalHistory || '',
-      drugPrescription: consultation.drugPrescription || '',
-      diagnosis: consultation.diagnosis || '',
-      notes: consultation.notes || ''
-    });
-    setConsultationPatientSearch(consultation.patient);
-    setEditingConsultationId(consultation.id);
-    setShowConsultationForm(true);
-  };
-
-  const handleDeleteConsultation = (id) => {
-    if (window.confirm('Are you sure you want to delete this consultation?')) {
-      setConsultations(prev => prev.filter(c => c.id !== id));
-    }
-  };
+  }, [dashboardPatients, patientsCount, wardRounds, alerts]);
 
   const handleMarkAlertRead = (id) => {
     setAlerts(prev => prev.map(alert => 
@@ -1538,7 +1354,7 @@ const DoctorDashboard = () => {
       const normalized = { ...updated, status: statusMap[updated.status] || updated.status || 'scheduled' };
       setTodaysSchedule(prev => prev.map(apt => apt.id === id ? normalized : apt));
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to update status');
+      console.error('Failed to update status:', err);
     }
     setShowStatusMenu(null);
   };
@@ -1611,7 +1427,6 @@ const DoctorDashboard = () => {
     bulkUploadPollsRef.current[uploadId] = interval;
   };
 
-  // Quick Actions with Nigerian brand colors
   const quickActions = [
     { icon: Users, label: 'My Patients', action: '/patients', color: 'bg-[#008751]' },
     { icon: Stethoscope, label: 'Ward Rounds', action: '/ward-rounds', color: 'bg-[#006B40]' },
@@ -1645,11 +1460,9 @@ const DoctorDashboard = () => {
     return statusMap[status] || { label: status || 'Unknown', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' };
   };
 
-  // ==================== RENDER OVERVIEW CONTENT ====================
   const renderOverviewContent = () => {
     return (
       <div className="space-y-4 sm:space-y-6">
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
           <StatsCard
             title="My Patients"
@@ -1685,7 +1498,6 @@ const DoctorDashboard = () => {
           />
         </div>
 
-        {/* Waveform divider — signature motif */}
         <div className="flex items-center gap-2 sm:gap-3 py-1">
           <div className="h-px flex-1 bg-[#D8D4CD]"></div>
           <svg width="40" height="12" viewBox="0 0 40 12" className="text-[#008751] flex-shrink-0">
@@ -1695,7 +1507,6 @@ const DoctorDashboard = () => {
           <div className="h-px flex-1 bg-[#D8D4CD]"></div>
         </div>
 
-        {/* Quick Actions */}
         <div>
           <h2 className="text-xs sm:text-sm font-display font-semibold text-[#1A1A1A] mb-2 sm:mb-3">Quick Actions</h2>
           <div className="grid grid-cols-2 xs:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2 lg:gap-3">
@@ -1715,7 +1526,6 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {/* Clinical Alerts */}
         <div className="bg-white border border-[#E8E3DC] p-3 sm:p-4 lg:p-5 rounded-lg">
           <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 mb-3 sm:mb-4">
             <h2 className="text-xs sm:text-sm font-display font-semibold text-[#1A1A1A]">Clinical Alerts</h2>
@@ -1776,12 +1586,10 @@ const DoctorDashboard = () => {
     );
   };
 
-  // ==================== RENDER CONSULTATIONS CONTENT ====================
   const renderConsultationsContent = () => {
     return <ConsultationV2 />;
   };
 
-  // ==================== RENDER PATIENTS CONTENT ====================
   const renderPatientsContent = () => {
     if (patientsLoading) {
       return (
@@ -1830,7 +1638,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               onClick={() => document.getElementById('dashboard-bulk-upload-input')?.click()}
             >
               {bulkUploading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <div className="w-3.5 h-3.5 border-2 border-[#008751] border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <Upload className="w-3.5 h-3.5" />
               )}
@@ -1860,19 +1668,18 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
 
-        {/* Bulk Upload Progress/Result */}
         {(bulkUploadProgress || bulkUploadResult) && (
           <div className={`mb-4 p-3 sm:p-4 border rounded ${bulkUploadResult?.status === 'failed' ? 'bg-[#F5EDEA] border-[#E8D6D0]' : 'bg-[#E8F5EF] border-[#C8E0D5]'}`}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 {bulkUploading ? (
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#008751] animate-spin flex-shrink-0" />
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-[#008751] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                 ) : bulkUploadResult?.status === 'completed' ? (
                   <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#2D7D46] flex-shrink-0" />
                 ) : bulkUploadResult?.status === 'failed' ? (
                   <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-[#C8553D] flex-shrink-0" />
                 ) : (
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#008751] animate-spin flex-shrink-0" />
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-[#008751] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                 )}
                 <span className="text-xs sm:text-sm font-medium text-[#1A1A1A] truncate">
                   {bulkUploadProgress?.message || bulkUploadResult?.message}
@@ -1991,7 +1798,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             <IconButton
                               icon={Stethoscope}
                               onClick={() => {
-                                handleSelectPatientForConsultation(patient);
                                 setActiveTab('consultations');
                               }}
                               variant="success"
@@ -2004,7 +1810,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             <IconButton
                               icon={Map}
                               onClick={() => navigate(`/patients/${patient.id}/journey`)}
-                              tooltip="View patient journey and bill"
                               variant="info"
                             />
                             {isInactive && (
@@ -2022,10 +1827,9 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 </tbody>
               </table>
             </div>
-            {/* Pagination */}
             <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
               <div className="text-[10px] sm:text-xs text-[#5A5A5A]">
-                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}
+                Showing 1 to {dashboardPatients.length} of {totalItems}
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
                 <IconButton
@@ -2035,7 +1839,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   disabled={!patientsPreviousPage || patientsLoading}
                 />
                 <span className="text-[10px] sm:text-xs text-[#5A5A5A]">
-                  Page {dashboardPatients.length > 0 ? Math.ceil((totalItems - dashboardPatients.length + 1) / 20) : 0} of {totalPages || 1}
+                  Page 1 of 1
                 </span>
                 <IconButton
                   icon={ChevronRight}
@@ -2051,7 +1855,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     );
   };
 
-  // ==================== RENDER SCHEDULE CONTENT ====================
   const renderScheduleContent = () => {
     return (
       <div>
@@ -2236,7 +2039,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     );
   };
 
-  // ==================== RENDER TAB CONTENT ====================
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -2254,7 +2056,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
     }
   };
 
-  // ==================== MAIN RENDER ====================
   return (
     <div className="dashboard min-h-screen bg-[#F7F5F2] font-sans overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8 py-2 xs:py-3 sm:py-4 md:py-6 lg:py-8">
@@ -2322,7 +2123,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
 
-        {/* Tabs with Nigerian green active state */}
+        {/* Tabs */}
         <div className="border-b border-[#E8E3DC] mb-3 sm:mb-6 lg:mb-8 overflow-x-auto -mx-2 xs:mx-0 px-2 xs:px-0">
           <nav className="flex gap-1 xs:gap-1.5 sm:gap-2 lg:gap-6 min-w-max" aria-label="Tabs">
             {tabs.map((tab) => {
@@ -2330,10 +2131,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               return (
                 <button
                   key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setCurrentPage(1);
-                  }}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 lg:gap-2 px-1 xs:px-1.5 sm:px-2 py-1.5 xs:py-2 sm:py-2.5 lg:py-3 text-[8px] xs:text-[10px] sm:text-xs lg:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-[#008751] text-[#008751]'

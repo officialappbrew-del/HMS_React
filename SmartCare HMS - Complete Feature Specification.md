@@ -1,1257 +1,352 @@
-# **SmartCare HMS - Complete Feature Specification**
-*Comprehensive Feature Documentation for Nigerian Healthcare Market*
+# SmartCare HMS — Complete Feature Specification
+
+## What Is SmartCare HMS?
+
+SmartCare HMS is a comprehensive Hospital Management System designed to help healthcare facilities run their daily operations smoothly and efficiently. It brings together every part of a hospital — from patient registration and doctor consultations to pharmacy dispensing, laboratory tests, billing, and staff management — into one easy-to-use platform.
+
+The system is built with Nigerian hospitals and clinics in mind, so it supports local requirements such as NHIS insurance claims, NIN verification, NAFDAC drug regulations, and NCDC disease reporting.
 
 ---
 
-## **PART A: ENHANCED CLINICAL FEATURES**
+## Who Is It For?
 
-### **1. Electronic Medical Records (EMR) - Nigeria Edition**
+SmartCare HMS serves every role in a healthcare facility:
 
-#### **1.1 Patient Clinical Documentation**
-```
-CORE FEATURES:
-• Encounter notes with Nigerian medical templates
-  - Outpatient consultation notes
-  - Emergency department notes
-  - Admission notes (Clerking format used in Nigerian teaching hospitals)
-  - Daily progress notes
-  - Discharge summaries
-  - Death certification with MDCN-compliant format
-
-• Chief Complaint & History
-  - Present complaint documentation
-  - History of presenting complaint
-  - Past medical history with local disease coding
-  - Drug history (with Nigerian brand names)
-  - Family and social history
-  - Systemic review (Nigerian format)
-
-• Physical Examination
-  - General examination templates
-  - System-specific examination forms
-  - Vital signs trending with alerts
-  - Nigerian population reference ranges
-  - Pediatric growth charts (Nigerian standards)
-  - Obstetric examination forms
-
-• Nigerian Disease-Specific Templates
-  - Malaria case documentation
-  - Typhoid fever management
-  - Sickle cell disease tracking
-  - Tuberculosis treatment cards
-  - HIV/AIDS care plans
-  - Hypertension/Diabetes management
-  - Maternal health records
-```
-
-#### **1.2 Clinical Decision Support (Nigeria-Optimized)**
-```
-INTELLIGENT ALERTS:
-• Drug-Drug Interaction Warnings
-  - Nigerian commonly prescribed combinations
-  - Herbal medicine interactions
-  - Food-drug interactions (Nigerian diet considerations)
-
-• Allergy Alerts
-  - Medication allergy checking
-  - Cross-reactivity warnings
-  - Sulfa drug allergy management
-
-• Dosing Assistance
-  - Weight-based pediatric dosing
-  - Renal/hepatic dose adjustments
-  - Elderly patient warnings
-  - Pregnancy category warnings
-
-• Clinical Guidelines
-  - Nigerian treatment protocols
-  - NHIS standard treatment guidelines
-  - WHO essential medicines protocols
-  - Antibiotic stewardship rules
-  - Local antimicrobial resistance patterns
-
-• Risk Calculators
-  - Cardiovascular risk (Nigerian population)
-  - Diabetes risk assessment
-  - Pregnancy risk stratification
-  - Malnutrition screening tools
-  - Fall risk assessment for elderly
-```
-
-#### **1.3 Order Entry System**
-```
-COMPUTERIZED PHYSICIAN ORDER ENTRY (CPOE):
-• Medication Orders
-  - E-prescribing with NAFDAC database
-  - Controlled substance tracking
-  - Standing orders and protocols
-  - Verbal order documentation
-  - PRN medication rules
-  - Nurse verification workflows
-
-• Laboratory Orders
-  - Common Nigerian test panels
-  - STAT vs. Routine prioritization
-  - Sample collection tracking
-  - Result notification rules
-  - Critical value alerts
-
-• Radiology Orders
-  - X-ray, Ultrasound, CT, MRI ordering
-  - Pregnancy screening for radiation
-  - Contrast allergy checking
-  - Report tracking and reading
-
-• Procedure Orders
-  - Minor procedure booking
-  - Consent form generation
-  - Pre-procedure checklists
-  - Post-procedure monitoring
-
-• Dietary Orders
-  - Nigerian meal plans
-  - Therapeutic diets
-  - Cultural/religious food restrictions
-  - Diabetic/renal/cardiac diets
-```
+- **Hospital Administrators** — manage staff, subscriptions, settings, and platform analytics
+- **Doctors** — conduct consultations, write prescriptions, request lab tests, and document clinical notes
+- **Nurses** — record vital signs, manage ward rounds, track patient progress, and administer medications
+- **Pharmacists** — manage drug inventory, dispense medications, and process sales
+- **Laboratory Staff** — receive test orders, record results, and flag critical findings
+- **Receptionists** — register patients, schedule appointments, and check in visitors
+- **Accountants** — create invoices, process payments, manage insurance claims, and view financial reports
+- **Patients** — access their own medical records, appointments, and lab results through a patient portal
 
 ---
 
-### **2. Vital Signs Monitoring & Alerts**
+## Core Modules and Features
 
-```
-COMPREHENSIVE MONITORING:
-• Real-Time Vital Signs Entry
-  - Blood pressure (with hypertension staging)
-  - Pulse rate (with rhythm assessment)
-  - Temperature (Celsius, with fever alerts)
-  - Respiratory rate
-  - Oxygen saturation (SpO2)
-  - Blood glucose monitoring
-  - Weight tracking
-  - Pain score (0-10 scale)
+### 1. Patient Management
 
-• Pediatric Vitals
-  - Age-appropriate normal ranges
-  - Growth monitoring (WHO/Nigerian charts)
-  - Head circumference
-  - MUAC (Mid-Upper Arm Circumference) for malnutrition
+The patient management module is the heart of the system. It handles everything from first registration to long-term medical history.
 
-• Obstetric Monitoring
-  - Blood pressure in pregnancy (pre-eclampsia alerts)
-  - Fetal heart rate
-  - Fundal height
-  - Contraction monitoring
-  - Partograph integration
-
-• Early Warning Scores
-  - Modified Early Warning Score (MEWS)
-  - Pediatric Early Warning Score (PEWS)
-  - Maternal Early Warning Score (MEOWS)
-  - Sepsis screening scores
-  - NEWS2 (National Early Warning Score)
-
-• Alert System
-  - Critical value automatic notifications
-  - Escalation to senior doctors
-  - SMS/WhatsApp alerts for emergencies
-  - Trend analysis with deterioration warnings
-  - Customizable alert thresholds per ward
-```
+**Key Features:**
+- **Patient Registration** — Capture full patient demographics, contact details, emergency contacts, blood group, genotype, allergies, chronic conditions, and insurance information
+- **Unique Patient Identifiers** — Every patient receives a hospital number and medical record number (MRN) for easy tracking across visits
+- **Patient Search** — Find patients by name, phone number, hospital number, MRN, NIN, or NHIS number
+- **Duplicate Detection** — Automatically warns if a patient is already registered to avoid duplicate records
+- **Patient Merge** — Safely combine duplicate patient records while keeping all historical data intact
+- **Patient Journey** — View a complete timeline of every visit, consultation, prescription, lab test, and payment for any patient
+- **Patient Portal** — Patients can log in to view their appointments, lab results, prescriptions, and medical documents
+- **Soft Delete / Archive** — Deactivate patients without losing their history
 
 ---
 
-### **3. Ward & Bed Management**
+### 2. Appointment & Visit Management
 
-```
-HOSPITAL OPERATIONS:
-• Bed Allocation System
-  - Real-time bed availability dashboard
-  - Bed reservation for admissions
-  - Gender-segregated ward management
-  - Private vs. Public bed tracking
-  - Bed turnover optimization
-  - Cleaning status tracking
+Manage the full lifecycle of a patient's visit from booking to discharge.
 
-• Ward Types (Nigerian Context)
-  - General wards (Male/Female)
-  - Private/VIP suites
-  - Semi-private rooms
-  - Isolation wards (infectious diseases)
-  - ICU/HDU beds
-  - Maternity wards
-  - Pediatric wards
-  - NYSC/Student wards (teaching hospitals)
-
-• Admission Management
-  - Admission request from ED/OPD
-  - Bed assignment workflow
-  - Admission documentation
-  - Ward transfer tracking
-  - Discharge planning
-  - Discharge summary automation
-
-• Ward Round Management
-  - Daily ward round schedules
-  - Consultant team assignments
-  - Teaching round documentation (for teaching hospitals)
-  - Grand round coordination
-  - Handover notes (shift changes)
-```
+**Key Features:**
+- **Appointment Scheduling** — Book, confirm, and cancel appointments with reminders
+- **Visit Check-In** — Create a new visit record when a patient arrives
+- **Triage** — Nurses record initial vital signs and assign a triage category
+- **Consultation Workflow** — Track patients through waiting, in-consultation, awaiting lab/pharmacy, billing, and completion stages
+- **Visit Disposition** — Record whether a patient is discharged, referred, admitted, or requires follow-up
+- **Follow-Up Management** — Schedule and track follow-up appointments
 
 ---
 
-### **4. Operating Theater & Surgery Management**
+### 3. Clinical Consultation & Documentation
 
-```
-SURGICAL SERVICES:
-• Theater Scheduling
-  - Operating room booking calendar
-  - Surgeon availability tracking
-  - Elective vs. Emergency case prioritization
-  - Equipment availability checking
-  - Anesthesia team coordination
-  - Estimated duration management
+A complete electronic documentation system for doctors and nurses.
 
-• Pre-Operative Assessment
-  - Pre-op checklist (WHO Surgical Safety Checklist)
-  - Anesthesia assessment
-  - Blood grouping and cross-matching
-  - Consent documentation
-  - Pre-op investigations tracking
-  - NPO (Nil Per Os) status verification
-
-• Intra-Operative Documentation
-  - Surgical safety checklist (Time-out, Sign-in, Sign-out)
-  - Operative notes template
-  - Anesthesia record
-  - Specimen tracking
-  - Implant/prosthesis documentation
-  - Blood product usage
-
-• Post-Operative Care
-  - Recovery room monitoring
-  - Post-op orders
-  - Pain management protocols
-  - Complication tracking
-  - Follow-up scheduling
-
-• Theater Utilization Analytics
-  - OR utilization rates
-  - Cancellation tracking with reasons
-  - Turnaround time analysis
-  - Equipment downtime monitoring
-  - Cost per procedure tracking
-```
+**Key Features:**
+- **Structured Consultation Notes** — Capture history, examination findings, assessment, and treatment plan in a standardized format
+- **HPI / SOAP / ICE Documentation** — Support for detailed clinical note-taking including history of present illness, subjective/objective/assessment/plan, and patient ideas/concerns/expectations
+- **Red-Flag Detection** — Automatically highlights dangerous symptoms (such as chest pain or bleeding) as the doctor types
+- **Physical Examination** — Document systematic examination findings
+- **Disposition & Follow-Up** — Record admission requirements, follow-up dates, and discharge instructions
+- **Electronic Signature** — Doctors can sign and finalize notes
+- **ICD-10 Code Support** — Link diagnoses to standard international disease codes
 
 ---
 
-## **PART B: NIGERIAN-SPECIFIC ADVANCED FEATURES**
+### 4. Prescription & Medication Management
 
-### **5. Traditional & Complementary Medicine Integration**
+Complete medication ordering and tracking from prescription to dispensing.
 
-```
-HOLISTIC HEALTHCARE TRACKING:
-• Traditional Medicine Records
-  - Herbal medication documentation
-  - Traditional healer referral tracking
-  - Treatment outcomes monitoring
-  - Patient disclosure tracking
-
-• Interaction Management
-  - Herb-drug interaction database
-  - Nigerian commonly used herbs (Agbo, Dogoyaro, etc.)
-  - Warning system for dangerous combinations
-  - Patient education on interactions
-
-• Regulation Compliance
-  - Traditional Medicine Practitioners Council registration
-  - Quality control documentation
-  - Adverse event reporting
-  - Integration with conventional treatment plans
-
-• Cultural Sensitivity
-  - Respect for traditional practices
-  - Complementary treatment approaches
-  - Patient preference documentation
-  - Family involvement in decisions
-```
+**Key Features:**
+- **Digital Prescriptions** — Doctors prescribe medications with dosage, frequency, duration, route, and quantity
+- **Medication History** — View a patient's complete prescription history and duplicate therapy warnings
+- **Drug Interaction Checks** — Flag potentially dangerous drug combinations before dispensing
+- **Prescription Status Tracking** — Track prescriptions from prescribed → dispensed → completed or cancelled
+- **Current Medications** — Maintain a list of medications a patient is currently taking
 
 ---
 
-### **6. NCDC Disease Surveillance & Epidemic Management**
+### 5. Vital Signs & Early Warning Scores
 
-```
-PUBLIC HEALTH INTEGRATION:
-• Notifiable Diseases Reporting
-  - Automatic NCDC notification for reportable diseases
-  - Cholera outbreak reporting
-  - Lassa fever case reporting
-  - Meningitis surveillance
-  - Yellow fever tracking
-  - Monkey pox reporting
-  - COVID-19 and emerging diseases
+Nurses can record and monitor patient vital signs with automated clinical risk scoring.
 
-• Epidemic Preparedness Mode
-  - Rapid case definition entry
-  - Contact tracing workflows
-  - Line listing automation
-  - Epidemic curve generation
-  - Geographic mapping of cases
-  - Resource allocation tracking
-
-• Laboratory Integration
-  - Sample collection for NCDC reference labs
-  - Result tracking and reporting
-  - Specimen transport logistics
-  - Rapid diagnostic test recording
-
-• Community Surveillance
-  - Syndromic surveillance
-  - Community-based reporting
-  - Health worker sentinel sites
-  - Event-based surveillance
-```
+**Key Features:**
+- **Vital Signs Entry** — Record temperature, pulse, respiratory rate, blood pressure, oxygen saturation, weight, height, pain score, blood glucose, and consciousness level
+- **Automatic BMI Calculation** — Body Mass Index is calculated and categorized automatically
+- **Blood Pressure Categorization** — Classify readings as normal, elevated, stage 1, stage 2, or hypertensive crisis
+- **Early Warning Score (EWS)** — Automatically calculate NEWS2 scores based on vital signs to identify patients at risk of deterioration
+- **Vital Sign Alerts** — Generate and track alerts for abnormal findings; nurses can acknowledge and resolve alerts
 
 ---
 
-### **7. Mobile Money & Alternative Payment Integration**
+### 6. Pharmacy & Drug Inventory
 
-```
-NIGERIAN PAYMENT ECOSYSTEM:
-• Mobile Money Operators
-  - MTN MoMo integration
-  - Airtel Money integration
-  - 9mobile payments
-  - Glo QuickCharge
-  - Telecoms balance deduction
+Full pharmacy operations including inventory management and point-of-sale dispensing.
 
-• USSD Payment Integration
-  - *XXX# payment codes per hospital
-  - Transaction confirmation via SMS
-  - Payment receipt delivery
-  - Balance inquiry functions
-  - Transaction history access
-
-• Bank USSD Integration
-  - GTBank *737#
-  - UBA *919#
-  - Access Bank *901#
-  - Zenith Bank *966#
-  - First Bank *894#
-
-• Payment Workflow
-  - Bill generation with USSD code
-  - Patient initiates payment from phone
-  - Real-time payment confirmation
-  - Automatic receipt generation
-  - Reconciliation automation
-
-• Airtime to Cash
-  - Airtime payment acceptance
-  - VTU (Virtual Top-Up) conversion
-  - Discount rate management
-  - Vendor integration
-```
+**Key Features:**
+- **Drug Inventory Management** — Track stock levels, reorder thresholds, batch numbers, expiry dates, and pricing
+- **Nigerian Drug Regulations** — Capture NAFDAC numbers, PCN approval status, NEML category, and controlled substance flags
+- **Low Stock & Expiry Alerts** — Automatic warnings when drugs are running low or approaching expiration
+- **Reorder Management** — Create and process reorder requests for low-stock items
+- **Restock Tracking** — Record incoming stock with batch and expiry details
+- **Point-of-Sale (POS)** — Process drug sales with support for cash, card, transfer, NHIS, HMO, and mobile money
+- **Dispensing** — Link prescriptions to dispensed drugs; automatically creates billing records when medications are dispensed
+- **Supplier Management** — Maintain a database of drug suppliers with ratings
 
 ---
 
-### **8. USSD Interactive System**
+### 7. Laboratory Information System
 
-```
-USSD MENU STRUCTURE (*XXX#):
-1. Patient Services
-   1. Check Appointment
-   2. Book Appointment
-   3. Lab Results
-   4. Pay Bill
-   5. Request Prescription Refill
+Complete lab order and result management.
 
-2. Emergency Services
-   1. Ambulance Request
-   2. Emergency Contact
-   3. Nearest Hospital
-
-3. Information
-   1. Visiting Hours
-   2. Doctor Schedules
-   3. Services Offered
-   4. Directions
-
-4. Feedback
-   1. Submit Complaint
-   2. Rate Service
-   3. Suggestion Box
-
-TECHNICAL FEATURES:
-• Session management (USSD timeout handling)
-• Language selection (English, Pidgin, Hausa, Yoruba, Igbo)
-• Input validation
-• SMS fallback for results
-• Network operator compatibility
-• Low-bandwidth optimization
-```
+**Key Features:**
+- **Lab Test Catalog** — Standard catalog of tests across hematology, biochemistry, microbiology, serology, and other categories
+- **Test Ordering** — Doctors order lab tests directly from consultation notes
+- **Sample Tracking** — Track sample collection, accession numbers, and test status
+- **Result Entry** — Lab technicians record results with reference ranges and critical value flags
+- **Critical Result Alerts** — Flag and highlight critical (abnormal) results that require urgent attention
+- **Result Verification** — Lab managers can verify and sign off on results
+- **Turnaround Time Tracking** — Monitor time from order to result completion
+- **NCDC Notifiable Disease Reporting** — Report infectious disease cases to the Nigeria Centre for Disease Control
 
 ---
 
-### **9. Community Health Worker (CHW) Mobile System**
+### 8. Billing & Financial Management
 
-```
-FRONTLINE HEALTH WORKER TOOLS:
-• Mobile App Features (Android - Offline-First)
-  - Patient registration in communities
-  - Vital signs recording
-  - Symptom assessment with decision trees
-  - Medication dispensing tracking
-  - Vaccination recording
-  - Home visit documentation
-  - Photo documentation (wounds, skin conditions)
-  - GPS tracking of visits
+Complete financial management from invoicing to insurance claims.
 
-• Maternal & Child Health
-  - Antenatal care home visits
-  - Postnatal mother-baby assessment
-  - Child growth monitoring
-  - Immunization tracking
-  - Malnutrition screening (MUAC measurement)
-  - Family planning counseling records
-
-• Disease Surveillance
-  - Community case reporting
-  - Outbreak early warning
-  - Contact tracing
-  - Health education tracking
-
-• Sync & Reporting
-  - Offline data collection
-  - Automatic sync when online
-  - WhatsApp reporting integration
-  - SMS summary reports
-  - Performance dashboards for CHW supervisors
-```
+**Key Features:**
+- **Invoice Generation** — Create invoices for consultations, drugs, laboratory tests, procedures, and admissions
+- **Payment Processing** — Accept payments via cash, card, bank transfer, POS, Paystack, Flutterwave, and insurance
+- **Payment Tracking** — Monitor amounts paid, balances due, and payment history
+- **Insurance Claims** — Submit, track, and manage NHIS and HMO insurance claims
+- **Claim Approval Workflow** — Review, approve, or reject insurance claims with supporting documentation
+- **Financial Analytics** — View revenue trends, outstanding invoices, drug sales performance, and cash flow summaries
+- **Billing Audit Log** — Complete audit trail of all billing actions (issued, paid, cancelled, refunded)
 
 ---
 
-## **PART C: ADVANCED OPERATIONAL FEATURES**
+### 9. Inpatient Management (IPD)
 
-### **10. Inventory & Supply Chain Management**
+Manage the full inpatient admission lifecycle.
 
-```
-COMPREHENSIVE STOCK MANAGEMENT:
-• Pharmacy Inventory
-  - Drug stock tracking (batch & expiry)
-  - Reorder point automation
-  - Supplier management
-  - Purchase order generation
-  - Drug recall management
-  - Narcotics register (PCN Form C)
-  - Stock valuation (FIFO/LIFO)
-
-• Medical Supplies
-  - Consumables tracking (syringes, gloves, etc.)
-  - PPE inventory
-  - Laboratory reagents
-  - Radiology supplies (contrast, films)
-  - Surgical instruments
-  - Linen and laundry
-
-• Central Store Management
-  - Multi-location inventory
-  - Department requisitions
-  - Issue tracking
-  - Stock transfer between facilities
-  - Waste management
-  - Donation tracking
-
-• Procurement System
-  - Vendor management
-  - Request for quotation (RFQ)
-  - Purchase approval workflow
-  - Goods received notes
-  - Invoice matching (3-way matching)
-  - Payment authorization
-```
+**Key Features:**
+- **Admission Management** — Create admission records with emergency flags, diagnosis, and assigned doctor/ward/bed
+- **Bed Management** — Track bed availability, reserve beds, and manage cleaning and maintenance status
+- **Patient Transfer** — Move patients between beds or wards with full transfer history
+- **Progress Notes** — Nurses and doctors document daily patient progress using SOAP notes
+- **Intake & Output Tracking** — Record fluid intake and output for inpatients
+- **Nursing Care Plans** — Create and track care plans with goals, interventions, and due dates
+- **Medication Administration Record (MAR)** — Schedule and track medication administration; record given, held, refused, or omitted doses
+- **Discharge Management** — Complete discharge summaries, bill clearance, and follow-up instructions
 
 ---
 
-### **11. Human Resources & Staff Management**
+### 10. Ward Rounds & Handover
 
-```
-HEALTHCARE WORKFORCE MANAGEMENT:
-• Staff Directory
-  - Doctor profiles (MDCN registration)
-  - Nurse profiles (NMCN registration)
-  - Pharmacist profiles (PCN registration)
-  - Other healthcare workers
-  - Administrative staff
-  - Support staff
+Support clinical ward rounds and shift handover processes.
 
-• License & Certification Tracking
-  - Professional registration renewal alerts
-  - CME (Continuing Medical Education) tracking
-  - Specialist certifications
-  - BLS/ACLS certification expiry
-  - Infection control training
-  - Mandatory training compliance
-
-• Duty Roster Management
-  - Call duty schedules
-  - Night duty rosters
-  - Weekend coverage
-  - Leave management
-  - Locum/relief staff coordination
-  - Overtime tracking
-
-• Performance Management
-  - Annual appraisals
-  - Clinical audit participation
-  - Research output tracking
-  - Teaching hours (for teaching hospitals)
-  - Patient satisfaction scores
-  - Incident involvement tracking
-
-• Payroll Integration
-  - Attendance tracking
-  - Leave deductions
-  - Allowances (call duty, hazard, etc.)
-  - PAYE tax calculation
-  - Pension (PFA) deductions
-  - Payslip generation
-```
+**Key Features:**
+- **Ward Round Scheduling** — Schedule daily, teaching, grand, and discharge rounds
+- **Round Documentation** — Record findings, decisions, and action items during rounds
+- **Patient Assignment** — Add or remove patients from a round and assign team members
+- **Shift Handover** — Structured handover notes with critical patients, recent admissions, pending procedures, and discharges
+- **Grand Rounds** — Document and track teaching grand rounds with case studies
+- **Team Management** — Assign consultants, residents, and nurses to rounds
 
 ---
 
-### **12. Equipment & Asset Management**
+### 11. Staff & HR Management
 
-```
-MEDICAL EQUIPMENT TRACKING:
-• Asset Register
-  - Equipment catalog (make, model, serial number)
-  - Location tracking
-  - Department assignment
-  - Purchase date and warranty
-  - Depreciation tracking
+Comprehensive human resources and staff administration.
 
-• Maintenance Management
-  - Preventive maintenance schedules
-  - Calibration tracking
-  - Breakdown reporting
-  - Repair history
-  - Spare parts inventory
-  - Service contract management
-
-• Medical Device Integration
-  - Vital signs monitors
-  - Laboratory analyzers (automate result import)
-  - Radiology equipment (PACS integration)
-  - ECG machines
-  - Ultrasound scanners
-  - Infusion pumps
-
-• Generator & Power Management
-  - Generator run-hour tracking
-  - Fuel consumption monitoring
-  - Maintenance alerts
-  - Power outage logging
-  - Diesel supply management
-
-• Oxygen & Gas Monitoring
-  - Oxygen concentrator tracking
-  - Oxygen cylinder inventory
-  - Medical gas pipeline monitoring
-  - Usage analytics per ward
-```
+**Key Features:**
+- **Staff Registration** — Onboard staff with employee IDs, roles, departments, designations, and license numbers
+- **Role Management** — Assign roles such as doctor, nurse, pharmacist, lab technician, receptionist, accountant, and administrator
+- **Duty Roster** — Create and manage staff schedules with shift assignments
+- **Leave Management** — Staff can request leave; managers can approve or reject
+- **Overtime Tracking** — Record and approve overtime hours
+- **Performance Appraisals** — Conduct and track staff performance reviews
+- **Research & Teaching** — Track research outputs and teaching activities
+- **Staff Directory** — Searchable directory of all staff with contact details and roles
 
 ---
 
-### **13. Ambulance & Fleet Management**
+### 12. Emergency & Referral Services
 
-```
-EMERGENCY TRANSPORT:
-• Ambulance Tracking
-  - Real-time GPS tracking
-  - Dispatch management
-  - Response time monitoring
-  - Patient transfer documentation
-  - Ambulance utilization analytics
+Manage emergency responses and patient referrals between facilities.
 
-• Fleet Operations
-  - Vehicle maintenance schedules
-  - Fuel consumption tracking
-  - Driver assignment
-  - Insurance and registration renewal
-  - Accident/incident reporting
-
-• Emergency Response
-  - Call logging
-  - Dispatch optimization (nearest ambulance)
-  - En-route communication
-  - Hospital pre-notification
-  - Handover documentation
-
-• Referral Transport
-  - Inter-facility transfers
-  - Maternal referrals (from PHC to hospitals)
-  - Neonatal transport
-  - Critical care transfers
-  - International medical evacuation coordination
-```
+**Key Features:**
+- **Emergency Calls** — Log and track emergency calls within the facility
+- **Ambulance Management** — Track ambulance missions, dispatch, and status
+- **Inter-Facility Referrals** — Request and manage patient transfers to other hospitals
+- **Medical Evacuation** — Coordinate emergency patient transport with cost tracking
 
 ---
 
-## **PART D: PATIENT ENGAGEMENT & EXPERIENCE**
+### 13. Laboratory Dashboard
 
-### **14. Patient Portal (Web & Mobile App)**
+A centralized view for laboratory operations.
 
-```
-PATIENT-FACING FEATURES:
-• Account Management
-  - Self-registration
-  - Profile management
-  - Family members linking
-  - Medical history upload
-
-• Appointment Management
-  - Online booking (doctor, date, time)
-  - Appointment reminders (SMS/Email/WhatsApp)
-  - Rescheduling and cancellation
-  - Virtual queue check-in
-  - Waiting time estimates
-
-• Medical Records Access
-  - Test results viewing (with doctor interpretation)
-  - Prescription history
-  - Vaccination records
-  - Discharge summaries
-  - Medical certificates download
-
-• Telemedicine
-  - Video consultation booking
-  - Chat with doctor
-  - Prescription delivery coordination
-  - Follow-up scheduling
-
-• Billing & Payments
-  - Bill viewing and download
-  - Online payment (cards, bank transfer, mobile money)
-  - Payment history
-  - Insurance claim status
-  - Receipt download
-
-• Health Education
-  - Condition-specific information
-  - Medication instructions
-  - Lifestyle advice
-  - Nigerian health tips (malaria prevention, nutrition)
-  - Video library
-```
+**Key Features:**
+- **Pending Orders** — View all ordered tests awaiting sample collection or processing
+- **Result Entry** — Quick access to enter results for in-progress tests
+- **Critical Results** — Highlight and prioritize critical results requiring immediate attention
+- **Turnaround Monitoring** — Track test completion times and identify bottlenecks
 
 ---
 
-### **15. Appointment Reminder & Communication System**
+### 14. Clinical Decision Support
 
-```
-MULTI-CHANNEL PATIENT COMMUNICATION:
-• Automated Reminders
-  - SMS reminders (24hrs and 2hrs before appointment)
-  - WhatsApp messages with appointment card image
-  - Email reminders with calendar invite
-  - Voice call reminders (for elderly patients)
+Built-in tools to support safe clinical practice.
 
-• Customizable Templates
-  - Appointment reminders
-  - Lab result notifications
-  - Medication refill alerts
-  - Follow-up visit reminders
-  - Health screening campaigns
-  - Birthday wishes
-
-• Bulk Messaging
-  - Health awareness campaigns
-  - Vaccination drives
-  - Seasonal health tips (rainy season malaria prevention)
-  - Hospital announcements
-  - Emergency alerts
-
-• Two-Way Communication
-  - SMS confirmation/cancellation
-  - WhatsApp chatbot for basic queries
-  - Feedback collection
-  - Satisfaction surveys
-```
+**Key Features:**
+- **Drug Interaction Checker** — Identify potentially harmful drug interactions
+- **Allergy Alerts** — Cross-check patient allergies against prescribed medications
+- **Dosing Guidelines** — Access standard dosing recommendations with renal and hepatic adjustments
+- **Clinical Guidelines** — Evidence-based recommendations for common conditions
+- **Risk Assessments** — Calculate cardiovascular, diabetes, pregnancy, fall, pressure ulcer, sepsis, and DVT risk scores
+- **Patient Alerts** — Real-time alerts for drug interactions, allergies, dosing issues, lab abnormalities, and guideline deviations
 
 ---
 
-### **16. Patient Feedback & Quality Improvement**
+### 15. Electronic Medical Records (EMR)
 
-```
-PATIENT EXPERIENCE TRACKING:
-• Feedback Collection
-  - Post-visit surveys (SMS/Email/Portal)
-  - Real-time feedback kiosks
-  - Complaint box integration
-  - Social media monitoring
-  - Google/Facebook review tracking
+Comprehensive electronic record-keeping for patient care.
 
-• Satisfaction Metrics
-  - Net Promoter Score (NPS)
-  - Patient Satisfaction Score (PSS)
-  - Waiting time satisfaction
-  - Staff behavior ratings
-  - Facility cleanliness scores
-  - Overall experience rating
-
-• Complaint Management
-  - Complaint logging and categorization
-  - Assignment to responsible officer
-  - Resolution tracking
-  - Escalation workflows
-  - Patient notification of resolution
-  - Trend analysis
-
-• Quality Improvement
-  - Service improvement action plans
-  - Staff training needs identification
-  - Process optimization recommendations
-  - Benchmarking with other facilities
-```
+**Key Features:**
+- **Medical Records** — Structured outpatient, inpatient, and emergency records
+- **Progress Notes** — SOAP notes for ongoing patient care
+- **Clinical Documents** — Upload and attach lab reports, radiology images, prescriptions, consent forms, and photos
+- **Problem List** — Track active, resolved, and chronic medical problems with ICD-10 codes
+- **Allergy Registry** — Document patient allergies with severity and verification status
 
 ---
 
-## **PART E: FINANCIAL MANAGEMENT**
+### 16. Insurance & NHIS Management
 
-### **17. Advanced Credit Management**
+Streamline insurance claims and NHIS compliance.
 
-```
-ACCOUNTS RECEIVABLE:
-• Credit Policy Management
-  - Credit limit per patient category
-  - Corporate credit terms
-  - HMO credit monitoring
-  - NHIS capitation tracking
-  - Government facility credit
-
-• Debt Collection
-  - Automated payment reminders
-  - Debt aging analysis (30, 60, 90 days)
-  - Guarantor notification
-  - Payment plan automation
-  - Legal action workflow
-  - Write-off approvals
-
-• Guarantor System
-  - Guarantor registration
-  - Multiple guarantor support
-  - Guarantor notification triggers
-  - Guarantor credit history
-  - Employer guarantee tracking
-
-• Nigerian Context Features
-  - "I'll pay tomorrow" tracking
-  - Installment payment plans
-  - Community leader mediation
-  - Bartering/trade-in tracking (rural areas)
-  - Charity care classification
-```
+**Key Features:**
+- **Insurance Verification** — Verify patient insurance coverage before treatment
+- **NHIS Claims** — Create and submit claims to the National Health Insurance Scheme
+- **Claim Tracking** — Monitor claim status from submission to payment
+- **Insurance Splits** — Automatically calculate patient and insurance portions of bills
 
 ---
 
-### **18. Financial Analytics & Dashboards**
+### 17. Reporting & Analytics
 
-```
-BUSINESS INTELLIGENCE:
-• Revenue Analytics
-  - Daily revenue trends
-  - Revenue by department
-  - Revenue by payment type (cash, HMO, NHIS)
-  - Revenue per doctor
-  - Service-wise revenue breakdown
-  - Seasonal trends (Detty December effect)
+Data-driven insights for hospital management.
 
-• Cost Analysis
-  - Cost per patient visit
-  - Cost per bed day
-  - Drug cost analysis
-  - Overhead cost allocation
-  - Department profitability
-
-• Cash Flow Management
-  - Daily cash position
-  - Cash flow forecasting
-  - Bank reconciliation automation
-  - Outstanding receivables tracking
-  - Payables management
-
-• Financial Ratios
-  - Operating margin
-  • Current ratio
-  - Debt-to-equity ratio
-  - Revenue per bed
-  - Average revenue per patient
-
-• Executive Dashboards
-  - Key Performance Indicators (KPIs)
-  - Month-on-month comparisons
-  - Budget vs. Actual analysis
-  - Alerts for financial anomalies
-```
+**Key Features:**
+- **Dashboard Analytics** — Role-specific dashboards showing key metrics and quick actions
+- **Financial Reports** — Revenue, costs, drug sales, payment trends, and cash flow
+- **Clinical Reports** — Patient volume, diagnosis trends, and treatment outcomes
+- **Pharmacy Reports** — Stock levels, expiry alerts, reorder status, and sales analytics
+- **Laboratory Reports** — Test volumes, turnaround times, and critical result rates
+- **Audit Logs** — Complete traceability of all system actions for compliance
 
 ---
 
-### **19. Budgeting & Forecasting**
+### 18. Multi-Tenant & Subscription Management
 
-```
-FINANCIAL PLANNING:
-• Annual Budget Creation
-  - Department-wise budget allocation
-  - Salary budgeting
-  - Drug and supplies budget
-  - Capital expenditure planning
-  - Maintenance budget
+The platform supports multiple healthcare facilities on a single installation.
 
-• Budget Monitoring
-  - Real-time budget vs. actual tracking
-  - Variance analysis
-  - Budget utilization alerts
-  - Approval workflows for over-budget requests
-  - Quarterly budget reviews
-
-• Financial Forecasting
-  - Patient volume predictions
-  - Revenue forecasting models
-  - Cash flow projections
-  - Seasonal adjustment factors
-  - Growth scenario planning
-
-• Grant & Donor Management
-  - Grant tracking
-  - Fund utilization reporting
-  - Donor reporting automation
-  - Project-based accounting
-  - Compliance documentation
-```
+**Key Features:**
+- **Tenant Isolation** — Each hospital gets its own private, secure data space
+- **Subscription Plans** — Flexible subscription tiers for different facility sizes
+- **Online Payments** — Secure subscription payments via Paystack and PayPal
+- **Usage Monitoring** — Track subscription status, expiry, and trial periods
+- **Platform Administration** — Super administrators manage all tenants, subscriptions, and platform settings from a central console
 
 ---
 
-## **PART F: REGULATORY & COMPLIANCE FEATURES**
+### 19. Security & Compliance
 
-### **20. Detailed NHIS Management**
+Enterprise-grade security and regulatory compliance.
 
-```
-COMPREHENSIVE NHIS INTEGRATION:
-• Enrollee Management
-  - NHIS number validation
-  - Enrollee verification (online API)
-  - Family principal tracking
-  - Dependent management
-  - Biometric capture integration
-
-• Service Authorization
-  - Pre-authorization request automation
-  - Service code validation
-  - Diagnosis code (ICD-10) integration
-  - Treatment approval tracking
-  - Denial management
-
-• Claims Processing
-  - Electronic claim generation
-  - Claim attachment (invoices, lab results)
-  - Batch submission to NHIS
-  - Claim status tracking
-  - Rejection management and resubmission
-  - Payment reconciliation
-
-• Capitation Management
-  - Enrollee list reconciliation
-  - Monthly capitation calculation
-  - Payment tracking
-  - Unutilized fund management
-
-• Fraud Detection
-  - Duplicate claim checking
-  - Upcoding detection algorithms
-  - Ghost patient identification
-  - Service frequency analysis
-  - Provider profiling for anomalies
-  - Audit trail for investigations
-```
+**Key Features:**
+- **Role-Based Access** — Each user sees only the features and data relevant to their role
+- **Two-Factor Authentication** — Optional 2FA using TOTP, SMS, or email for added security
+- **Audit Logging** — Every action in the system is logged with user, timestamp, and details
+- **Data Encryption** — Sensitive data such as passwords, API keys, and medical information is encrypted
+- **Session Management** — Track and manage active user sessions across devices
+- **Password Security** — Secure password reset flows and account lockout after failed login attempts
+- **NDPR Compliance** — Tools for managing patient consent, data subject requests, and data breach reporting in compliance with Nigeria's Data Protection Regulation
 
 ---
 
-### **21. NDPR Compliance Automation**
+### 20. Integrations & Interoperability
 
-```
-DATA PROTECTION FEATURES:
-• Consent Management
-  - Electronic consent capture
-  - Purpose-specific consent
-  - Consent withdrawal workflow
-  • Consent audit trail
-  - Minor consent (parental)
+Connect with external systems and standards.
 
-• Data Subject Rights
-  - Right to access (data export)
-  - Right to rectification
-  - Right to erasure ("Right to be forgotten")
-  - Right to data portability
-  - Right to object
-
-• Data Protection Officer (DPO) Dashboard
-  - Consent status overview
-  - Data breach monitoring
-  - Privacy impact assessments
-  - NITDA compliance reporting
-  - Training compliance tracking
-
-• Data Breach Management
-  - Incident detection
-  - Severity assessment
-  - 72-hour notification automation (to NITDA)
-  - Affected patient notification
-  - Remediation tracking
-  - Post-breach analysis
-
-• Cross-Border Data Transfer
-  - Transfer logging
-  - Adequacy assessment
-  - Standard Contractual Clauses (SCCs)
-  - Transfer impact assessments
-```
+**Key Features:**
+- **FHIR Support** — Exchange patient data using the HL7 FHIR standard
+- **HL7 v2 Messaging** — Send and receive traditional HL7 messages
+- **Mirth Connect** — Integrated channel management for Mirth Connect integration engines
+- **External API Access** — Secure API key management for partner systems
+- **USSD Support** — Patient access via USSD for basic services without internet
+- **Mobile Money** — Integration with mobile payment platforms
+- **SMS & Email** — Automated appointment reminders, lab result notifications, and patient communications
 
 ---
 
-### **22. Clinical Audit & Quality Assurance**
+## User Roles at a Glance
 
-```
-CLINICAL GOVERNANCE:
-• Audit Management
-  - Audit calendar planning
-  - Data collection automation
-  - Compliance checking
-  - Deviation tracking
-  - Corrective action plans
-  - Re-audit scheduling
-
-• Quality Indicators
-  - Hospital-acquired infection rates
-  - Medication error tracking
-  - Readmission rates (28-day)
-  - Mortality reviews
-  - Length of stay analysis
-  - Patient fall incidents
-  - Pressure ulcer incidence
-
-• Clinical Protocols Compliance
-  - Guideline adherence tracking
-  - Antibiotic stewardship monitoring
-  - Surgical safety checklist compliance
-  - Blood transfusion protocols
-  - Infection control measures
-
-• Peer Review
-  - Mortality and morbidity (M&M) conferences
-  - Case presentations
-  - Clinical incident reviews
-  - Learning from errors
-  - Best practice sharing
-```
+| Role | Primary Responsibilities |
+|------|-------------------------|
+| **Super Admin** | Manages the entire platform, all tenants, subscriptions, and system settings |
+| **System Admin** | Manages reference data, user accounts, and platform-wide configurations |
+| **Hospital Admin** | Manages staff, facility settings, and billing for a single hospital |
+| **Doctor** | Consults patients, writes prescriptions, orders tests, and documents care |
+| **Nurse** | Records vitals, manages ward rounds, administers medications, and tracks patient progress |
+| **Pharmacist** | Manages drug inventory, dispenses medications, and processes sales |
+| **Lab Technician / Manager** | Receives test orders, performs tests, records and verifies results |
+| **Receptionist** | Registers patients, schedules appointments, and manages check-ins |
+| **Accountant** | Creates invoices, processes payments, manages insurance claims, and views financial reports |
+| **Patient** | Views personal medical records, appointments, and lab results |
 
 ---
 
-## **PART G: EMERGENCY & SPECIAL SITUATIONS**
+## How the System Works (At a Glance)
 
-### **23. Emergency Department Management**
-
-```
-ED-SPECIFIC FEATURES:
-• Triage System
-  - South African Triage Scale (SATS) implementation
-  - Color-coded patient categorization (Red, Orange, Yellow, Green)
-  - Waiting time monitoring
-  - Re-triage workflows
-  - Triage nurse documentation
-
-• ED Patient Tracking
-  - Patient arrival registration
-  - Bed assignment in ED
-  - Doctor assignment
-  - Investigation tracking
-  - Disposition (admission, discharge, referral, death)
-  - ED length of stay monitoring
-
-• Trauma Management
-  - Trauma team activation
-  - ATLS (Advanced Trauma Life Support) documentation
-  - Injury severity scoring
-  - Trauma registry
-  - Outcome tracking
-
-• Emergency Protocols
-  - Resuscitation documentation (CPR timing)
-  - Crash cart checklists
-  - Poisoning management protocols
-  - Snakebite treatment guidelines (Nigerian snakes)
-  - Mass casualty incident mode
-```
+1. **Registration** — A receptionist registers a new patient and assigns a unique hospital number
+2. **Appointment** — The patient books an appointment or walks in for a visit
+3. **Check-In & Triage** — The patient is checked in and a nurse records initial vital signs
+4. **Consultation** — The doctor reviews the patient, documents findings, prescribes medications, and orders lab tests
+5. **Pharmacy & Lab** — Medications are dispensed and lab tests are processed
+6. **Billing** — All services are itemized on an invoice and payment is collected
+7. **Follow-Up** — The patient is scheduled for follow-up if needed
+8. **Records** — Every step is recorded and accessible through the patient's complete medical history
 
 ---
 
-### **24. Disaster & Mass Casualty Management**
+## Why SmartCare HMS?
 
-```
-EMERGENCY PREPAREDNESS:
-• Disaster Mode Activation
-  - One-click system-wide alert
-  - Staff recall automation
-  - Resource reallocation
-  - Bed surge capacity management
-  - Supplier emergency contacts
-
-• Mass Casualty Incident (MCI)
-  - Rapid patient registration (minimal data)
-  - Triage tag tracking (START triage)
-  - Surge documentation templates
-  - Family reunification tracking
-  - Media communication logs
-
-• Resource Management
-  - Blood bank emergency release
-  - Pharmacy emergency stock
-  - OR prioritization
-  - Ambulance coordination
-  - External facility coordination
-
-• Nigerian Context Scenarios
-  - Road traffic accidents (RTA) mass casualty
-  - Bomb blast response
-  - Epidemic surge (Cholera, Lassa fever)
-  - Flood disaster response
-  - Building collapse incidents
-```
+- **All-in-One Platform** — No need for separate systems for patient records, pharmacy, lab, and billing
+- **Nigeria-Ready** — Built for Nigerian hospitals with NHIS, NIN, NAFDAC, and NCDC compliance
+- **Multi-Tenant** — One system can serve multiple hospitals, each with complete data privacy
+- **Role-Based** — Every staff member sees only what they need to do their job
+- **Audit-Ready** — Complete audit trails for every action, supporting compliance and accountability
+- **Offline-Ready Frontend** — The user interface is fast and responsive with smart caching and offline capabilities
 
 ---
 
-### **25. Mortuary & Death Management**
-
-```
-DECEASED PATIENT MANAGEMENT:
-• Death Documentation
-  - Death notification
-  - Cause of death documentation
-  - Death certificate generation (MDCN format)
-  - Coroner case flagging
-  - Post-mortem request
-
-• Mortuary Management
-  - Body reception documentation
-  - Cold storage bay assignment
-  - Body identification system
-  - Mortuary register
-  - Autopsy scheduling
-  - Viewing room booking
-
-• Body Release
-  - Next of kin verification
-  - Release authorization
-  - Undertaker coordination
-  - Burial permit generation
-  - Outstanding bill settlement
-
-• Nigerian Cultural Considerations
-  - Religious requirements documentation
-  - Embalming tracking
-  - Traditional rites accommodation
-  - Extended family notification
-```
-
----
-
-## **PART H: RESEARCH & TEACHING HOSPITAL FEATURES**
-
-### **26. Research Management (Teaching Hospitals)**
-
-```
-ACADEMIC FEATURES:
-• Research Project Tracking
-  - Project registration
-  - Ethics approval tracking
-  - Grant management
-  - Data collection tools
-  - Patient recruitment tracking
-  - Research outcome documentation
-
-• Clinical Trials Management
-  - Trial participant enrollment
-  - Protocol adherence monitoring
-  - Adverse event reporting
-  - Data safety monitoring
-  - Regulatory compliance (NAFDAC)
-
-• Publication Tracking
-  - Manuscript submissions
-  - Publications database
-  - Citation tracking
-  - Author affiliations
-  - Impact factor monitoring
-
-• Collaboration Management
-  - Multi-center trial coordination
-  - International partnership tracking
-  - Resource sharing
-  - IP (Intellectual Property) management
-```
-
----
-
-### **27. Medical Education & Training**
-
-```
-TEACHING HOSPITAL SPECIFIC:
-• Student & Resident Management
-  - Student registration
-  - Rotation scheduling
-  - Logbook tracking
-  - Assessment records
-  - Attendance monitoring
-  - Clinical exposure tracking
-
-• Teaching Activities
-  - Grand rounds scheduling
-  - Journal club documentation
-  - Teaching ward round logs
-  - Case-based discussions
-  - Simulation training records
-
-• Examination Management
-  - OSCE (Objective Structured Clinical Examination) scheduling
-  - Clinical exam station setup
-  - Result processing
-  - Re-sit management
-
-• CME (Continuing Medical Education)
-  - CME event calendar
-  - Registration management
-  - Attendance tracking
-  - Certificate generation
-  - CME points tracking (MDCN requirement)
-```
-
----
-
-## **PART I: INTEGRATION & INTEROPERABILITY**
-
-### **28. External System Integrations**
-
-```
-THIRD-PARTY INTEGRATIONS:
-• Government Systems
-  - National Population Commission (birth registration)
-  - National Identity Management Commission (NIN)
-  - NHIS portal
-  - NAFDAC drug database
-  - NCDC disease surveillance
-  - State health ministries
-
-• Financial Services
-  - Bank APIs (GTBank, UBA, Access, etc.)
-  - Payment gateways (Paystack, Flutterwave, Remita)
-  - Mobile money operators
-  - POS terminal providers
-  - Accounting software (QuickBooks, Sage)
-
-• Healthcare Services
-  - Medical laboratories (reference labs)
-  - Radiology centers
-  - Blood banks
-  - Pharmacies (for prescription delivery)
-  - Home care services
-  - Telemedicine platforms
-
-• Communication Services
-  - SMS gateways (bulk SMS providers)
-  - WhatsApp Business API
-  - Email services (SendGrid, Mailgun)
-  - Voice call services
-  - USSD aggregators
-```
-
----
-
-### **29. Data Exchange Standards**
-
-```
-INTEROPERABILITY:
-• HL7 FHIR Implementation
-  - Patient demographics exchange
-  - Clinical document sharing
-  - Lab result transmission
-  - Medication orders
-  - Appointment scheduling
-
-• DICOM Integration
-  - Medical imaging exchange
-  - PACS (Picture Archiving and Communication System)
-  - Radiology worklist
-  - Image viewing and reporting
-
-• ICD-10 Coding
-  - Diagnosis coding
-  - Procedure coding
-  - Morbidity and mortality coding
-  - NHIS claim coding
-
-• LOINC (Logical Observation Identifiers Names and Codes)
-  - Laboratory test coding
-  - Clinical observations
-  - Result reporting
-```
-
----
-
-## **PART J: ANALYTICS & REPORTING**
-
-### **30. Comprehensive Reporting Suite**
-
-```
-REGULATORY REPORTS:
-• NHIS Reports
-  - Monthly capitation reports
-  - Claims submission summaries
-  - Service utilization reports
-  - Enrollee demographics
-
-• NDPR Reports
-  - Data processing activities
-  - Consent status reports
-  - Data breach notifications
-  - Privacy impact assessments
-
-• MDCN Reports
-  - Doctor activity logs
-  - CME compliance
-  - Professional misconduct cases
-
-• NCDC Reports
-  - Notifiable disease line lists
-  - Epidemic surveillance
-  - Laboratory confirmation reports
-
-CLINICAL REPORTS:
-• Patient Care Reports
-  - Admission and discharge summaries
-  - Clinical audit reports
-  - Complication rates
-  - Treatment outcome analysis
-
-• Disease-Specific Reports
-  - Malaria case statistics
-  - HIV/AIDS care cascade
-  - Tuberculosis treatment outcomes
-  - Non-communicable disease burden
-
-OPERATIONAL REPORTS:
-• Hospital Statistics
-  - Bed occupancy rates
-  - Average length of stay
-  - Outpatient attendance
-  - Emergency department

@@ -355,7 +355,7 @@ const PatientMPI = () => {
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [showMergeHistory, setShowMergeHistory] = useState(true);
 
   const label = (p) => p?.full_name || [p?.first_name, p?.middle_name, p?.last_name].filter(Boolean).join(' ') || 'Unnamed patient';

@@ -61,14 +61,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Clipboard, label: 'Reports', path: '/financial-analytics' }
     ],
     lab_tech: [
-      { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: FlaskConical, label: 'Laboratory', path: '/laboratory' },
       { icon: Users, label: 'Patients', path: '/patients' },
       { icon: FileText, label: 'EMR', path: '/emr' },
       { icon: PackageSearch, label: 'Supplies', path: '/medical-supplies' }
     ],
     lab_manager: [
-      { icon: Home, label: 'Dashboard', path: '/dashboard' },
       { icon: FlaskConical, label: 'Laboratory', path: '/laboratory' },
       { icon: Users, label: 'Patients', path: '/patients' },
       { icon: FileText, label: 'EMR', path: '/emr' },

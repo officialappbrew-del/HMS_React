@@ -1,50 +1,21 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   addStaff,
   updateStaff,
-  deleteStaff,
-  archiveStaff,
   searchStaff,
   sortStaff,
   filterStaff,
   setStaffList,
   setLoading,
 } from '../features/staffSlice.jsx';
-import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { apiRequest } from '../utils/api';
 import {
-  UserPlus,
-  Search,
-  Filter,
-  ArrowUpDown,
-  MoreVertical,
-  Edit2,
-  Archive,
-  Trash2,
-  Mail,
-  Phone,
-  Calendar,
-  Users,
-  Briefcase,
-  Clock,
-  CheckCircle,
-  XCircle,
-  User,
-  Building2,
-  Download,
-  X,
-  Clipboard,
-  Loader2,
-  Eye,
-  EyeOff,
-  Upload,
-  FileSpreadsheet,
-  AlertTriangle,
-  Menu,
-  RotateCcw
+  UserPlus, Search, Edit2, Archive, Trash2, Mail, Phone, Calendar, Users,
+  CheckCircle, XCircle, User, Building2, Download, X, Loader2,
+  Eye, Upload, FileSpreadsheet, AlertTriangle, RotateCcw
 } from 'lucide-react';
 
 // Compact Tooltip Component
@@ -894,19 +865,6 @@ const StaffManagement = () => {
     showPassword: false,
   });
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    role: '',
-    departmentId: '',
-    department: '',
-    hireDate: '',
-    designation: '',
-    salary: '',
-    password: '',
-  });
-
   const generatePasswordSuggestion = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
     let password = '';
@@ -979,45 +937,54 @@ const StaffManagement = () => {
     isRootAdmin: Boolean(member.is_root_admin),
   });
 
-  const loadStaff = async () => {
+  const getStaffSortField = (value) => {
+    switch (value) {
+      case 'role':
+        return 'role';
+      case 'department':
+        return 'department__name';
+      case 'hireDate':
+        return 'employment_date';
+      case 'name':
+      default:
+        return 'first_name';
+    }
+  };
+
+  const buildStaffUrl = (overrides = {}) => {
+    const search = overrides.search !== undefined ? overrides.search : searchTerm;
+    const status = overrides.status !== undefined ? overrides.status : filterBy;
+    const page = overrides.page !== undefined ? overrides.page : currentPage;
+    const pageSize = overrides.page_size !== undefined ? overrides.page_size : itemsPerPage;
+    const ordering = overrides.ordering !== undefined ? overrides.ordering : getStaffSortField(sortBy);
+
+    const params = new URLSearchParams();
+    if (search && search.trim()) params.append('search', search.trim());
+    if (status && status !== 'all') params.append('status', status);
+    if (pageSize) params.append('page_size', String(pageSize));
+    if (page) params.append('page', String(page));
+    if (ordering) params.append('ordering', ordering);
+
+    const qs = params.toString();
+    return `/api/v1/tenants/users/${qs ? `?${qs}` : ''}`;
+  };
+
+  const loadStaff = async (url = buildStaffUrl()) => {
     try {
       setIsLoading(true);
       dispatch(setLoading(true));
 
-      const allUsers = [];
-      let nextUrl = '/api/v1/tenants/users/?page_size=200';
-      let page = 1;
+      const data = await apiRequest(url);
+      const users = Array.isArray(data) ? data : (data?.results || []);
 
-      while (nextUrl) {
-        const data = await apiRequest(nextUrl);
-        if (Array.isArray(data)) {
-          allUsers.push(...data);
-          nextUrl = null;
-        } else {
-          allUsers.push(...(data.results || []));
-          if (data.next) {
-            page += 1;
-            try {
-              const url = new URL(data.next);
-              nextUrl = url.pathname + url.search;
-            } catch {
-              nextUrl = data.next.startsWith('/') ? data.next : `${'/api/v1/tenants/users/'}?page=${page}&page_size=200`;
-            }
-          } else {
-            nextUrl = null;
-          }
-        }
-        if (page > 100) nextUrl = null;
-      }
-
-      const filteredResults = allUsers.filter((user) => {
+      const filteredResults = users.filter((user) => {
         if (!user.is_root_admin) return true;
         return currentUserIsRootAdmin && String(user.id) === String(currentUserId);
       });
-      const count = filteredResults.length;
+
       const normalizedUsers = dedupeStaffById(filteredResults.map(normalizeStaff));
       dispatch(setStaffList(normalizedUsers));
-      setTotalCount(count);
+      setTotalCount(Array.isArray(data) ? filteredResults.length : (data?.count ?? filteredResults.length));
     } catch (error) {
       console.error('Failed to load staff users:', error);
     } finally {
@@ -1038,12 +1005,21 @@ const StaffManagement = () => {
     };
 
     loadDepartments();
-    loadStaff();
-  }, [dispatch]);
+    loadStaff(buildStaffUrl());
+  }, [dispatch, searchTerm, sortBy, filterBy, currentPage]);
 
-  const handleSearch = (e) => dispatch(searchStaff(e.target.value));
-  const handleSort = (e) => dispatch(sortStaff(e.target.value));
-  const handleFilter = (e) => dispatch(filterStaff(e.target.value));
+  const handleSearch = (e) => {
+    dispatch(searchStaff(e.target.value));
+    setCurrentPage(1);
+  };
+  const handleSort = (e) => {
+    dispatch(sortStaff(e.target.value));
+    setCurrentPage(1);
+  };
+  const handleFilter = (e) => {
+    dispatch(filterStaff(e.target.value));
+    setCurrentPage(1);
+  };
 
   const handleDeleteClick = (staff) => {
     setStaffToDelete(staff);
@@ -1062,7 +1038,7 @@ const StaffManagement = () => {
       setStaffToDelete(null);
     } catch (error) {
       console.error('Delete failed:', error);
-      alert(error.message || 'Unable to delete staff');
+      window.alert(error.message || 'Unable to delete staff');
     } finally {
       setIsLoading(false);
     }
@@ -1089,7 +1065,7 @@ const StaffManagement = () => {
       setStaffToArchive(null);
     } catch (error) {
       console.error('Archive failed:', error);
-      alert(error.message || 'Unable to archive staff');
+      window.alert(error.message || 'Unable to archive staff');
     } finally {
       setIsLoading(false);
     }
@@ -1116,7 +1092,7 @@ const StaffManagement = () => {
       setStaffToRestore(null);
     } catch (error) {
       console.error('Restore failed:', error);
-      alert(error.message || 'Unable to restore staff');
+      window.alert(error.message || 'Unable to restore staff');
     } finally {
       setIsLoading(false);
     }
@@ -1124,7 +1100,7 @@ const StaffManagement = () => {
 
   const handleEditClick = (staff) => {
     if (staff.isRootAdmin && !currentUserIsRootAdmin) {
-      alert('Only the root admin can view or edit this user.');
+      window.alert('Only the root admin can view or edit this user.');
       return;
     }
     setSelectedStaff(staff);
@@ -1135,7 +1111,7 @@ const StaffManagement = () => {
 
   const handleViewClick = (staff) => {
     if (staff.isRootAdmin && !currentUserIsRootAdmin) {
-      alert('Only the root admin can view this user.');
+      window.alert('Only the root admin can view this user.');
       return;
     }
     setSelectedStaff(staff);
@@ -1269,8 +1245,7 @@ const StaffManagement = () => {
       
       if (hasPasswordError) {
         const suggestion = generatePasswordSuggestion();
-        setFormData(prev => ({ ...prev, password: suggestion }));
-        setFormError(`Password Error: ${Array.isArray(errorDetails.password) ? errorDetails.password.join(', ') : errorDetails.password || error.message}`);
+        setFormError(`Password Error: ${Array.isArray(errorDetails.password) ? errorDetails.password.join(', ') : errorDetails.password || error.message}. Suggested password: ${suggestion}`);
       } else {
         setFormError(error.message || 'Unable to save staff user');
       }
@@ -1372,8 +1347,8 @@ const StaffManagement = () => {
   };
 
   const uniqueFilteredStaff = dedupeStaffById(filteredStaff);
-  const totalItems = uniqueFilteredStaff.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalItems = totalCount || uniqueFilteredStaff.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const displayedStaff = uniqueFilteredStaff.slice(startIndex, endIndex);

@@ -298,7 +298,10 @@ const Login = () => {
       window.dispatchEvent(new Event('authChanged'));
       setMessage('Login successful!');
       setMessageType('success');
-      setTimeout(() => navigate('/dashboard'), 400);
+      const landingPath = ['lab_tech', 'lab_manager'].includes((user.role || '').toLowerCase())
+        ? '/laboratory'
+        : '/dashboard';
+      setTimeout(() => navigate(landingPath), 400);
     } catch (error) {
       setMessage(error.message || 'Login failed. Please try again.');
       setMessageType('error');

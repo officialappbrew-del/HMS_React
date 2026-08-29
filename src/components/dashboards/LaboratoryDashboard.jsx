@@ -423,7 +423,11 @@ const LaboratoryDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [createOrderSubmitting, setCreateOrderSubmitting] = useState(false);
+  const [processingOrderId, setProcessingOrderId] = useState(null);
+  const [processingAction, setProcessingAction] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
   const [resultValue, setResultValue] = useState('');
   const [resultNotes, setResultNotes] = useState('');
   const [newOrder, setNewOrder] = useState({ patient: '', test: '', priority: 'routine', clinical_notes: '' });
@@ -447,6 +451,29 @@ const LaboratoryDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
+  const [showEnterResultModal, setShowEnterResultModal] = useState(false);
+  const [returnToCreateOrder, setReturnToCreateOrder] = useState(false);
+  const [createOrderFormData, setCreateOrderFormData] = useState({ patient: '', test: '', priority: 'routine', clinical_notes: '' });
+  const [createOrderPatientSearch, setCreateOrderPatientSearch] = useState('');
+  const [createOrderPatientSuggestions, setCreateOrderPatientSuggestions] = useState([]);
+  const [createOrderSelectedPatient, setCreateOrderSelectedPatient] = useState(null);
+  const [createOrderPatientSearchLoading, setCreateOrderPatientSearchLoading] = useState(false);
+  const [enterResultFormData, setEnterResultFormData] = useState({ order: '', value: '', result_notes: '' });
+  const [sampleOrdersForResult, setSampleOrdersForResult] = useState([]);
+  const [enterResultSubmitting, setEnterResultSubmitting] = useState(false);
+  const [enterResultLoading, setEnterResultLoading] = useState(false);
+  const [showCreateTestModal, setShowCreateTestModal] = useState(false);
+  const [createTestFormData, setCreateTestFormData] = useState({
+    name: '',
+    code: '',
+    category: 'other',
+    sample_type: 'Blood',
+    turnaround_time: 24,
+    price: 0,
+    reference_range: '',
+    units: '',
+  });
   const inventoryItems = [];
 
   // ==================== LOADING FUNCTIONS ====================
@@ -460,23 +487,15 @@ const LaboratoryDashboard = () => {
         apiRequest('/api/v1/lab/orders/?ordering=-ordered_date&page_size=100'),
         apiRequest('/api/v1/lab/orders/work_in_progress/'),
         apiRequest('/api/v1/lab/orders/critical_results/'),
-        apiRequest('/api/v1/lab/results/?verified=false&page_size=100'),
-        apiRequest('/api/v1/lab/tests/?page_size=100'),
-        apiRequest('/api/v1/lab/instrument-maintenance/pending_maintenance/'),
       ]);
 
-      const [
-        statsResult, ordersResult, progressResult, criticalResult,
-        unverifiedResult, testsResult, maintenanceResult
-      ] = requests;
+      const [statsResult, ordersResult, progressResult, criticalResult] = requests;
 
       if (statsResult.status === 'fulfilled') setStats((currentStats) => ({ ...currentStats, ...statsResult.value }));
       if (ordersResult.status === 'fulfilled') setOrders(parseListResponse(ordersResult.value));
       if (progressResult.status === 'fulfilled') setWorkInProgress(parseListResponse(progressResult.value));
       if (criticalResult.status === 'fulfilled') setCriticalResults(parseListResponse(criticalResult.value));
-      if (unverifiedResult.status === 'fulfilled') setUnverifiedResults(parseListResponse(unverifiedResult.value));
-      if (testsResult.status === 'fulfilled') setTests(parseListResponse(testsResult.value));
-      if (maintenanceResult.status === 'fulfilled') setMaintenance(parseListResponse(maintenanceResult.value));
+      if (quiet) await loadTabData(activeTab, true);
 
       if (requests.every((req) => req.status === 'rejected')) {
         setError('Laboratory data could not be loaded. Check your connection and permissions.');
@@ -490,11 +509,101 @@ const LaboratoryDashboard = () => {
     }
   };
 
+  const loadActiveQueue = async () => {
+    try {
+      setRefreshing(true);
+      const data = await apiRequest('/api/v1/lab/orders/work_in_progress/');
+      setWorkInProgress(parseListResponse(data));
+    } catch (err) {
+      setError(err.message || 'Unable to refresh the active laboratory queue.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const loadTabData = async (tab, force = false) => {
+    try {
+      if ((tab === 'samples' || tab === 'tests') && (force || tests.length === 0)) {
+        const testsPath = `/api/v1/lab/tests/?page_size=100${force ? `&refresh=${Date.now()}` : ''}`;
+        const data = await apiRequest(testsPath, { cacheTtl: force ? 0 : 300000 });
+        setTests(parseListResponse(data));
+      }
+
+      if (tab === 'results' && (force || unverifiedResults.length === 0)) {
+        const data = await apiRequest('/api/v1/lab/results/?verified=false&page_size=100');
+        setUnverifiedResults(parseListResponse(data));
+      }
+
+      if (tab === 'qc' && (force || maintenance.length === 0)) {
+        const maintenancePath = `/api/v1/lab/instrument-maintenance/pending_maintenance/${force ? `?refresh=${Date.now()}` : ''}`;
+        const data = await apiRequest(maintenancePath, { cacheTtl: force ? 0 : 60000 });
+        setMaintenance(parseListResponse(data));
+      }
+    } catch (err) {
+      setError(err.message || `Unable to load ${tab} data.`);
+    }
+  };
+
+  // Load in-progress samples for result entry
+  useEffect(() => {
+    if (showEnterResultModal) {
+      setSampleOrdersForResult(workInProgress.filter(o => o.status === 'in_progress'));
+    }
+  }, [showEnterResultModal, workInProgress]);
+
+  const openEnterResultModal = async () => {
+    setActionError('');
+    setEnterResultLoading(true);
+    setShowEnterResultModal(true);
+    try {
+      const data = await apiRequest('/api/v1/lab/orders/work_in_progress/?refresh=' + Date.now(), { cacheTtl: 0 });
+      const currentSamples = parseListResponse(data).filter((order) => order.status === 'in_progress');
+      setWorkInProgress((ordersInProgress) => {
+        const activeOrders = ordersInProgress.filter((order) => order.status !== 'in_progress');
+        return [...activeOrders, ...currentSamples];
+      });
+      setSampleOrdersForResult(currentSamples);
+    } catch (err) {
+      setActionError(err.message || 'Unable to load samples in progress.');
+    } finally {
+      setEnterResultLoading(false);
+    }
+  };
+
+  // Search for patients when creating order
+  useEffect(() => {
+    const query = createOrderPatientSearch.trim();
+    if (!query || createOrderSelectedPatient?.mrn === query) {
+      setCreateOrderPatientSuggestions([]);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setCreateOrderPatientSearchLoading(true);
+      try {
+        const data = await apiRequest(`/api/v1/patients/patients/?search=${encodeURIComponent(query)}&status=all&page_size=8`);
+        setCreateOrderPatientSuggestions(parseListResponse(data));
+      } catch {
+        setCreateOrderPatientSuggestions([]);
+      } finally {
+        setCreateOrderPatientSearchLoading(false);
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [createOrderPatientSearch, createOrderSelectedPatient]);
+
   useEffect(() => {
     loadDashboard();
-    const interval = setInterval(() => loadDashboard(true), 60000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadActiveQueue();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    loadTabData(activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     const query = patientSearch.trim();
@@ -537,11 +646,16 @@ const LaboratoryDashboard = () => {
   // ==================== ACTION FUNCTIONS ====================
   const runOrderAction = async (order, action) => {
     setActionError('');
+    setProcessingOrderId(order.id);
+    setProcessingAction(action);
     try {
       await apiRequest(`/api/v1/lab/orders/${order.id}/${action}/`, { method: 'POST', body: JSON.stringify({}) });
       await loadDashboard(true);
     } catch (err) {
       setActionError(err.message || `Unable to ${action.replace('_', ' ')} this specimen.`);
+    } finally {
+      setProcessingOrderId(null);
+      setProcessingAction('');
     }
   };
 
@@ -592,6 +706,108 @@ const LaboratoryDashboard = () => {
       await loadDashboard(true);
     } catch (err) {
       setActionError(err.message || 'Unable to save the result.');
+    }
+  };
+
+  const submitCreateOrder = async (event) => {
+    event.preventDefault();
+    if (!createOrderSelectedPatient?.id) {
+      setActionError('Select a patient from the search results before creating the order.');
+      return;
+    }
+    setActionError('');
+    setCreateOrderSubmitting(true);
+    try {
+      await apiRequest('/api/v1/lab/orders/', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...createOrderFormData,
+          patient: createOrderSelectedPatient.id,
+          test: Number(createOrderFormData.test)
+        })
+      });
+      setCreateOrderFormData({ patient: '', test: '', priority: 'routine', clinical_notes: '' });
+      setCreateOrderPatientSearch('');
+      setCreateOrderSelectedPatient(null);
+      setCreateOrderPatientSuggestions([]);
+      setShowCreateOrderModal(false);
+      await loadDashboard(true);
+    } catch (err) {
+      setActionError(err.message || 'Unable to create the laboratory order.');
+    } finally {
+      setCreateOrderSubmitting(false);
+    }
+  };
+
+  const submitEnterResult = async (event) => {
+    event.preventDefault();
+    if (!enterResultFormData.order || !enterResultFormData.value.trim()) {
+      setActionError('Select a sample and enter a result value.');
+      return;
+    }
+    setActionError('');
+    setEnterResultSubmitting(true);
+    try {
+      await apiRequest('/api/v1/lab/results/', {
+        method: 'POST',
+        body: JSON.stringify({
+          order: Number(enterResultFormData.order),
+          value: enterResultFormData.value,
+          result_notes: enterResultFormData.result_notes
+        }),
+      });
+      setEnterResultFormData({ order: '', value: '', result_notes: '' });
+      setShowEnterResultModal(false);
+      await loadDashboard(true);
+    } catch (err) {
+      setActionError(err.message || 'Unable to enter the result.');
+    } finally {
+      setEnterResultSubmitting(false);
+    }
+  };
+
+  const submitCreateTest = async (event) => {
+    event.preventDefault();
+    if (!createTestFormData.name.trim()) {
+      setActionError('Test name is required.');
+      return;
+    }
+
+    const normalizedCode = (createTestFormData.code || '').trim() || `LAB-${Date.now().toString().slice(-6)}`;
+    const normalizedPayload = {
+      ...createTestFormData,
+      code: normalizedCode,
+      sample_type: (createTestFormData.sample_type || 'Blood').trim() || 'Blood',
+      turnaround_time: Number(createTestFormData.turnaround_time || 24),
+      price: Number(createTestFormData.price || 0),
+      reference_range: createTestFormData.reference_range || '',
+      units: createTestFormData.units || '',
+    };
+
+    setActionError('');
+    try {
+      const createdTest = await apiRequest('/api/v1/lab/tests/', {
+        method: 'POST',
+        body: JSON.stringify(normalizedPayload)
+      });
+      setCreateTestFormData({ name: '', code: '', category: 'other', sample_type: 'Blood', turnaround_time: 24, price: 0, reference_range: '', units: '' });
+      setShowCreateTestModal(false);
+      await loadTabData('tests', true);
+      setTests((currentTests) => {
+        const refreshedTest = parseListResponse(createdTest)[0] || createdTest;
+        if (!refreshedTest?.id || currentTests.some((test) => test.id === refreshedTest.id)) return currentTests;
+        return [...currentTests, refreshedTest].sort((first, second) => first.name.localeCompare(second.name));
+      });
+      const createdTestData = parseListResponse(createdTest)[0] || createdTest;
+      if (returnToCreateOrder && createdTestData?.id) {
+        setCreateOrderFormData((currentFormData) => ({ ...currentFormData, test: createdTestData.id }));
+        setReturnToCreateOrder(false);
+        setShowCreateOrderModal(true);
+      } else {
+        setActiveTab('tests');
+      }
+    } catch (err) {
+      setActionError(err.message || 'Unable to create the test.');
     }
   };
 
@@ -690,6 +906,7 @@ const LaboratoryDashboard = () => {
     { id: 'results', label: 'Results', icon: FileCheck2 },
     { id: 'qc', label: 'Quality Control', icon: ShieldCheck },
     { id: 'inventory', label: 'Inventory', icon: PackageSearch },
+    { id: 'tests', label: 'Test Catalog', icon: Beaker },
     { id: 'reports', label: 'Reports', icon: Download },
   ];
 
@@ -851,6 +1068,20 @@ const LaboratoryDashboard = () => {
               Sample Queue
               <span className="text-xs font-normal text-[#5A5A5A]">({filteredOrders.length})</span>
             </h3>
+            <ButtonWithTooltip
+              onClick={() => {
+                setActionError('');
+                loadTabData('samples');
+                setShowCreateOrderModal(true);
+              }}
+              tooltip="Create a new test order"
+              variant="primary"
+              size="sm"
+              className="flex-shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              New Order
+            </ButtonWithTooltip>
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[120px] sm:min-w-[140px]">
                 <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-[#5A5A5A]" />
@@ -1007,9 +1238,10 @@ const LaboratoryDashboard = () => {
                             tooltip="Collect sample"
                             variant="primary"
                             size="sm"
+                            disabled={processingOrderId === order.id}
                           >
-                            <Truck className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Collect</span>
+                            {processingOrderId === order.id && processingAction === 'collect_sample' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{processingOrderId === order.id && processingAction === 'collect_sample' ? 'Collecting...' : 'Collect'}</span>
                           </ButtonWithTooltip>
                         )}
                         {order.status === 'collected' && (
@@ -1018,9 +1250,10 @@ const LaboratoryDashboard = () => {
                             tooltip="Start analysis"
                             variant="primary"
                             size="sm"
+                            disabled={processingOrderId === order.id}
                           >
-                            <Play className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Start</span>
+                            {processingOrderId === order.id && processingAction === 'start_analysis' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{processingOrderId === order.id && processingAction === 'start_analysis' ? 'Starting...' : 'Start'}</span>
                           </ButtonWithTooltip>
                         )}
                         {order.status === 'in_progress' && (
@@ -1050,7 +1283,10 @@ const LaboratoryDashboard = () => {
                         )}
                         <IconButton
                           icon={Eye}
-                          onClick={() => {}}
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowOrderDetailModal(true);
+                          }}
                           tooltip="View details"
                           variant="default"
                           size="sm"
@@ -1186,7 +1422,7 @@ const LaboratoryDashboard = () => {
   const renderResults = () => (
     <div className="grid w-full min-w-0 grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-2">
       <div className="min-w-0 overflow-hidden bg-white border border-[#E8E3DC]">
-        <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-[#E8E3DC] bg-[#F7F5F2]">
+        <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-[#E8E3DC] bg-[#F7F5F2] flex items-center justify-between">
           <h3 className="min-w-0 flex-1 text-sm font-display font-semibold text-[#1A1A1A] flex items-center gap-2">
             <HeartPulse className="w-4 h-4 text-[#C8553D] flex-shrink-0" />
             Critical Results
@@ -1231,12 +1467,22 @@ const LaboratoryDashboard = () => {
       </div>
 
       <div className="min-w-0 overflow-hidden bg-white border border-[#E8E3DC]">
-        <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-[#E8E3DC] bg-[#F7F5F2]">
+        <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-[#E8E3DC] bg-[#F7F5F2] flex items-center justify-between">
           <h3 className="min-w-0 flex-1 text-sm font-display font-semibold text-[#1A1A1A] flex items-center gap-2">
             <FileCheck2 className="w-4 h-4 text-[#008751] flex-shrink-0" />
             Awaiting Verification
             <span className="text-xs font-normal text-[#5A5A5A]">({unverifiedResults.length})</span>
           </h3>
+          <ButtonWithTooltip
+            onClick={openEnterResultModal}
+            tooltip="Enter a test result"
+            variant="primary"
+            size="sm"
+            className="flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Enter Result
+          </ButtonWithTooltip>
         </div>
         <div className="p-3 sm:p-4 space-y-3">
           {unverifiedResults.length === 0 ? (
@@ -1494,6 +1740,75 @@ const LaboratoryDashboard = () => {
     );
   };
 
+  const renderTestCatalog = () => (
+    <div className="space-y-4">
+      <div className="min-w-0 overflow-hidden bg-white border border-[#E8E3DC]">
+        <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-[#E8E3DC] bg-[#F7F5F2] flex items-center justify-between">
+          <h3 className="min-w-0 flex-1 text-sm font-display font-semibold text-[#1A1A1A] flex items-center gap-2">
+            <Beaker className="w-4 h-4 text-[#008751] flex-shrink-0" />
+            Laboratory Test Catalog
+            <span className="text-xs font-normal text-[#5A5A5A]">({tests.length})</span>
+          </h3>
+          <ButtonWithTooltip
+            onClick={() => setShowCreateTestModal(true)}
+            tooltip="Add a new test to the catalog"
+            variant="primary"
+            size="sm"
+            className="flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Add Test
+          </ButtonWithTooltip>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead className="border-b border-[#E8E3DC] bg-[#FAFAFA]">
+              <tr>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Test Name</th>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Code</th>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Category</th>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Sample Type</th>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Turnaround</th>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Price</th>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Reference Range</th>
+                <th className="px-4 py-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Units</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F0EDE8]">
+              {tests.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-8 text-center text-[#5A5A5A]">
+                    <EmptyState
+                      icon={Beaker}
+                      title="No tests available"
+                      description="Click 'Add Test' to create your first test in the catalog."
+                    />
+                  </td>
+                </tr>
+              ) : (
+                tests.map((test) => (
+                  <tr key={test.id} className="hover:bg-[#F7F5F2] transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-[#1A1A1A]">{test.name}</div>
+                      <div className="text-xs text-[#5A5A5A]">ID: {test.id}</div>
+                    </td>
+                    <td className="px-4 py-3 text-[#5A5A5A]">{test.code || '—'}</td>
+                    <td className="px-4 py-3 text-[#5A5A5A] capitalize">{test.category || 'Other'}</td>
+                    <td className="px-4 py-3 text-[#5A5A5A]">{test.sample_type || '—'}</td>
+                    <td className="px-4 py-3 text-[#5A5A5A]">{test.turnaround_time ? `${test.turnaround_time}h` : '—'}</td>
+                    <td className="px-4 py-3 text-[#5A5A5A]">{test.price ? `₦${Number(test.price).toLocaleString()}` : '₦0'}</td>
+                    <td className="px-4 py-3 text-[#5A5A5A]">{test.reference_range || '—'}</td>
+                    <td className="px-4 py-3 text-[#5A5A5A]">{test.units || '—'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderReports = () => {
     const reportTypes = [
       { id: 'daily_workload', label: 'Daily Workload Report', description: 'Sample volume, status, and completion metrics', icon: ClipboardList },
@@ -1649,6 +1964,7 @@ const LaboratoryDashboard = () => {
         {activeTab === 'results' && renderResults()}
         {activeTab === 'qc' && renderQC()}
         {activeTab === 'inventory' && renderInventory()}
+        {activeTab === 'tests' && renderTestCatalog()}
         {activeTab === 'reports' && renderReports()}
       </div>
 
@@ -1668,6 +1984,378 @@ const LaboratoryDashboard = () => {
         setNotes={setResultNotes}
         onSubmit={submitResult}
       />
+
+      {showOrderDetailModal && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#1A1A1A] bg-opacity-60 p-0 sm:p-4">
+          <div className="bg-white w-full sm:w-full sm:max-w-lg max-h-[95vh] overflow-hidden rounded-t-lg sm:rounded-lg">
+            <div className="border-b border-[#E8E3DC] px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between sticky top-0 bg-white z-10">
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-display font-semibold text-[#1A1A1A]">Sample Details</h3>
+                <p className="text-xs sm:text-sm text-[#5A5A5A] truncate">{selectedOrder.order_number || `Order ${selectedOrder.id}`}</p>
+              </div>
+              <button onClick={() => { setShowOrderDetailModal(false); setSelectedOrder(null); }} className="p-1 hover:bg-[#F0EDE8] rounded transition-colors flex-shrink-0 ml-2">
+                <X className="w-5 h-5 text-[#5A5A5A]" />
+              </button>
+            </div>
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-[#F7F5F2] p-3 rounded">
+                  <div className="text-[10px] uppercase tracking-wider text-[#5A5A5A]">Patient</div>
+                  <div className="mt-1 font-medium text-[#1A1A1A]">{displayName(selectedOrder)}</div>
+                </div>
+                <div className="bg-[#F7F5F2] p-3 rounded">
+                  <div className="text-[10px] uppercase tracking-wider text-[#5A5A5A]">Test</div>
+                  <div className="mt-1 font-medium text-[#1A1A1A]">{selectedOrder.test_name || 'Laboratory test'}</div>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm text-[#1A1A1A]">
+                <div className="flex justify-between gap-3 border-b border-[#F0EDE8] pb-2"><span className="text-[#5A5A5A]">Accession</span><span className="font-medium">{selectedOrder.sample_accession_number || 'Not assigned'}</span></div>
+                <div className="flex justify-between gap-3 border-b border-[#F0EDE8] pb-2"><span className="text-[#5A5A5A]">Priority</span><span className="font-medium">{selectedOrder.priority || 'routine'}</span></div>
+                <div className="flex justify-between gap-3 border-b border-[#F0EDE8] pb-2"><span className="text-[#5A5A5A]">Status</span><span className="font-medium"><StatusBadge status={selectedOrder.status} /></span></div>
+                <div className="flex justify-between gap-3 border-b border-[#F0EDE8] pb-2"><span className="text-[#5A5A5A]">Clinical Notes</span><span className="font-medium text-right max-w-[200px]">{selectedOrder.clinical_notes || 'No notes provided'}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Test Order Modal */}
+      <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity ${showCreateOrderModal ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ backgroundColor: showCreateOrderModal ? 'rgba(26, 26, 26, 0.6)' : 'rgba(26, 26, 26, 0)' }}>
+        <div className={`bg-white w-full sm:w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-hidden rounded-t-lg sm:rounded-lg transform transition-transform ${showCreateOrderModal ? 'translate-y-0' : 'translate-y-full sm:scale-95'}`}>
+          <div className="border-b border-[#E8E3DC] px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between sticky top-0 bg-white z-10">
+            <h3 className="text-base sm:text-lg font-display font-semibold text-[#1A1A1A]">Create Test Order</h3>
+            <button onClick={() => setShowCreateOrderModal(false)} className="p-1 hover:bg-[#F0EDE8] rounded transition-colors flex-shrink-0 ml-2">
+              <X className="w-5 h-5 text-[#5A5A5A]" />
+            </button>
+          </div>
+          <form onSubmit={submitCreateOrder} className="p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+            {actionError && (
+              <div className="bg-[#F5EDEA] border border-[#E8D6D0] text-[#C8553D] text-sm px-3 py-2 rounded">
+                {actionError}
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Patient *</label>
+              <input
+                type="text"
+                value={createOrderPatientSearch}
+                onChange={(e) => setCreateOrderPatientSearch(e.target.value)}
+                placeholder="Search by name or MRN..."
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+              />
+              {createOrderPatientSuggestions.length > 0 && !createOrderSelectedPatient && (
+                <div className="mt-2 border border-[#E8E3DC] rounded bg-white max-h-40 overflow-y-auto">
+                  {createOrderPatientSuggestions.map((patient) => (
+                    <button
+                      key={patient.id}
+                      type="button"
+                      onClick={() => {
+                        setCreateOrderSelectedPatient(patient);
+                        setCreateOrderPatientSearch(patient.mrn || '');
+                      }}
+                      className="block w-full text-left px-3 py-2 hover:bg-[#F7F5F2] border-b border-[#F0EDE8] last:border-0 text-sm"
+                    >
+                      <div className="font-medium text-[#1A1A1A]">{patient.full_name || patient.name || [patient.first_name, patient.last_name].filter(Boolean).join(' ')}</div>
+                      <div className="text-xs text-[#5A5A5A]">MRN: {patient.mrn}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {createOrderSelectedPatient && (
+                <div className="mt-2 bg-[#E8F5EF] border border-[#D0E8E0] p-2 rounded flex items-center justify-between">
+                  <span className="text-sm text-[#1A1A1A]">Selected: {createOrderSelectedPatient.full_name || createOrderSelectedPatient.name || [createOrderSelectedPatient.first_name, createOrderSelectedPatient.last_name].filter(Boolean).join(' ')}</span>
+                  <button type="button" onClick={() => { setCreateOrderSelectedPatient(null); setCreateOrderPatientSearch(''); setCreateOrderFormData({ ...createOrderFormData, patient: '' }); }} className="text-sm font-semibold text-[#008751] hover:underline">Change</button>
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <label className="block text-xs font-medium text-[#5A5A5A]">Test *</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnToCreateOrder(true);
+                    setShowCreateOrderModal(false);
+                    setShowCreateTestModal(true);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#008751] hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add test
+                </button>
+              </div>
+              <select
+                required
+                value={createOrderFormData.test}
+                onChange={(e) => setCreateOrderFormData({ ...createOrderFormData, test: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+              >
+                <option value="">Select a test...</option>
+                {tests.map((test) => (
+                  <option key={test.id} value={test.id}>{test.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Priority</label>
+              <select
+                value={createOrderFormData.priority}
+                onChange={(e) => setCreateOrderFormData({ ...createOrderFormData, priority: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+              >
+                <option value="routine">Routine</option>
+                <option value="priority">Priority</option>
+                <option value="stat">STAT</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Clinical Notes</label>
+              <textarea
+                value={createOrderFormData.clinical_notes}
+                onChange={(e) => setCreateOrderFormData({ ...createOrderFormData, clinical_notes: e.target.value })}
+                rows="3"
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                placeholder="Clinical indication or special instructions"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-[#E8E3DC]">
+              <ButtonWithTooltip
+                type="button"
+                onClick={() => setShowCreateOrderModal(false)}
+                tooltip="Cancel"
+                variant="secondary"
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </ButtonWithTooltip>
+              <ButtonWithTooltip
+                type="submit"
+                tooltip="Create order"
+                variant="primary"
+                className="w-full sm:w-auto"
+                disabled={createOrderSubmitting}
+              >
+                {createOrderSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {createOrderSubmitting ? 'Creating...' : 'Create Order'}
+              </ButtonWithTooltip>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Enter Result Modal */}
+      <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity ${showEnterResultModal ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ backgroundColor: showEnterResultModal ? 'rgba(26, 26, 26, 0.6)' : 'rgba(26, 26, 26, 0)' }}>
+        <div className={`bg-white w-full sm:w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-hidden rounded-t-lg sm:rounded-lg transform transition-transform ${showEnterResultModal ? 'translate-y-0' : 'translate-y-full sm:scale-95'}`}>
+          <div className="border-b border-[#E8E3DC] px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between sticky top-0 bg-white z-10">
+            <h3 className="text-base sm:text-lg font-display font-semibold text-[#1A1A1A]">Enter Test Result</h3>
+            <button onClick={() => setShowEnterResultModal(false)} className="p-1 hover:bg-[#F0EDE8] rounded transition-colors flex-shrink-0 ml-2">
+              <X className="w-5 h-5 text-[#5A5A5A]" />
+            </button>
+          </div>
+          <form onSubmit={submitEnterResult} className="p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+            {actionError && (
+              <div className="bg-[#F5EDEA] border border-[#E8D6D0] text-[#C8553D] text-sm px-3 py-2 rounded">
+                {actionError}
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Sample in Progress *</label>
+              {enterResultLoading ? (
+                <div className="flex items-center gap-2 border border-[#D8D4CD] px-3 py-2 text-sm text-[#5A5A5A]">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#008751]" />
+                  Loading samples...
+                </div>
+              ) : (
+                <select
+                  required
+                  value={enterResultFormData.order}
+                  onChange={(e) => setEnterResultFormData({ ...enterResultFormData, order: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                >
+                  <option value="">{sampleOrdersForResult.length ? 'Select a sample...' : 'No samples in progress'}</option>
+                  {sampleOrdersForResult.map((order) => (
+                    <option key={order.id} value={order.id}>
+                      {displayName(order)} · {order.test_name || 'Test'} ({order.sample_accession_number || `Order ${order.id}`})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Result Value *</label>
+              <input
+                required
+                type="text"
+                value={enterResultFormData.value}
+                onChange={(e) => setEnterResultFormData({ ...enterResultFormData, value: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                placeholder="Enter value and units (e.g., 7.2 mg/dL)"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Result Notes</label>
+              <textarea
+                value={enterResultFormData.result_notes}
+                onChange={(e) => setEnterResultFormData({ ...enterResultFormData, result_notes: e.target.value })}
+                rows="4"
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                placeholder="Interpretation, instrument notes, or comments"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-[#E8E3DC]">
+              <ButtonWithTooltip
+                type="button"
+                onClick={() => setShowEnterResultModal(false)}
+                tooltip="Cancel"
+                variant="secondary"
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </ButtonWithTooltip>
+              <ButtonWithTooltip
+                type="submit"
+                tooltip="Save result"
+                variant="primary"
+                className="w-full sm:w-auto"
+                disabled={enterResultSubmitting || enterResultLoading}
+              >
+                {enterResultSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {enterResultSubmitting ? 'Saving...' : 'Save Result'}
+              </ButtonWithTooltip>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Create Test Modal */}
+      <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity ${showCreateTestModal ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ backgroundColor: showCreateTestModal ? 'rgba(26, 26, 26, 0.6)' : 'rgba(26, 26, 26, 0)' }}>
+        <div className={`bg-white w-full sm:w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-hidden rounded-t-lg sm:rounded-lg transform transition-transform ${showCreateTestModal ? 'translate-y-0' : 'translate-y-full sm:scale-95'}`}>
+          <div className="border-b border-[#E8E3DC] px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between sticky top-0 bg-white z-10">
+            <h3 className="text-base sm:text-lg font-display font-semibold text-[#1A1A1A]">Add Test to Catalog</h3>
+            <button onClick={() => { setShowCreateTestModal(false); setReturnToCreateOrder(false); }} className="p-1 hover:bg-[#F0EDE8] rounded transition-colors flex-shrink-0 ml-2">
+              <X className="w-5 h-5 text-[#5A5A5A]" />
+            </button>
+          </div>
+          <form onSubmit={submitCreateTest} className="p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+            {actionError && (
+              <div className="bg-[#F5EDEA] border border-[#E8D6D0] text-[#C8553D] text-sm px-3 py-2 rounded">
+                {actionError}
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Test Name *</label>
+              <input
+                required
+                type="text"
+                value={createTestFormData.name}
+                onChange={(e) => setCreateTestFormData({ ...createTestFormData, name: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                placeholder="e.g., Full Blood Count"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Code</label>
+              <input
+                type="text"
+                value={createTestFormData.code}
+                onChange={(e) => setCreateTestFormData({ ...createTestFormData, code: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                placeholder="e.g., FBC or leave blank to auto-generate"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Category</label>
+              <select
+                value={createTestFormData.category}
+                onChange={(e) => setCreateTestFormData({ ...createTestFormData, category: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+              >
+                <option value="hematology">Hematology</option>
+                <option value="biochemistry">Biochemistry</option>
+                <option value="microbiology">Microbiology</option>
+                <option value="urinalysis">Urinalysis</option>
+                <option value="hormonal">Hormonal</option>
+                <option value="immunology">Immunology</option>
+                <option value="molecular">Molecular</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Sample Type</label>
+                <input
+                  type="text"
+                  value={createTestFormData.sample_type}
+                  onChange={(e) => setCreateTestFormData({ ...createTestFormData, sample_type: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                  placeholder="Blood"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Turnaround (hours)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={createTestFormData.turnaround_time}
+                  onChange={(e) => setCreateTestFormData({ ...createTestFormData, turnaround_time: Number(e.target.value || 24) })}
+                  className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Price (₦)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={createTestFormData.price}
+                onChange={(e) => setCreateTestFormData({ ...createTestFormData, price: Number(e.target.value || 0) })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Reference Range</label>
+              <input
+                type="text"
+                value={createTestFormData.reference_range}
+                onChange={(e) => setCreateTestFormData({ ...createTestFormData, reference_range: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                placeholder="e.g., 4.5-11.0 (x10^9/L)"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Units</label>
+              <input
+                type="text"
+                value={createTestFormData.units}
+                onChange={(e) => setCreateTestFormData({ ...createTestFormData, units: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors bg-white"
+                placeholder="e.g., g/dL, mmol/L, cells/µL"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-[#E8E3DC]">
+              <ButtonWithTooltip
+                type="button"
+                onClick={() => { setShowCreateTestModal(false); setReturnToCreateOrder(false); }}
+                tooltip="Cancel"
+                variant="secondary"
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </ButtonWithTooltip>
+              <ButtonWithTooltip
+                type="submit"
+                tooltip="Add test to catalog"
+                variant="primary"
+                className="w-full sm:w-auto"
+              >
+                <Check className="w-4 h-4" />
+                Add Test
+              </ButtonWithTooltip>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };

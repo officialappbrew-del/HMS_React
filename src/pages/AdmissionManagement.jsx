@@ -4,28 +4,10 @@ import { useLocation } from 'react-router-dom';
 import BedAllocation from './BedAllocation';
 import IPDManagement from './IPDManagement';
 import {
-  Plus,
-  FileText,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  Download,
-  ArrowRight,
-  User,
-  Stethoscope,
-  Bed,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Calendar,
-  Building2,
-  Activity,
-  Clipboard,
-  UserPlus,
-  Home,
-  Pill,
-} from 'lucide-react';
+  Plus,  FileText,  CheckCircle,  AlertCircle,  Clock,  Download,
+  ArrowRight,  User,  Stethoscope,  Bed,  X,
+  ChevronLeft,  ChevronRight,  Search,  Calendar,  Building2,  Activity,
+  Clipboard,  UserPlus,  Home,  Pill,} from 'lucide-react';
 import { syncAdmissions } from '../features/admissionSlice';
 import { admissionApi } from '../utils/api';
 
@@ -351,7 +333,7 @@ const DetailsView = ({ data }) => {
 const AdmissionManagement = () => {
   const dispatch = useDispatch();
   const location = useLocation();
-  const { admissions, admissionRequests, dischargeSummaries, admissionStatuses, admissionSources } = useSelector(
+  const { admissions, admissionRequests, admissionStatuses, admissionSources } = useSelector(
     state => state.admission
   );
   const { wards } = useSelector(state => state.ward);
@@ -362,7 +344,7 @@ const AdmissionManagement = () => {
   const [showAdmissionForm, setShowAdmissionForm] = useState(false);
   const [showDischargeForm, setShowDischargeForm] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
-  const [viewMode, setViewMode] = useState('overview');
+  const [viewMode, setViewMode] = useState('ipd');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsData, setDetailsData] = useState(null);
   const [notificationModal, setNotificationModal] = useState({ show: false, message: '', type: 'success' });
@@ -371,7 +353,6 @@ const AdmissionManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const itemsPerPage = 8;
 
@@ -517,9 +498,9 @@ const AdmissionManagement = () => {
   ];
 
   const viewTabs = [
-    { id: 'overview', label: 'Overview', icon: FileText },
-    { id: 'bed-allocation', label: 'Patient Admin', icon: UserPlus },
-    { id: 'ipd', label: 'IPD Command Centre', icon: Stethoscope },
+    { id: 'ipd', label: 'IPD Command Centre', icon: Stethoscope, priority: 'primary' },
+    { id: 'overview', label: 'Overview', icon: FileText, priority: 'secondary' },
+    { id: 'bed-allocation', label: 'Patient Admin', icon: UserPlus, priority: 'secondary' },
   ];
 
   // Handlers
@@ -684,19 +665,6 @@ const AdmissionManagement = () => {
     });
   };
 
-  const formatDisplayDateTime = (value, fallback = 'N/A') => {
-    if (!value) return fallback;
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return fallback;
-    return date.toLocaleString('en-NG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   // Render functions for each tab
   const renderActiveAdmissions = () => {
     const query = searchQuery.toLowerCase();
@@ -732,7 +700,7 @@ const AdmissionManagement = () => {
         {paginated.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
             <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium">No active admissions</p>
+            <p className="text-gray-600 font-medium">No active admissions </p>
             <p className="text-sm text-gray-500 mt-1">All beds are available</p>
           </div>
         ) : (
@@ -1184,7 +1152,7 @@ const AdmissionManagement = () => {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
               <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-              Patient Administration
+              Patient Administration QWERTY
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
               Admissions, bed coordination, and inpatient command centre in one workflow
@@ -1226,21 +1194,26 @@ const AdmissionManagement = () => {
         </div>
 
         <div className="border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
-          <nav className="flex gap-4 sm:gap-6 min-w-max" aria-label="Clinical workflow tabs">
+          <nav className="flex gap-2 sm:gap-3 min-w-max" aria-label="Clinical workflow tabs">
             {viewTabs.map((tab) => {
               const Icon = tab.icon;
+              const isPrimary = tab.priority === 'primary';
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setViewMode(tab.id)}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-1 py-2 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
                     viewMode === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? isPrimary
+                        ? 'border-blue-700 text-blue-700 bg-blue-50 rounded-t-lg shadow-sm'
+                        : 'border-blue-600 text-blue-600 bg-blue-50 rounded-t-lg'
+                      : isPrimary
+                        ? 'border-transparent text-gray-700 hover:text-blue-700 hover:border-blue-300 bg-white rounded-t-lg'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isPrimary ? 'text-blue-600' : ''}`} />
                   <span>{tab.label}</span>
                 </button>
               );

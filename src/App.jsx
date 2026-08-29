@@ -30,6 +30,7 @@ const Pharmacy = lazy(() => import('./pages/Pharmacy'));
 const Consultation = lazy(() => import('./pages/Consultation'));
 const ConsultationV2 = lazy(() => import('./pages/ConsultationV2'));
 const LaboratoryDashboard = lazy(() => import('./components/dashboards/LaboratoryDashboard'));
+const LaboratoryPage = lazy(() => import('./pages/Laboratory'));
 const StaffManagement = lazy(() => import('./pages/StaffManagement'));
 const Appointments = lazy(() => import('./pages/Appointments'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -146,6 +147,7 @@ const NotFoundLayout = ({ children }) => {
       () => import('./pages/Pharmacy'),
       () => import('./pages/ConsultationV2'),
       () => import('./components/dashboards/LaboratoryDashboard'),
+      () => import('./pages/Laboratory'),
       () => import('./pages/StaffManagement'),
       () => import('./pages/Appointments'),
       () => import('./pages/Settings'),
@@ -306,7 +308,11 @@ function AppLayout() {
   }, []);
 
    useEffect(() => {
-     if (adminSubdomain) return;
+    if (adminSubdomain || ['doctor', 'nurse', 'pharmacist', 'receptionist', 'lab_tech', 'lab_manager'].includes(userRole)) {
+       setRightSidebarData(null);
+       setRightSidebarError(null);
+       return;
+     }
      const loadInsights = async () => {
        try {
          setRightSidebarLoading(true);
@@ -423,7 +429,7 @@ function AppLayout() {
                 <Route path="/pharmacy" element={<ProtectedRoute><Pharmacy /></ProtectedRoute>} />
                 <Route path="/consultation" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin', 'super_admin', 'system_admin']}><ConsultationV2 /></ProtectedRoute>} />
                 <Route path="/consultation-legacy" element={<ProtectedRoute><Consultation /></ProtectedRoute>} />
-                <Route path="/laboratory" element={<ProtectedRoute allowedRoles={['lab_tech', 'lab_manager', 'admin', 'super_admin', 'system_admin']}><LaboratoryDashboard /></ProtectedRoute>} />
+                <Route path="/laboratory" element={<ProtectedRoute allowedRoles={['lab_tech', 'lab_manager', 'admin', 'super_admin', 'system_admin']}><LaboratoryPage /></ProtectedRoute>} />
                 <Route path="/staff" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
                 <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
                 <Route path="/inventory" element={<ProtectedRoute><Navigate to="/pharmacy" replace /></ProtectedRoute>} />
