@@ -783,6 +783,9 @@ const PatientPortal = () => {
   const [localFilterBy, setLocalFilterBy] = useState('all');
   const [localSortBy, setLocalSortBy] = useState('date');
 
+  const getPatientDisplayName = () => currentPatient?.full_name || currentPatient?.name ||
+    [currentPatient?.first_name, currentPatient?.last_name].filter(Boolean).join(' ').trim() || 'Patient';
+
   // Live clock
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -906,7 +909,7 @@ const PatientPortal = () => {
       await dispatch(bookAppointment({
         ...formData,
         patientId: currentPatient.id,
-        patientName: currentPatient.name
+        patientName: getPatientDisplayName()
       }));
       setShowAppointmentModal(false);
     } finally {
@@ -921,7 +924,7 @@ const PatientPortal = () => {
       await dispatch(makePayment({
         ...formData,
         patientId: currentPatient.id,
-        patientName: currentPatient.name
+        patientName: getPatientDisplayName()
       }));
       setShowPaymentModal(false);
     } finally {
@@ -936,7 +939,7 @@ const PatientPortal = () => {
       await dispatch(bookTelemedicineSession({
         ...formData,
         patientId: currentPatient.id,
-        patientName: currentPatient.name
+        patientName: getPatientDisplayName()
       }));
       setShowTelemedicineModal(false);
     } finally {
@@ -1229,7 +1232,7 @@ const PatientPortal = () => {
               Patient Portal
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              Welcome back, {currentPatient.name}
+              Welcome back, {getPatientDisplayName()}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
