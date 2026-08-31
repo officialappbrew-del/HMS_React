@@ -106,9 +106,22 @@ const isAuthenticated = () => {
   return sessionStorage.getItem('isAuthenticated') === 'true';
 };
 
+const isPatientSession = () => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    localStorage.getItem('patientAccessToken') ||
+    localStorage.getItem('isPatientAuthenticated') === 'true' ||
+    localStorage.getItem('userRole') === 'patient'
+  );
+};
+
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
    const location = useLocation();
    const role = (localStorage.getItem('userRole') || 'admin').toLowerCase();
+
+   if (isPatientSession()) {
+     return <Navigate to="/patient-portal" replace state={{ from: location }} />;
+   }
 
    if (!isAuthenticated()) {
      return <Navigate to="/login" replace state={{ from: location }} />;

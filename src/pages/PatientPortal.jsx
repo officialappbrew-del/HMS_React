@@ -1005,7 +1005,7 @@ const PatientPortal = () => {
             <EcgLine className="mt-6 h-10 text-[#C79A3D]/70 sm:mt-8 sm:h-12" />
 
             <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.2em] text-[#C79A3D] sm:mt-8">
-              Patient portal
+              Patient portal 
             </p>
             <h1 className="mt-3 max-w-sm font-['Lora'] text-[28px] font-semibold leading-[1.15] text-[#F6F2E7] sm:text-[34px] lg:text-[36px]">
               Your health, connected.

@@ -292,7 +292,7 @@ const Login = () => {
         window.dispatchEvent(new Event('authChanged'));
         setMessage('Login successful!');
         setMessageType('success');
-        setTimeout(() => navigate('/patient-portal'), 400);
+        navigate('/patient-portal', { replace: true });
         return;
       }
 

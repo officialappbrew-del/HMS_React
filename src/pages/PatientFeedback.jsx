@@ -307,7 +307,7 @@ const SurveyModal = ({ isOpen, onClose, surveyForm, setSurveyForm, onSubmit, isS
                     <option value="sms">SMS</option>
                     <option value="email">Email</option>
                     <option value="whatsapp">WhatsApp</option>
-                    <option value="portal">Patient Portal</option>
+                    <option value="portal">Patient Portal </option>
                     <option value="kiosk">In-hospital Kiosk</option>
                   </select>
                 </div>
