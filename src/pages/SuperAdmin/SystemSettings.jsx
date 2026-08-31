@@ -70,7 +70,7 @@ const SystemSettings = () => {
     <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-display font-semibold text-[#1A1A1A]">System Settings</h2>
+          <h2 className="text-lg font-display font-semibold text-[#1A1A1A]">System Settings </h2>
           <p className="text-sm text-[#5A5A5A]">Platform-wide configuration and subscription defaults</p>
         </div>
         <button

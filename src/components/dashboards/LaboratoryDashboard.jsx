@@ -474,7 +474,20 @@ const LaboratoryDashboard = () => {
     reference_range: '',
     units: '',
   });
-  const inventoryItems = [];
+  const [editingTest, setEditingTest] = useState(null);
+  const [editTestFormData, setEditTestFormData] = useState({
+    name: '',
+    code: '',
+    category: 'other',
+    sample_type: 'Blood',
+    turnaround_time: 24,
+    price: 0,
+    reference_range: '',
+    units: '',
+  });
+  const [editTestSubmitting, setEditTestSubmitting] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   // ==================== LOADING FUNCTIONS ====================
   const loadDashboard = async (quiet = false) => {
@@ -808,6 +821,55 @@ const LaboratoryDashboard = () => {
       }
     } catch (err) {
       setActionError(err.message || 'Unable to create the test.');
+    }
+  };
+
+  const submitEditTest = async (event) => {
+    event.preventDefault();
+    if (!editingTest?.id || !editTestFormData.name.trim()) {
+      setActionError('Test name is required.');
+      return;
+    }
+    setActionError('');
+    setEditTestSubmitting(true);
+    try {
+      const normalizedPayload = {
+        ...editTestFormData,
+        turnaround_time: Number(editTestFormData.turnaround_time || 24),
+        price: Number(editTestFormData.price || 0),
+      };
+      const updatedTest = await apiRequest(`/api/v1/lab/tests/${editingTest.id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(normalizedPayload)
+      });
+      setEditingTest(null);
+      setEditTestFormData({ name: '', code: '', category: 'other', sample_type: 'Blood', turnaround_time: 24, price: 0, reference_range: '', units: '' });
+      await loadTabData('tests', true);
+      setTests((currentTests) => {
+        const refreshed = parseListResponse(updatedTest)[0] || updatedTest;
+        if (!refreshed?.id) return currentTests;
+        return currentTests.map((test) => test.id === refreshed.id ? refreshed : test);
+      });
+    } catch (err) {
+      setActionError(err.message || 'Unable to update the test.');
+    } finally {
+      setEditTestSubmitting(false);
+    }
+  };
+
+  const confirmDeleteTest = async () => {
+    if (!deleteConfirmId) return;
+    setActionError('');
+    setDeleteSubmitting(true);
+    try {
+      await apiRequest(`/api/v1/lab/tests/${deleteConfirmId}/`, { method: 'DELETE' });
+      setDeleteConfirmId(null);
+      await loadTabData('tests', true);
+      setTests((currentTests) => currentTests.filter((test) => test.id !== deleteConfirmId));
+    } catch (err) {
+      setActionError(err.message || 'Unable to delete the test.');
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 

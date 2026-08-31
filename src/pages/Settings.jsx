@@ -4,49 +4,16 @@ import { getUserPreferences, setUserPreferences } from '../utils/cookies';
 import { encryptInvitationData } from '../utils/invitationCrypto';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import ConfirmModal from '../components/ConfirmModal';
-import {
-  faCog,
-  faMoneyBillWave,
-  faBell,
-  faLock,
-  faDatabase,
-  faHospital,
-  faUpload,
-  faTimes,
-  faSave,
-  faUndo,
-  faSpinner,
-  faCheckCircle,
-  faExclamationCircle,
-  faUser,
-  faImage,
-  faClipboardList,
-  faClock,
-  faEnvelope,
-  faSms,
-  faMobileAlt,
-  faCommentDots,
-  faShieldAlt,
-  faSync,
-  faTrash,
-  faFileInvoice,
-  faCalendarDay,
-  faPercentage,
-  faCreditCard,
-  faUserShield,
-  faMapMarkerAlt,
-  faGlobe,
-  faUserPlus,
-  faCopy,
-  faCheck,
-  faBars,
-  faChevronDown,
-  faChevronLeft,
-  faChevronRight,
-  faEllipsisH,
-  faArchive,
-  faCircle,
-} from '@fortawesome/free-solid-svg-icons';
+import {  faCog,  faMoneyBillWave,  faBell,  faLock,
+  faDatabase,  faHospital,  faUpload,  faTimes,  faSave,  faUndo,
+  faSpinner,  faCheckCircle,  faExclamationCircle,  faUser,  faImage,
+  faClipboardList,  faClock,  faEnvelope,
+  faSms,  faMobileAlt,  faCommentDots,  faShieldAlt,
+  faSync,  faTrash,  faFileInvoice,  faCalendarDay,
+  faPercentage,  faCreditCard,  faUserShield,  faMapMarkerAlt,
+  faGlobe,  faUserPlus,  faCopy,  faCheck,
+  faBars,  faChevronDown,  faChevronLeft,  faChevronRight,
+  faEllipsisH,  faArchive,  faCircle,} from '@fortawesome/free-solid-svg-icons';
 
 // ==================== TOOLTIP COMPONENT ====================
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -1655,7 +1622,7 @@ const Settings = () => {
           <div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-[#1A1A1A] flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="text-[#008751]">
-                System Settings
+                System Settings 
               </span>
             </h1>
             <p className="mt-1 sm:mt-2 text-sm sm:text-base text-[#5A5A5A]">
