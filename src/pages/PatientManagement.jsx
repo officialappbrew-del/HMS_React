@@ -13,18 +13,14 @@ import {
 } from '../features/patientSlice';
 import LoadingSpinner from "../components/LoadingSpinner";
 import ConfirmModal from "../components/ConfirmModal";
-import { apiRequest, API_BASE_URL } from '../utils/api';
+import { apiRequest} from '../utils/api';
 import { 
-  User, Search, Filter, Plus, Edit, Trash2, 
-  UserPlus, Phone, Mail, MapPin, Calendar, Bed,
-  Heart, Users, FileText, Eye, Download,
-  ChevronLeft, ChevronRight, Grid, List, Printer,
-  X, AlertTriangle, CheckCircle, Shield, Clock,
-  UserCheck, UserX, Activity, Baby, Droplets,
-  Map, Building2, Globe, BookOpen, Award,
-  Menu, MoreVertical, UserCircle, IdCard, Loader2,
-  Archive, Upload, ChevronDown, FileSpreadsheet,
-  Users as UsersIcon, Filter as FilterIcon, Brain, RotateCcw
+  User, Search, Plus, Edit, Trash2, 
+  UserPlus, Bed, Users,  Eye, Download, Clipboard,
+  ChevronLeft, ChevronRight, Printer,
+  X, AlertTriangle, CheckCircle, Shield, EyeOff ,
+  UserCheck, UserX, Droplets, Map,  Loader2,
+  Archive, Upload, FileSpreadsheet, Filter as FilterIcon, Brain, RotateCcw, RefreshCw
 } from 'lucide-react';
 
 // ==================== COMPONENTS ====================
@@ -66,7 +62,7 @@ const Tooltip = ({ children, text, position = 'top' }) => {
 };
 
 // Compact Icon Button
-const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm' }) => {
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false, size = 'sm', iconClassName = '' }) => {
   const variantClasses = {
     default: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
     primary: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50',
@@ -97,7 +93,7 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
           disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
         }`}
       >
-        <Icon className={iconSizes[size]} />
+        <Icon className={`${iconSizes[size]} ${iconClassName}`} />
       </button>
     </Tooltip>
   );
@@ -1877,6 +1873,7 @@ const [showPrintModal, setShowPrintModal] = useState(false);
   
   const [statusFilter, setStatusFilter] = useState('all');
   const [localPatients, setLocalPatients] = useState([]);
+  const [copyStatus, setCopyStatus] = useState('');
   
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
@@ -1884,10 +1881,18 @@ const [showPrintModal, setShowPrintModal] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState(null);
   const [bulkUploadResult, setBulkUploadResult] = useState(null);
   const [bulkUploadError, setBulkUploadError] = useState(null);
+  const [credentialsModal, setCredentialsModal] = useState({
+    isOpen: false,
+    patientId: '',
+    password: '',
+    welcomeEmailStatus: 'not_queued',
+    showPassword: false,
+  });
   const bulkUploadPollsRef = useRef({});
   
   const [isLoading, setIsLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
+  const [refreshingPatientId, setRefreshingPatientId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [patientSummary, setPatientSummary] = useState({ total: 0, active: 0, inactive: 0 });
@@ -2011,10 +2016,10 @@ const [showPrintModal, setShowPrintModal] = useState(false);
     return () => clearTimeout(handler);
   }, [searchTermLocal]);
 
-  const loadPatients = async (url = '/api/v1/patients/patients/', { silent = false, fetchAll = false } = {}) => {
+  const loadPatients = async (url = '/api/v1/patients/patients/', { silent = false, fetchAll = false, showTableLoading = true } = {}) => {
     try {
-      if (silent) setTableLoading(true);
-      else setIsLoading(true);
+      if (silent && showTableLoading) setTableLoading(true);
+      else if (!silent) setIsLoading(true);
       
       let combinedPatients = [];
       let nextUrl = url;
@@ -2064,7 +2069,7 @@ const [showPrintModal, setShowPrintModal] = useState(false);
       setShowApiError(true);
     } finally {
       setIsLoading(false);
-      setTableLoading(false);
+      if (showTableLoading) setTableLoading(false);
     }
   };
 
@@ -2157,10 +2162,10 @@ const [showPrintModal, setShowPrintModal] = useState(false);
           setBulkUploadError(finalResult.result_message || 'Bulk upload processing failed.');
         }
       } else {
-        const isSuccess = response.ok;
+        const isSuccess = true;
         setBulkUploadProgress({
           status: isSuccess ? 'completed' : 'failed',
-          message: result?.message || (isSuccess ? 'Bulk upload completed successfully.' : 'Bulk upload failed.'),
+          message: result?.message || 'Bulk upload completed successfully.',
         });
         if (isSuccess) {
           await loadPatients(buildPatientsUrl(), { silent: true });
@@ -2184,6 +2189,42 @@ const [showPrintModal, setShowPrintModal] = useState(false);
     setBulkUploadProgress(null);
     setBulkUploadResult(null);
     setBulkUploadError(null);
+  };
+
+  const generatePatientPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i += 1) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const refreshPatientPassword = async (patient) => {
+    if (!patient?.id) return;
+
+    try {
+      setRefreshingPatientId(patient.id);
+      const response = await apiRequest(`/api/v1/patients/patients/${patient.id}/refresh-password/`, {
+        method: 'POST',
+        body: JSON.stringify({ password: generatePatientPassword() }),
+      });
+
+      setCredentialsModal({
+        isOpen: true,
+        patientId: response.login_id || patient.login_id || patient.hospital_number || patient.mrn || patient.id,
+        password: response.password,
+        welcomeEmailStatus: 'not_queued',
+        showPassword: false,
+      });
+      await loadPatients(buildPatientsUrl(), { silent: true, showTableLoading: false });
+    } catch (error) {
+      console.error('Failed to refresh patient password:', error);
+      setApiError(extractApiError(error));
+      setShowApiError(true);
+    } finally {
+      setRefreshingPatientId(null);
+    }
   };
 
   const handleDeleteClick = (patient) => {
@@ -2261,6 +2302,7 @@ const handleRestorePatient = (patient) => {
       first_name: firstName,
       last_name: lastName,
       middle_name: middleName,
+      password: formData.password || '',
       date_of_birth: formData.dateOfBirth || '',
       gender: formData.gender?.toLowerCase() || 'unknown',
       phone: formData.phone || '',
@@ -2324,7 +2366,10 @@ const handleRestorePatient = (patient) => {
     }
     
     try {
-      const payload = buildPatientPayload(formData, forceDuplicate);
+      const generatedPassword = generatePatientPassword();
+      const payload = modalMode === 'edit' || selectedPatient
+        ? buildPatientPayload(formData, forceDuplicate)
+        : buildPatientPayload({ ...formData, password: formData.password || generatedPassword }, forceDuplicate);
 
       if (modalMode === 'edit' && selectedPatient) {
         const updated = await apiRequest(`/api/v1/patients/patients/${selectedPatient.id}/`, {
@@ -2339,6 +2384,15 @@ const handleRestorePatient = (patient) => {
             body: JSON.stringify(payload),
           });
           dispatch(addPatient(normalizePatient(created)));
+
+          const patientLoginId = created?.login_id || created?.hospital_number || created?.mrn || created?.id;
+          setCredentialsModal({
+            isOpen: true,
+            patientId: patientLoginId,
+            password: payload.password || generatedPassword,
+            welcomeEmailStatus: 'not_queued',
+            showPassword: false,
+          });
         } catch (err) {
           if (err?.data?.duplicate) {
             setPendingFormData(formData);
@@ -2372,6 +2426,7 @@ const handleRestorePatient = (patient) => {
     setFormError(null);
     setIsSubmitting(true);
     try {
+      const generatedPassword = generatePatientPassword();
       const payload = buildPatientPayload({
         ...quickRegForm,
         name: quickRegForm.name,
@@ -2379,6 +2434,7 @@ const handleRestorePatient = (patient) => {
         dateOfBirth: quickRegForm.dateOfBirth || '',
         preferred_language: quickRegForm.preferred_language || 'English',
         patient_status: 'active',
+        password: generatedPassword,
       });
 
       const created = await apiRequest('/api/v1/patients/patients/', {
@@ -2386,6 +2442,16 @@ const handleRestorePatient = (patient) => {
         body: JSON.stringify(payload),
       });
       dispatch(addPatient(normalizePatient(created)));
+
+      const patientLoginId = created?.login_id || created?.hospital_number || created?.mrn || created?.id;
+      setCredentialsModal({
+        isOpen: true,
+        patientId: patientLoginId,
+        password: generatedPassword,
+        welcomeEmailStatus: 'not_queued',
+        showPassword: false,
+      });
+
       setShowQuickReg(false);
       setQuickRegForm({ name: '', phone: '', dateOfBirth: '', preferred_language: 'English' });
       await loadPatients(buildPatientsUrl(), { silent: true });
@@ -3006,6 +3072,15 @@ const handleRestorePatient = (patient) => {
                                   variant="primary"
                                   size="sm"
                                 />
+                                <IconButton
+                                  icon={RefreshCw}
+                                  onClick={() => refreshPatientPassword(patient)}
+                                  tooltip="Refresh password"
+                                  variant="warning"
+                                  size="sm"
+                                  disabled={refreshingPatientId === patient.id}
+                                  iconClassName={refreshingPatientId === patient.id ? 'animate-spin' : ''}
+                                />
                                 {isActive ? (
                                   <IconButton
                                     icon={Trash2}
@@ -3164,6 +3239,94 @@ const handleRestorePatient = (patient) => {
         patient={patientToRestore}
         isRestoring={isLoading}
       />
+
+      {/* Credentials Modal */}
+      {credentialsModal.isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-40 transition-opacity" onClick={() => setCredentialsModal({ ...credentialsModal, isOpen: false })} />
+          <div className="flex min-h-full items-center justify-center p-3">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all duration-200">
+              <div className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Login Credentials Created</h3>
+                    <p className="text-xs text-gray-500">Patient account has been created successfully.</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3 space-y-3 mb-3 border border-gray-200">
+                  <div>
+                    <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Login ID</label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-white px-2.5 py-1.5 rounded border border-gray-200 text-xs font-mono truncate">
+                        {credentialsModal.patientId}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(credentialsModal.patientId);
+                          setCopyStatus('Login ID copied!');
+                          setTimeout(() => setCopyStatus(''), 2000);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                      >
+                        <Clipboard className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Password</label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-white px-2.5 py-1.5 rounded border border-gray-200 text-xs font-mono truncate">
+                        {credentialsModal.showPassword ? credentialsModal.password : '••••••••••••'}
+                      </code>
+                      <button
+                        onClick={() => setCredentialsModal(prev => ({ ...prev, showPassword: !prev.showPassword }))}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                      >
+                        {credentialsModal.showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(credentialsModal.password);
+                          setCopyStatus('Password copied!');
+                          setTimeout(() => setCopyStatus(''), 2000);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                      >
+                        <Clipboard className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  {copyStatus && (
+                    <p className="text-xs text-green-600 font-medium">{copyStatus}</p>
+                  )}
+                </div>
+
+                <p className="text-xs text-gray-500 mb-3">
+                  The patient can login with their Login ID and the password above.
+                </p>
+                <div className={`mb-3 rounded-lg border px-2.5 py-2 text-xs ${
+                  ['queued', 'sent'].includes(credentialsModal.welcomeEmailStatus)
+                    ? 'border-green-200 bg-green-50 text-green-700'
+                    : 'border-yellow-200 bg-yellow-50 text-yellow-700'
+                }`}>
+                  {'Welcome email was not queued. Share the credentials securely with the patient.'}
+                </div>
+
+                <button
+                  onClick={() => setCredentialsModal({ ...credentialsModal, isOpen: false })}
+                  className="w-full bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* API Error Modal */}
       {showApiError && (

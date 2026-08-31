@@ -15,7 +15,7 @@ import { apiRequest } from '../utils/api';
 import {
   UserPlus, Search, Edit2, Archive, Trash2, Mail, Phone, Calendar, Users, Clipboard,
   CheckCircle, XCircle, User, Building2, Download, X, Loader2,
-  Eye, EyeOff, Upload, FileSpreadsheet, AlertTriangle, RotateCcw
+  Eye, EyeOff, Upload, FileSpreadsheet, AlertTriangle, RotateCcw, RefreshCw
 } from 'lucide-react';
 
 // Compact Tooltip Component
@@ -904,6 +904,33 @@ const StaffManagement = () => {
     return password;
   };
 
+  const refreshStaffPassword = async (staff) => {
+    if (!staff?.id) return;
+
+    try {
+      setIsLoading(true);
+      const response = await apiRequest(`/api/v1/tenants/users/${staff.id}/refresh-password/`, {
+        method: 'POST',
+        body: JSON.stringify({ password: generatePasswordSuggestion() }),
+      });
+
+      setCredentialsModal({
+        isOpen: true,
+        employeeId: response.employee_id || response.username || staff.employeeId,
+        email: response.email || staff.email,
+        password: response.password,
+        welcomeEmailStatus: 'not_queued',
+        showPassword: false,
+      });
+      await loadStaff();
+    } catch (error) {
+      console.error('Failed to refresh staff password:', error);
+      setFormError(error.message || 'Unable to refresh staff password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const roles = [
     { value: 'admin', label: 'Administrator' },
     { value: 'doctor', label: 'Doctor' },
@@ -1440,17 +1467,6 @@ const StaffManagement = () => {
     </div>
   );
 
-  // Loading State
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <LoadingSpinner overlay text="Loading staff..." />
-        </div>
-      </div>
-    );
-  }
-
   // Main Render
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1536,7 +1552,15 @@ const StaffManagement = () => {
         </div>
 
         {/* Main Table */}
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white rounded-lg border border-gray-200 relative">
+          {isLoading && (
+            <div className="absolute inset-0 z-10 bg-white/60 rounded-lg flex items-center justify-center">
+              <div className="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-100">
+                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                Loading...
+              </div>
+            </div>
+          )}
           {/* Toolbar */}
           <div className="p-3 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1673,6 +1697,14 @@ const StaffManagement = () => {
                                   onClick={() => handleEditClick(staff)}
                                   tooltip="Edit staff"
                                   variant="primary"
+                                  size="sm"
+                                  disabled={staff.isRootAdmin && !currentUserIsRootAdmin}
+                                />
+                                <IconButton
+                                  icon={RefreshCw}
+                                  onClick={() => refreshStaffPassword(staff)}
+                                  tooltip="Refresh password"
+                                  variant="warning"
                                   size="sm"
                                   disabled={staff.isRootAdmin && !currentUserIsRootAdmin}
                                 />
