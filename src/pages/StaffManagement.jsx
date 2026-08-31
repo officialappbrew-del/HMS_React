@@ -148,6 +148,7 @@ const StaffModal = ({
     designation: '',
     salary: '',
     password: '',
+    sendCredentials: false,
   });
   const [activeTab, setActiveTab] = useState('personal');
   const [showPassword, setShowPassword] = useState(false);
@@ -165,6 +166,7 @@ const StaffModal = ({
         designation: staff.designation || '',
         salary: staff.salary || '',
         password: '',
+        sendCredentials: false,
       });
     } else if (mode === 'add') {
       setFormData({
@@ -178,6 +180,7 @@ const StaffModal = ({
         designation: '',
         salary: '',
         password: '',
+        sendCredentials: false,
       });
     }
   }, [staff, mode]);
@@ -316,6 +319,22 @@ const StaffModal = ({
             />
           </div>
         </div>
+        {mode === 'add' && (
+          <label className="col-span-2 flex items-start gap-2 text-xs text-gray-700">
+            <input
+              type="checkbox"
+              name="sendCredentials"
+              checked={Boolean(formData.sendCredentials)}
+              onChange={handleChange}
+              disabled={isSubmitting}
+              className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>
+              Send login credentials to this user by email
+              <span className="block text-[11px] text-gray-500">The message will be sent using this tenant's email configuration.</span>
+            </span>
+          </label>
+        )}
         <div className="col-span-2">
           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Phone</label>
           <div className="relative">
@@ -1152,6 +1171,7 @@ const StaffManagement = () => {
       designation: formData.designation || '',
       employment_date: formData.hireDate || undefined,
       password: formData.password || 'TempPass123!',
+      send_credentials: Boolean(formData.sendCredentials),
       is_staff: true,
       employment_status: 'active',
     };

@@ -2280,7 +2280,6 @@ const handleRestorePatient = (patient) => {
       next_of_kin_relationship: formData.next_of_kin_relationship || '',
       next_of_kin_phone: formData.emergencyPhone || '',
       next_of_kin_address: formData.next_of_kin_address || '',
-      password: 'PatientPass123!',
       nin: formData.nin || '',
       patient_status: formData.patient_status || 'active',
       is_active: formData.patient_status === 'active',

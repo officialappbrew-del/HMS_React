@@ -765,6 +765,7 @@ const PatientPortal = () => {
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentPatient, setCurrentPatient] = useState(null);
+  const [tenantDetails, setTenantDetails] = useState(null);
   const [loginForm, setLoginForm] = useState({ identifier: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [portalError, setPortalError] = useState('');
@@ -805,6 +806,7 @@ const PatientPortal = () => {
         const data = await apiRequest('/api/v1/patients/patients/portal/');
         dispatch(hydratePortalData(data));
         setCurrentPatient(data?.patient || null);
+        setTenantDetails(data?.tenant || null);
       } catch (error) {
         setPortalError(error.message || 'Unable to load your patient portal data.');
       } finally {
@@ -889,6 +891,7 @@ const PatientPortal = () => {
       const portalData = await apiRequest('/api/v1/patients/patients/portal/');
       dispatch(hydratePortalData(portalData));
       setCurrentPatient(portalData?.patient || null);
+      setTenantDetails(portalData?.tenant || null);
     } catch (error) {
       setPortalError(error.message || 'Unable to sign in to the patient portal.');
     } finally {
@@ -959,6 +962,7 @@ const PatientPortal = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('authToken');
     setCurrentPatient(null);
+    setTenantDetails(null);
     navigate('/');
   };
 
@@ -1249,6 +1253,44 @@ const PatientPortal = () => {
             </ButtonWithTooltip>
           </div>
         </div>
+
+        {tenantDetails && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 rounded-lg border border-gray-200 bg-white p-4">
+            {tenantDetails.logo_url ? (
+              <img
+                src={tenantDetails.logo_url}
+                alt={`${tenantDetails.name} logo`}
+                className="h-14 w-14 rounded-lg border border-gray-100 object-contain p-1"
+              />
+            ) : (
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                <Hospital className="h-7 w-7 text-blue-600" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Your healthcare facility</p>
+              <h2 className="truncate text-lg font-semibold text-gray-900">{tenantDetails.name}</h2>
+              <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                {[tenantDetails.address, tenantDetails.city, tenantDetails.state].filter(Boolean).join(', ') || 'Location unavailable'}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {tenantDetails.phone && (
+                <a href={`tel:${tenantDetails.phone}`} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                  <Phone className="h-4 w-4 text-blue-600" />
+                  Call
+                </a>
+              )}
+              {tenantDetails.email && (
+                <a href={`mailto:${tenantDetails.email}`} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                  <Mail className="h-4 w-4 text-blue-600" />
+                  Email
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">

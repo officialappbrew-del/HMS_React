@@ -253,6 +253,8 @@ const Login = () => {
       const authData = response?.tokens || response?.data || response || {};
       const token = authData.access_token || response?.access_token || response?.token || authData.token || response?.accessToken || authData.accessToken;
       const refreshToken = authData.refresh_token || response?.refresh_token || response?.refreshToken || authData.refreshToken;
+      const isPatient = Boolean(response?.is_patient || authData.is_patient);
+      const patient = response?.patient || authData.patient || {};
       const user = response?.user || authData.user || {};
       const tenant = response?.tenant || authData.tenant || {};
       const tenantPublicId = tenant.public_id || tenant.publicId || tenant.id || response?.tenant_public_id || response?.tenantId || authData.tenant_public_id || authData.tenantId;
@@ -269,6 +271,29 @@ const Login = () => {
 
       if (response?.requires_2fa || authData.requires_2fa) {
         throw new Error('Two-factor verification is required before you can continue.');
+      }
+
+      if (isPatient) {
+        localStorage.setItem('patientAccessToken', token);
+        if (refreshToken) {
+          localStorage.setItem('patientRefreshToken', refreshToken);
+        }
+        localStorage.setItem('isPatientAuthenticated', 'true');
+        localStorage.setItem('userRole', 'patient');
+        localStorage.setItem('userName', patient.full_name || patient.login_id || loginIdentifier);
+        localStorage.setItem('userFullName', patient.full_name || patient.login_id || loginIdentifier);
+        localStorage.setItem('userId', patient.id || loginIdentifier);
+        if (patient.mrn) localStorage.setItem('patientMrn', patient.mrn);
+        if (patient.hospital_number) localStorage.setItem('patientHospitalNumber', patient.hospital_number);
+        if (patient.tenant) localStorage.setItem('tenantName', patient.tenant);
+        localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+        sessionStorage.setItem('isAuthenticated', 'true');
+
+        window.dispatchEvent(new Event('authChanged'));
+        setMessage('Login successful!');
+        setMessageType('success');
+        setTimeout(() => navigate('/patient-portal'), 400);
+        return;
       }
 
       localStorage.setItem('userRole', user.role || '');

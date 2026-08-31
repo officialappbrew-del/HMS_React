@@ -672,6 +672,7 @@ const [credentialsModal, setCredentialsModal] = useState({
     department: '',
     address: '',
     password: '',
+    send_credentials: false,
   });
 
   // Stats
@@ -797,6 +798,7 @@ const [credentialsModal, setCredentialsModal] = useState({
       formDataToSend.append('department', formData.department.trim());
       formDataToSend.append('address', formData.address.trim());
       formDataToSend.append('password', formData.password);
+      formDataToSend.append('send_credentials', String(formData.send_credentials));
       
       if (profilePictureFile) {
         formDataToSend.append('profile_picture', profilePictureFile);
@@ -1545,6 +1547,20 @@ const [credentialsModal, setCredentialsModal] = useState({
                       </button>
                     </div>
                   </div>
+
+                  <label className="mt-3 flex items-start gap-2 text-xs text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.send_credentials)}
+                      onChange={(e) => setFormData({ ...formData, send_credentials: e.target.checked })}
+                      disabled={submitting}
+                      className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      Send login credentials by email
+                      <span className="block text-[11px] text-gray-500">Uses this tenant's configured email credentials.</span>
+                    </span>
+                  </label>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
