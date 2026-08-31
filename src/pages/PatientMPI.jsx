@@ -815,7 +815,7 @@ const PatientMPI = () => {
       </section>
 
       {/* Custom CSS */}
-      <style jsx>{`
+      <style>{`
         @keyframes slideDown {
           from {
             opacity: 0;

@@ -13,9 +13,9 @@ import Pagination from "../components/Pagination";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { apiRequest } from '../utils/api';
 import {
-  UserPlus, Search, Edit2, Archive, Trash2, Mail, Phone, Calendar, Users,
+  UserPlus, Search, Edit2, Archive, Trash2, Mail, Phone, Calendar, Users, Clipboard,
   CheckCircle, XCircle, User, Building2, Download, X, Loader2,
-  Eye, Upload, FileSpreadsheet, AlertTriangle, RotateCcw
+  Eye, EyeOff, Upload, FileSpreadsheet, AlertTriangle, RotateCcw
 } from 'lucide-react';
 
 // Compact Tooltip Component
@@ -137,7 +137,18 @@ const StaffModal = ({
   departmentOptions,
   generatePasswordSuggestion,
 }) => {
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
+    departmentId: '',
+    department: '',
+    hireDate: '',
+    designation: '',
+    salary: '',
+    password: '',
+  });
   const [activeTab, setActiveTab] = useState('personal');
   const [showPassword, setShowPassword] = useState(false);
   

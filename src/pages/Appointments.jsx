@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { apiRequest } from '../utils/api';
+import { setPatients } from '../features/patientSlice';
 import { 
   Calendar, 
   Clock, 
@@ -151,7 +152,7 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
 };
 
 // Delete Confirmation Modal Component
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, appointment }) => {
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, appointment, isDeleting = false }) => {
   if (!isOpen) return null;
 
   return (
@@ -161,7 +162,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, appointment }) =>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-red-600" />
-              Delete Appointment
+              Delete
             </h3>
             <button
               onClick={onClose}
@@ -216,10 +217,11 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, appointment }) =>
             <button
               type="button"
               onClick={onConfirm}
-              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 order-1 sm:order-2"
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 order-1 sm:order-2 disabled:bg-red-400 disabled:cursor-not-allowed"
             >
-              <Trash2 className="w-4 h-4" />
-              Delete Appointment
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </div>
@@ -256,6 +258,8 @@ const Appointments = () => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [rescheduleData, setRescheduleData] = useState({
     date: '',
     time: '',
@@ -314,6 +318,8 @@ const Appointments = () => {
     id: apt.id,
     patientName: apt.patient_name || 'Unknown Patient',
     patientId: apt.patient || '',
+    patientMRN: apt.patient_mrn || apt.mrn || '',
+    patientHospitalNumber: apt.patient_hospital_number || apt.hospital_number || '',
     date: apt.scheduled_date || '',
     time: formatTime(apt.scheduled_time),
     timeRaw: apt.scheduled_time ? apt.scheduled_time.substring(0, 5) : '',
@@ -326,6 +332,29 @@ const Appointments = () => {
     email: apt.patient_email || '',
     appointment_type: apt.appointment_type || 'consultation',
   });
+
+  const isPastAppointmentDate = (dateString, timeString) => {
+    if (!dateString) return false;
+
+    const selectedDate = new Date(`${dateString}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      return true;
+    }
+
+    if (selectedDate.getTime() !== today.getTime() || !timeString) {
+      return false;
+    }
+
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const now = new Date();
+    const selectedTime = new Date();
+    selectedTime.setHours(hours, minutes, 0, 0);
+
+    return selectedTime < now;
+  };
 
   const normalizeAppointmentStatus = (status) => {
     const statusMap = {
@@ -361,6 +390,32 @@ const Appointments = () => {
     loadAppointments();
   }, [dispatch]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPatients = async () => {
+      try {
+        const data = await apiRequest('/api/v1/patients/patients/?status=all&page_size=1000');
+        const results = Array.isArray(data) ? data : (data.results || []);
+        if (!cancelled) {
+          dispatch(setPatients(results));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          showToast(error.message || 'Failed to load patients', 'error');
+        }
+      }
+    };
+
+    if (patients.length === 0) {
+      loadPatients();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, patients.length]);
+
   const fetchDoctors = async () => {
     try {
       setDoctorsLoading(true);
@@ -388,9 +443,13 @@ const Appointments = () => {
   const doctors = ['all', ...new Set(appointments.map(a => a.doctor).filter(Boolean))];
 
   const filteredAppointments = appointments.filter(apt => {
-    const matchesSearch = apt.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         apt.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         apt.doctor.toLowerCase().includes(searchTerm.toLowerCase());
+    const query = searchTerm.toLowerCase();
+    const matchesSearch =
+      apt.patientName.toLowerCase().includes(query) ||
+      (apt.patientMRN || '').toLowerCase().includes(query) ||
+      (apt.patientHospitalNumber || '').toLowerCase().includes(query) ||
+      apt.reason.toLowerCase().includes(query) ||
+      apt.doctor.toLowerCase().includes(query);
     const matchesStatus = filterStatus === 'all' || apt.status === filterStatus;
     const matchesDoctor = filterDoctor === 'all' || apt.doctor === filterDoctor;
     return matchesSearch && matchesStatus && matchesDoctor;
@@ -406,6 +465,11 @@ const Appointments = () => {
     e.preventDefault();
     if (!formData.patientName || !formData.date || !formData.time || !formData.patientId) {
       showToast('Please select a patient, date, and time', 'error');
+      return;
+    }
+
+    if (isPastAppointmentDate(formData.date, formData.time)) {
+      showToast('Appointments cannot be scheduled for past dates or times', 'error');
       return;
     }
 
@@ -444,7 +508,10 @@ const Appointments = () => {
           body: JSON.stringify(payload),
         });
         setAppointments([normalizeAppointment(created), ...appointments]);
-        showToast('Appointment scheduled successfully', 'success');
+        showToast(
+          created.notification_warning || 'Appointment scheduled successfully',
+          created.notification_warning ? 'warning' : 'success'
+        );
       }
       resetForm();
       setShowForm(false);
@@ -493,6 +560,7 @@ const Appointments = () => {
 
   const confirmDelete = async () => {
     if (showDeleteModal) {
+      setDeleteLoading(true);
       try {
         await apiRequest(`/api/v1/patients/appointments/${showDeleteModal.id}/`, {
           method: 'DELETE',
@@ -506,8 +574,10 @@ const Appointments = () => {
         showToast('Appointment deleted successfully', 'success');
       } catch (err) {
         showToast(err.message || 'Failed to delete appointment', 'error');
+      } finally {
+        setDeleteLoading(false);
+        setShowDeleteModal(null);
       }
-      setShowDeleteModal(null);
     }
   };
 
@@ -556,6 +626,11 @@ const Appointments = () => {
       return;
     }
 
+    if (isPastAppointmentDate(rescheduleData.date, rescheduleData.time)) {
+      showToast('Appointments cannot be rescheduled to a past date or time', 'error');
+      return;
+    }
+
     const appointment = showRescheduleModal;
     const oldDate = appointment.date;
     const oldTime = appointment.time;
@@ -601,6 +676,7 @@ const Appointments = () => {
     }
 
     const appointment = showCancelModal;
+    setCancelLoading(true);
 
     try {
       const updated = await apiRequest(`/api/v1/patients/appointments/${appointment.id}/`, {
@@ -622,10 +698,11 @@ const Appointments = () => {
       showToast('Appointment cancelled successfully', 'success');
     } catch (err) {
       showToast(err.message || 'Failed to cancel appointment', 'error');
+    } finally {
+      setCancelLoading(false);
+      setShowCancelModal(null);
+      setCancelReason('');
     }
-
-    setShowCancelModal(null);
-    setCancelReason('');
   };
 
   const addActivityLog = (patientName, action, details) => {
@@ -969,7 +1046,7 @@ const Appointments = () => {
                       setFormData({ ...formData, patientName: e.target.value });
                       setPatientSearchQuery(e.target.value);
                     }}
-                    placeholder="Search patient by name..."
+                    placeholder="Search patient by name, MRN, or hospital number..."
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
@@ -977,8 +1054,10 @@ const Appointments = () => {
                     <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
                       {patients.filter(p => {
                         const name = (p.name || p.full_name || '').toLowerCase();
-                        return name.includes(patientSearchQuery.toLowerCase()) ||
-                               (p.hospital_number || '').toLowerCase().includes(patientSearchQuery.toLowerCase());
+                        const query = patientSearchQuery.toLowerCase();
+                        return name.includes(query) ||
+                               (p.mrn || '').toLowerCase().includes(query) ||
+                               (p.hospital_number || '').toLowerCase().includes(query);
                       }).slice(0, 8).map(p => (
                         <button
                           key={p.id}
@@ -1060,6 +1139,7 @@ const Appointments = () => {
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div>
@@ -1089,7 +1169,7 @@ const Appointments = () => {
                     <option value="other">Other</option>
                   </select>
                 </div>
-                <div>
+                {/* <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
                   <input
                     type="tel"
@@ -1098,8 +1178,8 @@ const Appointments = () => {
                     readOnly
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                   />
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
                   <input
                     type="email"
@@ -1108,7 +1188,7 @@ const Appointments = () => {
                     readOnly
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                   />
-                </div>
+                </div> */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Reason for Visit</label>
                   <input
@@ -1301,7 +1381,7 @@ const Appointments = () => {
                         <IconButton
                           icon={Trash2}
                           onClick={() => handleDelete(appointment)}
-                          tooltip="Delete appointment"
+                          tooltip="Delete"
                           variant="danger"
                         />
                       </div>
@@ -1425,7 +1505,7 @@ const Appointments = () => {
                                 <IconButton
                                   icon={Trash2}
                                   onClick={() => handleDelete(appointment)}
-                                  tooltip="Delete appointment"
+                                  tooltip="Delete"
                                   variant="danger"
                                 />
                                 <IconButton
@@ -1510,6 +1590,7 @@ const Appointments = () => {
         onClose={() => setShowDeleteModal(null)}
         onConfirm={confirmDelete}
         appointment={showDeleteModal}
+        isDeleting={deleteLoading}
       />
 
       {/* Reschedule Modal */}
@@ -1654,9 +1735,11 @@ const Appointments = () => {
                 <button
                   type="button"
                   onClick={confirmCancel}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors order-1 sm:order-2"
+                  disabled={cancelLoading}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors order-1 sm:order-2 disabled:bg-red-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Cancel Appointment
+                  {cancelLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {cancelLoading ? 'Cancelling...' : 'Cancel Appointment'}
                 </button>
               </div>
             </div>
