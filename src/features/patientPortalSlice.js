@@ -250,7 +250,7 @@ const patientPortalSlice = createSlice({
     },
 
     hydratePortalData: (state, action) => {
-      const { patient, appointments = [], lab_orders = [], documents = [], notifications = [] } = action.payload || {};
+      const { patient, appointments = [], lab_orders = [], documents = [], prescriptions = [], invoices = [], notifications = [] } = action.payload || {};
       if (patient) {
         const existingPatientIndex = state.patients.findIndex(item => item.id === patient.id);
         const profile = {
@@ -301,6 +301,32 @@ const patientPortalSlice = createSlice({
         type: document.document_type || 'other',
         date: document.upload_date || document.document_date || '',
         fileName: document.file_name || '',
+        fileUrl: document.file || document.file_url || '',
+      }));
+
+      state.prescriptions = (prescriptions || []).map(prescription => ({
+        id: prescription.id,
+        medication: prescription.drug_name || prescription.medication || '',
+        dosage: prescription.dosage || '',
+        frequency: prescription.frequency || '',
+        duration: prescription.duration || '',
+        quantity: prescription.quantity || 1,
+        status: prescription.status || 'prescribed',
+        prescribedAt: prescription.prescribed_date || '',
+        prescribedBy: prescription.prescribed_by_name || '',
+        visitNumber: prescription.visit_number || '',
+        instructions: prescription.instructions || '',
+      }));
+
+      state.bills = (invoices || []).map(invoice => ({
+        id: invoice.id,
+        description: invoice.items?.map(item => item.description).filter(Boolean).join(', ') || 'Medical services',
+        amount: Number(invoice.balance_due ?? invoice.total_amount ?? 0),
+        totalAmount: Number(invoice.total_amount ?? 0),
+        date: invoice.invoice_date || '',
+        dueDate: invoice.due_date || '',
+        status: invoice.status || 'issued',
+        service: invoice.items?.[0]?.item_type || 'Healthcare service',
       }));
 
       state.notifications = (notifications || []).map(notification => ({

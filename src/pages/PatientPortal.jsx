@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   User,
   Calendar,
@@ -9,17 +9,13 @@ import {
   BookOpen,
   Video,
   Bell,
-  Settings,
   Search,
-  Filter,
   Plus,
   CheckCircle,
   Clock,
   XCircle,
-  Download,
   Eye,
   EyeOff,
-  MessageSquare,
   ShieldCheck,
   Lock,
   ArrowRight,
@@ -32,71 +28,24 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Menu,
-  MoreVertical,
-  UserCheck,
   UserX,
-  Droplets,
-  Brain,
-  Map,
   Hospital,
-  Stethoscope,
-  HeartPulse,
-  Ambulance,
-  Syringe,
   Microscope,
-  Clipboard,
   X,
-  Printer,
-  Archive,
-  RotateCcw,
-  Trash2,
-  Edit,
-  Bed,
-  UserPlus,
-  FolderOpen,
-  CalendarDays,
   Phone,
   Mail,
   MapPin,
   ExternalLink,
-  Sparkles,
-  Heart,
-  Shield,
-  AlertTriangle as AlertTriangleIcon,
-  CheckCircle2,
-  Info,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  DollarSign,
   Receipt,
-  Layers,
-  Grid,
-  List,
-  Filter as FilterIcon,
-  Download as DownloadIcon,
-  Upload,
-  FileSpreadsheet,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 import {
-  registerPatient,
-  updatePatientProfile,
   cancelAppointment,
-  requestPrescriptionRefill,
-  viewTestResults,
-  makePayment,
   bookTelemedicineSession,
   markNotificationRead,
-  submitFeedback,
   hydratePortalData,
-  searchPortal,
-  sortPortal,
-  filterPortal
 } from '../features/patientPortalSlice';
 import { apiRequest } from '../utils/api';
-import Pagination from '../components/Pagination';
 import { Link, useNavigate } from 'react-router-dom';
 
 // ==================== COMPONENTS ====================
@@ -260,7 +209,7 @@ const StatusBadge = ({ status }) => {
 // ==================== MODALS ====================
 
 // Compact Appointment Modal
-const AppointmentModal = ({ isOpen, onClose, onSubmit, patient, departments, isSubmitting = false }) => {
+const AppointmentModal = ({ isOpen, onClose, onSubmit, departments, isSubmitting = false }) => {
   const [formData, setFormData] = useState({
     department: '',
     doctor: '',
@@ -739,20 +688,14 @@ const PatientPortal = () => {
   const navigate = useNavigate();
   
   const {
-    patients,
     appointments,
     medicalRecords,
     prescriptions,
     testResults,
     bills,
-    payments,
-    healthEducation,
     telemedicineSessions,
     notifications,
     healthTopics,
-    searchTerm,
-    sortBy,
-    filterBy
   } = useSelector(state => state.patientPortal);
 
   // State
@@ -762,7 +705,6 @@ const PatientPortal = () => {
   const [loginForm, setLoginForm] = useState({ identifier: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [portalError, setPortalError] = useState('');
-  const [isLoadingPortal, setIsLoadingPortal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTelemedicineModal, setShowTelemedicineModal] = useState(false);
@@ -796,7 +738,6 @@ const PatientPortal = () => {
     }
 
     const loadPortalData = async () => {
-      setIsLoadingPortal(true);
       setPortalError('');
       try {
         const data = await apiRequest('/api/v1/patients/patients/portal/');
@@ -818,7 +759,7 @@ const PatientPortal = () => {
         }
         setPortalError(error.message || 'Unable to load your patient portal data.');
       } finally {
-        setIsLoadingPortal(false);
+        // portal hydration completes in the try/catch flow above
       }
     };
 
@@ -956,14 +897,27 @@ const PatientPortal = () => {
 
   const handleMakePayment = async (formData) => {
     if (!currentPatient) return;
+    const selectedBill = bills.find(bill => String(bill.id) === String(formData.billId));
+    if (!selectedBill || selectedBill.amount <= 0) return;
     setIsSubmitting(true);
     try {
-      await dispatch(makePayment({
-        ...formData,
-        patientId: currentPatient.id,
-        patientName: getPatientDisplayName()
-      }));
+      await apiRequest('/api/v1/billing/patient-payments/', {
+        method: 'POST',
+        body: JSON.stringify({
+          invoice: selectedBill.id,
+          amount: selectedBill.amount,
+          payment_method: formData.paymentMethod === 'bank' ? 'transfer' : formData.paymentMethod,
+          transaction_reference: formData.transactionReference || '',
+        }),
+      });
+      const portalData = await apiRequest('/api/v1/patients/patients/portal/');
+      dispatch(hydratePortalData(portalData));
+      setCurrentPatient(portalData?.patient || currentPatient);
+      setTenantDetails(portalData?.tenant || tenantDetails);
       setShowPaymentModal(false);
+      setPortalError('');
+    } catch (error) {
+      setPortalError(error.message || 'Unable to process the payment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -985,14 +939,28 @@ const PatientPortal = () => {
   };
 
   const handleCancelAppointment = (appointmentId) => {
-    const reason = prompt('Please provide a reason for cancellation:');
-    if (reason) {
-      dispatch(cancelAppointment({ appointmentId, reason }));
+    const reason = window.prompt('Please provide a reason for cancellation:');
+    if (reason && reason.trim()) {
+      dispatch(cancelAppointment({ appointmentId, reason: reason.trim() }));
     }
   };
 
   const handleMarkNotificationRead = (notificationId) => {
     dispatch(markNotificationRead(notificationId));
+  };
+
+  const handleViewDocument = (document) => {
+    if (!document) {
+      setPortalError('No document is available for viewing yet.');
+      return;
+    }
+
+    const documentUrl = document.fileUrl || document.url || document.downloadUrl;
+    if (documentUrl) {
+      window.open(documentUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setPortalError('This document is not available for viewing yet.');
   };
 
   const handleLogout = () => {
@@ -1412,7 +1380,7 @@ const PatientPortal = () => {
               { id: 'prescriptions', label: 'Prescriptions', icon: Pill },
               { id: 'billing', label: 'Billing', icon: CreditCard },
               { id: 'telemedicine', label: 'Telemedicine', icon: Video },
-              { id: 'education', label: 'Education', icon: BookOpen }
+              { id: 'education', label: 'Health Education', icon: BookOpen },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1620,7 +1588,10 @@ const PatientPortal = () => {
                           )}
                           {appointment.status === 'confirmed' && (
                             <ButtonWithTooltip
-                              onClick={() => {}}
+                              onClick={() => handleViewDocument({
+                                fileUrl: appointment.documentUrl || appointment.recordUrl || '',
+                                url: appointment.documentUrl || appointment.recordUrl || '',
+                              })}
                               tooltip="View details"
                               variant="primary"
                               size="sm"
@@ -1792,15 +1763,17 @@ const PatientPortal = () => {
                             </div>
                           </div>
                         </div>
-                        <ButtonWithTooltip
-                          onClick={() => {}}
-                          tooltip="Request refill"
-                          variant="primary"
-                          size="sm"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                          Request Refill
-                        </ButtonWithTooltip>
+                        {prescription.refillsAvailable && (
+                          <ButtonWithTooltip
+                            onClick={() => setPortalError('Prescription refill requests are not available yet.')}
+                            tooltip="Request refill"
+                            variant="primary"
+                            size="sm"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Request Refill
+                          </ButtonWithTooltip>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1881,7 +1854,7 @@ const PatientPortal = () => {
                           <p className="text-lg font-bold text-gray-900">₦{bill.amount?.toLocaleString() || 0}</p>
                           {bill.status !== 'paid' && (
                             <ButtonWithTooltip
-                              onClick={() => {}}
+                              onClick={() => setShowPaymentModal(true)}
                               tooltip="Pay bill"
                               variant="success"
                               size="sm"
@@ -2034,7 +2007,6 @@ const PatientPortal = () => {
         isOpen={showAppointmentModal}
         onClose={() => setShowAppointmentModal(false)}
         onSubmit={handleBookAppointment}
-        patient={currentPatient}
         departments={['General Medicine', 'Pediatrics', 'Obstetrics', 'Cardiology', 'Dermatology']}
         isSubmitting={isSubmitting}
       />
