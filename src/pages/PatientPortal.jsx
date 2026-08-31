@@ -83,7 +83,6 @@ import {
 import {
   registerPatient,
   updatePatientProfile,
-  bookAppointment,
   cancelAppointment,
   requestPrescriptionRefill,
   viewTestResults,
@@ -261,7 +260,7 @@ const StatusBadge = ({ status }) => {
 // ==================== MODALS ====================
 
 // Compact Appointment Modal
-const AppointmentModal = ({ isOpen, onClose, onSubmit, patient, departments, availableSlots, isSubmitting = false }) => {
+const AppointmentModal = ({ isOpen, onClose, onSubmit, patient, departments, isSubmitting = false }) => {
   const [formData, setFormData] = useState({
     department: '',
     doctor: '',
@@ -344,21 +343,16 @@ const AppointmentModal = ({ isOpen, onClose, onSubmit, patient, departments, ava
 
             <div>
               <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Preferred Date & Time *</label>
-              <select
+              <input
+                type="datetime-local"
                 name="dateTime"
                 value={formData.dateTime}
                 onChange={handleChange}
                 className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={isSubmitting}
-              >
-                <option value="">Select available slot...</option>
-                {formData.department && availableSlots?.[formData.department]?.map(slot => (
-                  <option key={slot} value={slot}>
-                    {new Date(slot).toLocaleString('en-NG')}
-                  </option>
-                ))}
-              </select>
+                min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+              />
             </div>
 
             <div>
@@ -756,7 +750,6 @@ const PatientPortal = () => {
     telemedicineSessions,
     notifications,
     healthTopics,
-    availableSlots,
     searchTerm,
     sortBy,
     filterBy
@@ -811,6 +804,18 @@ const PatientPortal = () => {
         setCurrentPatient(data?.patient || null);
         setTenantDetails(data?.tenant || null);
       } catch (error) {
+        const expiredSession = /token expired|session expired|invalid token|authentication credentials|unauthorized/i.test(
+          error.message || ''
+        );
+        if (expiredSession) {
+          localStorage.removeItem('patientAccessToken');
+          localStorage.removeItem('patientRefreshToken');
+          localStorage.removeItem('isPatientAuthenticated');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('authToken');
+          sessionStorage.removeItem('isAuthenticated');
+          setCurrentPatient(null);
+        }
         setPortalError(error.message || 'Unable to load your patient portal data.');
       } finally {
         setIsLoadingPortal(false);
@@ -896,6 +901,17 @@ const PatientPortal = () => {
       setCurrentPatient(portalData?.patient || null);
       setTenantDetails(portalData?.tenant || null);
     } catch (error) {
+      const expiredSession = /token expired|session expired|invalid token|authentication credentials|unauthorized/i.test(
+        error.message || ''
+      );
+      if (expiredSession) {
+        localStorage.removeItem('patientAccessToken');
+        localStorage.removeItem('patientRefreshToken');
+        localStorage.removeItem('isPatientAuthenticated');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('isAuthenticated');
+      }
       setPortalError(error.message || 'Unable to sign in to the patient portal.');
     } finally {
       setLoginLoading(false);
@@ -906,12 +922,33 @@ const PatientPortal = () => {
     if (!currentPatient) return;
     setIsSubmitting(true);
     try {
-      await dispatch(bookAppointment({
-        ...formData,
-        patientId: currentPatient.id,
-        patientName: getPatientDisplayName()
-      }));
+      const [scheduledDate, selectedTime] = (formData.dateTime || '').split('T');
+      const scheduledTime = selectedTime
+        ? (selectedTime.length === 5 ? `${selectedTime}:00` : selectedTime)
+        : '';
+      await apiRequest('/api/v1/patients/appointments/', {
+        method: 'POST',
+        body: JSON.stringify({
+          patient: currentPatient.id,
+          department: formData.department || null,
+          doctor: formData.doctor || null,
+          appointment_type: 'consultation',
+          scheduled_date: scheduledDate,
+          scheduled_time: scheduledTime,
+          reason: formData.reason,
+          status: 'scheduled',
+          send_reminder: true,
+          reminder_channels: ['email'],
+        }),
+      });
+      const portalData = await apiRequest('/api/v1/patients/patients/portal/');
+      dispatch(hydratePortalData(portalData));
+      setCurrentPatient(portalData?.patient || currentPatient);
+      setTenantDetails(portalData?.tenant || tenantDetails);
       setShowAppointmentModal(false);
+      setPortalError('');
+    } catch (error) {
+      setPortalError(error.message || 'Unable to book the appointment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1999,7 +2036,6 @@ const PatientPortal = () => {
         onSubmit={handleBookAppointment}
         patient={currentPatient}
         departments={['General Medicine', 'Pediatrics', 'Obstetrics', 'Cardiology', 'Dermatology']}
-        availableSlots={availableSlots}
         isSubmitting={isSubmitting}
       />
 

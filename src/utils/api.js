@@ -116,6 +116,16 @@ const clearAuthData = () => {
   window.dispatchEvent(new Event('authChanged'));
 };
 
+const clearPatientAuthData = () => {
+  localStorage.removeItem('patientAccessToken');
+  localStorage.removeItem('patientRefreshToken');
+  localStorage.removeItem('isPatientAuthenticated');
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('authToken');
+  sessionStorage.removeItem('isAuthenticated');
+  window.dispatchEvent(new Event('authChanged'));
+};
+
 const extractErrorMessage = (data, fallback = 'Request failed') => {
   if (!data) return fallback;
 
@@ -199,10 +209,11 @@ const refreshAccessToken = async () => {
   }
 
   isRefreshing = true;
-  const refreshToken =
-    localStorage.getItem('refreshToken') ||
-    localStorage.getItem('patientRefreshToken') ||
-    '';
+  const patientRefreshToken = localStorage.getItem('patientRefreshToken') || '';
+  const isPatientSession = Boolean(localStorage.getItem('patientAccessToken'));
+  const refreshToken = isPatientSession
+    ? patientRefreshToken
+    : (localStorage.getItem('refreshToken') || '');
   const body = refreshToken ? JSON.stringify({ refresh: refreshToken }) : JSON.stringify({});
 
   const timeoutPromise = new Promise((_, reject) =>
@@ -228,8 +239,12 @@ const refreshAccessToken = async () => {
 
       if (!response.ok) {
         const message = extractErrorMessage(data, `Refresh failed with status ${response.status}`);
-        clearAuthData();
-        redirectToLogin();
+        if (isPatientSession) {
+          clearPatientAuthData();
+        } else {
+          clearAuthData();
+          redirectToLogin();
+        }
         throw new Error(message || 'Session expired. Please log in again.');
       }
 
@@ -242,16 +257,23 @@ const refreshAccessToken = async () => {
 
       localStorage.setItem('accessToken', newAccessToken);
       localStorage.setItem('authToken', newAccessToken);
+      if (isPatientSession) {
+        localStorage.setItem('patientAccessToken', newAccessToken);
+      }
       const newRefreshToken = data.refresh || data.refresh_token;
       if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
+        localStorage.setItem(isPatientSession ? 'patientRefreshToken' : 'refreshToken', newRefreshToken);
       }
 
       return newAccessToken;
     })
     .catch((error) => {
-      clearAuthData();
-      redirectToLogin();
+      if (isPatientSession) {
+        clearPatientAuthData();
+      } else {
+        clearAuthData();
+        redirectToLogin();
+      }
       throw error;
     })
     .finally(() => {
@@ -324,10 +346,10 @@ const csrfToken = isMutating ? getCsrfToken() : '';
         const message = extractErrorMessage(data, `Request failed with status ${response.status}`);
         const isAuthFailure = [401, 403].includes(response.status);
         const shouldAttemptRefresh =
-          !isPatientSession &&
           !shouldSkipAuthHeader(path) &&
           isAuthFailure &&
           isTokenErrorMessage(message, response.status) &&
+          Boolean(isPatientSession ? localStorage.getItem('patientRefreshToken') : localStorage.getItem('refreshToken')) &&
           retryCount < 1;
 
         if (shouldAttemptRefresh) {
@@ -384,9 +406,13 @@ const csrfToken = isMutating ? getCsrfToken() : '';
           }
         }
 
-        if (isAuthFailure && !isPatientSession && !shouldSkipAuthHeader(path) && retryCount >= 1) {
-          clearAuthData();
-          redirectToLogin();
+        if (isAuthFailure && !shouldSkipAuthHeader(path) && retryCount >= 1) {
+          if (isPatientSession) {
+            clearPatientAuthData();
+          } else {
+            clearAuthData();
+            redirectToLogin();
+          }
           throw new Error('Session expired. Please log in again.');
         }
 
