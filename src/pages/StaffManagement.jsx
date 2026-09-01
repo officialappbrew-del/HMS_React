@@ -1011,7 +1011,7 @@ const StaffManagement = () => {
   const buildStaffUrl = (overrides = {}) => {
     const search = overrides.search !== undefined ? overrides.search : searchTerm;
     const status = overrides.status !== undefined ? overrides.status : filterBy;
-    const page = overrides.page !== undefined ? overrides.page : currentPage;
+    const page = overrides.page !== undefined ? overrides.page : Math.max(1, currentPage);
     const pageSize = overrides.page_size !== undefined ? overrides.page_size : itemsPerPage;
     const ordering = overrides.ordering !== undefined ? overrides.ordering : getStaffSortField(sortBy);
 
@@ -1041,7 +1041,14 @@ const StaffManagement = () => {
 
       const normalizedUsers = dedupeStaffById(filteredResults.map(normalizeStaff));
       dispatch(setStaffList(normalizedUsers));
-      setTotalCount(Array.isArray(data) ? filteredResults.length : (data?.count ?? filteredResults.length));
+
+      const nextTotalCount = Array.isArray(data) ? filteredResults.length : (data?.count ?? filteredResults.length);
+      setTotalCount(nextTotalCount);
+
+      const maxPage = Math.max(1, Math.ceil(nextTotalCount / itemsPerPage));
+      if (currentPage > maxPage) {
+        setCurrentPage(maxPage);
+      }
     } catch (error) {
       console.error('Failed to load staff users:', error);
     } finally {
@@ -1407,9 +1414,8 @@ const StaffManagement = () => {
   const uniqueFilteredStaff = dedupeStaffById(filteredStaff);
   const totalItems = totalCount || uniqueFilteredStaff.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const displayedStaff = uniqueFilteredStaff.slice(startIndex, endIndex);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const displayedStaff = uniqueFilteredStaff;
 
   const getStatusColor = (status) => {
     return status === 'active' 
@@ -1639,7 +1645,7 @@ const StaffManagement = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {displayedStaff.filter((staff) => !staff.isRootAdmin || currentUserIsRootAdmin).map((staff, index) => {
-                        const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                        const serialNumber = (safeCurrentPage - 1) * itemsPerPage + index + 1;
                         const isActive = staff.status === 'active';
                         
                         return (
@@ -1746,11 +1752,11 @@ const StaffManagement = () => {
 
                 {/* Pagination */}
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={safeCurrentPage}
                   totalPages={totalPages}
                   totalItems={totalItems}
                   itemsPerPage={itemsPerPage}
-                  onPageChange={setCurrentPage}
+                  onPageChange={(page) => setCurrentPage(Math.max(1, Math.min(page, totalPages)))}
                 />
               </>
             )}
