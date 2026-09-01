@@ -467,7 +467,7 @@ function AppLayout() {
                 <Route path="/central-store" element={<ProtectedRoute><CentralStore /></ProtectedRoute>} />
                 <Route path="/procurement" element={<ProtectedRoute><Procurement /></ProtectedRoute>} />
                 <Route path="/vital-signs" element={<ProtectedRoute><VitalSignsMonitoring /></ProtectedRoute>} />
-                <Route path="/emr" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'pharmacist', 'admin', 'super_admin', 'system_admin']}><ElectronicMedicalRecords /></ProtectedRoute>} />
+                <Route path="/emr" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'pharmacist', 'lab_tech', 'lab_manager', 'admin', 'super_admin', 'system_admin']}><ElectronicMedicalRecords /></ProtectedRoute>} />
                 <Route path="/ussd" element={<ProtectedRoute><USSDSystem /></ProtectedRoute>} />
                 <Route path="/cds" element={<ProtectedRoute><ClinicalDecisionSupport /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><OrderEntrySystem /></ProtectedRoute>} />
