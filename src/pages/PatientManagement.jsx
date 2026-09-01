@@ -2200,8 +2200,20 @@ const [showPrintModal, setShowPrintModal] = useState(false);
     return password;
   };
 
+  const canRefreshPatientPassword = (() => {
+    const userRole = (localStorage.getItem('userRole') || '').toLowerCase();
+    const isRootAdmin = localStorage.getItem('userIsRootAdmin') === 'true';
+    const isSuperuser = localStorage.getItem('userIsSuperuser') === 'true';
+    return userRole === 'super_admin' || userRole === 'system_admin' || isRootAdmin || isSuperuser;
+  })();
+
   const refreshPatientPassword = async (patient) => {
     if (!patient?.id) return;
+    if (!canRefreshPatientPassword) {
+      setApiError('Only the root admin can refresh a patient password.');
+      setShowApiError(true);
+      return;
+    }
 
     try {
       setRefreshingPatientId(patient.id);
@@ -3072,15 +3084,17 @@ const handleRestorePatient = (patient) => {
                                   variant="primary"
                                   size="sm"
                                 />
-                                <IconButton
-                                  icon={RefreshCw}
-                                  onClick={() => refreshPatientPassword(patient)}
-                                  tooltip="Refresh password"
-                                  variant="warning"
-                                  size="sm"
-                                  disabled={refreshingPatientId === patient.id}
-                                  iconClassName={refreshingPatientId === patient.id ? 'animate-spin' : ''}
-                                />
+                                {canRefreshPatientPassword && (
+                                  <IconButton
+                                    icon={RefreshCw}
+                                    onClick={() => refreshPatientPassword(patient)}
+                                    tooltip="Refresh password"
+                                    variant="warning"
+                                    size="sm"
+                                    disabled={refreshingPatientId === patient.id}
+                                    iconClassName={refreshingPatientId === patient.id ? 'animate-spin' : ''}
+                                  />
+                                )}
                                 {isActive ? (
                                   <IconButton
                                     icon={Trash2}
