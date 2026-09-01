@@ -4,8 +4,8 @@ import { Activity, AlertTriangle, Beaker, Bell, CheckCircle2, ClipboardList,
   Clock3, Download, FileCheck2, FlaskConical, ArrowDown,
   Gauge, HeartPulse, Loader2, PackageSearch, ArrowUp,
   Play, Plus, RefreshCw, Search, ShieldCheck, FileText,
-  Truck, Wrench, XCircle, DollarSign, PieChart,
-  ChevronLeft, ChevronRight, Eye, Clock, Check,inventoryItems,
+  Truck, Wrench, XCircle, DollarSign, PieChart, 
+  ChevronLeft, ChevronRight, Eye, Clock, Check,
   LineChart, X, Award, ListChecks } from 'lucide-react';
 
 const displayName = (item) => item.patient_name || item.patient?.name || item.patient || 'Unknown patient';
@@ -416,6 +416,7 @@ const LaboratoryDashboard = () => {
   const [unverifiedResults, setUnverifiedResults] = useState([]);
   const [tests, setTests] = useState([]);
   const [maintenance, setMaintenance] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
