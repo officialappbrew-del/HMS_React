@@ -321,6 +321,16 @@ const PatientModal = ({
   const [activeTab, setActiveTab] = useState('personal');
   const [dupCheck, setDupCheck] = useState({ loading: false, duplicate: false, existing: null });
   const [forceDuplicate, setForceDuplicate] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const generateSuggestedPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i += 1) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
   
   useEffect(() => {
     if (patient && mode === 'edit') {
@@ -361,6 +371,7 @@ const PatientModal = ({
         surgical_history: patient.surgical_history || '',
         family_history: patient.family_history || '',
         notes: patient.notes || '',
+        password: '',
       });
     } else if (mode === 'add') {
       setInitialCharges([{ item_type: 'service', description: 'Opening Folder', quantity: 1, unit_price: '' }]);
@@ -395,6 +406,7 @@ const PatientModal = ({
         nhis_number: '',
         // REMOVED from ADD mode: known_allergies, chronic_conditions, current_medications, surgical_history, family_history
         notes: '',
+        password: '',
       });
     }
   }, [patient, mode]);
@@ -995,6 +1007,45 @@ const PatientModal = ({
             disabled={isSubmitting}
           />
         </div>
+
+        {mode === 'add' && (
+          <div className="col-span-2">
+            <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Patient Login Password</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password || ''}
+                  onChange={handleChange}
+                  placeholder="Enter password or use Suggest"
+                  className="w-full px-2.5 py-1.5 pr-8 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const suggestion = generateSuggestedPassword();
+                  setFormData(prev => ({ ...prev, password: suggestion }));
+                  setShowPassword(true);
+                }}
+                className="px-2.5 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors whitespace-nowrap"
+                disabled={isSubmitting}
+              >
+                Suggest
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="col-span-2">
           <label className="block text-[10px] font-medium text-gray-700 mb-0.5">Address</label>
           <input
@@ -1295,6 +1346,7 @@ const PatientModal = ({
                     </div>
                   </div>
                 )}
+
                 {renderPersonalInfo()}
 
                 <div className="border-t border-gray-100 pt-3">
