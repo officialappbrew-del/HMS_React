@@ -5,7 +5,7 @@ import { Activity, AlertTriangle, Beaker, Bell, CheckCircle2, ClipboardList,
   Gauge, HeartPulse, Loader2, PackageSearch, ArrowUp,
   Play, Plus, RefreshCw, Search, ShieldCheck, FileText,
   Truck, Wrench, XCircle, DollarSign, PieChart,
-  ChevronLeft, ChevronRight, Eye, Clock, Check,
+  ChevronLeft, ChevronRight, Eye, Clock, Check,inventoryItems,
   LineChart, X, Award, ListChecks } from 'lucide-react';
 
 const displayName = (item) => item.patient_name || item.patient?.name || item.patient || 'Unknown patient';
