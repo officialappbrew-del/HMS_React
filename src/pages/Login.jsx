@@ -116,6 +116,8 @@ const Login = () => {
   const [tokenVerified, setTokenVerified] = useState(false);
   const [isFocused, setIsFocused] = useState({ email: false, password: false });
   const [now, setNow] = useState(() => new Date());
+  const [tenant2fa, setTenant2fa] = useState(null);
+  const [tenant2faCode, setTenant2faCode] = useState('');
 
   // Set mounted state after initial render
   useEffect(() => {
@@ -259,6 +261,13 @@ const Login = () => {
       const tenant = response?.tenant || authData.tenant || {};
       const tenantPublicId = tenant.public_id || tenant.publicId || tenant.id || response?.tenant_public_id || response?.tenantId || authData.tenant_public_id || authData.tenantId;
 
+      if (response?.tenant_2fa && response.challenge_id) {
+        setTenant2fa(response);
+        setMessage(response.message || 'Enter the verification code sent to your email.');
+        setMessageType('success');
+        return;
+      }
+
       if (!token) {
         throw new Error('Authentication token was not returned by the server.');
       }
@@ -334,6 +343,43 @@ const Login = () => {
       setLoading(false);
     }
   }, [formData, rememberMe, navigate]);
+
+  const handleTenant2faSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    try {
+      const response = await apiRequest('/api/v1/auth/verify-2fa/', {
+        method: 'POST',
+        body: JSON.stringify({
+          tenant_2fa: true,
+          challenge_id: tenant2fa.challenge_id,
+          code: tenant2faCode,
+        }),
+      });
+      const user = response.user || {};
+      localStorage.setItem('accessToken', response.access_token);
+      localStorage.setItem('authToken', response.access_token);
+      if (response.refresh_token) localStorage.setItem('refreshToken', response.refresh_token);
+      localStorage.setItem('userRole', user.role || '');
+      localStorage.setItem('userEmail', user.email || formData.email);
+      localStorage.setItem('userName', user.username || user.user_id || formData.email);
+      localStorage.setItem('userFullName', user.full_name || user.username || user.user_id || formData.email);
+      localStorage.setItem('userId', user.id || user.user_id || formData.email);
+      localStorage.setItem('tenantId', response.tenant?.public_id || tenant2fa.tenant_id);
+      if (response.tenant?.domain) localStorage.setItem('tenantDomain', response.tenant.domain);
+      if (response.tenant?.name) localStorage.setItem('tenantName', response.tenant.name);
+      localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+      sessionStorage.setItem('isAuthenticated', 'true');
+      window.dispatchEvent(new Event('authChanged'));
+      navigate('/dashboard', { replace: true });
+    } catch (error) {
+      setMessage(error.message || 'Invalid or expired verification code.');
+      setMessageType('error');
+    } finally {
+      setLoading(false);
+    }
+  }, [tenant2fa, tenant2faCode, formData.email, rememberMe, navigate]);
 
   const handleForgotPassword = useCallback(async (e) => {
     e.preventDefault();
@@ -606,7 +652,7 @@ const Login = () => {
             )}
 
             {/* Login Form */}
-            {!showForgotPassword ? (
+            {!showForgotPassword && !tenant2fa ? (
               <form className="mt-5 space-y-3.5" onSubmit={handleSubmit}>
                 <div>
                   <label htmlFor="email" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">
@@ -711,6 +757,33 @@ const Login = () => {
                 <p className="text-center text-[11px] leading-snug text-[#9AA6A0]">
                   By signing in, you agree to our Terms of Service and Privacy Policy.
                 </p>
+              </form>
+            ) : tenant2fa ? (
+              <form className="mt-5 space-y-4" onSubmit={handleTenant2faSubmit}>
+                <div className="rounded-lg border border-[#D8E5DE] bg-[#F3F8F5] p-4 text-sm text-[#2C5245]">
+                  A six-digit verification code was sent to your registered email address.
+                </div>
+                <label className="block">
+                  <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">Verification code</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength="6"
+                    required
+                    autoFocus
+                    value={tenant2faCode}
+                    onChange={(e) => setTenant2faCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full rounded-lg border border-[#1C2B27]/12 bg-white px-3.5 py-3 text-center text-lg tracking-[0.35em] text-[#1C2B27] outline-none focus:border-[#C79A3D] focus:ring-2 focus:ring-[#C79A3D]/25"
+                    placeholder="000000"
+                  />
+                </label>
+                <button type="submit" disabled={loading} className="flex w-full items-center justify-center rounded-lg bg-[#16302A] px-4 py-2.5 text-[13.5px] font-semibold text-[#F6F2E7] disabled:opacity-50">
+                  {loading ? 'Verifying...' : 'Verify and sign in'}
+                </button>
+                <button type="button" onClick={() => { setTenant2fa(null); setTenant2faCode(''); setMessage(''); }} className="w-full text-center text-[13px] text-[#3E6E58] hover:underline">
+                  Back to sign in
+                </button>
               </form>
             ) : tokenVerified ? (
               // Reset Password Form

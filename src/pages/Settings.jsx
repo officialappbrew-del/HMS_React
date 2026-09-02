@@ -1551,9 +1551,9 @@ const Settings = () => {
         <div>
           <label className="text-sm font-medium text-[#1A1A1A] cursor-pointer">
             <FontAwesomeIcon icon={faShieldAlt} className="mr-1.5 text-[#C8553D]" />
-            Two-factor authentication
+            Two-factor authentication for all users
           </label>
-          <p className="text-xs text-[#5A5A5A] mt-0.5">Require 2FA for all users</p>
+          <p className="text-xs text-[#5A5A5A] mt-0.5">Require an email verification code for every tenant user at sign-in</p>
         </div>
         <div className="relative inline-block w-12 h-7 flex-shrink-0">
           <input
