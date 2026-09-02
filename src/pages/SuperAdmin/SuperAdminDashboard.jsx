@@ -71,7 +71,7 @@ const SuperAdminDashboard = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showAuditLogs, setShowAuditLogs] = useState(false);
+  const [showAuditLogs, setShowAuditLogs] = useState(true);
   const [selectedAuditLog, setSelectedAuditLog] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 

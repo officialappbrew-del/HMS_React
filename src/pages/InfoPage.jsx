@@ -1,8 +1,8 @@
 import PublicPageShell from '../components/PublicPageShell';
 
-const InfoPage = ({ title, summary, highlights = [], bullets = [] }) => {
+const InfoPage = ({ title, summary, highlights = [], bullets = [], brand = null }) => {
   return (
-    <PublicPageShell title={title} subtitle={summary}>
+    <PublicPageShell title={title} subtitle={summary} brand={brand}>
       <div className="grid gap-4 lg:grid-cols-2">
         {highlights.map((item) => (
           <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

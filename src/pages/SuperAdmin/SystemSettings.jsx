@@ -98,52 +98,106 @@ const SystemSettings = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-[#E8E3DC] rounded-lg p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-[#1A1A1A] flex items-center gap-2">
-            <Globe className="w-4 h-4 text-[#C79A3D]" />
-            General Settings
-          </h3>
-          <div>
-            <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Platform Name</label>
-            <input
-              type="text"
-              value={settings?.platform_name || ''}
-              onChange={(e) => updateSetting('platform_name', e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Support Email</label>
-            <input
-              type="email"
-              value={settings?.support_email || ''}
-              onChange={(e) => updateSetting('support_email', e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
-            />
-          </div>
-          <div className="flex items-center justify-between">
+        <div className="space-y-6">
+          <div className="bg-white border border-[#E8E3DC] rounded-lg p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-[#1A1A1A] flex items-center gap-2">
+              <Globe className="w-4 h-4 text-[#C79A3D]" />
+              General Settings
+            </h3>
             <div>
-              <label className="block text-xs font-medium text-[#1A1A1A]">Maintenance Mode</label>
-              <p className="text-xs text-[#5A5A5A]">Temporarily disable platform access</p>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Platform Name</label>
+              <input
+                type="text"
+                value={settings?.platform_name || ''}
+                onChange={(e) => updateSetting('platform_name', e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+              />
             </div>
-            <button
-              onClick={() => updateSetting('maintenance_mode', !settings?.maintenance_mode)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings?.maintenance_mode ? 'bg-[#C8553D]' : 'bg-[#D8D4CD]'}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings?.maintenance_mode ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
             <div>
-              <label className="block text-xs font-medium text-[#1A1A1A]">Allow New Signups</label>
-              <p className="text-xs text-[#5A5A5A]">Enable or disable new tenant registration</p>
+              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Support Email</label>
+              <input
+                type="email"
+                value={settings?.support_email || ''}
+                onChange={(e) => updateSetting('support_email', e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+              />
             </div>
-            <button
-              onClick={() => updateSetting('allow_new_signups', !settings?.allow_new_signups)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings?.allow_new_signups ? 'bg-[#2D7D46]' : 'bg-[#D8D4CD]'}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings?.allow_new_signups ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
+            {/* <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-medium text-[#1A1A1A]">Maintenance Mode</label>
+                <p className="text-xs text-[#5A5A5A]">Temporarily disable platform access</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateSetting('maintenance_mode', !settings?.maintenance_mode)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings?.maintenance_mode ? 'bg-[#C8553D]' : 'bg-[#D8D4CD]'}`}
+                aria-label="Toggle maintenance mode"
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings?.maintenance_mode ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div> */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-medium text-[#1A1A1A]">Allow New Signups</label>
+                <p className="text-xs text-[#5A5A5A]">Enable or disable new tenant registration</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateSetting('allow_new_signups', !settings?.allow_new_signups)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings?.allow_new_signups ? 'bg-[#2D7D46]' : 'bg-[#D8D4CD]'}`}
+                aria-label="Toggle new signups"
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings?.allow_new_signups ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E8E3DC] rounded-lg p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-[#1A1A1A] flex items-center gap-2">
+              <Server className="w-4 h-4 text-[#C79A3D]" />
+              Platform Service Costs
+            </h3>
+            <p className="text-xs text-[#5A5A5A]">Default third-party service providers and costs applied across new tenants unless overridden by their plan.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Email Provider</label>
+                <input
+                  type="text"
+                  value={settings?.platform_email_provider || ''}
+                  onChange={(e) => updateSetting('platform_email_provider', e.target.value)}
+                  placeholder="e.g. sendgrid"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Email Cost/Month (₦)</label>
+                <input
+                  type="number"
+                  value={settings?.platform_email_cost_monthly || 0}
+                  onChange={(e) => updateSetting('platform_email_cost_monthly', e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#5A5A5A] mb-1">SMS Provider</label>
+                <input
+                  type="text"
+                  value={settings?.platform_sms_provider || ''}
+                  onChange={(e) => updateSetting('platform_sms_provider', e.target.value)}
+                  placeholder="e.g. twilio"
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#5A5A5A] mb-1">SMS Cost/Month (₦)</label>
+                <input
+                  type="number"
+                  value={settings?.platform_sms_cost_monthly || 0}
+                  onChange={(e) => updateSetting('platform_sms_cost_monthly', e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -186,7 +240,7 @@ const SystemSettings = () => {
             </div>
           )}
 
-          <div>
+          {/* <div>
             <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Max Users Per Tenant (global cap)</label>
             <input
               type="number"
@@ -194,7 +248,7 @@ const SystemSettings = () => {
               onChange={(e) => updateSetting('max_users_per_tenant', parseInt(e.target.value) || 0)}
               className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
             />
-          </div>
+          </div> */}
           <div>
             <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Self-service payment method</label>
             <select
@@ -222,7 +276,7 @@ const SystemSettings = () => {
             </div>
             <p className="mt-2 text-xs text-[#5A5A5A]">Secrets are encrypted in the database and are never returned to the dashboard.</p>
           </div>
-          <div>
+          {/* <div>
             <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Max Storage Per Tenant (GB)</label>
             <input
               type="number"
@@ -230,59 +284,13 @@ const SystemSettings = () => {
               onChange={(e) => updateSetting('max_storage_per_tenant_gb', parseInt(e.target.value) || 0)}
               className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
             />
-          </div>
+          </div> */}
         </div>
 
-        <div className="bg-white border border-[#E8E3DC] rounded-lg p-5 space-y-4 lg:col-span-2">
-          <h3 className="text-sm font-semibold text-[#1A1A1A] flex items-center gap-2">
-            <Server className="w-4 h-4 text-[#C79A3D]" />
-            Platform Service Costs
-          </h3>
-          <p className="text-xs text-[#5A5A5A]">Default third-party service providers and costs applied across new tenants unless overridden by their plan.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Email Provider</label>
-              <input
-                type="text"
-                value={settings?.platform_email_provider || ''}
-                onChange={(e) => updateSetting('platform_email_provider', e.target.value)}
-                placeholder="e.g. sendgrid"
-                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Email Cost/Month (₦)</label>
-              <input
-                type="number"
-                value={settings?.platform_email_cost_monthly || 0}
-                onChange={(e) => updateSetting('platform_email_cost_monthly', e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">SMS Provider</label>
-              <input
-                type="text"
-                value={settings?.platform_sms_provider || ''}
-                onChange={(e) => updateSetting('platform_sms_provider', e.target.value)}
-                placeholder="e.g. twilio"
-                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#5A5A5A] mb-1">SMS Cost/Month (₦)</label>
-              <input
-                type="number"
-                value={settings?.platform_sms_cost_monthly || 0}
-                onChange={(e) => updateSetting('platform_sms_cost_monthly', e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded"
-              />
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
 export default SystemSettings;
+

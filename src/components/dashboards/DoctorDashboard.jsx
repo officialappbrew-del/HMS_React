@@ -8,7 +8,7 @@ import ChangePasswordModal from '../ChangePasswordModal';
 import MyRosterTab from './MyRosterTab';
 import { setPatients } from '../../features/patientSlice';
 import {
-  Users,
+  Users,ChevronRight,
   Stethoscope,
   MoreVertical,
   Activity,

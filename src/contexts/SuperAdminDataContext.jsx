@@ -88,8 +88,16 @@ export const SuperAdminDataProvider = ({ children }) => {
   );
 };
 
+const defaultContextValue = {
+  ...initialState,
+  prefetchAll: async () => {},
+  loadStates: async () => [],
+  loadLgas: async () => [],
+  invalidate: () => {},
+  refresh: async () => {},
+};
+
 export const useSuperAdminData = () => {
   const ctx = useContext(SuperAdminDataContext);
-  if (!ctx) throw new Error('useSuperAdminData must be used within SuperAdminDataProvider');
-  return ctx;
+  return ctx || defaultContextValue;
 };

@@ -1,11 +1,24 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PublicPageShell from '../components/PublicPageShell';
+import { fetchPublicBranding, defaultPublicBranding } from '../utils/publicBranding';
 
 const ContactPage = () => {
+  const [brand, setBrand] = useState(defaultPublicBranding);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchPublicBranding().then((branding) => {
+      if (isMounted) setBrand(branding);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
   return (
     <PublicPageShell
-      title="Contact us"
-      subtitle="Need help with onboarding, implementation, training, or support? Reach out and the SmartCare team will be happy to assist."
+      title={brand.contact.title}
+      subtitle={brand.contact.subtitle}
+      brand={brand}
     >
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -13,17 +26,15 @@ const ContactPage = () => {
           <div className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="font-medium text-slate-800">Email</p>
-              <p>official.appbrew@gmail.com</p>
+              <p>{brand.contact.email}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="font-medium text-slate-800">Phone</p>
-              <p>+234 814 695 5393</p>
+              <p>{brand.contact.phone}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="font-medium text-slate-800">Hours</p>
-              <p>Monday to Friday, 8:00 AM to 6:00 PM</p>
-              <p>Saturday, 9:00 AM to 12:00 PM</p>
-              <p>Sunday, 10:00 AM to 4:00 PM</p>
+              <p>{brand.contact.hours}</p>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Plus, Search, Filter, X, Loader2, XCircle, CheckCircle, ChevronRight, ChevronLeft,
   Users, Server, Shield, Zap, Mail, Building2, Pencil, Eye, Save, Info,
-  MapPin, CreditCard, Calendar, ShieldCheck, User
+  MapPin, CreditCard, Calendar, ShieldCheck, User, Trash2
 } from 'lucide-react';
 import { superAdminApi } from '../../utils/superAdminApi';
 import AdminPagination from '../../components/AdminPagination';
@@ -13,6 +13,7 @@ const TenantManagement = () => {
   const permissions = useAdminPermissions();
   const canCreateTenant = permissions.canCreateTenants || isSuperUser();
   const canSuspendTenant = permissions.canSuspendTenants || isSuperUser();
+  const canDeleteTenant = permissions.canDeleteTenants || isSuperUser();
   const canViewTenants = permissions.canViewAllTenants || isSuperUser();
 
   const {
@@ -37,7 +38,9 @@ const TenantManagement = () => {
   const [formData, setFormData] = useState({
     name: '', domain: '', email: '', phone: '',
     address: '', city: '', state: '', lga: '', country: '',
-    facility_type: '', subscription_plan: '', registration_number: ''
+    facility_type: '', subscription_plan: '', registration_number: '',
+    include_email_service: false,
+    include_sms_service: false,
   });
 
   const [rootAdmin, setRootAdmin] = useState({
@@ -63,6 +66,10 @@ const TenantManagement = () => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const loadTenants = async (pageNum = 1) => {
     setPageLoading(true);
@@ -102,6 +109,41 @@ const TenantManagement = () => {
     }
   };
 
+  const openDeleteModal = (tenant) => {
+    setDeleteCandidate(tenant);
+    setDeleteConfirmation('');
+    setDeleteError('');
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteCandidate(null);
+    setDeleteConfirmation('');
+    setDeleteError('');
+    setDeleteLoading(false);
+  };
+
+  const handleDeleteTenant = async () => {
+    if (!deleteCandidate) return;
+
+    if (deleteConfirmation.trim() !== deleteCandidate.name) {
+      setDeleteError(`Please type "${deleteCandidate.name}" exactly to confirm deletion.`);
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    try {
+      await superAdminApi.deleteTenant(deleteCandidate.public_id, deleteConfirmation.trim());
+      closeDeleteModal();
+      loadTenants(1);
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete tenant');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
 const openDetailModal = async (publicId) => {
     setDetailTenant(null);
     setEditMode(false);
@@ -133,11 +175,15 @@ const openDetailModal = async (publicId) => {
         monthly_fee: data.monthly_fee || '',
         payment_method: data.payment_method || '',
         billing_email: data.billing_email || '',
+        include_email_service: Boolean(data.include_email_service),
+        include_sms_service: Boolean(data.include_sms_service),
+        email_service_cost: data.email_service_cost || 0,
+        sms_service_cost: data.sms_service_cost || 0,
         nhis_accreditation: data.nhis_accreditation || '',
         nhis_provider_id: data.nhis_provider_id || '',
         nhis_accreditation_date: data.nhis_accreditation_date || '',
         nhis_expiry_date: data.nhis_expiry_date || '',
-        bed_capacity: data.bed_capacity || '',
+        bed_capacity: data.bed_capacity || 0,
         established_date: data.established_date || '',
         emergency_services: data.emergency_services || false,
         notes: data.notes || '',
@@ -180,15 +226,22 @@ const openDetailModal = async (publicId) => {
           normalizedEdit[field] = null;
         }
       });
+      const selectedPlanForEdit = plans.find(p => String(p.id) === String(normalizedEdit.subscription_plan || detailTenant?.subscription_plan));
+      const includeEmail = Boolean(normalizedEdit.include_email_service);
+      const includeSms = Boolean(normalizedEdit.include_sms_service);
       const payload = {
         ...normalizedEdit,
+        include_email_service: includeEmail,
+        include_sms_service: includeSms,
+        email_service_cost: includeEmail && selectedPlanForEdit ? Number(selectedPlanForEdit.email_service_cost_monthly || 0) : 0,
+        sms_service_cost: includeSms && selectedPlanForEdit ? Number(selectedPlanForEdit.sms_service_cost_monthly || 0) : 0,
         country: normalizedEdit.country ? Number(normalizedEdit.country) : null,
         state: normalizedEdit.state ? Number(normalizedEdit.state) : null,
         lga: normalizedEdit.lga ? Number(normalizedEdit.lga) : null,
         facility_type: normalizedEdit.facility_type ? Number(normalizedEdit.facility_type) : null,
         subscription_plan: normalizedEdit.subscription_plan ? Number(normalizedEdit.subscription_plan) : null,
-        bed_capacity: normalizedEdit.bed_capacity ? Number(normalizedEdit.bed_capacity) : null,
-        monthly_fee: normalizedEdit.monthly_fee ? Number(normalizedEdit.monthly_fee) : null,
+        bed_capacity: normalizedEdit.bed_capacity ? Number(normalizedEdit.bed_capacity) : 0,
+        monthly_fee: normalizedEdit.monthly_fee ? Number(normalizedEdit.monthly_fee) : 0,
       };
       const updated = await superAdminApi.updateTenant(detailTenant.public_id, payload);
       setDetailTenant(updated);
@@ -253,8 +306,15 @@ const openDetailModal = async (publicId) => {
           normalizedForm[field] = null;
         }
       });
+      const selectedPlanForCreate = plans.find(p => String(p.id) === String(normalizedForm.subscription_plan));
+      const includeEmail = Boolean(normalizedForm.include_email_service);
+      const includeSms = Boolean(normalizedForm.include_sms_service);
       const payload = {
         ...normalizedForm,
+        include_email_service: includeEmail,
+        include_sms_service: includeSms,
+        email_service_cost: includeEmail && selectedPlanForCreate ? Number(selectedPlanForCreate.email_service_cost_monthly || 0) : 0,
+        sms_service_cost: includeSms && selectedPlanForCreate ? Number(selectedPlanForCreate.sms_service_cost_monthly || 0) : 0,
         root_admin: {
           ...rootAdmin,
           password: generateTempPassword(),
@@ -271,7 +331,9 @@ const openDetailModal = async (publicId) => {
         setFormData({
           name: '', domain: '', email: '', phone: '',
           address: '', city: '', state: '', lga: '', country: '',
-          facility_type: '', subscription_plan: '', registration_number: ''
+          facility_type: '', subscription_plan: '', registration_number: '',
+          include_email_service: false,
+          include_sms_service: false,
         });
         setRootAdmin({
          first_name: '', last_name: '', email: '', phone: ''
@@ -373,9 +435,10 @@ const openDetailModal = async (publicId) => {
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/80">
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Tenant</th>
-                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Domain</th>
+                {/* <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Domain</th> */}
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Users</th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Patients</th>
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Plan</th>
                 <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden xl:table-cell">Root Admin</th>
                 <th className="px-3 sm:px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
@@ -414,7 +477,7 @@ const openDetailModal = async (publicId) => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 sm:px-4 py-3 text-xs text-slate-600 font-mono hidden md:table-cell truncate max-w-[120px]">{tenant.domain}</td>
+                    {/* <td className="px-3 sm:px-4 py-3 text-xs text-slate-600 font-mono hidden md:table-cell truncate max-w-[120px]">{tenant.domain}</td> */}
                     <td className="px-3 sm:px-4 py-3">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold border rounded-lg whitespace-nowrap ${getStatusBadge(tenant)}`}>
                         {tenant.subscription_status || 'unknown'}
@@ -424,6 +487,12 @@ const openDetailModal = async (publicId) => {
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-slate-400" />
                         {tenant.user_count || 0}
+                      </span>
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 text-sm text-slate-700 font-medium hidden md:table-cell">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        {tenant.patient_count || 0}
                       </span>
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-xs text-slate-600 hidden lg:table-cell">
@@ -487,6 +556,15 @@ const openDetailModal = async (publicId) => {
                             ) : (
                               <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             )}
+                          </button>
+                        )}
+                        {canDeleteTenant && (
+                          <button
+                            onClick={() => openDeleteModal(tenant)}
+                            className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete tenant"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                         )}
                       </div>
@@ -773,6 +851,40 @@ const openDetailModal = async (publicId) => {
                           </div>
                         ))}
                       </div>
+
+                      {(selectedPlan.email_service_cost_monthly > 0 || selectedPlan.sms_service_cost_monthly > 0) && (
+                        <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Optional add-ons</p>
+                          {selectedPlan.email_service_cost_monthly > 0 && (
+                            <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                              <span className="text-sm text-slate-700">Email service</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-medium text-slate-500">₦{selectedPlan.email_service_cost_monthly}/mo</span>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(formData.include_email_service)}
+                                  onChange={(e) => setFormData({ ...formData, include_email_service: e.target.checked })}
+                                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                              </div>
+                            </label>
+                          )}
+                          {selectedPlan.sms_service_cost_monthly > 0 && (
+                            <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                              <span className="text-sm text-slate-700">SMS service</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-medium text-slate-500">₦{selectedPlan.sms_service_cost_monthly}/mo</span>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(formData.include_sms_service)}
+                                  onChange={(e) => setFormData({ ...formData, include_sms_service: e.target.checked })}
+                                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                              </div>
+                            </label>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -889,6 +1001,71 @@ const openDetailModal = async (publicId) => {
                 </div>
               )}
 </form>
+          </div>
+        </div>
+      )}
+
+      {deleteCandidate && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeDeleteModal} />
+          <div className="relative w-full max-w-lg rounded-2xl border border-red-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-slate-900">Delete Tenant</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  This will permanently remove <span className="font-semibold text-slate-900">{deleteCandidate.name}</span> and all associated data.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <p className="font-semibold">Warning</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>The tenant schema and all tenant data will be deleted.</li>
+                <li>Users, patients, billing records, and settings will be removed.</li>
+                <li>This action cannot be undone.</li>
+              </ul>
+            </div>
+
+            <div className="mt-5">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                Type the tenant name to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder={deleteCandidate.name}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              />
+            </div>
+
+            {deleteError && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTenant}
+                disabled={deleteLoading || deleteConfirmation.trim() !== deleteCandidate.name}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Tenant'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1171,15 +1348,41 @@ const openDetailModal = async (publicId) => {
                         <Field label="Payment Method">
                           <input className={inputClass} value={editForm.payment_method || ''} onChange={(e) => handleEditFieldChange('payment_method', e.target.value)} />
                         </Field>
+                        <Field label="Email Service">
+                          <label className="flex items-center justify-between w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                            <span>{Boolean(editForm.include_email_service) ? 'Enabled' : 'Disabled'}</span>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(editForm.include_email_service)}
+                              onChange={(e) => handleEditFieldChange('include_email_service', e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                          </label>
+                        </Field>
+                        <Field label="SMS Service">
+                          <label className="flex items-center justify-between w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                            <span>{Boolean(editForm.include_sms_service) ? 'Enabled' : 'Disabled'}</span>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(editForm.include_sms_service)}
+                              onChange={(e) => handleEditFieldChange('include_sms_service', e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                          </label>
+                        </Field>
                       </div>
                     ) : (
                       <InfoGrid items={[
+                        { label: 'Total Users', value: detailTenant.user_count || 0 },
+                        { label: 'Total Patients', value: detailTenant.patient_count || 0 },
                         { label: 'Plan', value: detailTenant.subscription_plan_details?.name || '—' },
                         { label: 'Monthly Fee', value: detailTenant.monthly_fee ? `₦${detailTenant.monthly_fee}` : '—' },
                         { label: 'Start Date', value: detailTenant.subscription_start_date || '—' },
                         { label: 'End Date', value: detailTenant.subscription_end_date || '—' },
                         { label: 'Payment Method', value: detailTenant.payment_method || '—' },
                         { label: 'Billing Email', value: detailTenant.billing_email || '—' },
+                        { label: 'Email Service', value: detailTenant.include_email_service ? `Enabled (₦${detailTenant.email_service_cost || 0})` : 'Disabled' },
+                        { label: 'SMS Service', value: detailTenant.include_sms_service ? `Enabled (₦${detailTenant.sms_service_cost || 0})` : 'Disabled' },
                       ]} />
                     )}
                   </Section>

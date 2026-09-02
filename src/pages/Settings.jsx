@@ -331,6 +331,51 @@ const Settings = () => {
   const [logo, setLogo] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [publicBranding, setPublicBranding] = useState({
+    site_name: 'SmartCare HMS',
+    theme_color: '#0B6E4F',
+    accent_color: '#0A2540',
+    powered_by: 'Powered by SmartCare HMS',
+    footer_text: '© 2026 SmartCare HMS. All rights reserved.',
+    about: {
+      title: 'About SmartCare HMS',
+      summary: 'SmartCare HMS brings patient, staff, billing, pharmacy, and clinical workflows together in one secure healthcare platform.',
+      highlights: [
+        { title: 'Built for modern hospitals', description: 'The platform supports digital records, operational oversight, and cross-department coordination for busy clinical teams.' },
+        { title: 'Designed with compliance in mind', description: 'NDPR, NHIS, and clinical governance requirements are built into the experience to support safer operations.' }
+      ],
+      bullets: [
+        'Centralized patient and staff workflows for faster care coordination.',
+        'Integrated modules for pharmacy, labs, finance, ward management, and reporting.',
+        'Secure role-based access so the right people see the right information.'
+      ]
+    },
+    contact: {
+      title: 'Contact us',
+      subtitle: 'Need help with onboarding, implementation, training, or support? Reach out and the SmartCare team will be happy to assist.',
+      email: 'official.appbrew@gmail.com',
+      phone: '+234 814 695 5393',
+      hours: 'Monday to Friday, 8:00 AM to 6:00 PM; Saturday, 9:00 AM to 12:00 PM; Sunday, 10:00 AM to 4:00 PM'
+    },
+    privacy: {
+      title: 'Privacy Policy',
+      summary: 'We take patient, staff, and operational data seriously. SmartCare HMS is designed to protect sensitive information with strong access controls, auditability, and privacy-conscious workflows.',
+      highlights: [
+        { title: 'Data handling', description: 'Patient records are stored and managed in line with operational best practices and Nigerian data protection expectations.' },
+        { title: 'Access controls', description: 'Role-based permissions limit data visibility to authorized teams and reduce exposure of sensitive records.' }
+      ],
+      bullets: [
+        'Only authorized users can view or modify protected information.',
+        'Audit trails help administrators monitor critical actions across the system.',
+        'Security and privacy settings can be reviewed and adjusted from the platform settings area.'
+      ]
+    },
+    testimonials: [
+      { name: 'Dr. Adebayo Ogunlesi', role: 'Chief Medical Director', hospital: 'Lagos University Teaching Hospital', quote: 'SmartCare HMS has fundamentally changed how our clinical teams operate. The unified record and integrated modules have measurably improved both patient outcomes and staff satisfaction.' },
+      { name: 'Mrs. Chioma Nwosu', role: 'Head of Administration', hospital: 'National Hospital Abuja', quote: 'NHIA claims management and the revenue cycle tools have been genuinely transformative — a 60% drop in claim rejections and a real improvement in cash flow.' },
+      { name: 'Dr. Emeka Okonkwo', role: 'Medical Director', hospital: 'Nigerian Army Reference Hospital', quote: 'The clinical decision support and patient-safety tooling hold up against any global platform. Medication error rates fell 45% in our first quarter live.' }
+    ]
+  });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -473,6 +518,7 @@ const Settings = () => {
       setLoading(true);
       try {
         const response = await tenantSettingsApi.getCurrent();
+        const publicPages = response.custom_settings?.public_pages || {};
         setSettings((prev) => ({
           ...prev,
           system_name: response.system_name || prev.system_name,
@@ -498,6 +544,18 @@ const Settings = () => {
           nhis_default_tariff: response.nhis_default_tariff || prev.nhis_default_tariff,
           nhis_claim_submission_days: response.nhis_claim_submission_days ?? prev.nhis_claim_submission_days,
           custom_settings: response.custom_settings || prev.custom_settings,
+        }));
+        setPublicBranding((prev) => ({
+          ...prev,
+          site_name: publicPages.site_name || response.system_name || prev.site_name,
+          theme_color: publicPages.theme_color || response.theme_color || prev.theme_color,
+          accent_color: publicPages.accent_color || prev.accent_color,
+          powered_by: 'Powered by SmartCare HMS',
+          footer_text: '© 2026 SmartCare HMS. All rights reserved.',
+          about: { ...prev.about, ...(publicPages.about || {}) },
+          contact: { ...prev.contact, ...(publicPages.contact || {}) },
+          privacy: { ...prev.privacy, ...(publicPages.privacy || {}) },
+          testimonials: Array.isArray(publicPages.testimonials) && publicPages.testimonials.length ? publicPages.testimonials : prev.testimonials,
         }));
         if (response.system_logo) {
           setLogoPreview(response.system_logo);
@@ -793,6 +851,23 @@ const Settings = () => {
     }
   };
 
+  const handlePublicBrandingField = (section, field, value) => {
+    setPublicBranding(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value,
+      },
+    }));
+  };
+
+  const handlePublicBrandingArrayField = (section, index, field, value) => {
+    setPublicBranding(prev => ({
+      ...prev,
+      [section]: prev[section].map((item, i) => i === index ? { ...item, [field]: value } : item),
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -800,6 +875,15 @@ const Settings = () => {
     setMessageType('');
 
     try {
+      const mergedCustomSettings = {
+        ...(settings.custom_settings || {}),
+        public_pages: {
+          ...publicBranding,
+          powered_by: 'Powered by SmartCare HMS',
+          footer_text: '© 2026 SmartCare HMS. All rights reserved.',
+        },
+      };
+
       const payload = {
         system_name: settings.system_name,
         theme_color: settings.theme_color,
@@ -822,7 +906,7 @@ const Settings = () => {
         nhis_enabled: settings.nhis_enabled,
         nhis_default_tariff: settings.nhis_default_tariff,
         nhis_claim_submission_days: settings.nhis_claim_submission_days,
-        custom_settings: settings.custom_settings,
+        custom_settings: mergedCustomSettings,
       };
 
       if (logo) {
@@ -830,7 +914,6 @@ const Settings = () => {
       } else if (settings.system_logo === null) {
         payload.system_logo = null;
       }
-
       await tenantSettingsApi.updateCurrent(payload);
 
       const communicationPayload = {

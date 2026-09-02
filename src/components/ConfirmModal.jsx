@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Trash2, Edit, Archive, Pill, Package, AlertTriangle, LogOut } from 'lucide-react';
+import { Trash2, Edit, Archive, Pill, Package, AlertTriangle, LogOut, X } from 'lucide-react';
 
 const ConfirmModal = ({
   isOpen,
@@ -33,6 +33,8 @@ const ConfirmModal = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const isLogout = type === 'logout';
 
   const getButtonColor = () => {
     switch (type) {
@@ -110,14 +112,35 @@ const getIcon = () => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-950/55 backdrop-blur-[2px] transition-opacity" onClick={isLoading ? undefined : onClose} />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
-          <div className="p-6">
-            <div className="flex items-center mb-4">
-              {getIcon()}
-              <h3 className="text-xl font-semibold ml-4">{title}</h3>
+        <div
+          className={`relative w-full overflow-hidden bg-white shadow-2xl shadow-slate-950/20 ${isLogout ? 'max-w-lg rounded-2xl' : 'max-w-md rounded-lg'}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-modal-title"
+        >
+          <div className={isLogout ? 'p-7 sm:p-8' : 'p-6'}>
+            <div className={`flex ${isLogout ? 'items-start' : 'items-center mb-4'}`}>
+              <div className={isLogout ? 'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700' : ''}>
+                {isLogout ? <LogOut className="h-6 w-6" strokeWidth={1.8} /> : getIcon()}
+              </div>
+              <div className={isLogout ? 'ml-4 pr-8' : 'ml-4'}>
+                <h3 id="confirm-modal-title" className={isLogout ? 'text-xl font-semibold tracking-tight text-slate-900' : 'text-xl font-semibold'}>{title}</h3>
+                {isLogout && <p className="mt-1 text-sm text-slate-500">Your session will be securely ended.</p>}
+              </div>
+              {isLogout && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isLoading}
+                  aria-label="Close confirmation dialog"
+                  className="absolute right-5 top-5 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
             </div>
 
             {patientData && (
@@ -154,7 +177,7 @@ const getIcon = () => {
               </div>
             )}
 
-            <p className="text-gray-700 mb-6">{message}</p>
+            <p className={isLogout ? 'mt-7 max-w-md text-[15px] leading-6 text-slate-600' : 'text-gray-700 mb-6'}>{message}</p>
 
             {/* Display warnings */}
             {getWarnings().length > 0 && (
@@ -187,12 +210,12 @@ const getIcon = () => {
             )}
           </div>
 
-          <div className="p-6 bg-gray-50 rounded-b-lg">
-            <div className="flex flex-col sm:flex-row gap-3">
+          <div className={isLogout ? 'flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50/80 p-5 sm:flex-row sm:justify-end sm:p-6' : 'rounded-b-lg bg-gray-50 p-6'}>
+            <div className={isLogout ? 'contents' : 'flex flex-col gap-3 sm:flex-row'}>
               <button
                 onClick={isLoading ? undefined : onConfirm}
                 disabled={isLoading}
-                className={`flex items-center justify-center gap-2 px-4 py-2 text-white font-medium rounded-md ${getButtonColor()} disabled:opacity-70 disabled:cursor-not-allowed`}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${isLogout ? 'rounded-lg bg-slate-800 hover:bg-slate-900 sm:order-2 sm:min-w-32' : `rounded-md ${getButtonColor()}`}`}
               >
                 {isLoading && (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -205,12 +228,12 @@ const getIcon = () => {
               <button
                 onClick={isLoading ? undefined : onClose}
                 disabled={isLoading}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                className={`px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${isLogout ? 'rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 sm:order-1 sm:min-w-24' : 'rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
               >
                 {cancelText}
               </button>
             </div>
-            <p className="text-xs text-gray-500 text-center mt-4">
+            <p className={isLogout ? 'hidden' : 'mt-4 text-center text-xs text-gray-500'}>
               Press ESC to cancel or click outside the modal
             </p>
           </div>

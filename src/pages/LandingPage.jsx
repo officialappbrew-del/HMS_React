@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense, useCallback, useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+import { fetchPublicBranding, defaultPublicBranding } from '../utils/publicBranding';
 
 // Lazy load TourModal - only loads when user clicks "Watch the tour"
 const TourModal = lazy(() => import('../components/TourModal'));
@@ -121,6 +122,7 @@ const SmartCareHMSRedesigned = () => {
   const [countedStats, setCountedStats] = useState({});
   const [hoveredBenefit, setHoveredBenefit] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [branding, setBranding] = useState(defaultPublicBranding);
 
   const statsRef = useRef(null);
   const currentYear = new Date().getFullYear();
@@ -128,6 +130,13 @@ const SmartCareHMSRedesigned = () => {
   // Set mounted state after initial render
   useEffect(() => {
     setMounted(true);
+    let isMounted = true;
+    fetchPublicBranding().then((data) => {
+      if (isMounted) setBranding(data);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // ============================================================
@@ -312,11 +321,10 @@ const SmartCareHMSRedesigned = () => {
     { icon: 'CreditCard', label: 'Billing & Revenue Cycle', category: 'FINANCE', description: 'Multi-payer billing, NHIS claims, and revenue cycle optimization.' },
   ], []);
 
-  const testimonials = useMemo(() => [
-    { name: 'Dr. Adebayo Ogunlesi', role: 'Chief Medical Director', hospital: 'Lagos University Teaching Hospital', quote: 'SmartCare HMS has fundamentally changed how our clinical teams operate. The unified record and integrated modules have measurably improved both patient outcomes and staff satisfaction.', avatar: 'AO' },
-    { name: 'Mrs. Chioma Nwosu', role: 'Head of Administration', hospital: 'National Hospital Abuja', quote: 'NHIA claims management and the revenue cycle tools have been genuinely transformative — a 60% drop in claim rejections and a real improvement in cash flow.', avatar: 'CN' },
-    { name: 'Dr. Emeka Okonkwo', role: 'Medical Director', hospital: 'Nigerian Army Reference Hospital', quote: 'The clinical decision support and patient-safety tooling hold up against any global platform. Medication error rates fell 45% in our first quarter live.', avatar: 'EO' },
-  ], []);
+  const testimonials = useMemo(() => (branding.testimonials || defaultPublicBranding.testimonials).map((t, index) => ({
+    ...t,
+    avatar: (t.name || 'SC').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase() || ['SC', 'T'][index % 2],
+  })), [branding.testimonials]);
 
   const stats = useMemo(() => [
     { key: 'hospitals', value: '500+', label: 'Hospitals served', icon: 'Building2' },
@@ -408,7 +416,7 @@ const SmartCareHMSRedesigned = () => {
               </div>
               <div className="leading-none min-w-0">
                 <div className="font-display text-base sm:text-lg font-semibold tracking-tight text-[#0A2540] truncate">
-                  SmartCare<span className="text-[#0B6E4F]">HMS</span>
+                  {branding.site_name || 'SmartCare HMS'}
                 </div>
                 <div className="font-mono text-[10px] tracking-widest text-[#5B6472] mt-0.5 hidden sm:block">ENTERPRISE PLATFORM</div>
               </div>
@@ -501,8 +509,7 @@ const SmartCareHMSRedesigned = () => {
               <div>
                 <span className="font-mono text-[10px] tracking-[0.2em] text-white/60 uppercase">Enterprise Platform</span>
                 <h2 className="font-display text-lg sm:text-2xl lg:text-3xl font-semibold text-white mt-1">
-                  SmartCare<span className="text-[#38B387]">HMS</span>
-                  <span className="ml-3 hidden sm:inline text-xs font-mono text-[#38B387]/70">v3.0</span>
+                  {branding.site_name || 'SmartCare HMS'}
                 </h2>
               </div>
             </div>
@@ -895,7 +902,7 @@ const SmartCareHMSRedesigned = () => {
                   <Icon name="ShieldCheck" className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-display text-base font-semibold text-white">
-                  SmartCare<span className="text-[#38B387]">HMS</span>
+                  {branding.site_name || 'SmartCare HMS'}
                 </span>
               </div>
               <p className="text-sm text-white/55 max-w-sm leading-relaxed">
@@ -919,7 +926,7 @@ const SmartCareHMSRedesigned = () => {
             ))}
           </div>
           <div className="mt-12 pt-6 border-t border-white/10 text-center text-xs text-white/40">
-            © {currentYear} SmartCare HMS. All rights reserved.
+            {branding.footer_text || `© ${currentYear} SmartCare HMS. All rights reserved.`}
           </div>
         </div>
       </footer>

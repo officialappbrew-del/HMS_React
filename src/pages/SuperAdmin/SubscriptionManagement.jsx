@@ -27,6 +27,10 @@ const SubscriptionManagement = () => {
 
   const [tenants, setTenants] = useState([]);
   const [selectedTenantId, setSelectedTenantId] = useState('');
+  const [subscriptionAddOns, setSubscriptionAddOns] = useState({
+    email_service: false,
+    sms_service: false,
+  });
 
   const [formData, setFormData] = useState({
     name: '',
@@ -161,6 +165,10 @@ const SubscriptionManagement = () => {
     try {
       const details = await superAdminApi.getTenantSubscription(tenant.public_id);
       setSubscriptionDetails(details);
+      setSubscriptionAddOns({
+        email_service: Boolean(details?.tenant?.include_email_service),
+        sms_service: Boolean(details?.tenant?.include_sms_service),
+      });
     } catch (err) {
       setUpgradeError(err.message || 'Failed to load subscription details');
     }
@@ -174,10 +182,13 @@ const SubscriptionManagement = () => {
     setUpgradeSuccess('');
     try {
       const newPlanId = document.getElementById('upgrade-plan-select').value;
+      const selectedPlan = subscriptionDetails?.available_plans?.find(plan => String(plan.id) === String(newPlanId));
       const checkout = await superAdminApi.checkoutSubscription({
         tenant_id: selectedTenant.public_id,
         subscription_plan: newPlanId,
         billing_period: 'monthly',
+        email_service: Boolean(subscriptionAddOns.email_service && selectedPlan?.email_service_cost_monthly > 0),
+        sms_service: Boolean(subscriptionAddOns.sms_service && selectedPlan?.sms_service_cost_monthly > 0),
       });
       window.location.assign(checkout.authorization_url);
     } catch (err) {
@@ -660,18 +671,77 @@ const SubscriptionManagement = () => {
                 )}
 
                 <div className="bg-white border border-[#E8E3DC] rounded p-4">
+                  <h4 className="text-sm font-semibold text-[#1A1A1A] mb-3">Included Services</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg border border-[#E8E3DC] bg-[#F7F5F2] p-3">
+                      <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Email Service</p>
+                      <p className="mt-1 font-medium text-[#1A1A1A]">
+                        {subscriptionDetails.tenant.include_email_service ? `Enabled (₦${subscriptionDetails.tenant.email_service_cost || 0})` : 'Disabled'}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-[#E8E3DC] bg-[#F7F5F2] p-3">
+                      <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">SMS Service</p>
+                      <p className="mt-1 font-medium text-[#1A1A1A]">
+                        {subscriptionDetails.tenant.include_sms_service ? `Enabled (₦${subscriptionDetails.tenant.sms_service_cost || 0})` : 'Disabled'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-[#E8E3DC] rounded p-4">
                   <h4 className="text-sm font-semibold text-[#1A1A1A] mb-3">Upgrade / Downgrade Plan</h4>
-                  <form onSubmit={handleUpgradeSubscription} className="flex flex-col sm:flex-row gap-3">
-                    <select id="upgrade-plan-select" className="flex-1 px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded">
-                      {subscriptionDetails.available_plans.map((plan) => (
-                        <option key={plan.id} value={plan.id} selected={plan.id === subscriptionDetails.tenant.subscription_plan}>
-                          {plan.name} - ₦{plan.price_monthly}/mo
-                        </option>
-                      ))}
-                    </select>
-                    <button type="submit" disabled={upgrading} className="px-4 py-2 text-sm font-medium bg-[#008751] text-white rounded hover:bg-[#006B40] transition-colors disabled:opacity-50">
-                      {upgrading ? 'Updating...' : 'Update Plan'}
-                    </button>
+                  <form onSubmit={handleUpgradeSubscription} className="space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <select id="upgrade-plan-select" className="flex-1 px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded">
+                        {subscriptionDetails.available_plans.map((plan) => (
+                          <option key={plan.id} value={plan.id} selected={plan.id === subscriptionDetails.tenant.subscription_plan}>
+                            {plan.name} - ₦{plan.price_monthly}/mo
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" disabled={upgrading} className="px-4 py-2 text-sm font-medium bg-[#008751] text-white rounded hover:bg-[#006B40] transition-colors disabled:opacity-50">
+                        {upgrading ? 'Updating...' : 'Update Plan'}
+                      </button>
+                    </div>
+
+                    {(() => {
+                      const planId = document.getElementById('upgrade-plan-select')?.value || subscriptionDetails.tenant.subscription_plan;
+                      const selectedPlan = subscriptionDetails.available_plans.find((plan) => String(plan.id) === String(planId));
+
+                      return (selectedPlan?.email_service_cost_monthly > 0 || selectedPlan?.sms_service_cost_monthly > 0) && (
+                        <div className="space-y-2 rounded-lg border border-[#E8E3DC] bg-[#F7F5F2] p-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#5A5A5A]">Optional add-ons</p>
+                          {selectedPlan?.email_service_cost_monthly > 0 && (
+                            <label className="flex items-center justify-between gap-3 text-sm text-[#1A1A1A]">
+                              <span>Email service</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-[#5A5A5A]">₦{selectedPlan.email_service_cost_monthly}/mo</span>
+                                <input
+                                  type="checkbox"
+                                  checked={subscriptionAddOns.email_service}
+                                  onChange={(e) => setSubscriptionAddOns(prev => ({ ...prev, email_service: e.target.checked }))}
+                                  className="h-4 w-4 rounded border-[#D8D4CD] text-[#008751] focus:ring-[#008751]"
+                                />
+                              </div>
+                            </label>
+                          )}
+                          {selectedPlan?.sms_service_cost_monthly > 0 && (
+                            <label className="flex items-center justify-between gap-3 text-sm text-[#1A1A1A]">
+                              <span>SMS service</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-[#5A5A5A]">₦{selectedPlan.sms_service_cost_monthly}/mo</span>
+                                <input
+                                  type="checkbox"
+                                  checked={subscriptionAddOns.sms_service}
+                                  onChange={(e) => setSubscriptionAddOns(prev => ({ ...prev, sms_service: e.target.checked }))}
+                                  className="h-4 w-4 rounded border-[#D8D4CD] text-[#008751] focus:ring-[#008751]"
+                                />
+                              </div>
+                            </label>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </form>
                   <p className="text-[10px] text-[#5A5A5A] mt-2">Remaining days will be prorated and added to the new plan.</p>
                 </div>

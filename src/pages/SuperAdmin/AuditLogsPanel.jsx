@@ -100,13 +100,13 @@ const AuditLogsPanel = ({ isOpen, onClose, onSelectLog, selectedLog }) => {
   };
 
   const DetailItem = ({ icon: Icon, label, value, children }) => (
-    <div className="flex items-center gap-2.5 p-2 rounded-md bg-gray-50/50 border border-gray-100">
-      <div className="p-1.5 rounded-md bg-white border border-gray-200">
+    <div className="flex items-start gap-2.5 p-2 rounded-md bg-gray-50/50 border border-gray-100 overflow-hidden">
+      <div className="p-1.5 rounded-md bg-white border border-gray-200 shrink-0">
         <Icon className="w-3.5 h-3.5 text-gray-600" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">{label}</p>
-        {children || <p className="text-sm font-medium text-gray-900 leading-tight">{value || '-'}</p>}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider truncate">{label}</p>
+        {children || <p className="text-sm font-medium text-gray-900 leading-tight break-words line-clamp-2">{value || '-'}</p>}
       </div>
     </div>
   );
@@ -158,19 +158,19 @@ const AuditLogsPanel = ({ isOpen, onClose, onSelectLog, selectedLog }) => {
             </div>
 
             {/* Main Details Grid - Compact */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 w-full">
               {selectedLog.title && (
-                <div className="md:col-span-2">
+                <div className="w-full">
                   <DetailItem icon={FileText} label="Activity" value={selectedLog.title} />
                 </div>
               )}
               
               {selectedLog.user_name && (
                 <DetailItem icon={User} label="User">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-gray-900">{selectedLog.user_name}</span>
+                  <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                    <span className="text-sm font-medium text-gray-900 truncate">{selectedLog.user_name}</span>
                     {selectedLog.user_id && (
-                      <span className="text-[10px] text-gray-400 font-mono">#{selectedLog.user_id}</span>
+                      <span className="text-[10px] text-gray-400 font-mono shrink-0">#{selectedLog.user_id}</span>
                     )}
                   </div>
                 </DetailItem>
@@ -178,10 +178,10 @@ const AuditLogsPanel = ({ isOpen, onClose, onSelectLog, selectedLog }) => {
 
               {selectedLog.tenant_name && (
                 <DetailItem icon={Building2} label="Tenant">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-gray-900">{selectedLog.tenant_name}</span>
+                  <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                    <span className="text-sm font-medium text-gray-900 truncate">{selectedLog.tenant_name}</span>
                     {selectedLog.tenant_id && (
-                      <span className="text-[10px] text-gray-400 font-mono">#{selectedLog.tenant_id}</span>
+                      <span className="text-[10px] text-gray-400 font-mono shrink-0">#{selectedLog.tenant_id}</span>
                     )}
                   </div>
                 </DetailItem>
@@ -189,10 +189,10 @@ const AuditLogsPanel = ({ isOpen, onClose, onSelectLog, selectedLog }) => {
 
               {selectedLog.resource_type && (
                 <DetailItem icon={Server} label="Resource">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-gray-900 capitalize">{selectedLog.resource_type}</span>
+                  <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                    <span className="text-sm font-medium text-gray-900 capitalize truncate">{selectedLog.resource_type}</span>
                     {selectedLog.resource_id && (
-                      <span className="text-[10px] text-gray-400 font-mono">#{selectedLog.resource_id}</span>
+                      <span className="text-[10px] text-gray-400 font-mono shrink-0">#{selectedLog.resource_id}</span>
                     )}
                   </div>
                 </DetailItem>
@@ -200,7 +200,7 @@ const AuditLogsPanel = ({ isOpen, onClose, onSelectLog, selectedLog }) => {
 
               {selectedLog.ip_address && (
                 <DetailItem icon={Globe} label="IP Address">
-                  <span className="text-sm font-mono text-gray-900">{selectedLog.ip_address}</span>
+                  <span className="text-sm font-mono text-gray-900 truncate">{selectedLog.ip_address}</span>
                 </DetailItem>
               )}
 
@@ -211,28 +211,28 @@ const AuditLogsPanel = ({ isOpen, onClose, onSelectLog, selectedLog }) => {
 
             {/* Changes Section - Compact */}
             {(selectedLog.new_values || selectedLog.old_values) && (
-              <div className="space-y-2">
+              <div className="space-y-2 w-full">
                 <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-500" />
                   Changes
                 </h4>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 w-full">
                   {selectedLog.old_values && (
-                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="rounded-lg border border-gray-200 overflow-hidden w-full">
                       <div className="bg-red-50 px-3 py-1.5 border-b border-red-100">
                         <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wider">Previous</p>
                       </div>
-                      <pre className="bg-white p-2.5 text-[10px] font-mono text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-36">
+                      <pre className="bg-white p-2.5 text-[10px] font-mono text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-36 break-words w-full">
                         {formatJson(selectedLog.old_values)}
                       </pre>
                     </div>
                   )}
                   {selectedLog.new_values && (
-                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="rounded-lg border border-gray-200 overflow-hidden w-full">
                       <div className="bg-emerald-50 px-3 py-1.5 border-b border-emerald-100">
                         <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">New</p>
                       </div>
-                      <pre className="bg-white p-2.5 text-[10px] font-mono text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-36">
+                      <pre className="bg-white p-2.5 text-[10px] font-mono text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-36 break-words w-full">
                         {formatJson(selectedLog.new_values)}
                       </pre>
                     </div>
