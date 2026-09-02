@@ -116,7 +116,7 @@ const TenantSubscription = () => {
               <select value={planId} onChange={(event) => setPlanId(event.target.value)} className="mt-2 w-full border border-[#D8D4CD] px-3 py-3 text-sm">
                 {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} - {plan.currency} {plan.price_monthly}/month</option>)}
               </select>
-              <label className="mt-5 block text-sm font-medium text-[#1A1A1A]">Billing period</label>
+              <label className="mt-5 block text-sm font-medium text-[#1A1A1A]">Billing period <span className="font-normal text-[#5A5A5A]">(up to 12 months)</span></label>
               <select value={period} onChange={(event) => setPeriod(event.target.value)} className="mt-2 w-full border border-[#D8D4CD] px-3 py-3 text-sm">
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>

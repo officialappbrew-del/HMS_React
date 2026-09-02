@@ -394,7 +394,7 @@ const SubscriptionStep = React.memo(({
 
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="block">
-        <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">Billing period</span>
+        <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[#5C6D67]">Billing period <span className="font-sans normal-case tracking-normal">(up to 12 months)</span></span>
         <select
           value={billingPeriod}
           onChange={(e) => setBillingPeriod(e.target.value)}

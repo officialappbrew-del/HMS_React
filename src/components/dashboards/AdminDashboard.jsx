@@ -2140,23 +2140,6 @@ const AdminDashboard = () => {
   const startIndex = patientsList.length > 0 ? (totalItems - patientsList.length + 1) : 0;
   const endIndex = startIndex + patientsList.length - 1;
 
-  const getPatientCondition = (patient) => {
-    if (patient.chronic_conditions) {
-      const conditions = patient.chronic_conditions.split(',').map(c => c.trim());
-      return conditions[0] || 'Under observation';
-    }
-    if (patient.notes) {
-      const noteLines = patient.notes.split('\n').filter(line => line.trim());
-      if (noteLines.length > 0) {
-        return noteLines[0].substring(0, 30) + (noteLines[0].length > 30 ? '...' : '');
-      }
-    }
-    if (patient.known_allergies) {
-      return 'Allergy: ' + patient.known_allergies.split(',')[0].trim();
-    }
-    return 'Active patient';
-  };
-
   const handleViewPatient = (patient) => {
     setSelectedPatient(patient);
     setShowPatientModal(true);
@@ -2705,6 +2688,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         )}
 
+        <div className="rounded-lg border border-[#E8E3DC] bg-white p-3">
         {patientsLoading ? (
           <div className="text-center py-8">
             <div className="w-8 h-8 border-2 border-[#008751] border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -2723,7 +2707,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                 <tr className="border-b border-[#E8E3DC]">
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Name</th>
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Contact</th>
-                  <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Condition</th>
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
                   <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
@@ -2744,11 +2727,9 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             {patient.age && (
                               <span className="text-xs text-[#5A5A5A]">({patient.age}y)</span>
                             )}
-                            {(patient.mrn || patient.hospital_number) && (
+                            {patient.mrn && (
                               <div className="text-[10px] text-[#B0A89E] truncate">
-                                {patient.mrn ? `MRN: ${patient.mrn}` : ''}
-                                {patient.mrn && patient.hospital_number ? ' • ' : ''}
-                                {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
+                                MRN: {patient.mrn}
                               </div>
                             )}
                           </div>
@@ -2757,12 +2738,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                       <td className="py-3 hidden sm:table-cell">
                         <div className="text-xs text-[#5A5A5A] truncate max-w-[120px]">{patient.phone || 'No phone'}</div>
                         <div className="text-[10px] text-[#B0A89E] truncate max-w-[120px]">{patient.email || 'No email'}</div>
-                      </td>
-                      <td className="py-3 hidden md:table-cell">
-                        <span className="text-xs text-[#5A5A5A] truncate block max-w-[150px]">{getPatientCondition(patient)}</span>
-                        {patient.bloodType && (
-                          <div className="text-[10px] text-[#B0A89E]">Blood: {patient.bloodType}</div>
-                        )}
                       </td>
                       <td className="py-3">
                         <span className={`inline-flex px-2 py-0.5 text-xs font-medium border whitespace-nowrap ${status.color}`}>
@@ -2850,6 +2825,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             </div>
           </div>
         )}
+        </div>
 
         {/* Patient Detail Modal */}
         {showPatientModal && selectedPatient && (

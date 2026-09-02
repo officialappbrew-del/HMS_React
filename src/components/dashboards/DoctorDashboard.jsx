@@ -132,15 +132,6 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
 
 // ==================== STATS CARD ====================
 const StatsCard = ({ title, value, subValue, icon: Icon, color, onClick }) => {
-  const colorMap = {
-    green: 'bg-[#008751]',
-    gold: 'bg-[#FFC107]',
-    terracotta: 'bg-[#C8553D]',
-    warm: 'bg-[#C87D3D]',
-    slate: 'bg-[#4A5A5A]',
-    teal: 'bg-[#0D6B6B]',
-  };
-
   const iconColorMap = {
     green: 'text-[#008751] bg-[#E8F5EF]',
     gold: 'text-[#FFC107] bg-[#FFF8E1]',
@@ -153,18 +144,24 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, onClick }) => {
   return (
     <div 
       onClick={onClick}
-      className={`bg-white border border-[#E8E3DC] p-3 sm:p-4 lg:p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} rounded-lg`}
+      className={`group relative overflow-hidden rounded-lg border border-[#E8E3DC] bg-white p-3 sm:p-4 lg:p-5 shadow-sm transition-all duration-200 ${onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:border-[#B8CFC3] hover:shadow-md' : ''}`}
     >
+      <div className={`absolute inset-y-0 left-0 w-1 ${
+        color === 'terracotta' ? 'bg-[#C8553D]' :
+        color === 'warm' ? 'bg-[#C87D3D]' :
+        color === 'teal' ? 'bg-[#0D6B6B]' :
+        'bg-[#008751]'
+      }`} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-[8px] xs:text-[9px] sm:text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
-          <p className="mt-0.5 sm:mt-1 text-base sm:text-xl lg:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight truncate">{value}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#7A847F]">{title}</p>
+          <p className="mt-1 text-2xl font-display font-bold leading-none text-[#1A1A1A] tracking-tight truncate sm:text-3xl">{value}</p>
           {subValue && (
-            <p className="text-[8px] xs:text-[9px] sm:text-xs text-[#5A5A5A] mt-0.5 truncate">{subValue}</p>
+            <p className="mt-2 truncate text-[10px] text-[#5A5A5A] sm:text-xs">{subValue}</p>
           )}
         </div>
-        <div className={`w-8 h-8 xs:w-9 xs:h-9 sm:w-10 sm:h-10 ${iconColorMap[color]} rounded flex items-center justify-center flex-shrink-0 ml-1 sm:ml-2 lg:ml-3`}>
-          <Icon className="w-4 h-4 xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5" />
+        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${iconColorMap[color]}`}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
       </div>
     </div>
@@ -969,23 +966,6 @@ const DoctorDashboard = () => {
     setSelectedPatient(null);
   };
 
-  const getPatientCondition = (patient) => {
-    if (patient.chronic_conditions) {
-      const conditions = patient.chronic_conditions.split(',').map(c => c.trim());
-      return conditions[0] || 'Under observation';
-    }
-    if (patient.notes) {
-      const noteLines = patient.notes.split('\n').filter(line => line.trim());
-      if (noteLines.length > 0) {
-        return noteLines[0].substring(0, 30) + (noteLines[0].length > 30 ? '...' : '');
-      }
-    }
-    if (patient.known_allergies) {
-      return 'Allergy: ' + patient.known_allergies.split(',')[0].trim();
-    }
-    return 'Active patient';
-  };
-
   const normalizePatientForDisplay = (patient) => {
     return {
       id: patient.id,
@@ -1509,17 +1489,22 @@ const DoctorDashboard = () => {
 
         <div>
           <h2 className="text-xs sm:text-sm font-display font-semibold text-[#1A1A1A] mb-2 sm:mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-2 xs:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2 lg:gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 lg:gap-3">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
                 <button
                   key={index}
                   onClick={() => navigate(action.action)}
-                  className={`${action.color} text-white p-2 sm:p-3 lg:p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start rounded`}
+                  className="group flex min-h-[92px] flex-col items-start justify-between rounded-lg border border-[#E8E3DC] bg-white p-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B8CFC3] hover:shadow-md sm:min-h-[104px] sm:p-4"
                 >
-                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 mb-0.5 sm:mb-1" />
-                  <span className="text-[8px] xs:text-[10px] sm:text-xs lg:text-sm font-medium leading-tight">{action.label}</span>
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-white shadow-sm sm:h-9 sm:w-9 ${action.color}`}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </span>
+                  <span className="flex w-full items-center justify-between gap-1 text-[10px] font-semibold leading-tight text-[#1A1A1A] sm:text-xs lg:text-sm">
+                    {action.label}
+                    <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-[#9AA6A0] transition-transform group-hover:translate-x-0.5 group-hover:text-[#008751]" />
+                  </span>
                 </button>
               );
             })}
@@ -1602,7 +1587,7 @@ const DoctorDashboard = () => {
 
     return (
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 sm:mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h2 className="text-sm font-display font-semibold text-[#1A1A1A]">My Patients</h2>
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <Button
@@ -1714,6 +1699,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         )}
 
+        <div className="rounded-lg border border-[#E8E3DC] bg-white p-3">
         {dashboardPatients.length === 0 ? (
           <div className="text-center py-8">
             <Users className="w-10 h-10 sm:w-12 sm:h-12 text-[#D8D4CD] mx-auto mb-2" />
@@ -1721,14 +1707,12 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             <p className="text-[10px] xs:text-xs text-[#B0A89E] mt-1">Start by adding your first patient</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-2 sm:mx-0">
-            <div className="min-w-[640px] sm:min-w-0">
-              <table className="w-full">
+          <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-[#E8E3DC]">
                     <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Name</th>
                     <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden sm:table-cell">Contact</th>
-                    <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden md:table-cell">Condition</th>
                     <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Status</th>
                     <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
                     <th className="pb-2 text-left text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Actions</th>
@@ -1740,48 +1724,40 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                     const isInactive = patient?.status === 'inactive' || patient?.status === 'archived';
                     return (
                       <tr key={patient.id} className="hover:bg-[#F7F5F2] transition-colors">
-                        <td className="py-2 sm:py-3">
+                        <td className="py-3">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 rounded-full bg-[#E8F5EF] flex items-center justify-center text-[#008751] font-display font-medium text-xs sm:text-sm flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-[#E8F5EF] flex items-center justify-center text-[#008751] font-display font-medium text-sm flex-shrink-0">
                               {patient.name && patient.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <span className="text-xs sm:text-sm font-medium text-[#1A1A1A] truncate block">{patient.name || 'Unnamed Patient'}</span>
+                              <span className="text-sm font-medium text-[#1A1A1A] truncate block">{patient.name || 'Unnamed Patient'}</span>
                               {patient.age && (
-                                <span className="text-[10px] text-[#5A5A5A] hidden xs:inline">({patient.age}y)</span>
+                                <span className="text-xs text-[#5A5A5A]">({patient.age}y)</span>
                               )}
-                              {(patient.mrn || patient.hospital_number) && (
-                                <div className="text-[8px] xs:text-[10px] text-[#B0A89E] truncate">
-                                  {patient.mrn ? `MRN: ${patient.mrn}` : ''}
-                                  {patient.mrn && patient.hospital_number ? ' • ' : ''}
-                                  {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
+                              {patient.mrn && (
+                                <div className="text-[10px] text-[#B0A89E] truncate">
+                                  MRN: {patient.mrn}
                                 </div>
                               )}
                             </div>
                           </div>
                         </td>
-                        <td className="py-2 sm:py-3 hidden sm:table-cell">
+                        <td className="py-3 hidden sm:table-cell">
                           <div className="text-xs text-[#5A5A5A] truncate">{patient.phone || 'No phone'}</div>
                           <div className="text-[10px] text-[#B0A89E] truncate">{patient.email || 'No email'}</div>
                         </td>
-                        <td className="py-2 sm:py-3 hidden md:table-cell">
-                          <span className="text-xs text-[#5A5A5A] truncate block">{getPatientCondition(patient)}</span>
-                          {patient.bloodType && (
-                            <div className="text-[10px] text-[#B0A89E]">Blood: {patient.bloodType}</div>
-                          )}
-                        </td>
-                        <td className="py-2 sm:py-3">
-                          <span className={`inline-flex px-1.5 sm:px-2 py-0.5 text-[8px] xs:text-[10px] sm:text-xs font-medium border ${status.color} rounded`}>
+                        <td className="py-3">
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium border ${status.color}`}>
                             {status.label}
                           </span>
                         </td>
-                        <td className="py-2 sm:py-3 hidden lg:table-cell">
+                        <td className="py-3 hidden lg:table-cell">
                           <span className="text-xs text-[#5A5A5A]">
                             {patient.last_visit || patient.lastVisit ? new Date(patient.last_visit || patient.lastVisit).toLocaleDateString() : 'N/A'}
                           </span>
                         </td>
-                        <td className="py-2 sm:py-3">
-                          <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
+                        <td className="py-3">
+                          <div className="flex items-center gap-1 flex-wrap">
                             <IconButton
                               icon={Eye}
                               onClick={() => handleViewPatient(patient)}
@@ -1790,7 +1766,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                             <button
                               type="button"
                               onClick={() => handleCreateAdmissionForPatient(patient)}
-                              className="inline-flex items-center gap-0.5 sm:gap-1 border border-[#D0E3D8] bg-[#EAF3EE] px-1.5 sm:px-2 py-0.5 sm:py-1 text-[8px] xs:text-[10px] sm:text-xs font-medium text-[#2D7D46] hover:bg-[#D0E3D8] rounded"
+                              className="inline-flex items-center gap-1 border border-[#D0E3D8] bg-[#EAF3EE] px-2 py-1 text-[10px] font-medium text-[#2D7D46] hover:bg-[#D0E3D8]"
                             >
                               <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               <span className="hidden xs:inline">Admit</span>
@@ -1826,7 +1802,6 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
                   })}
                 </tbody>
               </table>
-            </div>
             <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
               <div className="text-[10px] sm:text-xs text-[#5A5A5A]">
                 Showing 1 to {dashboardPatients.length} of {totalItems}
@@ -1851,6 +1826,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             </div>
           </div>
         )}
+        </div>
       </div>
     );
   };
