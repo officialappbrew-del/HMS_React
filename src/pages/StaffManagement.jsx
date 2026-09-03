@@ -3,9 +3,9 @@ import { useState, useEffect } from 'react';
 import {
   addStaff,
   updateStaff,
+  filterStaff,
   searchStaff,
   sortStaff,
-  filterStaff,
   setStaffList,
   setLoading,
 } from '../features/staffSlice.jsx';
@@ -685,6 +685,7 @@ const ArchiveConfirmModal = ({
   onClose, 
   onConfirm, 
   staff,
+  error,
   isArchiving = false,
 }) => {
   if (!isOpen) return null;
@@ -731,6 +732,12 @@ const ArchiveConfirmModal = ({
                 </p>
               </div>
             </div>
+
+            {error && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700" role="alert">
+                {error}
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button
@@ -865,6 +872,7 @@ const StaffManagement = () => {
   const [staffToDelete, setStaffToDelete] = useState(null);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [staffToArchive, setStaffToArchive] = useState(null);
+  const [archiveError, setArchiveError] = useState('');
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [staffToRestore, setStaffToRestore] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -989,7 +997,7 @@ const StaffManagement = () => {
     departmentId: member.department || '',
     hireDate: formatDate(member.employment_date || member.created_at || ''),
     designation: member.designation || '',
-    status: member.employment_status || (member.is_active === false ? 'inactive' : 'active'),
+    status: member.is_active === false ? 'inactive' : (member.employment_status || 'active'),
     lastLogin: member.last_login || '',
     isRootAdmin: Boolean(member.is_root_admin),
   });
@@ -1110,6 +1118,7 @@ const StaffManagement = () => {
 
   const handleArchiveClick = (staff) => {
     setStaffToArchive(staff);
+    setArchiveError('');
     setShowArchiveModal(true);
   };
 
@@ -1117,19 +1126,21 @@ const StaffManagement = () => {
     if (!staffToArchive) return;
     setIsLoading(true);
     try {
-      await apiRequest(`/api/v1/tenants/users/${staffToArchive.id}/`, {
+      const updatedStaff = await apiRequest(`/api/v1/tenants/users/${staffToArchive.id}/`, {
         method: 'PATCH',
         body: JSON.stringify({
-          employment_status: 'inactive',
           is_active: false,
         }),
       });
+      dispatch(updateStaff(normalizeStaff(updatedStaff)));
+      if (filterBy !== 'all') dispatch(filterStaff(filterBy));
       await loadStaff();
       setShowArchiveModal(false);
       setStaffToArchive(null);
+      setArchiveError('');
     } catch (error) {
       console.error('Archive failed:', error);
-      window.alert(error.message || 'Unable to archive staff');
+      setArchiveError(error.message || 'Unable to archive staff');
     } finally {
       setIsLoading(false);
     }
@@ -1144,13 +1155,15 @@ const StaffManagement = () => {
     if (!staffToRestore) return;
     setIsLoading(true);
     try {
-      await apiRequest(`/api/v1/tenants/users/${staffToRestore.id}/`, {
+      const updatedStaff = await apiRequest(`/api/v1/tenants/users/${staffToRestore.id}/`, {
         method: 'PATCH',
         body: JSON.stringify({
           employment_status: 'active',
           is_active: true,
         }),
       });
+      dispatch(updateStaff(normalizeStaff(updatedStaff)));
+      if (filterBy !== 'all') dispatch(filterStaff(filterBy));
       await loadStaff();
       setShowRestoreModal(false);
       setStaffToRestore(null);
@@ -1800,9 +1813,11 @@ const StaffManagement = () => {
         onClose={() => {
           setShowArchiveModal(false);
           setStaffToArchive(null);
+          setArchiveError('');
         }}
         onConfirm={confirmArchive}
         staff={staffToArchive}
+        error={archiveError}
         isArchiving={isLoading}
       />
 
