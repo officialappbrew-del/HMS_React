@@ -4958,11 +4958,11 @@ const NurseDashboard = () => {
 
   // ==================== MAIN RENDER ====================
   return (
-    <div className="dashboard min-h-screen bg-[#F7F5F2] p-4 sm:p-8 font-sans">
+    <div className="dashboard min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F7F5F2] p-3 sm:p-5 lg:p-8 font-sans">
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden flex-shrink-0">
               {dashboardProfilePicture ? (
                 <img
@@ -4981,16 +4981,16 @@ const NurseDashboard = () => {
                 <UserIcon className="w-6 h-6 text-[#5A5A5A]" />
               </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg sm:text-xl lg:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
                 Welcome back, {displayUserName}
               </h1>
-              <p className="text-sm text-[#5A5A5A]">
+              <p className="truncate text-xs sm:text-sm text-[#5A5A5A]">
                 {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
             <ButtonWithTooltip
               onClick={handleRefresh}
               tooltip="Refresh dashboard"
@@ -5035,8 +5035,8 @@ const NurseDashboard = () => {
       </div>
 
       {/* Tabs with Nigerian green active state */}
-      <div className="border-b border-[#E8E3DC] mb-8 overflow-x-auto">
-        <nav className="flex gap-6 min-w-max" aria-label="Tabs">
+      <div className="border-b border-[#E8E3DC] mb-4 sm:mb-6 lg:mb-8 overflow-x-auto">
+        <nav className="flex min-w-max gap-3 sm:gap-4 lg:gap-6" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (

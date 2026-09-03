@@ -2271,19 +2271,19 @@ const PharmacistDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f5f7] font-sans antialiased p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#f3f5f7] font-sans antialiased p-3 sm:p-5 md:p-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-display font-bold tracking-tight text-[#1a1f2e]">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg sm:text-xl md:text-2xl font-display font-bold tracking-tight text-[#1a1f2e]">
               Welcome back, {displayUserName}
             </h1>
-            <p className="text-sm font-sans text-[#6b7280] mt-1">
+            <p className="truncate text-xs sm:text-sm font-sans text-[#6b7280] mt-1">
               {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3">
             <ButtonWithTooltip
               tooltip="View notifications"
               variant="secondary"
@@ -2337,8 +2337,8 @@ const PharmacistDashboard = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-[#e5e7eb] mb-6 overflow-x-auto">
-        <nav className="flex gap-6 min-w-max" aria-label="Tabs">
+      <div className="border-b border-[#e5e7eb] mb-4 sm:mb-6 overflow-x-auto">
+        <nav className="flex min-w-max gap-3 sm:gap-4 lg:gap-6" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (

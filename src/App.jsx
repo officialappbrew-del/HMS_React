@@ -407,7 +407,7 @@ function AppLayout() {
           </Suspense>
         </div>
       )}
-      <div className={`relative flex min-h-screen w-full min-w-0 flex-1 flex-col transition-all duration-300 print:block ${!isPublicPage ? (isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-80') : ''}`}>
+      <div className={`relative flex min-h-screen w-full min-w-0 flex-1 flex-col transition-all duration-300 print:block ${!isPublicPage ? (isSidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64') : ''}`}>
         {!isPublicPage && (
           <div className="print:hidden">
             <Suspense fallback={null}>
@@ -419,7 +419,7 @@ function AppLayout() {
           </div>
          )}
          <div className={`flex-1 flex flex-col lg:flex-row`}>
-          <main className={`flex-1 overflow-x-hidden transition-colors duration-300 ${!isPublicPage ? (isDark ? 'bg-slate-950' : 'bg-slate-50') : ''} print:bg-white`}>
+          <main className={`min-w-0 flex-1 overflow-x-hidden transition-colors duration-300 ${!isPublicPage ? (isDark ? 'bg-slate-950' : 'bg-slate-50') : ''} print:bg-white`}>
             <PageErrorBoundary>
               <Suspense fallback={<Loader />}>
                 <Routes>
@@ -499,7 +499,7 @@ function AppLayout() {
             </PageErrorBoundary>
           </main>
           {!isPublicPage && (
-            <div className="print:hidden hidden lg:block w-96 border-l border-slate-200 bg-slate-50 overflow-y-auto">
+            <div className="print:hidden hidden xl:block w-[clamp(18rem,22vw,22rem)] flex-none border-l border-slate-200 bg-slate-50 overflow-y-auto">
               <RoleInsightPanel
                 role={userRole}
                 loading={rightSidebarLoading}

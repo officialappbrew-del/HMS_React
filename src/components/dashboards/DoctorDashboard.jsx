@@ -2033,13 +2033,13 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
   };
 
   return (
-    <div className="dashboard min-h-screen bg-[#F7F5F2] font-sans overflow-x-hidden">
-      <div className="max-w-7xl mx-auto px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8 py-2 xs:py-3 sm:py-4 md:py-6 lg:py-8">
+    <div className="dashboard min-h-screen w-full min-w-0 bg-[#F7F5F2] font-sans overflow-x-hidden">
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8 py-2 xs:py-3 sm:py-4 md:py-6 lg:py-8">
         
         {/* Header */}
         <div className="mb-3 sm:mb-6 lg:mb-8">
           <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 min-w-0">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:gap-4">
               <div className="w-8 h-8 xs:w-9 xs:h-9 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-[#E8E3DC] border-2 border-[#D8D4CD] flex items-center justify-center overflow-hidden flex-shrink-0">
                 {dashboardProfilePicture ? (
                   <img

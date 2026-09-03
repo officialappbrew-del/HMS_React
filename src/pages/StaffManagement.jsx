@@ -1475,20 +1475,20 @@ const StaffManagement = () => {
 
   // Main Render
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-gray-50">
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Users className="w-6 h-6 text-blue-600" />
               Staff Management
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="truncate text-xs sm:text-sm text-gray-500 mt-0.5">
               Manage your healthcare workforce efficiently
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 flex-wrap">
             <ButtonWithTooltip
               onClick={() => setShowBulkUploadModal(true)}
               tooltip="Bulk upload staff via CSV"

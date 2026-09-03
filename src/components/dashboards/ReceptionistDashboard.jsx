@@ -2073,11 +2073,11 @@ const displayTenantName = authTenant?.name || 'Hospital';
   };
 
   return (
-    <div className="dashboard min-h-screen bg-gray-50 p-4 sm:p-6">
+    <div className="dashboard min-h-screen w-full min-w-0 overflow-x-hidden bg-gray-50 p-3 sm:p-5 lg:p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
               {dashboardProfilePicture ? (
                 <img
@@ -2096,16 +2096,16 @@ const displayTenantName = authTenant?.name || 'Hospital';
                 <UserIcon className="w-5 h-5 text-gray-400" />
               </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
                 Welcome back, {displayUserName}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="truncate text-xs sm:text-sm text-gray-500">
                 {displayTenantName} · {displayRole.charAt(0).toUpperCase() + displayRole.slice(1)} Dashboard
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
             <ButtonWithTooltip
               onClick={handleRefresh}
               tooltip="Refresh dashboard"
@@ -2147,8 +2147,8 @@ const displayTenantName = authTenant?.name || 'Hospital';
       </div>
 
       {/* Tabs - Tooltips KEPT */}
-      <div className="border-b border-gray-200 mb-6 overflow-x-auto">
-        <nav className="flex gap-4 min-w-max" aria-label="Tabs">
+      <div className="border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
+        <nav className="flex min-w-max gap-3 sm:gap-4" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (

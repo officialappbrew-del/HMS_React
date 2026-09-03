@@ -1610,7 +1610,7 @@ const ConsultationV2 = () => {
   // --- Patient Search / No Visit ---
   if (!visitId) {
     return (
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+      <div className="w-full min-w-0 overflow-x-hidden p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-3 sm:p-4 text-sm text-red-700">
           <p className="font-semibold">No visit selected.</p>
           <p className="text-xs sm:text-sm">Search for a patient, select a visit, or choose a recent visit to start consultation.</p>
@@ -1909,10 +1909,10 @@ const ConsultationV2 = () => {
 
   return (
     <>
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+      <div className="w-full min-w-0 overflow-x-hidden p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
         {/* Top Bar */}
-        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
+          <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-slate-500">Consultation Module</p>
