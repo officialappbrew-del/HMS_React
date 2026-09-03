@@ -511,7 +511,7 @@ const ConsultationV2 = () => {
     ros: false,
     pmh: false,
     familyHistory: false,
-    drugHistory: false,
+    drugHistory: true,
     socialHistory: false,
     assessment: false,
     plan: false,
@@ -2562,10 +2562,10 @@ const ConsultationV2 = () => {
         </section>
 
         {/* === D - Drug History (WITH SAVE) === */}
-        <section className="rounded-2xl border border-red-200 bg-white p-4 sm:p-5 shadow-sm">
+        <section className="rounded-2xl border-2 border-red-200 bg-white p-4 shadow-sm sm:p-5">
           <SectionHeader
-            title="Drug History"
-            subtitle="Medications & Allergies"
+            title="Drug History & Prescribing"
+            subtitle="Prescribe medications and record allergies"
             icon={Pill}
             expanded={expandedSections.drugHistory}
             onToggle={() => toggleSection('drugHistory')}
@@ -2574,9 +2574,13 @@ const ConsultationV2 = () => {
           />
           {expandedSections.drugHistory && (
             <div className="mt-4 space-y-4">
+              <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                <Pill className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                <p><span className="font-semibold">Prescribing workspace:</span> add each medication below with its dosage, route, frequency, duration, and quantity.</p>
+              </div>
               {/* Medications */}
-              <div className="rounded-xl border border-slate-200 p-3">
-                <h3 className="text-xs font-semibold text-slate-900">Current Medications</h3>
+              <div className="rounded-xl border border-red-200 bg-red-50/30 p-3 sm:p-4">
+                <h3 className="text-sm font-semibold text-slate-900">Prescribed Medications</h3>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <FormInput
                     label="Medication"
@@ -2623,10 +2627,10 @@ const ConsultationV2 = () => {
                   />
                 </div>
                 <FormInput
-                  label="Reason"
+                  label="Clinical Indication"
                   value={newMedication.reason}
                   onChange={(v) => setNewMedication(prev => ({ ...prev, reason: v }))}
-                  placeholder="Why is this medication being prescribed?"
+                  placeholder="Reason for prescribing"
                   className="mt-2"
                 />
                 <button
@@ -2954,10 +2958,10 @@ const ConsultationV2 = () => {
                 rows={3}
               />
               <FormTextarea
-                label="Medications"
+                label="Medication Planning Notes"
                 value={consultation.treatmentPlan.medications}
                 onChange={(v) => dispatch(updateTreatmentPlan({ field: 'medications', value: v }))}
-                placeholder="Medication plan"
+                placeholder="Planning notes only; add actual prescriptions in Drug History & Prescribing."
                 rows={3}
               />
               <FormTextarea

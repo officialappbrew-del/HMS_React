@@ -2135,7 +2135,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
 
         {/* Tab navigation cards */}
         <div className="mb-4 sm:mb-6 lg:mb-8">
-          <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 sm:gap-3" aria-label="Tabs">
+          <nav className="grid grid-cols-  gap-2 sm:grid-cols-3 lg:grid-cols-5 sm:gap-3" aria-label="Tabs">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
