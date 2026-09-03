@@ -135,12 +135,12 @@ const StatsCard = ({ title, value, icon: Icon, color, trend, trendValue, onClick
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-emerald-200' : ''}`}
+      className={`min-w-0 overflow-hidden bg-white rounded-xl border border-gray-100 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-emerald-200' : ''}`}
     >
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{title}</p>
-          <p className="mt-1 text-xl font-bold text-gray-900">{formatValue(value)}</p>
+          <p className="mt-1 truncate text-lg sm:text-xl font-bold text-gray-900">{formatValue(value)}</p>
           {trend && (
             <div className={`flex items-center mt-1 text-xs font-medium ${trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
               {trend === 'up' ? <ArrowUp className="w-3 h-3 mr-0.5" /> : <ArrowDown className="w-3 h-3 mr-0.5" />}
@@ -179,7 +179,7 @@ const BaseModal = ({ isOpen, onClose, title, children, maxWidth = '2xl' }) => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen p-4">
+      <div className="flex min-h-screen items-start justify-center p-2 sm:items-center sm:p-4">
         {/* Backdrop */}
         <div 
           className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
@@ -187,20 +187,21 @@ const BaseModal = ({ isOpen, onClose, title, children, maxWidth = '2xl' }) => {
         />
         
         {/* Modal */}
-        <div className={`relative w-full ${sizes[maxWidth]} bg-white rounded-2xl shadow-2xl transform transition-all duration-300 animate-in fade-in zoom-in`}>
+        <div className={`relative flex max-h-[calc(100dvh-1rem)] w-full min-w-0 flex-col overflow-hidden ${sizes[maxWidth]} rounded-xl bg-white shadow-2xl transform transition-all duration-300 animate-in fade-in zoom-in sm:max-h-[90vh] sm:rounded-2xl`}>
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4">
+            <h2 className="min-w-0 truncate text-base font-semibold text-gray-900 sm:text-lg">{title}</h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              className="shrink-0 rounded-lg p-1.5 hover:bg-gray-100 transition-colors"
+              aria-label="Close dialog"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
           
           {/* Content */}
-          <div className="p-6">{children}</div>
+          <div className="min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
         </div>
       </div>
     </div>
@@ -237,9 +238,9 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Drug' : 'Add New Drug'} maxWidth="xl">
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
         {/* Basic Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Drug Name *</label>
             <input
@@ -352,7 +353,7 @@ const DrugFormModal = ({ isOpen, onClose, onSubmit, initialData, loading, isEdit
         {/* Pricing & Inventory */}
         <details className="border-t border-gray-100 pt-4">
           <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-3">Pricing & Inventory</summary>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price (₦)</label>
               <input
@@ -2135,21 +2136,21 @@ const Pharmacy = () => {
   // ==================== MAIN RENDER ====================
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 md:p-8 font-sans">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-gray-50 p-3 sm:p-5 md:p-8 font-sans">
+      <div className="mx-auto w-full min-w-0 max-w-7xl">
         {/* Header */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
               <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
                 <Package className="w-6 h-6 text-emerald-600" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Pharmacy Management</h1>
-                <p className="text-sm text-gray-500">NEML • NAFDAC & PCN Compliant</p>
+              <div className="min-w-0">
+                <h1 className="truncate text-lg sm:text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Pharmacy Management</h1>
+                <p className="truncate text-xs sm:text-sm text-gray-500">NEML • NAFDAC & PCN Compliant</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 flex-wrap">
               <Button onClick={handleRefresh} variant="secondary" size="sm" icon={RefreshCw} className={loading ? 'animate-spin' : ''}>
                 <span className="hidden sm:inline">Refresh</span>
               </Button>
@@ -2192,7 +2193,7 @@ const Pharmacy = () => {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
           <StatsCard title="Total Drugs" value={stats.totalDrugs} icon={Package} color="green" />
           <StatsCard title="Inventory Value" value={stats.totalValue} icon={DollarSign} color="gold" />
           <StatsCard title="Low Stock" value={stats.lowStockCount} icon={AlertTriangle} color="warm" />
@@ -2228,9 +2229,9 @@ const Pharmacy = () => {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           {/* Toolbar */}
           {activeTab === 'inventory' && (
-            <div className="p-4 border-b border-gray-100">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="relative flex-1 max-w-full sm:max-w-sm">
+            <div className="min-w-0 p-3 sm:p-4 border-b border-gray-100">
+                <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="relative w-full min-w-0 lg:max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
@@ -2243,7 +2244,7 @@ const Pharmacy = () => {
                     className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <div className="relative">
                     <select
                       value={statusFilter}

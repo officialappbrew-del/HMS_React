@@ -28,6 +28,17 @@ const normalizeRound = (round) => ({
   teamMembers: round.teamMembers || [],
 });
 
+const normalizeHandover = (handover) => ({
+  ...handover,
+  criticallySevere: handover.criticallySevere || [],
+  recentAdmissions: handover.recentAdmissions || [],
+});
+
+const normalizeGrandRound = (round) => ({
+  ...round,
+  caseStudies: round.caseStudies || [],
+});
+
 const findRound = (rounds, payload) => rounds.find((round) =>
   String(round.id) === String(payload.id) ||
   String(round.roundId) === String(payload.roundId)
@@ -163,7 +174,7 @@ export const fetchHandoverNotes = createAsyncThunk(
     try {
       const data = await wardRoundApi.getHandovers();
       const list = Array.isArray(data) ? data : (data.results || []);
-      return list;
+      return list.map(normalizeHandover);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to load handover notes.');
     }
@@ -175,7 +186,7 @@ export const createHandoverNote = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.createHandover(payload);
-      return data;
+      return normalizeHandover(data);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to create handover note.');
     }
@@ -187,7 +198,7 @@ export const updateHandoverNote = createAsyncThunk(
   async ({ handoverId, updates }, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.updateHandover(handoverId, updates);
-      return data;
+      return normalizeHandover(data);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to update handover note.');
     }
@@ -200,7 +211,7 @@ export const fetchGrandRounds = createAsyncThunk(
     try {
       const data = await wardRoundApi.getGrandRounds();
       const list = Array.isArray(data) ? data : (data.results || []);
-      return list;
+      return list.map(normalizeGrandRound);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to load grand rounds.');
     }
@@ -212,7 +223,7 @@ export const scheduleGrandRound = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const data = await wardRoundApi.createGrandRound(payload);
-      return data;
+      return normalizeGrandRound(data);
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to schedule grand round.');
     }

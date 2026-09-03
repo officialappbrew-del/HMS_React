@@ -35,6 +35,7 @@ import {
   fetchGrandRounds,
   clearError
 } from '../features/wardRoundSlice';
+import { wardRoundApi } from '../utils/api';
 
 // ==================== TOOLTIP COMPONENT ====================
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -662,17 +663,17 @@ const DetailsModal = ({ isOpen, onClose, data, type }) => {
 // ==================== MAIN COMPONENT ====================
 const WardRoundManagement = () => {
   const dispatch = useDispatch();
-  const { wardRounds, handoverNotes, grandRounds, roundStatuses, roundTypes, loading, error } = useSelector(
+  const { wardRounds, handoverNotes, grandRounds, loading, error } = useSelector(
     state => state.wardRound
   );
-  const { wards } = useSelector(state => state.ward);
+  const [wards, setWards] = useState([]);
+  const [wardsLoading, setWardsLoading] = useState(true);
+  const [wardsError, setWardsError] = useState('');
 
   const [activeTab, setActiveTab] = useState('daily');
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [showHandoverForm, setShowHandoverForm] = useState(false);
   const [showGrandRoundForm, setShowGrandRoundForm] = useState(false);
-  const [selectedRound, setSelectedRound] = useState(null);
-  const [notificationModal, setNotificationModal] = useState({ show: false, message: '', type: 'success' });
   const [completionNotesModal, setCompletionNotesModal] = useState({ show: false, roundId: null });
   const [completionNotes, setCompletionNotes] = useState('');
   const [cancellationModal, setCancellationModal] = useState({ show: false, roundId: null });
@@ -696,6 +697,24 @@ const WardRoundManagement = () => {
     dispatch(fetchWardRounds());
     dispatch(fetchHandoverNotes());
     dispatch(fetchGrandRounds());
+
+    let cancelled = false;
+    const loadWards = async () => {
+      try {
+        const response = await wardRoundApi.getWards();
+        const wardList = Array.isArray(response) ? response : (response?.results || []);
+        if (!cancelled) setWards(wardList);
+      } catch (err) {
+        if (!cancelled) setWardsError(err.message || 'Unable to load wards.');
+      } finally {
+        if (!cancelled) setWardsLoading(false);
+      }
+    };
+
+    loadWards();
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
   useEffect(() => {
@@ -984,7 +1003,7 @@ const WardRoundManagement = () => {
     }
   };
 
-  if (loading && wardRounds.length === 0 && handoverNotes.length === 0 && grandRounds.length === 0) {
+  if ((loading || wardsLoading) && wardRounds.length === 0 && handoverNotes.length === 0 && grandRounds.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F7F5F2]">
         <div className="text-center">
@@ -1073,6 +1092,15 @@ const WardRoundManagement = () => {
             {successMessage}
           </span>
           <button onClick={() => setSuccessMessage('')} className="text-[#2D7D46] hover:text-[#1E5F33]">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {wardsError && (
+        <div className="mb-4 flex items-center justify-between border border-[#E8D6D0] bg-[#F5EDEA] p-3 text-sm text-[#C8553D]">
+          <span>{wardsError}</span>
+          <button onClick={() => setWardsError('')} className="text-[#C8553D] hover:text-[#A8442E]" aria-label="Dismiss ward loading error">
             <X className="w-4 h-4" />
           </button>
         </div>
