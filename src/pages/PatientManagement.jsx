@@ -2366,7 +2366,7 @@ const handleRestorePatient = (patient) => {
       first_name: firstName,
       last_name: lastName,
       middle_name: middleName,
-      password: formData.password || '',
+      ...(formData.password ? { password: formData.password } : {}),
       date_of_birth: formData.dateOfBirth || '',
       gender: formData.gender?.toLowerCase() || 'unknown',
       phone: formData.phone || '',
