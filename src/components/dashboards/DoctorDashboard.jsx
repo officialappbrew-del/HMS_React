@@ -83,7 +83,7 @@ const Tooltip = ({ children, text, position = 'top' }) => {
 };
 
 // ==================== ICON BUTTON ====================
-const IconButton = ({ icon: Icon, onClick, variant = 'default', className = '', disabled = false }) => {
+const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', className = '', disabled = false }) => {
   const variantClasses = {
     default: 'text-[#5A5A5A] hover:text-[#1A1A1A] hover:bg-[#F0EDE8]',
     primary: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
@@ -93,21 +93,42 @@ const IconButton = ({ icon: Icon, onClick, variant = 'default', className = '', 
     info: 'text-[#008751] hover:text-[#006B40] hover:bg-[#E8F5EF]',
   };
 
+  const iconLabels = {
+    CheckCircle: 'Mark as read',
+    ChevronLeft: 'Previous page',
+    ChevronRight: 'Next page',
+    Edit: 'Edit',
+    Eye: 'View details',
+    FileText: 'Open medical record',
+    Map: 'View patient journey',
+    MoreVertical: 'More actions',
+    RotateCcw: 'Restore patient',
+    Stethoscope: 'Start consultation',
+    Trash2: 'Delete',
+    X: 'Dismiss',
+  };
+  const iconName = Icon.displayName || Icon.name || '';
+  const label = tooltip || iconLabels[iconName] || 'Action';
+
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`p-1 sm:p-1.5 rounded transition-all duration-200 ${variantClasses[variant]} ${className} ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-    </button>
+    <Tooltip text={label}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        title={label}
+        className={`p-1 sm:p-1.5 rounded transition-all duration-200 ${variantClasses[variant]} ${className} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+      </button>
+    </Tooltip>
   );
 };
 
 // ==================== BUTTON ====================
-const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false }) => {
+const Button = ({ children, onClick, tooltip, variant = 'primary', className = '', disabled = false }) => {
   const variantClasses = {
     primary: 'bg-[#008751] hover:bg-[#006B40] text-white',
     secondary: 'bg-white border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
@@ -117,10 +138,12 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
     outline: 'border border-[#D8D4CD] hover:bg-[#F7F5F2] text-[#1A1A1A]',
   };
 
-  return (
+  const button = (
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={tooltip}
+      title={tooltip}
       className={`px-2 py-1 xs:px-3 xs:py-1.5 sm:px-4 sm:py-2 text-[10px] xs:text-xs sm:text-sm rounded transition-all duration-200 flex items-center gap-1 xs:gap-1.5 sm:gap-2 font-medium ${variantClasses[variant]} ${className} ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       }`}
@@ -128,6 +151,8 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
       {children}
     </button>
   );
+
+  return tooltip ? <Tooltip text={tooltip}>{button}</Tooltip> : button;
 };
 
 // ==================== STATS CARD ====================
@@ -160,9 +185,11 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, onClick }) => {
             <p className="mt-2 truncate text-[10px] text-[#5A5A5A] sm:text-xs">{subValue}</p>
           )}
         </div>
-        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${iconColorMap[color]}`}>
-          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-        </div>
+        <Tooltip text={title}>
+          <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${iconColorMap[color]}`}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+        </Tooltip>
       </div>
     </div>
   );
@@ -563,6 +590,8 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
               </div>
               <button
                 onClick={onClose}
+                aria-label="Close profile"
+                title="Close profile"
                 className="p-1.5 sm:p-2 hover:bg-[#E8E3DC] rounded transition-colors flex-shrink-0"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#5A5A5A]" />
@@ -1673,6 +1702,8 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               {!bulkUploading && (
                 <button
                   onClick={resetBulkUpload}
+                  aria-label="Dismiss bulk upload status"
+                  title="Dismiss bulk upload status"
                   className="p-1 hover:bg-[#E8E3DC] rounded flex-shrink-0"
                 >
                   <X className="w-4 h-4 text-[#5A5A5A]" />
@@ -2070,6 +2101,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
             <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 flex-wrap flex-shrink-0">
               <Button
                 variant="secondary"
+                tooltip="View alerts"
                 className="relative text-[8px] xs:text-[10px] sm:text-xs"
               >
                 <Bell className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4" />
@@ -2082,6 +2114,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               <Button
                 variant="secondary"
                 onClick={handleOpenProfile}
+                tooltip="Open profile"
                 className="text-[8px] xs:text-[10px] sm:text-xs"
               >
                 <UserIcon className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4" />
@@ -2090,6 +2123,7 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
               <Button
                 onClick={handleOpenChangePassword}
                 variant="secondary"
+                tooltip="Change password"
                 className="text-[8px] xs:text-[10px] sm:text-xs"
               >
                 <Settings className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4" />
@@ -2099,24 +2133,33 @@ Chiwa,Okafor,1978-11-03,male,married,07034567890,chiwa@example.com,56 School Roa
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="border-b border-[#E8E3DC] mb-3 sm:mb-6 lg:mb-8 overflow-x-auto -mx-2 xs:mx-0 px-2 xs:px-0">
-          <nav className="flex gap-1 xs:gap-1.5 sm:gap-2 lg:gap-6 min-w-max" aria-label="Tabs">
+        {/* Tab navigation cards */}
+        <div className="mb-4 sm:mb-6 lg:mb-8">
+          <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 sm:gap-3" aria-label="Tabs">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 lg:gap-2 px-1 xs:px-1.5 sm:px-2 py-1.5 xs:py-2 sm:py-2.5 lg:py-3 text-[8px] xs:text-[10px] sm:text-xs lg:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-[#008751] text-[#008751]'
-                      : 'border-transparent text-[#5A5A5A] hover:text-[#1A1A1A] hover:border-[#D8D4CD]'
-                  }`}
-                >
-                  <Icon className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">{tab.label}</span>
-                </button>
+                <Tooltip key={tab.id} text={`Open ${tab.label}`}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    aria-current={activeTab === tab.id ? 'page' : undefined}
+                    className={`group flex min-h-[76px] w-full flex-col items-start justify-between rounded-lg border p-3 text-left transition-all duration-200 sm:min-h-[88px] sm:p-4 ${
+                      activeTab === tab.id
+                        ? 'border-[#008751] bg-[#E8F5EF] text-[#008751] shadow-sm'
+                        : 'border-[#E8E3DC] bg-white text-[#5A5A5A] hover:-translate-y-0.5 hover:border-[#B8CFC3] hover:shadow-sm'
+                    }`}
+                  >
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors sm:h-9 sm:w-9 ${
+                      activeTab === tab.id
+                        ? 'bg-[#008751] text-white'
+                        : 'bg-[#F0EDE8] text-[#5A5A5A] group-hover:bg-[#E8F5EF] group-hover:text-[#008751]'
+                    }`}>
+                      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </span>
+                    <span className="mt-3 text-[10px] font-semibold leading-tight sm:text-xs lg:text-sm">{tab.label}</span>
+                  </button>
+                </Tooltip>
               );
             })}
           </nav>
