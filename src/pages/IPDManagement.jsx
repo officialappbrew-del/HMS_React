@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Activity, BedDouble, ClipboardList, Droplets, FileText, HeartPulse, LogOut, Plus, RefreshCw, Search, Send, Syringe } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 
@@ -12,6 +12,7 @@ const tabs = [
 const emptyAdmission = { patient: '', diagnosis: '', admission_reason: '', arrival_mode: 'walk_in', ward: '', bed: '', emergency: false };
 
 const IPDManagement = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState('census');
   const [stays, setStays] = useState([]);
@@ -45,6 +46,16 @@ const IPDManagement = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const preselectedPatient = location.state?.preselectedPatient;
+    if (!preselectedPatient) return;
+
+    setTab('admit');
+    setForm((current) => ({ ...current, patient: String(preselectedPatient.id || '') }));
+    setPatientSearchTerm(preselectedPatient.patientName || preselectedPatient.name || '');
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
 
   const getPatientDisplayName = (patient) => {
     if (!patient) return '';

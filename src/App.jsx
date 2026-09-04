@@ -448,7 +448,7 @@ function AppLayout() {
                 <Route path="/inventory" element={<ProtectedRoute><Navigate to="/pharmacy" replace /></ProtectedRoute>} />
                 <Route path="/bed-allocation" element={<ProtectedRoute><Navigate to="/admissions" replace /></ProtectedRoute>} />
                 <Route path="/admissions" element={<ProtectedRoute><AdmissionManagement /></ProtectedRoute>} />
-                <Route path="/ipd" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin', 'tenant_admin', 'super_admin', 'system_admin']}><Navigate to="/admissions" replace /></ProtectedRoute>} />
+                <Route path="/ipd" element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin', 'tenant_admin', 'super_admin', 'system_admin']}><IPDManagement /></ProtectedRoute>} />
                 <Route path="/ward-rounds" element={<ProtectedRoute><WardRoundManagement /></ProtectedRoute>} />
                 <Route path="/staff-directory" element={<ProtectedRoute><StaffDirectory /></ProtectedRoute>} />
                 <Route path="/license-tracking" element={<ProtectedRoute><LicenseTracking /></ProtectedRoute>} />

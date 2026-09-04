@@ -322,6 +322,9 @@ const PatientModal = ({
   const [dupCheck, setDupCheck] = useState({ loading: false, duplicate: false, existing: null });
   const [forceDuplicate, setForceDuplicate] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [chargeError, setChargeError] = useState(null);
+  const [chargeErrorIndex, setChargeErrorIndex] = useState(null);
+  const chargeRowRefs = useRef([]);
 
   const generateSuggestedPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
@@ -464,6 +467,11 @@ const PatientModal = ({
     return () => clearTimeout(handler);
   }, [mode, isOpen, formData.name, formData.dateOfBirth]);
 
+  useEffect(() => {
+    if (chargeErrorIndex === null) return;
+    chargeRowRefs.current[chargeErrorIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [chargeErrorIndex]);
+
 
   if (!isOpen) return null;
 
@@ -476,6 +484,8 @@ const PatientModal = ({
   };
 
   const updateCharge = (index, field, value) => {
+    setChargeError(null);
+    setChargeErrorIndex(null);
     setInitialCharges((charges) => charges.map((charge, chargeIndex) => (
       chargeIndex === index ? { ...charge, [field]: value } : charge
     )));
@@ -486,11 +496,31 @@ const PatientModal = ({
   };
 
   const removeCharge = (index) => {
+    setChargeError(null);
+    setChargeErrorIndex(null);
     setInitialCharges((charges) => charges.filter((_, chargeIndex) => chargeIndex !== index));
+  };
+
+  const getChargeError = (charge) => {
+    const unitPrice = Number(charge.unit_price);
+    if (!charge.description?.trim()) return 'Add a description.';
+    if (charge.unit_price === '' || !Number.isFinite(unitPrice) || unitPrice < 0) return 'Enter a valid price of 0 or more.';
+    return null;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setChargeError(null);
+    setChargeErrorIndex(null);
+    if (mode === 'add') {
+      const invalidChargeIndex = initialCharges.findIndex((charge) => getChargeError(charge));
+
+      if (invalidChargeIndex !== -1) {
+        setChargeError(getChargeError(initialCharges[invalidChargeIndex]));
+        setChargeErrorIndex(invalidChargeIndex);
+        return;
+      }
+    }
     if (onSave) onSave({ ...formData, initialCharges }, forceDuplicate);
   };
 
@@ -1416,14 +1446,20 @@ const PatientModal = ({
                     </div>
                     <div className="space-y-2">
                       {initialCharges.map((charge, index) => (
-                        <div key={index} className="grid grid-cols-12 gap-1.5 items-center">
+                        <div
+                          key={index}
+                          ref={(element) => { chargeRowRefs.current[index] = element; }}
+                          className={`grid grid-cols-12 gap-1.5 items-center rounded-lg ${chargeErrorIndex === index ? 'border border-red-300 bg-red-50 p-1.5' : ''}`}
+                        >
                           <select value={charge.item_type} onChange={(e) => updateCharge(index, 'item_type', e.target.value)} className="col-span-3 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting}>
                             <option value="service">Service</option><option value="other">Other</option><option value="consultation">Consultation</option><option value="test">Lab test</option><option value="procedure">Procedure</option>
                           </select>
-                          <input value={charge.description} onChange={(e) => updateCharge(index, 'description', e.target.value)} placeholder="Charge description" className="col-span-5 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
-                          <input type="number" min="1" value={charge.quantity} onChange={(e) => updateCharge(index, 'quantity', e.target.value)} placeholder="Qty" className="col-span-1 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
-                          <input type="number" min="0" step="0.01" value={charge.unit_price} onChange={(e) => updateCharge(index, 'unit_price', e.target.value)} placeholder="Price" className="col-span-2 px-2 py-1.5 text-[11px] border border-gray-200 rounded" disabled={isSubmitting} />
+                          <input value={charge.description} onChange={(e) => updateCharge(index, 'description', e.target.value)} placeholder="Charge description" aria-label={`Charge ${index + 1} description`} className={`col-span-6 px-2 py-1.5 text-[11px] border rounded ${chargeErrorIndex === index && !charge.description?.trim() ? 'border-red-400' : 'border-gray-200'}`} disabled={isSubmitting} />
+                          <input type="number" min="0" step="0.01" value={charge.unit_price} onChange={(e) => updateCharge(index, 'unit_price', e.target.value)} placeholder="Price" aria-label={`Charge ${index + 1} price`} className={`col-span-2 px-2 py-1.5 text-[11px] border rounded ${chargeErrorIndex === index && getChargeError(charge)?.includes('price') ? 'border-red-400' : 'border-gray-200'}`} disabled={isSubmitting} />
                           <button type="button" onClick={() => removeCharge(index)} disabled={isSubmitting} className="col-span-1 text-gray-400 hover:text-red-600 text-lg leading-none" title="Remove charge" aria-label="Remove charge">×</button>
+                          {chargeErrorIndex === index && chargeError && (
+                            <p className="col-span-12 text-[11px] font-medium text-red-700" role="alert">{chargeError}</p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1967,13 +2003,27 @@ const [showPrintModal, setShowPrintModal] = useState(false);
     const data = err?.data;
     if (data && typeof data === 'object') {
       const lines = [];
-      for (const [field, messages] of Object.entries(data)) {
-        if (Array.isArray(messages)) {
-          messages.forEach(msg => lines.push(`${field}: ${msg}`));
-        } else {
-          lines.push(`${field}: ${messages}`);
+      const appendMessages = (value, path) => {
+        if (Array.isArray(value)) {
+          value.forEach((item) => appendMessages(item, path));
+          return;
         }
-      }
+        if (value && typeof value === 'object') {
+          Object.entries(value).forEach(([key, nestedValue]) => {
+            appendMessages(nestedValue, path ? `${path}.${key}` : key);
+          });
+          return;
+        }
+        if (value !== undefined && value !== null && String(value).trim()) {
+          const chargeMatch = path.match(/^initial_charges\.(\d+)(?:\.(.+))?$/);
+          const displayPath = chargeMatch
+            ? `Initial charge ${Number(chargeMatch[1]) + 1}${chargeMatch[2] ? ` (${chargeMatch[2]})` : ''}`
+            : path;
+          lines.push(`${displayPath}: ${value}`);
+        }
+      };
+
+      Object.entries(data).forEach(([field, messages]) => appendMessages(messages, field));
       if (lines.length > 0) return lines.join('\n');
     }
     return err?.message || 'Unable to save patient';
@@ -2404,7 +2454,7 @@ const handleRestorePatient = (patient) => {
         initial_charges: formData.initialCharges.map((charge) => ({
           item_type: charge.item_type || 'service',
           description: charge.description.trim(),
-          quantity: Number(charge.quantity),
+          quantity: 1,
           unit_price: Number(charge.unit_price),
         })),
       } : {}),
@@ -3173,7 +3223,7 @@ const handleRestorePatient = (patient) => {
                                 />
                                 <IconButton
                                   icon={Bed}
-                                  onClick={() => navigate('/admissions', {
+                                  onClick={() => navigate('/ipd', {
                                     state: {
                                       preselectedPatient: {
                                         patientId: patient.hospital_number || patient.id,
