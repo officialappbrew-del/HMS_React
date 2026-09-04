@@ -145,8 +145,21 @@ const IPDManagement = () => {
   return <main className="min-h-screen bg-[#F7F5F2] p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-7xl">
     <header className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#B8860B]">Inpatient department</p><h1 className="mt-1 text-2xl font-semibold text-[#1C2B27]">IPD Command Centre</h1><p className="mt-1 text-sm text-slate-500">Admissions, live bed state, daily clinical records, and safe discharge workflow.</p></div><button type="button" onClick={load} className="flex items-center gap-2 border border-slate-300 bg-white px-3 py-2 text-xs"><RefreshCw className={loading ? 'animate-spin' : ''} size={14} /> Refresh</button></header>
     {(error || notice) && <div className={`mb-4 border px-3 py-2 text-sm ${error ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>{error || notice}</div>}
-    <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 pb-0.5">
-      {tabs.map(([id, name, Icon]) => <button key={id} type="button" onClick={() => setTab(id)} className={`flex shrink-0 items-center gap-2 border-b-2 px-2 py-3 text-xs font-medium sm:px-3 ${tab === id ? 'border-[#B8860B] text-[#8A6508]' : 'border-transparent text-slate-500'}`}><Icon size={15} /> <span className="hidden xs:inline">{name}</span></button>)}
+    <nav className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-1.5" aria-label="IPD sections">
+      {tabs.map(([id, name, Icon]) => <button
+        key={id}
+        type="button"
+        onClick={() => setTab(id)}
+        aria-current={tab === id ? 'page' : undefined}
+        className={`group flex min-h-[68px] min-w-0 flex-col items-start justify-between border p-2 text-left transition-colors ${
+          tab === id
+            ? 'border-[#B8860B] bg-[#F6F2E7] text-[#8A6508] shadow-sm'
+            : 'border-slate-200 bg-white text-slate-500 hover:border-[#B8860B] hover:bg-[#FCFAF4]'
+        }`}
+      >
+        <Icon size={16} className={tab === id ? 'text-[#B8860B]' : 'text-slate-400 group-hover:text-[#8A6508]'} />
+        <span className="mt-2 text-[11px] font-semibold leading-tight">{name}</span>
+      </button>)}
     </nav>
     {tab === 'census' && <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
       <section className="border border-slate-200 bg-white p-5">
