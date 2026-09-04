@@ -147,7 +147,7 @@ const financialSlice = createSlice({
           date: invoice.invoice_date || invoice.created_at,
           category: invoice.insurance_covered ? 'nhis' : 'private',
           description: `Invoice ${invoice.invoice_number} - ${invoice.patient?.name || 'Unknown'}`,
-          amount: parseFloat(invoice.total_amount) || 0,
+          amount: parseFloat(invoice.amount_paid) || 0,
           growth: 0,
         }));
       })

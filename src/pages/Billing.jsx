@@ -24,6 +24,8 @@ import {
   User,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   RefreshCw,
   Info,
@@ -268,6 +270,8 @@ const Billing = () => {
   const [claimSearchQuery, setClaimSearchQuery] = useState('');
   const [claimStatusFilter, setClaimStatusFilter] = useState('all');
   const [claimCurrentPage, setClaimCurrentPage] = useState(1);
+  const [auditSearchQuery, setAuditSearchQuery] = useState('');
+  const [auditCurrentPage, setAuditCurrentPage] = useState(1);
 
   const [patients, setPatients] = useState([]);
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
@@ -315,7 +319,7 @@ const Billing = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-NG', {
+    return new globalThis.Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
       minimumFractionDigits: 0,
@@ -450,6 +454,35 @@ const Billing = () => {
   );
 
   const totalClaimPages = Math.ceil(filteredClaims.length / itemsPerPage);
+
+  const filteredAuditLogs = auditLogs.filter((log) => {
+    const search = auditSearchQuery.toLowerCase();
+    return !search ||
+      log.action?.toLowerCase().includes(search) ||
+      log.description?.toLowerCase().includes(search) ||
+      log.user?.toLowerCase().includes(search);
+  });
+  const paginatedAuditLogs = filteredAuditLogs.slice(
+    (auditCurrentPage - 1) * itemsPerPage,
+    auditCurrentPage * itemsPerPage
+  );
+  const totalAuditPages = Math.ceil(filteredAuditLogs.length / itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
+
+  useEffect(() => {
+    setPaymentCurrentPage(1);
+  }, [paymentSearchQuery, paymentStatusFilter]);
+
+  useEffect(() => {
+    setClaimCurrentPage(1);
+  }, [claimSearchQuery, claimStatusFilter]);
+
+  useEffect(() => {
+    setAuditCurrentPage(1);
+  }, [auditSearchQuery]);
 
   const handleCreateInvoice = async (e) => {
     e.preventDefault();
@@ -702,7 +735,7 @@ const Billing = () => {
         <StatsCard
           title="Total Invoices"
           value={summary.total_invoices || 0}
-          subValue={`${formatCurrency(summary.total_revenue)} revenue`}
+          subValue={`${formatCurrency(summary.invoiced_total || summary.total_invoiced || 0)} invoiced · ${formatCurrency(summary.collected_total || summary.total_paid || 0)} collected`}
           icon={FileText}
           color="blue"
           tooltip="Total number of invoices and revenue generated"
@@ -1208,6 +1241,8 @@ const Billing = () => {
                 <input
                   type="text"
                   placeholder="Search audit logs..."
+                  value={auditSearchQuery}
+                  onChange={(e) => setAuditSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                 />
               </div>
@@ -1223,7 +1258,7 @@ const Billing = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F0EDE8]">
-                  {auditLogs.slice(0, 50).length === 0 ? (
+                  {paginatedAuditLogs.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-4 py-12 text-center">
                         <Shield className="w-12 h-12 text-[#D8D4CD] mx-auto mb-3" />
@@ -1231,7 +1266,7 @@ const Billing = () => {
                       </td>
                     </tr>
                   ) : (
-                    auditLogs.slice(0, 50).map(log => (
+                    paginatedAuditLogs.map(log => (
                       <tr key={log.id} className="hover:bg-[#F7F5F2] transition-colors">
                         <td className="px-4 py-4">
                           <span className="text-sm font-medium text-[#1A1A1A] capitalize">
@@ -1253,6 +1288,32 @@ const Billing = () => {
                 </tbody>
               </table>
             </div>
+            {totalAuditPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t border-[#E8E3DC] gap-2 sm:gap-0">
+                <div className="text-[10px] text-[#5A5A5A]">
+                  Showing {(auditCurrentPage - 1) * itemsPerPage + 1} to {Math.min(auditCurrentPage * itemsPerPage, filteredAuditLogs.length)} of {filteredAuditLogs.length}
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <IconButton
+                    icon={ChevronLeft}
+                    onClick={() => setAuditCurrentPage((page) => Math.max(page - 1, 1))}
+                    tooltip="Previous page"
+                    variant="default"
+                    disabled={auditCurrentPage === 1}
+                    size="sm"
+                  />
+                  <span className="text-xs text-[#5A5A5A]">Page {auditCurrentPage} of {totalAuditPages}</span>
+                  <IconButton
+                    icon={ChevronRight}
+                    onClick={() => setAuditCurrentPage((page) => Math.min(page + 1, totalAuditPages))}
+                    tooltip="Next page"
+                    variant="default"
+                    disabled={auditCurrentPage === totalAuditPages}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

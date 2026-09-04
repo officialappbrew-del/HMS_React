@@ -31,19 +31,24 @@ const IPDManagement = () => {
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
   const [patientSearchError, setPatientSearchError] = useState('');
   const [medicationEntries, setMedicationEntries] = useState([]);
+  const [staysCount, setStaysCount] = useState(0);
+  const [staysPage, setStaysPage] = useState(1);
+  const [staysNextPage, setStaysNextPage] = useState(null);
+  const [staysPreviousPage, setStaysPreviousPage] = useState(null);
 
-  const load = async () => {
+  const load = async (url = '/api/v1/ipd/stays/?status=admitted,waiting&page_size=10') => {
     setLoading(true); setError('');
     try {
-      const [admittedData, waitingData, bedData, wardData] = await Promise.all([
-        apiRequest('/api/v1/ipd/stays/?status=admitted&page_size=100'),
-        apiRequest('/api/v1/ipd/stays/?status=waiting&page_size=100'),
+      const [stayData, bedData, wardData] = await Promise.all([
+        apiRequest(url),
         apiRequest('/api/v1/ipd/stays/bed_availability/'),
         apiRequest('/api/v1/ward-rounds/wards/?page_size=100'),
       ]);
-      const admittedStays = admittedData.results || admittedData;
-      const waitingStays = waitingData.results || waitingData;
-      setStays([...admittedStays, ...waitingStays]); setBeds(bedData.beds || []);
+      const currentStays = stayData.results || stayData;
+      setStays(currentStays); setStaysCount(stayData.count ?? currentStays.length);
+      setStaysPage(Number(new URL(url, window.location.origin).searchParams.get('page') || 1));
+      setStaysNextPage(stayData.next || null); setStaysPreviousPage(stayData.previous || null);
+      setBeds(bedData.beds || []);
       setWards(wardData.results || wardData);
       setAvailableBeds((bedData.beds || []).filter((bed) => bed.status === 'Available'));
     } catch (err) { setError(err.message || 'Unable to load IPD data.'); }
@@ -226,6 +231,11 @@ const IPDManagement = () => {
               </span>
           </button>)}
           {!stays.length && <p className="py-8 text-center text-sm text-slate-500">No inpatient patients.</p>}
+          {stays.length > 0 && <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+            <button type="button" onClick={() => staysPreviousPage && load(staysPreviousPage)} disabled={!staysPreviousPage || loading} className="border border-slate-300 px-3 py-1.5 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+            <span className="text-xs text-slate-500">Page {staysPage} · {staysCount} total</span>
+            <button type="button" onClick={() => staysNextPage && load(staysNextPage)} disabled={!staysNextPage || loading} className="border border-slate-300 px-3 py-1.5 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+          </div>}
         </div>
       </section>
       

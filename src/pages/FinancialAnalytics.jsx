@@ -500,11 +500,11 @@ const FinancialAnalytics = () => {
       )}
 
       {/* Key Financial Metrics - Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-8">
         <StatsCard
           title="Total Revenue"
           value={formatCurrency(totalRevenue)}
-          subValue={`${formatNumber(invoicesSummary.total)} invoices in period`}
+          subValue={`${formatCurrency(invoicesSummary.collected_total || totalRevenue)} collected from ${formatNumber(invoicesSummary.total)} invoices`}
           icon={DollarSign}
           color="green"
           trend="neutral"
@@ -514,12 +514,22 @@ const FinancialAnalytics = () => {
         <StatsCard
           title="Total Costs"
           value={formatCurrency(totalCosts)}
-          subValue={`${formatNumber(invoicesSummary.pending)} pending invoices`}
+          subValue="Recorded operational costs"
           icon={CreditCard}
           color="red"
           trend="neutral"
           trendValue="Recorded costs"
           tooltip="Total operational costs"
+        />
+        <StatsCard
+          title="Outstanding Receivables"
+          value={formatCurrency(invoicesSummary.receivables || 0)}
+          subValue={`${formatNumber(invoicesSummary.pending)} unpaid invoices`}
+          icon={AlertCircle}
+          color="warm"
+          trend="neutral"
+          trendValue="Awaiting collection"
+          tooltip="Patient bills issued but not fully collected"
         />
         <StatsCard
           title="Net Profit"
@@ -529,12 +539,12 @@ const FinancialAnalytics = () => {
           color="blue"
           trend={netProfit >= 0 ? 'up' : 'down'}
           trendValue={financialHealth}
-          tooltip="Net profit after all costs"
+          tooltip="Collected revenue minus all recorded costs; unpaid bills are excluded"
         />
         <StatsCard
           title="Cash Position"
           value={formatCurrency(cashPosition)}
-          subValue={`${formatNumber(invoicesSummary.paid)} paid invoices`}
+          subValue={`${formatNumber(invoicesSummary.paid)} fully paid invoices · ${formatCurrency(invoicesSummary.receivables || 0)} receivables`}
           icon={Banknote}
           color="purple"
           trend={cashPosition >= 0 ? 'up' : 'down'}
