@@ -3128,15 +3128,15 @@ const handleRestorePatient = (patient) => {
                             <td className="py-2 text-center text-sm text-gray-500 font-medium">
                               {serialNumber}
                             </td>
-                            <td className="py-2">
+                            <td className="py-2 min-w-0">
                               <div className="flex items-center gap-2">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-sm flex-shrink-0 ${
                                   isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
                                 }`}>
                                   {patient.name?.charAt(0) || '?'}
                                 </div>
-                                <div>
-                                  <div className="font-medium text-gray-900 text-sm">{patient.name}</div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="max-w-[180px] truncate font-medium text-gray-900 text-sm" title={patient.name || 'Unnamed Patient'}>{patient.name || 'Unnamed Patient'}</div>
                                   <div className="text-xs text-gray-500">
                                     {patient.mrn ? `MRN: ${patient.mrn}` : ''}
                                     {/* {patient.mrn && patient.hospital_number ? ' • ' : ''} */}
@@ -3146,9 +3146,9 @@ const handleRestorePatient = (patient) => {
                                 </div>
                               </div>
                             </td>
-                            <td className="py-2 hidden sm:table-cell">
+                            <td className="py-2 hidden sm:table-cell min-w-0">
                               <div className="text-sm text-gray-600">{patient.phone}</div>
-                              <div className="text-xs text-gray-400">{patient.email || 'No email'}</div>
+                              <div className="max-w-[180px] truncate text-xs text-gray-400" title={patient.email || 'No email'}>{patient.email || 'No email'}</div>
                             </td>
                             <td className="py-2 hidden md:table-cell">
                               <div className="text-sm text-gray-600">{patient.state || '-'}</div>
