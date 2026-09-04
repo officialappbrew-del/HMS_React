@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { addClinicalNote } from '../../features/emrSlice';
 import { Heart, Activity, Calendar, TrendingUp } from 'lucide-react';
 
-const HypertensionDiabetesManagement = ({ patientId }) => {
-  const dispatch = useDispatch();
+const HypertensionDiabetesManagement = ({ patientId, onSave }) => {
   const [formData, setFormData] = useState({
     visitDate: '',
     bloodPressureSystolic: '',
@@ -35,7 +32,7 @@ const HypertensionDiabetesManagement = ({ patientId }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const ncdRecord = {
       patientId,
@@ -43,7 +40,7 @@ const HypertensionDiabetesManagement = ({ patientId }) => {
       date: new Date().toISOString(),
       ...formData
     };
-    dispatch(addClinicalNote(ncdRecord));
+    await onSave({ templateType: 'Hypertension & Diabetes Management', data: ncdRecord });
     // Reset form
     setFormData({
       visitDate: '',

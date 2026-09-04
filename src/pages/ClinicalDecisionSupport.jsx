@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Brain,
   AlertTriangle,
@@ -13,24 +13,13 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
-  Zap,
   Heart,
   Droplet,
   Baby,
-  Users,
-  TrendingUp,
   Shield,
-  Stethoscope,
-  Thermometer,
-  Weight,
-  Calendar,
-  User,
-  Clock,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Eye,
-  Edit,
   Loader2
 } from 'lucide-react';
 import {
@@ -39,15 +28,12 @@ import {
   calculateDose,
   getClinicalGuidelines,
   calculateRisk,
-  addPatientAlert,
   dismissAlert,
-  searchGuidelines,
-  updatePatientProfile,
   setRiskCalculations,
-  clearError
+  clearError,
+  getPatientAlerts
 } from '../features/cdsSlice';
 import { selectCurrentPatient } from '../features/patientSlice';
-import Pagination from '../components/Pagination';
 import { ErrorModal } from '../components/ErrorModal';
 
 // ==================== TOOLTIP COMPONENT ====================
@@ -188,7 +174,7 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
 };
 
 // ==================== STATUS BADGE (reused) ====================
-const StatusBadge = ({ status, type = 'default' }) => {
+const StatusBadge = ({ status }) => {
   const statusMap = {
     'active': { label: 'Active', color: 'bg-[#EAF3EE] text-[#2D7D46] border-[#D0E3D8]' },
     'inactive': { label: 'Inactive', color: 'bg-[#F0EDE8] text-[#5A5A5A] border-[#E8E3DC]' },
@@ -215,7 +201,6 @@ const ClinicalDecisionSupport = () => {
     clinicalGuidelines,
     riskCalculations,
     patientAlerts,
-    searchResults,
     loading,
     error
   } = useSelector(state => state.cds);
@@ -227,7 +212,6 @@ const ClinicalDecisionSupport = () => {
   const itemsPerPage = 10;
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Drug Interaction Checker State
   const [drugCheckForm, setDrugCheckForm] = useState({
@@ -280,99 +264,91 @@ const ClinicalDecisionSupport = () => {
   const [isCalculatingRisk, setIsCalculatingRisk] = useState(false);
   const [errorModal, setErrorModal] = useState({ isOpen: false, title: '', message: '', details: null });
 
-  // Nigerian-specific data (keep as before)
-  const nigerianDrugInteractions = { /* ... same as original ... */ };
-  const herbalInteractions = { /* ... same as original ... */ };
-  const nigerianGuidelines = [ /* ... same as original ... */ ];
+  const calculateCardiovascularRisk = (data) => {
+    const age = Number(data.age);
+    const systolic = Number(String(data.bloodPressure).split('/')[0]);
+    const cholesterol = Number(data.cholesterol);
+    if (!age || !systolic || !cholesterol || !data.gender) throw new Error('Age, gender, blood pressure, and cholesterol are required.');
+    let score = 0;
+    if (age >= 55) score += 2;
+    else if (age >= 45) score += 1;
+    if (systolic >= 160) score += 2;
+    else if (systolic >= 140) score += 1;
+    if (cholesterol >= 240) score += 2;
+    else if (cholesterol >= 200) score += 1;
+    if (data.smoker) score += 2;
+    if (data.diabetic) score += 2;
+    if (data.familyHistory) score += 1;
+    const riskPercentage = Math.min(40, score * 2.5);
+    return { score, riskPercentage, riskCategory: riskPercentage >= 20 ? 'High' : riskPercentage >= 10 ? 'Moderate' : 'Low', recommendations: [] };
+  };
 
-  // Risk calculation functions (keep as before)
-  const calculateCardiovascularRisk = (data) => { /* ... */ };
-  const calculateDiabetesRisk = (data) => { /* ... */ };
+  const calculateDiabetesRisk = (data) => {
+    const age = Number(data.age);
+    if (!age || !data.gender) throw new Error('Age and gender are required.');
+    const score = (age >= 45 ? 2 : 0) + (data.diabetic ? 3 : 0) + (data.familyHistory ? 2 : 0);
+    const riskPercentage = Math.min(40, score * 5);
+    return { score, riskPercentage, riskCategory: riskPercentage >= 20 ? 'High' : riskPercentage >= 10 ? 'Moderate' : 'Low', recommendations: [] };
+  };
 
-  const handleDrugInteractionCheck = () => {
-    const interactions = [];
-    const checkedDrugs = drugCheckForm.drugs.filter(drug => drug.trim() !== '');
-    checkedDrugs.forEach((drug, index) => {
-      const drugKey = drug.toLowerCase().replace(/\s+/g, '-');
-      if (nigerianDrugInteractions[drugKey]) {
-        nigerianDrugInteractions[drugKey].interactions.forEach(interaction => {
-          if (checkedDrugs.includes(interaction.drug)) {
-            interactions.push({
-              drug1: drug,
-              drug2: interaction.drug,
-              severity: interaction.severity,
-              description: interaction.description
-            });
-          }
-        });
-      }
-    });
-    dispatch(checkDrugInteractions(interactions));
+  const handleDrugInteractionCheck = async () => {
+    const checkedDrugs = drugCheckForm.drugs.map(drug => drug.trim()).filter(Boolean);
+    if (checkedDrugs.length < 2) {
+      setFormError('Enter at least two medications to check for interactions.');
+      return;
+    }
+    try {
+      await dispatch(checkDrugInteractions({ drugs: checkedDrugs })).unwrap();
+    } catch (err) {
+      setFormError(err || 'Failed to check drug interactions.');
+      return;
+    }
     setSuccessMessage('Interaction check completed.');
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  const handleAllergyCheck = () => {
-    const alerts = [];
-    const medication = allergyCheckForm.medication.toLowerCase();
-    allergyCheckForm.patientAllergies.forEach(allergy => {
-      if (medication.includes(allergy.toLowerCase())) {
-        alerts.push({
-          type: 'allergy',
-          severity: 'severe',
-          message: `Patient allergic to ${allergy} - contained in ${allergyCheckForm.medication}`,
-          recommendation: 'Do not administer. Seek alternative medication.'
-        });
-      }
-    });
-    if (allergyCheckForm.crossReactivity) {
-      if (medication.includes('penicillin') && allergyCheckForm.patientAllergies.includes('cephalosporins')) {
-        alerts.push({
-          type: 'cross-reactivity',
-          severity: 'moderate',
-          message: 'Potential cross-reactivity between penicillin and cephalosporins',
-          recommendation: 'Use with caution or seek alternative.'
-        });
-      }
+  const handleAllergyCheck = async () => {
+    if (!currentPatient?.id) {
+      setFormError('Select a patient before checking allergies.');
+      return;
     }
-    dispatch(checkAllergies(alerts));
+    if (!allergyCheckForm.medication.trim()) {
+      setFormError('Enter a medication before checking allergies.');
+      return;
+    }
+    try {
+      await dispatch(checkAllergies({
+        patient: currentPatient.id,
+        medication: allergyCheckForm.medication,
+      })).unwrap();
+    } catch (err) {
+      setFormError(err || 'Failed to load patient allergy checks.');
+      return;
+    }
     setSuccessMessage('Allergy check completed.');
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  const handleDoseCalculation = () => {
-    const { drug, patientWeight, age, renalFunction, hepaticFunction, dosingFrequency } = dosingForm;
-    let dose = 0;
-    let frequency = '';
-    let adjustments = [];
-    if (age < 12) {
-      const adultDose = 100;
-      dose = (parseFloat(patientWeight) / 70) * adultDose;
-      adjustments.push('Pediatric dose calculated using weight-based formula');
-    } else {
-      dose = 100;
+  const handleDoseCalculation = async () => {
+    if (!dosingForm.drug) {
+      setFormError('Select a drug before calculating a dose.');
+      return;
     }
-    if (renalFunction === 'severe') { dose *= 0.5; adjustments.push('Dose reduced by 50% due to severe renal impairment'); }
-    if (hepaticFunction === 'severe') { dose *= 0.5; adjustments.push('Dose reduced by 50% due to severe hepatic impairment'); }
-    switch (dosingFrequency) {
-      case 'daily': frequency = 'Once daily'; break;
-      case 'bd': frequency = 'Twice daily'; break;
-      case 'tds': frequency = 'Three times daily'; break;
-      case 'qds': frequency = 'Four times daily'; break;
-      default: frequency = 'As directed';
+    try {
+      await dispatch(calculateDose(dosingForm)).unwrap();
+    } catch (err) {
+      setFormError(err || 'No dosing guideline found for this drug.');
+      return;
     }
-    dispatch(calculateDose({
-      drug,
-      calculatedDose: dose,
-      frequency,
-      adjustments,
-      monitoring: 'Monitor for adverse effects and therapeutic response'
-    }));
     setSuccessMessage('Dose calculated.');
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
   const handleRiskCalculation = async () => {
+    if (!currentPatient?.id) {
+      setFormError('Select a patient before saving a risk assessment.');
+      return;
+    }
     let result;
     try {
       switch (riskForm.calculator) {
@@ -447,10 +423,9 @@ const ClinicalDecisionSupport = () => {
   );
 
   useEffect(() => {
-    if (activeTab === 'guidelines') {
-      dispatch(getClinicalGuidelines());
-    }
-  }, [activeTab, dispatch]);
+    dispatch(getClinicalGuidelines());
+    if (currentPatient?.id) dispatch(getPatientAlerts(currentPatient.id));
+  }, [currentPatient?.id, dispatch]);
 
   // Tabs configuration
   const tabs = [
@@ -752,10 +727,10 @@ const ClinicalDecisionSupport = () => {
                   <div key={index} className="p-4 bg-[#F5EDEA] border border-[#E8D6D0]">
                     <div className="flex items-center mb-1">
                       <AlertTriangle className="w-4 h-4 text-[#C8553D] mr-2" />
-                      <span className="text-sm font-medium text-[#C8553D]">{alert.type.toUpperCase()}</span>
+                      <span className="text-sm font-medium text-[#C8553D]">{(alert.allergy_type || 'allergy').toUpperCase()}</span>
                     </div>
-                    <p className="text-sm text-[#1A1A1A] mb-1">{alert.message}</p>
-                    <p className="text-xs text-[#5A5A5A]">{alert.recommendation}</p>
+                    <p className="text-sm text-[#1A1A1A] mb-1">Patient has a {alert.severity} allergy to {alert.allergen}.</p>
+                    <p className="text-xs text-[#5A5A5A]">Reaction: {alert.reaction || 'Not specified'}</p>
                   </div>
                 ))}
               </div>
@@ -865,13 +840,17 @@ const ClinicalDecisionSupport = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Calculated Dose</p>
-                    <p className="text-2xl font-bold text-[#2D7D46]">{dosingRecommendations.calculatedDose} mg</p>
-                    <p className="text-sm text-[#5A5A5A]">{dosingRecommendations.frequency}</p>
+                    <p className="text-lg font-bold text-[#2D7D46]">{dosingRecommendations.guideline?.standard_dose || 'No standard dose recorded'}</p>
+                    <p className="text-sm text-[#5A5A5A]">{dosingRecommendations.guideline?.frequency || 'See guideline details'}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Adjustments</p>
                     <ul className="text-sm space-y-1">
-                      {(dosingRecommendations.adjustments || []).map((adj, idx) => (
+                      {[
+                        dosingRecommendations.guideline?.renal_adjustment,
+                        dosingRecommendations.guideline?.hepatic_adjustment,
+                        dosingRecommendations.guideline?.special_considerations,
+                      ].filter(Boolean).map((adj, idx) => (
                         <li key={idx} className="flex items-center">
                           <CheckCircle className="w-3.5 h-3.5 text-[#2D7D46] mr-1.5" />
                           {adj}
@@ -915,7 +894,7 @@ const ClinicalDecisionSupport = () => {
                         <p className="text-xs text-[#5A5A5A]">{guideline.category}</p>
                       </div>
                       <div className="text-right text-xs text-[#5A5A5A]">
-                        <p>Updated: {new Date(guideline.lastUpdated).toLocaleDateString('en-NG')}</p>
+                        <p>Updated: {new Date(guideline.last_reviewed || guideline.updated_at || guideline.created_at).toLocaleDateString('en-NG')}</p>
                         <p className="text-[#B0A89E]">{guideline.authority}</p>
                       </div>
                     </div>
@@ -1001,7 +980,7 @@ const ClinicalDecisionSupport = () => {
 
               {/* Calculator Form */}
               <div className="bg-white border border-[#E8E3DC] p-5">
-                {riskForm.calculator === 'cardiovascular' && (
+                {['cardiovascular', 'diabetes', 'pregnancy'].includes(riskForm.calculator) && (
                   <div>
                     <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Cardiovascular Risk Assessment</h4>
                     <div className="space-y-4">
@@ -1197,7 +1176,7 @@ const ClinicalDecisionSupport = () => {
                     <p className="text-sm text-[#5A5A5A] mb-2">{alert.message}</p>
                     <div className="flex items-center justify-between text-xs text-[#B0A89E]">
                       <span>Patient: {alert.patientName}</span>
-                      <span>{new Date(alert.timestamp).toLocaleString('en-NG')}</span>
+                      <span>{new Date(alert.created_at).toLocaleString('en-NG')}</span>
                     </div>
                   </div>
                 ))}

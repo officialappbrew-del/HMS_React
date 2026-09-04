@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { addClinicalNote } from '../../features/emrSlice';
 import { Baby, Calendar, Heart, Activity, User } from 'lucide-react';
 
-const MaternalHealthRecords = ({ patientId }) => {
-  const dispatch = useDispatch();
+const MaternalHealthRecords = ({ patientId, onSave }) => {
   const [formData, setFormData] = useState({
     gestationalAge: '',
     expectedDeliveryDate: '',
@@ -33,7 +30,7 @@ const MaternalHealthRecords = ({ patientId }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const maternalRecord = {
       patientId,
@@ -41,7 +38,7 @@ const MaternalHealthRecords = ({ patientId }) => {
       date: new Date().toISOString(),
       ...formData
     };
-    dispatch(addClinicalNote(maternalRecord));
+    await onSave({ templateType: 'Maternal Health Record', data: maternalRecord });
     // Reset form
     setFormData({
       gestationalAge: '',

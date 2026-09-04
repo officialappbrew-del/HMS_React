@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { addClinicalNote } from '../../features/emrSlice';
 import { Thermometer, Calendar, Activity, AlertTriangle } from 'lucide-react';
 
-const TyphoidFeverManagement = ({ patientId }) => {
-  const dispatch = useDispatch();
+const TyphoidFeverManagement = ({ patientId, onSave }) => {
   const [formData, setFormData] = useState({
     diagnosisDate: '',
     widalTest: '',
@@ -32,7 +29,7 @@ const TyphoidFeverManagement = ({ patientId }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const typhoidRecord = {
       patientId,
@@ -40,7 +37,7 @@ const TyphoidFeverManagement = ({ patientId }) => {
       date: new Date().toISOString(),
       ...formData
     };
-    dispatch(addClinicalNote(typhoidRecord));
+    await onSave({ templateType: 'Typhoid Fever Management', data: typhoidRecord });
     // Reset form
     setFormData({
       diagnosisDate: '',

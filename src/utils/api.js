@@ -827,6 +827,7 @@ export const cdsApi = {
     return apiRequest(`/api/v1/cds/allergy-checks/${qsStr ? '?' + qsStr : ''}`);
   },
   createAllergyCheck: (data) => apiRequest('/api/v1/cds/allergy-checks/', { method: 'POST', body: JSON.stringify(data) }),
+  checkAllergies: (data) => apiRequest('/api/v1/cds/allergy-checks/check/', { method: 'POST', body: JSON.stringify(data) }),
 
   getDosingGuidelines: (params = {}) => {
     const qs = new URLSearchParams();

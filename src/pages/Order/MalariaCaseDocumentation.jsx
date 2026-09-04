@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { addClinicalNote } from '../../features/emrSlice';
 import { Thermometer, Droplets, Activity, AlertTriangle, Clock, Pill } from 'lucide-react';
 
-const MalariaCaseDocumentation = ({ patientId }) => {
-  const dispatch = useDispatch();
+const MalariaCaseDocumentation = ({ patientId, onSave }) => {
   const [formData, setFormData] = useState({
     visitDate: '',
     symptoms: {
@@ -73,7 +70,7 @@ const MalariaCaseDocumentation = ({ patientId }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     const malariaRecord = {
@@ -84,8 +81,7 @@ const MalariaCaseDocumentation = ({ patientId }) => {
       severityLevel: calculateSeverityLevel(formData)
     };
     
-    dispatch(addClinicalNote(malariaRecord));
-    alert('Malaria case documented successfully!');
+    await onSave({ templateType: 'Malaria Case Documentation', data: malariaRecord });
     
     // Reset form
     setFormData({

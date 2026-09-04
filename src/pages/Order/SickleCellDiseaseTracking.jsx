@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { addClinicalNote } from '../../features/emrSlice';
 import { Droplet, AlertTriangle, Calendar, Activity } from 'lucide-react';
 
-const SickleCellDiseaseTracking = ({ patientId }) => {
-  const dispatch = useDispatch();
+const SickleCellDiseaseTracking = ({ patientId, onSave }) => {
   const [formData, setFormData] = useState({
     genotype: '',
     crisisType: '',
@@ -29,7 +26,7 @@ const SickleCellDiseaseTracking = ({ patientId }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const sickleCellRecord = {
       patientId,
@@ -37,7 +34,7 @@ const SickleCellDiseaseTracking = ({ patientId }) => {
       date: new Date().toISOString(),
       ...formData
     };
-    dispatch(addClinicalNote(sickleCellRecord));
+    await onSave({ templateType: 'Sickle Cell Disease Tracking', data: sickleCellRecord });
     // Reset form
     setFormData({
       genotype: '',

@@ -1491,8 +1491,8 @@ const Pharmacy = () => {
     }
   };
 
-  const downloadJson = (data, filename) => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const downloadFile = (content, filename, type) => {
+    const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -1501,10 +1501,41 @@ const Pharmacy = () => {
     URL.revokeObjectURL(url);
   };
 
+  const downloadJson = (data, filename) => {
+    downloadFile(JSON.stringify(data, null, 2), filename, 'application/json');
+  };
+
+  const downloadCsv = (report, filename) => {
+    const csvCell = (value) => {
+      if (value === null || value === undefined) return '';
+      const normalized = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      return `"${normalized.replace(/"/g, '""')}` + '"';
+    };
+
+    const rows = [];
+    const addSection = (title, records) => {
+      if (!Array.isArray(records) || records.length === 0) return;
+      const columns = [...new Set(records.flatMap(record => Object.keys(record || {})))];
+      rows.push([title], columns, ...records.map(record => columns.map(column => record?.[column])));
+    };
+
+    const summary = Object.entries(report || {})
+      .filter(([key]) => !['drugs', 'sales'].includes(key))
+      .map(([key, value]) => [key, value]);
+    if (summary.length > 0) {
+      rows.push(['Report Summary'], ['Metric', 'Value'], ...summary);
+    }
+    addSection('Inventory', report?.drugs);
+    addSection('Sales', report?.sales);
+
+    if (rows.length === 0) rows.push(['No report data']);
+    downloadFile(`\uFEFF${rows.map(row => row.map(csvCell).join(',')).join('\r\n')}`, filename, 'text/csv;charset=utf-8;');
+  };
+
   const handleExportReport = async () => {
     try {
       const report = await pharmacyApi.getReport();
-      downloadJson(report, `pharmacy-report-${new Date().toISOString().split('T')[0]}.json`);
+      downloadCsv(report, `pharmacy-report-${new Date().toISOString().split('T')[0]}.csv`);
       setSuccessMessage('Report exported successfully.');
     } catch (err) {
       setErrorMessage(err.message || 'Failed to export pharmacy report.');
@@ -2155,7 +2186,7 @@ const Pharmacy = () => {
                 <span className="hidden sm:inline">Refresh</span>
               </Button>
               <Button onClick={handleExportReport} variant="secondary" size="sm" icon={BarChart3}>
-                <span className="hidden sm:inline">Reports</span>
+                <span className="hidden sm:inline">Reports </span>
               </Button>
               <Button onClick={() => {
                 setDrugForm(getDefaultDrugForm());

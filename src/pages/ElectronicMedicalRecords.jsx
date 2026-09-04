@@ -232,7 +232,10 @@ const EMRCard = ({ item, type, patientName, onView, onEdit }) => {
     if (type === 'encounter') {
       return item.chief_complaint || item.history_of_present_illness || 'No details';
     }
-    return item.subjective || item.objective || item.assessment || 'No content';
+    if (item.template_type) {
+      return item.template_data?.notes || item.template_type;
+    }
+    return item.subjective || item.objective || item.assessment || item.plan || 'No content';
   };
 
   return (
@@ -345,6 +348,7 @@ const ElectronicMedicalRecords = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [templatePatientId, setTemplatePatientId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
@@ -541,18 +545,29 @@ const ElectronicMedicalRecords = () => {
       return;
     }
 
-    const payload = {
-      patient: noteForm.patientId,
-      medical_record: noteForm.medical_record || undefined,
-      note_type: noteForm.note_type,
-      subjective: noteForm.subjective,
-      objective: noteForm.objective,
-      assessment: noteForm.assessment,
-      plan: noteForm.plan,
-    };
-
     try {
-      const result = await dispatch(createProgressNote(payload));
+      let medicalRecordId = noteForm.medical_record;
+      if (!medicalRecordId) {
+        const recordResult = await dispatch(createMedicalRecord({
+          patient: noteForm.patientId,
+          record_type: 'outpatient',
+          chief_complaint: noteForm.subjective || noteForm.assessment || 'Clinical note',
+        }));
+        if (!createMedicalRecord.fulfilled.match(recordResult)) {
+          setFormError(recordResult.payload || 'Failed to create the medical record for this note.');
+          return;
+        }
+        medicalRecordId = recordResult.payload.id;
+      }
+
+      const result = await dispatch(createProgressNote({
+        medical_record: medicalRecordId,
+        note_type: noteForm.note_type,
+        subjective: noteForm.subjective,
+        objective: noteForm.objective,
+        assessment: noteForm.assessment,
+        plan: noteForm.plan,
+      }));
       if (createProgressNote.fulfilled.match(result)) {
         setSuccessMessage('Clinical note created successfully.');
         setTimeout(() => setSuccessMessage(''), 3000);
@@ -645,6 +660,35 @@ const ElectronicMedicalRecords = () => {
     }
   };
 
+  const handleDiseaseTemplateSave = async ({ templateType, data }) => {
+    if (!templatePatientId) {
+      throw new Error('Select a patient before saving a disease template.');
+    }
+
+    const recordResult = await dispatch(createMedicalRecord({
+      patient: templatePatientId,
+      record_type: 'outpatient',
+      chief_complaint: templateType,
+    }));
+    if (!createMedicalRecord.fulfilled.match(recordResult)) {
+      throw new Error(recordResult.payload || 'Failed to create the medical record.');
+    }
+
+    const noteResult = await dispatch(createProgressNote({
+      medical_record: recordResult.payload.id,
+      note_type: 'progress',
+      template_type: templateType,
+      template_data: data,
+      subjective: data.notes || '',
+    }));
+    if (!createProgressNote.fulfilled.match(noteResult)) {
+      throw new Error(noteResult.payload || 'Failed to save the disease template.');
+    }
+
+    setSuccessMessage(`${templateType} saved successfully.`);
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
   // Tabs configuration
   const tabs = [
     { id: 'encounters', label: 'Encounter Notes', icon: Clipboard },
@@ -676,7 +720,7 @@ const ElectronicMedicalRecords = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
-                Electronic Medical Records (EMR)
+                Electronic Medical Records (EMR) 
               </h1>
               <p className="text-xs sm:text-sm text-[#5A5A5A]">
                 Comprehensive patient clinical documentation
@@ -975,14 +1019,30 @@ const ElectronicMedicalRecords = () => {
                     {templates.find(t => t.id === selectedTemplate)?.title}
                   </span>
                 </div>
+                <div className="mb-4 bg-white border border-[#E8E3DC] p-4">
+                  <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
+                    Patient
+                  </label>
+                  <select
+                    value={templatePatientId}
+                    onChange={(e) => setTemplatePatientId(e.target.value)}
+                    className="w-full max-w-md px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
+                    required
+                  >
+                    <option value="">Select patient before saving...</option>
+                    {patients.map(patient => (
+                      <option key={patient.id} value={patient.id}>{getPatientName(patient.id)}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="bg-white border border-[#E8E3DC] p-5">
-                  {selectedTemplate === 'malaria' && <MalariaCaseDocumentation />}
-                  {selectedTemplate === 'typhoid' && <TyphoidFeverManagement />}
-                  {selectedTemplate === 'sickle_cell' && <SickleCellDiseaseTracking />}
-                  {selectedTemplate === 'tb' && <TuberculosisTreatmentCards />}
-                  {selectedTemplate === 'hiv' && <HivAidsCarePlans />}
-                  {selectedTemplate === 'ncd' && <HypertensionDiabetesManagement />}
-                  {selectedTemplate === 'maternal' && <MaternalHealthRecords />}
+                  {selectedTemplate === 'malaria' && <MalariaCaseDocumentation patientId={templatePatientId} onSave={handleDiseaseTemplateSave} />}
+                  {selectedTemplate === 'typhoid' && <TyphoidFeverManagement patientId={templatePatientId} onSave={handleDiseaseTemplateSave} />}
+                  {selectedTemplate === 'sickle_cell' && <SickleCellDiseaseTracking patientId={templatePatientId} onSave={handleDiseaseTemplateSave} />}
+                  {selectedTemplate === 'tb' && <TuberculosisTreatmentCards patientId={templatePatientId} onSave={handleDiseaseTemplateSave} />}
+                  {selectedTemplate === 'hiv' && <HivAidsCarePlans patientId={templatePatientId} onSave={handleDiseaseTemplateSave} />}
+                  {selectedTemplate === 'ncd' && <HypertensionDiabetesManagement patientId={templatePatientId} onSave={handleDiseaseTemplateSave} />}
+                  {selectedTemplate === 'maternal' && <MaternalHealthRecords patientId={templatePatientId} onSave={handleDiseaseTemplateSave} />}
                 </div>
               </div>
             )}
@@ -1412,6 +1472,16 @@ const ElectronicMedicalRecords = () => {
                   <div>
                     <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Plan</p>
                     <p className="text-sm text-[#1A1A1A] mt-1 whitespace-pre-wrap">{currentRecord.plan}</p>
+                  </div>
+                )}
+
+                {currentRecord.template_type && (
+                  <div>
+                    <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Disease Template Data</p>
+                    <p className="text-sm font-medium text-[#1A1A1A] mt-1">{currentRecord.template_type}</p>
+                    <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words bg-white border border-[#E8E3DC] p-3 text-xs text-[#5A5A5A]">
+                      {JSON.stringify(currentRecord.template_data || {}, null, 2)}
+                    </pre>
                   </div>
                 )}
               </div>

@@ -32,7 +32,7 @@ export const checkAllergies = createAsyncThunk(
   'cds/checkAllergies',
   async (payload, { rejectWithValue }) => {
     try {
-      const data = await cdsApi.getAllergyChecks(payload);
+      const data = await cdsApi.checkAllergies(payload);
       const list = Array.isArray(data) ? data : (data.results || []);
       return list;
     } catch (err) {
@@ -47,6 +47,7 @@ export const calculateDose = createAsyncThunk(
     try {
       const data = await cdsApi.getDosingGuidelines({ drug: payload.drug });
       const list = Array.isArray(data) ? data : (data.results || []);
+      if (!list[0]) throw new Error('No dosing guideline found for this drug.');
       return { guideline: list[0] || null, payload };
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to calculate dose.');
@@ -113,6 +114,18 @@ export const dismissAlert = createAsyncThunk(
       return alertId;
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to dismiss alert.');
+    }
+  }
+);
+
+export const getPatientAlerts = createAsyncThunk(
+  'cds/getPatientAlerts',
+  async (patientId, { rejectWithValue }) => {
+    try {
+      const data = await cdsApi.getPatientAlerts({ patient: patientId, dismissed: false });
+      return Array.isArray(data) ? data : (data.results || []);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load patient alerts.');
     }
   }
 );
@@ -205,6 +218,8 @@ const cdsSlice = createSlice({
         if (index !== -1) state.patientAlerts.splice(index, 1);
       })
       .addCase(dismissAlert.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+
+      .addCase(getPatientAlerts.fulfilled, (state, action) => { state.patientAlerts = action.payload; })
 
       .addCase(searchGuidelines.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(searchGuidelines.fulfilled, (state, action) => { state.loading = false; state.searchResults = action.payload.results; })

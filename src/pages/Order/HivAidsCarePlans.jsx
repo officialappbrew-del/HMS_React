@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { addClinicalNote } from '../../features/emrSlice';
 import { Calendar, User, Activity, Pill, AlertTriangle } from 'lucide-react';
 
-const HivAidsCarePlans = ({ patientId }) => {
-  const dispatch = useDispatch();
+const HivAidsCarePlans = ({ patientId, onSave }) => {
   const [formData, setFormData] = useState({
     cd4Count: '',
     viralLoad: '',
@@ -23,7 +20,7 @@ const HivAidsCarePlans = ({ patientId }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const carePlan = {
       patientId,
@@ -31,7 +28,7 @@ const HivAidsCarePlans = ({ patientId }) => {
       date: new Date().toISOString(),
       ...formData
     };
-    dispatch(addClinicalNote(carePlan));
+    await onSave({ templateType: 'HIV/AIDS Care Plan', data: carePlan });
     // Reset form
     setFormData({
       cd4Count: '',

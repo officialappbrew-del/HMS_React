@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { addClinicalNote } from '../../features/emrSlice';
 import { Calendar, ClipboardCheck, Pill, Activity, AlertTriangle, Stethoscope, User } from 'lucide-react';
 
-const TuberculosisTreatmentCards = ({ patientId }) => {
-  const dispatch = useDispatch();
+const TuberculosisTreatmentCards = ({ patientId, onSave }) => {
   const [activeTab, setActiveTab] = useState('initial');
   const [treatmentPhase, setTreatmentPhase] = useState('intensive');
   const [formData, setFormData] = useState({
@@ -139,7 +136,7 @@ const TuberculosisTreatmentCards = ({ patientId }) => {
     return 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     const tbRecord = {
@@ -151,8 +148,7 @@ const TuberculosisTreatmentCards = ({ patientId }) => {
       regimenDetails: tbRegimens[formData.treatmentRegimen]
     };
     
-    dispatch(addClinicalNote(tbRecord));
-    alert('TB Treatment Card saved successfully!');
+    await onSave({ templateType: 'Tuberculosis Treatment Card (DOTS)', data: tbRecord });
   };
 
   return (
