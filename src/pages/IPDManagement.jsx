@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Activity, BedDouble, ClipboardList, Droplets, FileText, HeartPulse, LogOut, Plus, RefreshCw, Search, Send, Syringe } from 'lucide-react';
+import { Activity, BedDouble, ClipboardList, Droplets, FileText, HeartPulse, Loader2, LogOut, Plus, RefreshCw, Search, Send, Syringe } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 
 const tabs = [
@@ -30,16 +30,20 @@ const IPDManagement = () => {
   const [patientSearchResults, setPatientSearchResults] = useState([]);
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
   const [patientSearchError, setPatientSearchError] = useState('');
+  const [medicationEntries, setMedicationEntries] = useState([]);
 
   const load = async () => {
     setLoading(true); setError('');
     try {
-      const [stayData, bedData, wardData] = await Promise.all([
+      const [admittedData, waitingData, bedData, wardData] = await Promise.all([
         apiRequest('/api/v1/ipd/stays/?status=admitted&page_size=100'),
+        apiRequest('/api/v1/ipd/stays/?status=waiting&page_size=100'),
         apiRequest('/api/v1/ipd/stays/bed_availability/'),
         apiRequest('/api/v1/ward-rounds/wards/?page_size=100'),
       ]);
-      setStays(stayData.results || stayData); setBeds(bedData.beds || []);
+      const admittedStays = admittedData.results || admittedData;
+      const waitingStays = waitingData.results || waitingData;
+      setStays([...admittedStays, ...waitingStays]); setBeds(bedData.beds || []);
       setWards(wardData.results || wardData);
       setAvailableBeds((bedData.beds || []).filter((bed) => bed.status === 'Available'));
     } catch (err) { setError(err.message || 'Unable to load IPD data.'); }
@@ -113,6 +117,24 @@ const IPDManagement = () => {
     return () => clearTimeout(timeoutId);
   }, [patientSearchTerm]);
 
+  useEffect(() => {
+    if (tab !== 'mar' || !selectedStay) {
+      setMedicationEntries([]);
+      return;
+    }
+
+    const loadMedicationEntries = async () => {
+      try {
+        const response = await apiRequest(`/api/v1/ipd/mar/?stay=${selectedStay.id}`);
+        setMedicationEntries(Array.isArray(response) ? response : response.results || []);
+      } catch (err) {
+        setError(err.message || 'Unable to load medication administration history.');
+      }
+    };
+
+    void loadMedicationEntries();
+  }, [tab, selectedStay]);
+
   const selectPatientForAdmission = (patient) => {
     setForm({ ...form, patient: String(patient.id) });
     setPatientSearchTerm(getPatientDisplayName(patient));
@@ -122,7 +144,13 @@ const IPDManagement = () => {
 
   const submitAdmission = async (event) => {
     event.preventDefault(); setWorking(true); setError('');
-    try { await apiRequest('/api/v1/ipd/stays/', { method: 'POST', body: JSON.stringify({ ...form, patient: Number(form.patient), ward: form.ward ? Number(form.ward) : null, bed: form.bed ? Number(form.bed) : null }) }); setForm(emptyAdmission); setNotice('IPD admission created.'); setTab('census'); await load(); }
+    try {
+      const createdStay = await apiRequest('/api/v1/ipd/stays/', { method: 'POST', body: JSON.stringify({ ...form, patient: Number(form.patient), ward: form.ward ? Number(form.ward) : null, bed: form.bed ? Number(form.bed) : null }) });
+      setForm(emptyAdmission);
+      setNotice(createdStay.status === 'admitted' ? 'IPD admission created.' : 'Admission request created and added to the waiting list until a bed is allocated.');
+      setTab('census');
+      await load();
+    }
     catch (err) { setError(err.message || 'Admission could not be created.'); }
     finally { setWorking(false); }
   };
@@ -132,7 +160,15 @@ const IPDManagement = () => {
     setWorking(true); setError('');
     const endpoint = tab === 'notes' ? 'progress-notes' : tab === 'mar' ? 'mar' : tab === 'care' ? 'care-plans' : tab === 'io' ? 'intake-output' : tab === 'records' ? 'clinical-records' : 'charges';
     const payload = tab === 'records' ? { stay: selectedStay.id, record_type: entry.record_type, status: 'open', payload: { details: entry.details || '' } } : { ...entry, stay: selectedStay.id };
-    try { await apiRequest(`/api/v1/ipd/${endpoint}/`, { method: 'POST', body: JSON.stringify(payload) }); setEntry({}); setNotice('IPD record saved.'); }
+    try {
+      await apiRequest(`/api/v1/ipd/${endpoint}/`, { method: 'POST', body: JSON.stringify(payload) });
+      setEntry({});
+      setNotice(tab === 'charges' ? 'Charge added to the patient bill.' : 'IPD record saved.');
+      if (tab === 'mar') {
+        const response = await apiRequest(`/api/v1/ipd/mar/?stay=${selectedStay.id}`);
+        setMedicationEntries(Array.isArray(response) ? response : response.results || []);
+      }
+    }
     catch (err) { setError(err.message || 'Record could not be saved.'); }
     finally { setWorking(false); }
   };
@@ -175,7 +211,7 @@ const IPDManagement = () => {
     {tab === 'census' && <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
       <section className="border border-slate-200 bg-white p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Admitted patients ({stays.length})</h2>
+          <h2 className="text-sm font-semibold">Inpatient patients ({stays.length})</h2>
           <button type="button" onClick={() => setTab('admit')} className="flex items-center gap-1 bg-[#1C2B27] px-3 py-2 text-xs text-white"><Plus size={14} /> Admit</button>
         </div>
         <div className="space-y-2">
@@ -184,9 +220,12 @@ const IPDManagement = () => {
               <span className="text-sm font-semibold break-words">{stay.patient_name}</span>
               <span className="font-mono text-[10px] text-slate-500 shrink-0">{stay.admission_number}</span>
             </div>
-            <p className="mt-1 text-xs text-slate-500 break-words">{stay.ward_name || 'Awaiting ward'} · Bed {stay.bed_number || 'Unallocated'} · {stay.diagnosis}</p>
+              <p className="mt-1 text-xs text-slate-500 break-words">{stay.ward_name || 'Awaiting ward'} · Bed {stay.bed_number || 'Unallocated'} · {stay.diagnosis}</p>
+              <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${stay.status === 'admitted' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                {stay.status === 'admitted' ? 'Admitted' : 'Waiting for bed'}
+              </span>
           </button>)}
-          {!stays.length && <p className="py-8 text-center text-sm text-slate-500">No admitted patients.</p>}
+          {!stays.length && <p className="py-8 text-center text-sm text-slate-500">No inpatient patients.</p>}
         </div>
       </section>
       
@@ -266,11 +305,19 @@ const IPDManagement = () => {
           <option value="">Allocate available bed</option>
           {availableBeds.filter((bed) => !form.ward || String(bed.ward_id) === String(form.ward)).map((bed) => <option key={bed.id} value={bed.id}>{bed.ward_name} · Bed {bed.bed_number}</option>)}
         </select>
+        {(!availableBeds.length || (form.ward && !availableBeds.some((bed) => String(bed.ward_id) === String(form.ward)))) && (
+          <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-2" role="alert">
+            No empty bed is available{form.ward ? ' in the selected ward' : ''}. You can continue, but this patient will be placed on the waiting list until a bed is allocated.
+          </div>
+        )}
         <input required value={form.diagnosis} onChange={(e) => setForm({ ...form, diagnosis: e.target.value })} placeholder="Primary diagnosis" className="border border-slate-300 px-3 py-2 text-sm sm:col-span-2" />
         <textarea value={form.admission_reason} onChange={(e) => setForm({ ...form, admission_reason: e.target.value })} placeholder="Reason for admission" className="min-h-24 border border-slate-300 px-3 py-2 text-sm sm:col-span-2" />
         <label className="flex items-center gap-2 text-xs sm:col-span-2"><input type="checkbox" checked={form.emergency} onChange={(e) => setForm({ ...form, emergency: e.target.checked })} /> Emergency fast-track</label>
       </div>
-      <button disabled={working} className="mt-4 flex items-center gap-2 bg-[#1C2B27] px-4 py-2 text-xs font-semibold text-white"><Plus size={15} /> Create admission</button>
+      <button disabled={working} className="mt-4 flex items-center gap-2 bg-[#1C2B27] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">
+        {working ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+        {working ? 'Creating admission...' : 'Create admission'}
+      </button>
     </form>}
     
     {['notes', 'mar', 'care', 'io', 'records', 'charges'].includes(tab) && <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -285,6 +332,7 @@ const IPDManagement = () => {
       </div>
       <form onSubmit={submitEntry} className="border border-slate-200 bg-white p-5">
         <h2 className="text-sm font-semibold">{tab === 'notes' ? 'SOAP progress note' : tab === 'mar' ? 'Medication administration' : tab === 'care' ? 'Nursing care plan' : tab === 'io' ? 'Intake / output' : tab === 'records' ? 'Clinical record' : 'Manual charge'}</h2>
+        {tab === 'mar' && <div className="mt-4 border-b border-slate-200 pb-4"><h3 className="text-xs font-semibold text-slate-700">Medication history</h3>{medicationEntries.length ? <div className="mt-2 space-y-2">{medicationEntries.map((medication) => <div key={medication.id} className="border border-slate-200 p-2 text-xs"><div className="flex flex-wrap justify-between gap-2 font-medium text-slate-800"><span>{medication.medication_name} · {medication.dose}</span><span className="capitalize text-slate-500">{medication.status}</span></div><p className="mt-1 text-slate-500">{medication.route} · Scheduled {medication.scheduled_at ? new Date(medication.scheduled_at).toLocaleString() : 'Not scheduled'}</p>{medication.administered_at && <p className="mt-1 text-emerald-700">Administered {new Date(medication.administered_at).toLocaleString()}</p>}{medication.reason && <p className="mt-1 text-amber-700">Reason: {medication.reason}</p>}</div>)}</div> : <p className="mt-2 text-xs text-slate-500">No medication administration records for this patient.</p>}</div>}
         {tab === 'notes' ? <div className="mt-4 space-y-3">{['subjective', 'objective', 'assessment', 'plan'].map((field) => <textarea key={field} required={field === 'assessment' || field === 'plan'} value={entry[field] || ''} onChange={(e) => setEntry({ ...entry, [field]: e.target.value })} placeholder={field[0].toUpperCase() + field.slice(1)} className="min-h-20 w-full border border-slate-300 p-2 text-sm" />)}</div> : tab === 'mar' ? <div className="mt-4 space-y-3"><input required value={entry.medication_name || ''} onChange={(e) => setEntry({ ...entry, medication_name: e.target.value })} placeholder="Medication" className="w-full border border-slate-300 p-2 text-sm" /><input required value={entry.dose || ''} onChange={(e) => setEntry({ ...entry, dose: e.target.value })} placeholder="Dose" className="w-full border border-slate-300 p-2 text-sm" /><input required value={entry.route || ''} onChange={(e) => setEntry({ ...entry, route: e.target.value })} placeholder="Route" className="w-full border border-slate-300 p-2 text-sm" /><input required type="datetime-local" value={entry.scheduled_at || ''} onChange={(e) => setEntry({ ...entry, scheduled_at: e.target.value })} className="w-full border border-slate-300 p-2 text-sm" /></div> : tab === 'care' ? <div className="mt-4 space-y-3"><input required value={entry.goal || ''} onChange={(e) => setEntry({ ...entry, goal: e.target.value })} placeholder="Daily goal" className="w-full border border-slate-300 p-2 text-sm" /><textarea required value={entry.intervention || ''} onChange={(e) => setEntry({ ...entry, intervention: e.target.value })} placeholder="Intervention" className="min-h-24 w-full border border-slate-300 p-2 text-sm" /></div> : tab === 'io' ? <div className="mt-4 space-y-3"><select required value={entry.category || ''} onChange={(e) => setEntry({ ...entry, category: e.target.value })} className="w-full border border-slate-300 p-2 text-sm"><option value="">Intake or output</option><option value="intake">Intake</option><option value="output">Output</option></select><input required value={entry.item || ''} onChange={(e) => setEntry({ ...entry, item: e.target.value })} placeholder="Item (IV fluid, urine, drain)" className="w-full border border-slate-300 p-2 text-sm" /><input required type="number" min="0" value={entry.amount_ml || ''} onChange={(e) => setEntry({ ...entry, amount_ml: e.target.value })} placeholder="Amount in ml" className="w-full border border-slate-300 p-2 text-sm" /></div> : tab === 'records' ? <div className="mt-4 space-y-3"><select required value={entry.record_type || ''} onChange={(e) => setEntry({ ...entry, record_type: e.target.value })} className="w-full border border-slate-300 p-2 text-sm"><option value="">Record type</option><option value="shift_handover">Shift handover</option><option value="wound_care">Wound care</option><option value="patient_observation">Patient observation</option><option value="procedure_order">Procedure order</option><option value="specialist_referral">Specialist referral</option><option value="consent">Consent</option><option value="advance_directive">Advance directive</option><option value="medico_legal">Medico-legal case</option></select><textarea required value={entry.details || ''} onChange={(e) => setEntry({ ...entry, details: e.target.value })} placeholder="Record details" className="min-h-28 w-full border border-slate-300 p-2 text-sm" /></div> : <div className="mt-4 space-y-3"><input required value={entry.description || ''} onChange={(e) => setEntry({ ...entry, description: e.target.value })} placeholder="Charge description" className="w-full border border-slate-300 p-2 text-sm" /><input required value={entry.category || ''} onChange={(e) => setEntry({ ...entry, category: e.target.value })} placeholder="Category" className="w-full border border-slate-300 p-2 text-sm" /><input required type="number" min="0" value={entry.unit_price || ''} onChange={(e) => setEntry({ ...entry, unit_price: e.target.value })} placeholder="Unit price" className="w-full border border-slate-300 p-2 text-sm" /></div>}
         <button disabled={working || !selectedStay} className="mt-4 flex items-center gap-2 bg-[#B8860B] px-4 py-2 text-xs font-semibold text-white disabled:opacity-40"><Send size={14} /> Save record</button>
       </form>
