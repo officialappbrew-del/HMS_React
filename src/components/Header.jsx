@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Menu, Bell, Search, UserCircle, Moon, Sun, ChevronDown } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { getUserPreferences, setUserPreferences } from '../utils/cookies';
-import { logout } from '../utils/api';
+import { logout, notificationsApi } from '../utils/api';
 
 const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   const { branding = { logo: '' }, subdomain = 'hospital' } = useSelector(state => state.tenant || {});
@@ -25,18 +25,78 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState('');
   const searchRef = useRef(null);
   const notificationsRef = useRef(null);
+  const notificationRequestRef = useRef(false);
+  const unreadCountRef = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = userPreferences.theme === 'dark';
 
-  const notifications = useMemo(() => [
-    { id: 1, title: 'Lab results ready', message: 'CBC results for Jane Smith are available.', time: '5 min ago' },
-    { id: 2, title: 'Appointment reminder', message: 'You have a consultation at 2:00 PM.', time: '35 min ago' },
-    { id: 3, title: 'Inventory alert', message: 'Insulin stock is running low.', time: '1 hour ago' }
-  ], []);
+  const loadNotifications = async ({ force = false } = {}) => {
+    if (notificationRequestRef.current || (!force && document.visibilityState !== 'visible')) return;
+
+    try {
+      notificationRequestRef.current = true;
+      setNotificationsLoading(true);
+      setNotificationsError('');
+      const countResponse = await notificationsApi.getUnreadCount();
+      const unreadCount = Number(countResponse?.count || 0);
+
+      if (unreadCountRef.current !== unreadCount || unreadCount === 0) {
+        const response = await notificationsApi.getUnread();
+        setNotifications(Array.isArray(response) ? response : (response?.results || []));
+        unreadCountRef.current = unreadCount;
+      }
+    } catch (error) {
+      setNotificationsError(error.message || 'Unable to load notifications.');
+    } finally {
+      notificationRequestRef.current = false;
+      setNotificationsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const refreshNotifications = () => loadNotifications({ force: true });
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshNotifications();
+    };
+
+    refreshNotifications();
+    const intervalId = window.setInterval(() => loadNotifications(), 60000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', refreshNotifications);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', refreshNotifications);
+    };
+  }, []);
+
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      await notificationsApi.markAsRead(notificationId);
+      setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
+      unreadCountRef.current = Math.max(0, (unreadCountRef.current ?? notifications.length) - 1);
+    } catch (error) {
+      setNotificationsError(error.message || 'Unable to mark notification as read.');
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      await notificationsApi.markAllAsRead();
+      setNotifications([]);
+      unreadCountRef.current = 0;
+    } catch (error) {
+      setNotificationsError(error.message || 'Unable to mark notifications as read.');
+    }
+  };
 
   useEffect(() => {
     const preferences = getUserPreferences();
@@ -301,22 +361,59 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
               <div ref={notificationsRef} className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
+                  aria-label={`Notifications${notifications.length ? `, ${notifications.length} unread` : ''}`}
                   className={`relative rounded-full p-2 ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}
                 >
                   <Bell className="h-5 w-5" />
-                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                      {notifications.length > 99 ? '99+' : notifications.length}
+                    </span>
+                  )}
                 </button>
                 {showNotifications && (
-                  <div className={`absolute right-0 mt-2 w-80 rounded-xl border shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                    <div className={`border-b px-4 py-3 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                      <p className={`text-sm font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Notifications</p>
+                  <div className={`absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border shadow-lg ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                    <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                      <div>
+                        <p className={`text-sm font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Notifications</p>
+                        <p className={`mt-0.5 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{notifications.length} unread</p>
+                      </div>
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={markAllNotificationsAsRead}
+                          className={`whitespace-nowrap text-xs font-medium ${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
+                        >
+                          Mark all read
+                        </button>
+                      )}
                     </div>
-                    <div className="max-h-80 overflow-y-auto">
-                      {notifications.map((item) => (
+                    <div className="max-h-[min(24rem,60vh)] overflow-y-auto">
+                      {notificationsLoading && (
+                        <p className={`px-4 py-6 text-center text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading notifications...</p>
+                      )}
+                      {!notificationsLoading && notificationsError && (
+                        <div className="px-4 py-5 text-center">
+                          <p className="text-sm text-rose-600">{notificationsError}</p>
+                          <button onClick={loadNotifications} className="mt-2 text-xs font-medium text-emerald-700 hover:text-emerald-800">Try again</button>
+                        </div>
+                      )}
+                      {!notificationsLoading && !notificationsError && notifications.length === 0 && (
+                        <p className={`px-4 py-8 text-center text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>You are all caught up.</p>
+                      )}
+                      {!notificationsLoading && !notificationsError && notifications.map((item) => (
                         <div key={item.id} className={`border-b px-4 py-3 last:border-b-0 ${isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-100 hover:bg-slate-50'}`}>
-                          <p className={`text-sm font-medium ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{item.title}</p>
-                          <p className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.message}</p>
-                          <p className={`mt-1 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.time}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className={`min-w-0 text-sm font-medium ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{item.title}</p>
+                            <button
+                              onClick={() => markNotificationAsRead(item.id)}
+                              aria-label={`Mark ${item.title} as read`}
+                              className={`shrink-0 text-xs font-medium ${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
+                            >
+                              Read
+                            </button>
+                          </div>
+                          <p className={`mt-1 break-words text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.message}</p>
+                          <p className={`mt-1 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.time_since ? `${item.time_since} ago` : 'Just now'}</p>
                         </div>
                       ))}
                     </div>

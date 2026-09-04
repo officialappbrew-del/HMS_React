@@ -476,6 +476,7 @@ const ComplianceCard = ({ compliance, referral }) => {
 // ==================== MAIN COMPONENT ====================
 const ReferralTransport = () => {
   const referralState = useSelector(state => state.referral || {});
+  const patients = useSelector(state => state.patient?.patients || []);
   const referrals = referralState.referrals || [];
   const medicalEvacuations = referralState.medicalEvacuations || [];
   const transferCompliance = referralState.transferCompliance || [];
@@ -492,6 +493,7 @@ const ReferralTransport = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referralForm, setReferralForm] = useState({
     referralType: '',
+    patientId: '',
     patientName: '',
     referralReason: '',
     receivingFacility: '',
@@ -620,6 +622,7 @@ const ReferralTransport = () => {
 
     try {
       const payload = {
+        patientId: referralForm.patientId || null,
         patientName: referralForm.patientName,
         referralType: referralForm.referralType,
         referralReason: referralForm.referralReason,
@@ -653,7 +656,7 @@ const ReferralTransport = () => {
       setSuccessMessage('Referral created successfully.');
       setTimeout(() => setSuccessMessage(''), 3000);
       setShowReferralModal(false);
-      setReferralForm({ referralType: '', patientName: '', referralReason: '', receivingFacility: '', ambulanceId: '' });
+      setReferralForm({ referralType: '', patientId: '', patientName: '', referralReason: '', receivingFacility: '', ambulanceId: '' });
     } catch (error) {
       setFormError(error.message || 'Unable to create referral');
     } finally {
@@ -982,7 +985,7 @@ const ReferralTransport = () => {
         isOpen={showReferralModal}
         onClose={() => {
           setShowReferralModal(false);
-          setReferralForm({ referralType: '', patientName: '', referralReason: '', receivingFacility: '', ambulanceId: '' });
+          setReferralForm({ referralType: '', patientId: '', patientName: '', referralReason: '', receivingFacility: '', ambulanceId: '' });
           setFormError('');
         }}
         title="Create New Referral"
@@ -1009,16 +1012,24 @@ const ReferralTransport = () => {
 
           <div>
             <label className="block text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider mb-1">
-              Patient Name <span className="text-[#C8553D]">*</span>
+              Patient <span className="text-[#C8553D]">*</span>
             </label>
-            <input
-              type="text"
-              placeholder="Patient Name"
-              value={referralForm.patientName}
-              onChange={(e) => setReferralForm({ ...referralForm, patientName: e.target.value })}
+            <select
+              value={referralForm.patientId}
+              onChange={(e) => {
+                const patient = patients.find((item) => String(item.id) === e.target.value);
+                setReferralForm({ ...referralForm, patientId: e.target.value, patientName: patient?.name || patient?.full_name || '' });
+              }}
               className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
               required
-            />
+            >
+              <option value="">Select patient from Patient Management</option>
+              {patients.map((patient) => (
+                <option key={patient.id} value={patient.id}>
+                  {patient.name || patient.full_name || 'Unnamed patient'}{patient.mrn ? ` (${patient.mrn})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -1090,7 +1101,7 @@ const ReferralTransport = () => {
             <ButtonWithTooltip
               onClick={() => {
                 setShowReferralModal(false);
-                setReferralForm({ referralType: '', patientName: '', referralReason: '', receivingFacility: '', ambulanceId: '' });
+                setReferralForm({ referralType: '', patientId: '', patientName: '', referralReason: '', receivingFacility: '', ambulanceId: '' });
                 setFormError('');
               }}
               tooltip="Cancel"

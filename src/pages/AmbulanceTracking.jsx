@@ -2,6 +2,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { emergencyApi } from '../utils/api';
 import {
+  setFleetData,
   updateAmbulanceLocation,
   dispatchAmbulance,
   updateMissionStatus,
@@ -299,7 +300,7 @@ const MissionCard = ({ mission, ambulances, onStatusUpdate, onComplete }) => {
     }
   };
 
-  const ambulance = ambulances.find(a => a.ambulanceId === mission.ambulance);
+  const ambulance = ambulances.find(a => a.ambulanceId === (mission.ambulanceId || mission.ambulance));
 
   return (
     <div className="bg-white border border-[#E8E3DC] p-4 sm:p-5 hover:bg-[#F7F5F2] transition-colors">
@@ -472,27 +473,22 @@ const AmbulanceTracking = () => {
     { id: 'analytics', label: 'Analytics', icon: TrendingUp, count: null },
   ];
 
-  // Simulate GPS updates
+  const loadFleet = async () => {
+      const [fleetResponse, activeResponse, historyResponse] = await Promise.all([
+        emergencyApi.getAmbulances(), emergencyApi.getMissions(), emergencyApi.getMissions({ status: 'Completed' }),
+      ]);
+      const list = (response) => Array.isArray(response) ? response : response?.results || [];
+      const allMissions = list(activeResponse);
+      dispatch(setFleetData({
+        ambulances: list(fleetResponse),
+        activeMissions: allMissions.filter((mission) => !['Completed', 'Cancelled'].includes(mission.status)),
+        missionHistory: list(historyResponse),
+      }));
+  };
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      ambulances.forEach(ambulance => {
-        if (ambulance?.status === 'En Route' || ambulance?.status === 'Returning') {
-          const location = ambulance.location || { lat: 6.5244, lng: 3.3792 };
-          const newLat = location.lat + (Math.random() - 0.5) * 0.001;
-          const newLng = location.lng + (Math.random() - 0.5) * 0.001;
-          const speed = Math.floor(Math.random() * 60) + 20;
-
-          dispatch(updateAmbulanceLocation({
-            ambulanceId: ambulance.ambulanceId,
-            location: { lat: newLat, lng: newLng },
-            speed
-          }));
-        }
-      });
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [ambulances, dispatch]);
+    loadFleet().catch((error) => setFormError(error.message || 'Unable to load ambulance data.'));
+  }, [dispatch]);
 
   const handleDispatch = async (e) => {
     e.preventDefault();
@@ -512,6 +508,7 @@ const AmbulanceTracking = () => {
 
       const missionData = {
         ambulanceId: dispatchData.ambulanceId,
+        patientId: patient?.id || null,
         incidentType: dispatchData.incidentType || 'Medical Emergency',
         priority: dispatchData.priority || 'Medium',
         patientInfo: {
@@ -613,8 +610,12 @@ const AmbulanceTracking = () => {
   };
 
   const handleRefresh = () => {
-    setSuccessMessage('Data refreshed.');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    loadFleet()
+      .then(() => {
+        setSuccessMessage('Data refreshed.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      })
+      .catch((error) => setFormError(error.message || 'Unable to refresh ambulance data.'));
   };
 
   const availableAmbulances = ambulances.filter(a => a.status === 'Available').length;

@@ -61,7 +61,7 @@ import {
   Clipboard,
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
-import { reportIncident, updateIncident, dispatchResponse } from '../features/emergencyResponseSlice';
+import { setEmergencyCalls, reportIncident, updateIncident, dispatchResponse } from '../features/emergencyResponseSlice';
 import { emergencyApi } from '../utils/api';
 
 // ==================== TOOLTIP COMPONENT ====================
@@ -461,12 +461,11 @@ const EmergencyResponse = () => {
     { id: 'communication', label: 'Communications', icon: MessageSquare, count: communications.length },
   ];
 
-  useEffect(() => {
-    const loadCalls = async () => {
+  const loadCalls = async () => {
       try {
         const calls = await emergencyApi.getCalls();
         const normalized = Array.isArray(calls) ? calls : calls.results || [];
-        normalized.forEach((call) => dispatch(reportIncident({
+        dispatch(setEmergencyCalls(normalized.map((call) => ({
           callId: call.callId || call.id,
           callerName: call.callerName,
           callerPhone: call.callerPhone,
@@ -480,16 +479,15 @@ const EmergencyResponse = () => {
           callTime: call.created_at,
           notes: call.notes,
           communications: call.communications || []
-        })));
+        }))));
       } catch (error) {
         console.error('Failed to load emergency calls', error);
       }
-    };
+  };
 
-    if (!emergencyCalls.length) {
-      loadCalls();
-    }
-  }, [dispatch, emergencyCalls.length]);
+  useEffect(() => {
+    loadCalls();
+  }, [dispatch]);
 
   const handleCreateCall = async () => {
     setFormError('');
@@ -564,7 +562,7 @@ const EmergencyResponse = () => {
   };
 
   const handleRefresh = () => {
-    // Refresh logic would go here
+    loadCalls();
     setSuccessMessage('Data refreshed.');
     setTimeout(() => setSuccessMessage(''), 3000);
   };

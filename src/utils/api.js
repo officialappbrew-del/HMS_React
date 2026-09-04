@@ -912,6 +912,15 @@ export const auditApi = {
 };
 
 export const emergencyApi = {
+  getAmbulances: () => apiRequest('/api/v1/ward-rounds/ambulances/'),
+  createAmbulance: (data) => apiRequest('/api/v1/ward-rounds/ambulances/', { method: 'POST', body: JSON.stringify(data) }),
+  updateAmbulance: (id, data) => apiRequest(`/api/v1/ward-rounds/ambulances/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getBays: () => apiRequest('/api/v1/ward-rounds/emergency-bays/'),
+  getCases: () => apiRequest('/api/v1/ward-rounds/emergency-cases/'),
+  createCase: (data) => apiRequest('/api/v1/ward-rounds/emergency-cases/', { method: 'POST', body: JSON.stringify(data) }),
+  triageCase: (id, data) => apiRequest(`/api/v1/ward-rounds/emergency-cases/${id}/triage/`, { method: 'POST', body: JSON.stringify(data) }),
+  assignBay: (id, bayId) => apiRequest(`/api/v1/ward-rounds/emergency-cases/${id}/assign-bay/`, { method: 'POST', body: JSON.stringify({ bayId }) }),
+  updateStatus: (id, status) => apiRequest(`/api/v1/ward-rounds/emergency-cases/${id}/update-status/`, { method: 'POST', body: JSON.stringify({ status }) }),
   getCalls: (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
@@ -1100,4 +1109,25 @@ createBed: (data) => apiRequest('/api/v1/ward-rounds/beds/', { method: 'POST', b
   approveOvertimeRecord: (id) => apiRequest(`/api/v1/ward-rounds/overtime-records/${id}/approve/`, { method: 'POST' }),
   rejectOvertimeRecord: (id) => apiRequest(`/api/v1/ward-rounds/overtime-records/${id}/reject/`, { method: 'POST' }),
   deleteOvertimeRecord: (id) => apiRequest(`/api/v1/ward-rounds/overtime-records/${id}/`, { method: 'DELETE' }),
+};
+
+export const notificationsApi = {
+  getUnread: () => apiRequest('/api/v1/auth/notifications/'),
+  getUnreadCount: () => apiRequest('/api/v1/auth/notifications/unread_count/'),
+  markAsRead: (id) => apiRequest(`/api/v1/auth/notifications/${id}/mark_as_read/`, { method: 'POST' }),
+  markAllAsRead: () => apiRequest('/api/v1/auth/notifications/mark_all_as_read/', { method: 'POST' }),
+};
+
+export const feedbackApi = {
+  getSurveys: () => apiRequest('/api/v1/ward-rounds/patient-surveys/'),
+  createSurvey: (data) => apiRequest('/api/v1/ward-rounds/patient-surveys/', { method: 'POST', body: JSON.stringify(data) }),
+  sendSurvey: (id) => apiRequest(`/api/v1/ward-rounds/patient-surveys/${id}/send/`, { method: 'POST' }),
+  getFeedback: () => apiRequest('/api/v1/ward-rounds/patient-feedback/'),
+  createFeedback: (data) => apiRequest('/api/v1/ward-rounds/patient-feedback/', { method: 'POST', body: JSON.stringify(data) }),
+  getComplaints: () => apiRequest('/api/v1/ward-rounds/patient-complaints/'),
+  createComplaint: (data) => apiRequest('/api/v1/ward-rounds/patient-complaints/', { method: 'POST', body: JSON.stringify(data) }),
+  resolveComplaint: (id, resolution) => apiRequest(`/api/v1/ward-rounds/patient-complaints/${id}/resolve/`, { method: 'POST', body: JSON.stringify({ resolution }) }),
+  escalateComplaint: (id) => apiRequest(`/api/v1/ward-rounds/patient-complaints/${id}/escalate/`, { method: 'POST' }),
+  getPlans: () => apiRequest('/api/v1/ward-rounds/quality-improvement-plans/'),
+  createPlan: (data) => apiRequest('/api/v1/ward-rounds/quality-improvement-plans/', { method: 'POST', body: JSON.stringify(data) }),
 };

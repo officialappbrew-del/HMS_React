@@ -38,15 +38,11 @@ import {
   Calendar
 } from 'lucide-react';
 import {
-  registerPatient,
-  performTriage,
-  assignToBay,
-  updatePatientStatus,
-  addInvestigation,
-  addTreatment,
-  activateTraumaProtocol,
-  updateProtocolStep,
-  calculateWaitTimes,
+  fetchEmergencyData,
+  registerEmergencyCase,
+  triageEmergencyCase,
+  assignEmergencyBay,
+  updateEmergencyCaseStatus,
   searchED,
   sortED,
   filterED
@@ -568,8 +564,6 @@ const EmergencyDepartmentManagement = () => {
     waitingRoom,
     dischargeLounge,
     stats,
-    triageScales,
-    traumaProtocols,
     searchTerm,
     sortBy,
     filterBy,
@@ -605,20 +599,9 @@ const EmergencyDepartmentManagement = () => {
     mobility: 'Normal'
   });
 
-  // Initialize treatment bays if empty
-  useEffect(() => {
-    if (treatmentBays.length === 0) {
-      // This would normally be loaded from a configuration
-    }
-  }, [treatmentBays]);
-
   // Calculate wait times periodically
   useEffect(() => {
-    const interval = setInterval(() => {
-      dispatch(calculateWaitTimes());
-    }, 60000);
-
-    return () => clearInterval(interval);
+    dispatch(fetchEmergencyData());
   }, [dispatch]);
 
   // Filter and search logic
@@ -651,7 +634,13 @@ const EmergencyDepartmentManagement = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await dispatch(registerPatient(patientForm));
+      await dispatch(registerEmergencyCase({
+        name: patientForm.name,
+        age: Number(patientForm.age) || 0,
+        gender: patientForm.gender,
+        presentingComplaint: patientForm.presentingComplaint,
+        modeOfArrival: patientForm.modeOfArrival,
+      })).unwrap();
       setPatientForm({
         name: '',
         age: '',
@@ -706,10 +695,10 @@ const EmergencyDepartmentManagement = () => {
     setIsSubmitting(true);
     try {
       const triageResult = calculateTriageScore(triageForm);
-      await dispatch(performTriage({
+      await dispatch(triageEmergencyCase({
         patientId: selectedPatient.id,
         triageData: triageResult
-      }));
+      })).unwrap();
       setTriageForm({
         respiratoryRate: '',
         oxygenSaturation: '',
@@ -729,16 +718,14 @@ const EmergencyDepartmentManagement = () => {
   };
 
   const handleAssignToBay = (patientId, bayId) => {
-    dispatch(assignToBay({
+    dispatch(assignEmergencyBay({
       patientId,
       bayId,
-      physicianId: 'dr_smith',
-      nurseId: 'nurse_jane'
-    }));
+    })).unwrap();
   };
 
   const handleRefresh = () => {
-    dispatch(calculateWaitTimes());
+    dispatch(fetchEmergencyData());
   };
 
   const getTriageColorClass = (color) => {
@@ -929,14 +916,7 @@ const EmergencyDepartmentManagement = () => {
                 Treatment Bays
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {[
-                  { id: 'bay1', name: 'Bay 1' },
-                  { id: 'bay2', name: 'Bay 2' },
-                  { id: 'bay3', name: 'Bay 3' },
-                  { id: 'bay4', name: 'Bay 4' },
-                  { id: 'bay5', name: 'Bay 5' },
-                  { id: 'resus', name: 'Resus' }
-                ].map(bay => {
+                {treatmentBays.map(bay => {
                   const patient = patients.find(p => p.assignedBay === bay.id);
                   return (
                     <div key={bay.id} className={`p-3 border-2 ${
@@ -1030,14 +1010,7 @@ const EmergencyDepartmentManagement = () => {
                           className="px-2 py-1 text-xs bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors"
                         >
                           <option value="">Assign Bay</option>
-                          {[
-                            { id: 'bay1', name: 'Bay 1' },
-                            { id: 'bay2', name: 'Bay 2' },
-                            { id: 'bay3', name: 'Bay 3' },
-                            { id: 'bay4', name: 'Bay 4' },
-                            { id: 'bay5', name: 'Bay 5' },
-                            { id: 'resus', name: 'Resus' }
-                          ].map(bay => (
+                          {treatmentBays.map(bay => (
                             <option key={bay.id} value={bay.id}>{bay.name}</option>
                           ))}
                         </select>
@@ -1062,14 +1035,7 @@ const EmergencyDepartmentManagement = () => {
           <div>
             <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Treatment Bays</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                { id: 'bay1', name: 'Bay 1', type: 'Standard' },
-                { id: 'bay2', name: 'Bay 2', type: 'Standard' },
-                { id: 'bay3', name: 'Bay 3', type: 'Standard' },
-                { id: 'bay4', name: 'Bay 4', type: 'Standard' },
-                { id: 'bay5', name: 'Bay 5', type: 'Standard' },
-                { id: 'resus', name: 'Resuscitation Bay', type: 'Critical' }
-              ].map(bay => {
+              {treatmentBays.map(bay => {
                 const patient = patients.find(p => p.assignedBay === bay.id);
                 return (
                   <div key={bay.id} className={`p-4 border-2 ${
@@ -1097,7 +1063,7 @@ const EmergencyDepartmentManagement = () => {
                         <p className="text-xs text-[#5A5A5A] mb-2">{patient.presentingComplaint}</p>
                         <div className="flex flex-wrap gap-1">
                           <ButtonWithTooltip
-                            onClick={() => dispatch(updatePatientStatus({ patientId: patient.id, status: 'discharged' }))}
+                            onClick={() => dispatch(updateEmergencyCaseStatus({ patientId: patient.id, status: 'discharged' }))}
                             tooltip="Discharge patient"
                             variant="success"
                             size="sm"
@@ -1106,7 +1072,7 @@ const EmergencyDepartmentManagement = () => {
                             Discharge
                           </ButtonWithTooltip>
                           <ButtonWithTooltip
-                            onClick={() => dispatch(updatePatientStatus({ patientId: patient.id, status: 'admitted' }))}
+                            onClick={() => dispatch(updateEmergencyCaseStatus({ patientId: patient.id, status: 'admitted' }))}
                             tooltip="Admit patient"
                             variant="primary"
                             size="sm"
@@ -1259,7 +1225,7 @@ const EmergencyDepartmentManagement = () => {
                               )}
                               {patient.status === 'triaged' && (
                                 <ButtonWithTooltip
-                                  onClick={() => dispatch(activateTraumaProtocol({ patientId: patient.id, protocolType: 'atls' }))}
+                                  onClick={() => dispatch(triageEmergencyCase({ patientId: patient.id, triageData: { score: patient.triageScore, color: patient.triageColor } }))}
                                   tooltip="Activate trauma protocol"
                                   variant="danger"
                                   size="sm"
@@ -1268,13 +1234,6 @@ const EmergencyDepartmentManagement = () => {
                                   ATLS
                                 </ButtonWithTooltip>
                               )}
-                              <IconButton
-                                icon={Eye}
-                                onClick={() => {}}
-                                tooltip="View details"
-                                variant="default"
-                                size="sm"
-                              />
                             </div>
                           </td>
                         </tr>

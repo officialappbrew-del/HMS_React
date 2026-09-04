@@ -45,16 +45,12 @@ import {
   Info
 } from 'lucide-react';
 import {
-  createSurvey,
-  sendSurvey,
-  submitFeedback,
-  createComplaint,
-  updateComplaint,
-  resolveComplaint,
-  escalateComplaint,
-  createImprovementPlan,
-  updateQualityMetrics,
-  generateFeedbackReport,
+  fetchFeedbackData,
+  createFeedbackSurvey,
+  sendFeedbackSurvey,
+  createPatientComplaint,
+  resolvePatientComplaint,
+  escalatePatientComplaint,
   searchFeedback,
   filterFeedback
 } from '../features/feedbackSlice';
@@ -595,37 +591,19 @@ const PatientFeedback = () => {
     contactMethod: 'phone'
   });
 
-  // Nigerian healthcare satisfaction metrics
+  useEffect(() => {
+    dispatch(fetchFeedbackData());
+  }, [dispatch]);
+
   const satisfactionMetrics = {
     overall: {
-      nps: 45,
-      pss: 4.2,
-      responseRate: 68,
-      trend: 'improving'
+      nps: metrics?.nps ?? 0,
+      pss: metrics?.satisfactionScore ?? 0,
+      responseRate: metrics?.responseRate ?? 0,
+      trend: metrics?.trend || 'stable'
     },
-    categories: {
-      waitingTime: { score: 3.8, target: 4.0, responses: 1250 },
-      staffCourtesy: { score: 4.5, target: 4.2, responses: 1180 },
-      facilityCleanliness: { score: 4.1, target: 4.0, responses: 1150 },
-      medicalCare: { score: 4.3, target: 4.5, responses: 1220 },
-      billingTransparency: { score: 3.6, target: 4.0, responses: 980 },
-      overallExperience: { score: 4.2, target: 4.3, responses: 1300 }
-    },
-    demographics: {
-      ageGroups: {
-        '18-30': { count: 450, satisfaction: 4.1 },
-        '31-50': { count: 680, satisfaction: 4.3 },
-        '51-70': { count: 520, satisfaction: 4.0 },
-        '70+': { count: 280, satisfaction: 3.9 }
-      },
-      departments: {
-        'Emergency': { count: 380, satisfaction: 3.8 },
-        'Outpatient': { count: 650, satisfaction: 4.2 },
-        'Inpatient': { count: 420, satisfaction: 4.1 },
-        'Laboratory': { count: 290, satisfaction: 4.4 },
-        'Pharmacy': { count: 190, satisfaction: 4.0 }
-      }
-    }
+    categories: metrics?.categories || {},
+    demographics: metrics?.demographics || { ageGroups: {}, departments: {} }
   };
 
   // Filter and search logic
@@ -666,7 +644,11 @@ const PatientFeedback = () => {
     e.preventDefault();
     setSurveySubmitting(true);
     try {
-      await dispatch(createSurvey(surveyForm));
+      await dispatch(createFeedbackSurvey({
+        ...surveyForm,
+        targetAudience: surveyForm.targetAudience,
+        distributionMethod: surveyForm.distributionMethod,
+      })).unwrap();
       setSurveyForm({
         title: '',
         type: 'post_visit',
@@ -686,7 +668,15 @@ const PatientFeedback = () => {
     e.preventDefault();
     setComplaintSubmitting(true);
     try {
-      await dispatch(createComplaint(complaintForm));
+      await dispatch(createPatientComplaint({
+        patientId: complaintForm.patientId || null,
+        patientName: complaintForm.patientName,
+        category: complaintForm.category,
+        priority: complaintForm.priority,
+        description: complaintForm.description,
+        department: complaintForm.department,
+        contact_method: complaintForm.contactMethod,
+      })).unwrap();
       setComplaintForm({
         patientId: '',
         patientName: '',
@@ -703,15 +693,30 @@ const PatientFeedback = () => {
   };
 
   const handleResolveComplaint = (complaintId) => {
-    dispatch(resolveComplaint({ complaintId }));
+    dispatch(resolvePatientComplaint({ complaintId }));
   };
 
   const handleEscalateComplaint = (complaintId) => {
-    dispatch(escalateComplaint({ complaintId }));
+    dispatch(escalatePatientComplaint(complaintId));
   };
 
   const handleRefresh = () => {
-    // Refresh data logic
+    setCurrentPage(1);
+    dispatch(fetchFeedbackData());
+  };
+
+  const exportRecords = (records, filename) => {
+    const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSendSurvey = async (surveyId) => {
+    await dispatch(sendFeedbackSurvey(surveyId)).unwrap();
   };
 
   const getSatisfactionColor = (score, scale = 5) => {
@@ -1017,7 +1022,7 @@ const PatientFeedback = () => {
                   Create Survey
                 </ButtonWithTooltip>
                 <ButtonWithTooltip
-                  onClick={() => {}}
+                  onClick={() => exportRecords(surveys, 'patient-surveys.json')}
                   tooltip="Export survey results"
                   variant="secondary"
                 >
@@ -1073,7 +1078,7 @@ const PatientFeedback = () => {
 
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-[#E8E3DC]">
                       <ButtonWithTooltip
-                        onClick={() => {}}
+                        onClick={() => setActiveTab('feedback')}
                         tooltip="View survey results"
                         variant="secondary"
                         size="sm"
@@ -1082,22 +1087,13 @@ const PatientFeedback = () => {
                         View Results
                       </ButtonWithTooltip>
                       <ButtonWithTooltip
-                        onClick={() => {}}
+                        onClick={() => handleSendSurvey(survey.id)}
                         tooltip="Send survey to patients"
                         variant="primary"
                         size="sm"
                       >
                         <Send className="w-3.5 h-3.5" />
                         Send Survey
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip
-                        onClick={() => {}}
-                        tooltip="Edit survey"
-                        variant="warning"
-                        size="sm"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                        Edit
                       </ButtonWithTooltip>
                     </div>
                   </div>
@@ -1141,7 +1137,7 @@ const PatientFeedback = () => {
 
               <div className="flex items-end">
                 <ButtonWithTooltip
-                  onClick={() => {}}
+                  onClick={() => exportRecords(feedback, 'patient-feedback.json')}
                   tooltip="Export feedback report"
                   variant="secondary"
                   className="w-full"
@@ -1318,13 +1314,6 @@ const PatientFeedback = () => {
                                 </ButtonWithTooltip>
                               </>
                             )}
-                            <IconButton
-                              icon={Eye}
-                              onClick={() => {}}
-                              tooltip="View details"
-                              variant="default"
-                              size="sm"
-                            />
                           </div>
                         </td>
                       </tr>
@@ -1340,14 +1329,6 @@ const PatientFeedback = () => {
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-sm font-display font-semibold text-[#1A1A1A]">Quality Improvement Plans</h3>
-              <ButtonWithTooltip
-                onClick={() => {}}
-                tooltip="Create new improvement plan"
-                variant="primary"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Create Plan
-              </ButtonWithTooltip>
             </div>
 
             {improvementPlans.length === 0 ? (
@@ -1403,25 +1384,7 @@ const PatientFeedback = () => {
 
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-[#E8E3DC]">
                       <ButtonWithTooltip
-                        onClick={() => {}}
-                        tooltip="Update progress"
-                        variant="primary"
-                        size="sm"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        Update Progress
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip
-                        onClick={() => {}}
-                        tooltip="View details"
-                        variant="secondary"
-                        size="sm"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View Details
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip
-                        onClick={() => {}}
+                        onClick={() => exportRecords([plan], `quality-plan-${plan.id}.json`)}
                         tooltip="Generate report"
                         variant="secondary"
                         size="sm"
