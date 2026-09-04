@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import BedAllocation from './BedAllocation';
 import IPDManagement from './IPDManagement';
 import {
@@ -333,6 +333,7 @@ const DetailsView = ({ data }) => {
 const AdmissionManagement = () => {
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
   const { admissions, admissionRequests, admissionStatuses, admissionSources } = useSelector(
     state => state.admission
   );
@@ -449,17 +450,10 @@ const AdmissionManagement = () => {
     const sessionPrefill = sessionStorage.getItem('admissionPrefillPatient');
     const preselectedPatient = location.state?.preselectedPatient || (sessionPrefill ? JSON.parse(sessionPrefill) : null);
     if (preselectedPatient) {
-      setFormData((current) => ({
-        ...current,
-        patientId: preselectedPatient.patientId || preselectedPatient.id || '',
-        patientName: preselectedPatient.patientName || preselectedPatient.name || '',
-        source: current.source || 'Direct Admission',
-      }));
-      setPatientSearchQuery(preselectedPatient.patientName || preselectedPatient.name || '');
-      setShowAdmissionForm(true);
+      navigate('/ipd', { state: { preselectedPatient }, replace: true });
       sessionStorage.removeItem('admissionPrefillPatient');
     }
-  }, [location.state]);
+  }, [location.state, navigate]);
 
   // Derived data
   const activeAdmissions = admissions.filter(a => a.status === admissionStatuses.ADMITTED);
@@ -963,22 +957,15 @@ const AdmissionManagement = () => {
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            const preselectedPatient = {
-                              patientId: request.patientId || request.id,
-                              patientName: request.patientName,
-                              name: request.patientName,
-                            };
-                            sessionStorage.setItem('admissionPrefillPatient', JSON.stringify(preselectedPatient));
-                            setFormData((current) => ({
-                              ...current,
-                              patientId: preselectedPatient.patientId,
-                              patientName: preselectedPatient.patientName,
-                              source: current.source || 'Direct Admission',
-                            }));
-                            setPatientSearchQuery(preselectedPatient.patientName || '');
-                            setShowAdmissionForm(true);
-                          }}
+                          onClick={() => navigate('/ipd', {
+                            state: {
+                              preselectedPatient: {
+                                id: request.patientId || request.id,
+                                patientName: request.patientName,
+                                name: request.patientName,
+                              },
+                            },
+                          })}
                           className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
                         >
                           <span className="flex items-center gap-1"><UserPlus className="w-3.5 h-3.5" />Admit</span>
@@ -1163,7 +1150,7 @@ const AdmissionManagement = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ButtonWithTooltip
-              onClick={() => setShowAdmissionForm(true)}
+              onClick={() => navigate('/ipd')}
               tooltip="Create a new admission request"
               variant="primary"
             >
