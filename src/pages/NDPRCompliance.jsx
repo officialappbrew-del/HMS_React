@@ -90,6 +90,12 @@ import {
   reportDataBreach,
   updateBreachStatus,
   generateComplianceReport,
+  fetchConsentRecords,
+  fetchDataRequests,
+  fetchDataBreaches,
+  fetchAuditLogs,
+  fetchComplianceMetrics,
+  fetchComplianceReports,
   auditDataAccess,
   searchComplianceData,
   filterComplianceData
@@ -331,7 +337,9 @@ const NDPRCompliance = () => {
     complianceMetrics,
     searchTerm,
     filterBy,
-    loading
+    loading,
+    error,
+    complianceReports
   } = useSelector(state => state.ndpr);
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -379,40 +387,54 @@ const NDPRCompliance = () => {
     identityVerification: ''
   });
 
-  // NDPR compliance metrics
   const ndprMetrics = {
     overview: {
-      consentCompliance: 94.2,
-      dataRequestsProcessed: 98.5,
-      breachResponseTime: 2.3,
-      auditCompliance: 96.8,
-      trainingCompletion: 89.3
-    },
-    consents: {
-      totalConsents: 15420,
-      activeConsents: 14250,
-      expiredConsents: 850,
-      withdrawnConsents: 320,
-      digitalConsents: 12800,
-      paperConsents: 1620
+      consentCompliance: complianceMetrics.consentCompliance || 0,
+      dataRequestsProcessed: complianceMetrics.dataRequestsProcessed || 0,
+      breachResponseTime: complianceMetrics.breachResponseTime || 0,
+      auditCompliance: complianceMetrics.auditCompliance || 0,
+      trainingCompletion: complianceMetrics.trainingCompletion || 0,
     },
     dataRequests: {
-      totalRequests: 245,
-      completedRequests: 238,
-      pendingRequests: 7,
-      averageProcessingTime: 3.2,
-      accessRequests: 180,
-      rectificationRequests: 45,
-      erasureRequests: 20
+      totalRequests: complianceMetrics.totalRequests || 0,
+      completedRequests: Math.max((complianceMetrics.totalRequests || 0) - (complianceMetrics.pendingRequests || 0), 0),
+      pendingRequests: complianceMetrics.pendingRequests || 0,
+      averageProcessingTime: 0,
+      accessRequests: dataRequests.filter((request) => request.requestType === 'access').length,
+      rectificationRequests: dataRequests.filter((request) => request.requestType === 'rectification').length,
+      erasureRequests: dataRequests.filter((request) => request.requestType === 'erasure').length,
     },
     breaches: {
-      totalBreaches: 2,
-      containedBreaches: 2,
-      averageResponseTime: 1.8,
-      reportedToNITDA: 2,
-      affectedIndividuals: 45
-    }
+      totalBreaches: complianceMetrics.totalBreaches || 0,
+      containedBreaches: dataBreaches.filter((breach) => ['contained', 'resolved', 'reported'].includes(breach.status)).length,
+      averageResponseTime: complianceMetrics.breachResponseTime || 0,
+      reportedToNITDA: dataBreaches.filter((breach) => breach.reportedToNITDA).length,
+      affectedIndividuals: dataBreaches.reduce((total, breach) => total + Number(breach.affectedIndividuals || 0), 0),
+    },
   };
+
+  useEffect(() => {
+    const loadComplianceData = async () => {
+      setErrorMessage('');
+      try {
+        await Promise.all([
+          dispatch(fetchConsentRecords()),
+          dispatch(fetchDataRequests()),
+          dispatch(fetchDataBreaches()),
+          dispatch(fetchAuditLogs()),
+          dispatch(fetchComplianceMetrics()),
+          dispatch(fetchComplianceReports()),
+        ]);
+      } catch (loadError) {
+        setErrorMessage(loadError.message || 'Unable to load NDPR compliance data.');
+      }
+    };
+    loadComplianceData();
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (error) setErrorMessage(error);
+  }, [error]);
 
   // Filter and search logic
   const filteredConsents = consentRecords
@@ -441,7 +463,7 @@ const NDPRCompliance = () => {
     currentPage * itemsPerPage
   );
 
-  const handleCreateConsent = (e) => {
+  const handleCreateConsent = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -449,8 +471,13 @@ const NDPRCompliance = () => {
       setErrorMessage('Please fill in all required fields.');
       return;
     }
-    dispatch(createConsentRecord(consentForm));
-    setSuccessMessage('Consent record created successfully.');
+    try {
+      await dispatch(createConsentRecord(consentForm)).unwrap();
+      setSuccessMessage('Consent record created successfully.');
+    } catch (createError) {
+      setErrorMessage(createError.message || 'Unable to create consent record.');
+      return;
+    }
     setConsentForm({
       patientId: '',
       patientName: '',
@@ -465,7 +492,7 @@ const NDPRCompliance = () => {
     setTimeout(() => setShowConsentModal(false), 500);
   };
 
-  const handleReportBreach = (e) => {
+  const handleReportBreach = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -473,8 +500,13 @@ const NDPRCompliance = () => {
       setErrorMessage('Please fill in all required fields.');
       return;
     }
-    dispatch(reportDataBreach(breachForm));
-    setSuccessMessage('Data breach reported successfully.');
+    try {
+      await dispatch(reportDataBreach(breachForm)).unwrap();
+      setSuccessMessage('Data breach reported successfully.');
+    } catch (reportError) {
+      setErrorMessage(reportError.message || 'Unable to report data breach.');
+      return;
+    }
     setBreachForm({
       breachType: '',
       affectedData: [],
@@ -490,7 +522,7 @@ const NDPRCompliance = () => {
     setTimeout(() => setShowBreachModal(false), 500);
   };
 
-  const handleSubmitDataRequest = (e) => {
+  const handleSubmitDataRequest = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -498,8 +530,13 @@ const NDPRCompliance = () => {
       setErrorMessage('Please fill in all required fields.');
       return;
     }
-    dispatch(submitDataRequest(dataRequestForm));
-    setSuccessMessage('Data subject request submitted successfully.');
+    try {
+      await dispatch(submitDataRequest(dataRequestForm)).unwrap();
+      setSuccessMessage('Data subject request submitted successfully.');
+    } catch (requestError) {
+      setErrorMessage(requestError.message || 'Unable to submit data subject request.');
+      return;
+    }
     setDataRequestForm({
       requesterType: 'data_subject',
       requesterName: '',
@@ -513,9 +550,13 @@ const NDPRCompliance = () => {
     setTimeout(() => setShowDataRequestModal(false), 500);
   };
 
-  const handleProcessRequest = (requestId, action) => {
-    dispatch(processDataRequest({ requestId, action }));
-    setSuccessMessage(`Request ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
+  const handleProcessRequest = async (requestId, action) => {
+    try {
+      await dispatch(processDataRequest({ requestId, action })).unwrap();
+      setSuccessMessage(`Request ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
+    } catch (processError) {
+      setErrorMessage(processError.message || 'Unable to process data request.');
+    }
   };
 
   const getConsentStatusColor = (status) => {
@@ -588,7 +629,7 @@ const NDPRCompliance = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
-                NDPR Compliance Automation
+                NDPR Compliance Automation 
               </h1>
               <p className="text-xs sm:text-sm text-[#5A5A5A]">
                 Nigeria Data Protection Regulation compliance management
@@ -598,9 +639,12 @@ const NDPRCompliance = () => {
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
             <ButtonWithTooltip
               onClick={() => {
-                // Refresh data
-                setSuccessMessage('Compliance data refreshed.');
-                setTimeout(() => setSuccessMessage(''), 3000);
+                dispatch(fetchConsentRecords());
+                dispatch(fetchDataRequests());
+                dispatch(fetchDataBreaches());
+                dispatch(fetchAuditLogs());
+                dispatch(fetchComplianceMetrics());
+                dispatch(fetchComplianceReports());
               }}
               tooltip="Refresh compliance data"
               variant="secondary"
@@ -753,11 +797,11 @@ const NDPRCompliance = () => {
                 <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Data Subject Rights Processing</h3>
                 <div className="space-y-3">
                   {[
-                    { right: 'Right to Access', requests: ndprMetrics.dataRequests.accessRequests, avgTime: 2.1 },
-                    { right: 'Right to Rectification', requests: ndprMetrics.dataRequests.rectificationRequests, avgTime: 1.8 },
-                    { right: 'Right to Erasure', requests: ndprMetrics.dataRequests.erasureRequests, avgTime: 5.2 },
-                    { right: 'Right to Object', requests: 8, avgTime: 3.5 },
-                    { right: 'Data Portability', requests: 12, avgTime: 4.1 }
+                    { right: 'Right to Access', requests: ndprMetrics.dataRequests.accessRequests },
+                    { right: 'Right to Rectification', requests: ndprMetrics.dataRequests.rectificationRequests },
+                    { right: 'Right to Erasure', requests: ndprMetrics.dataRequests.erasureRequests },
+                    { right: 'Right to Object', requests: dataRequests.filter((request) => request.requestType === 'object').length },
+                    { right: 'Data Portability', requests: dataRequests.filter((request) => request.requestType === 'portability').length }
                   ].map(right => (
                     <div key={right.right} className="bg-white border border-[#E8E3DC] p-4">
                       <div className="flex items-center justify-between mb-1">
@@ -765,7 +809,7 @@ const NDPRCompliance = () => {
                         <span className="text-xs text-[#5A5A5A]">{right.requests} requests</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-[#5A5A5A]">Avg. processing: {right.avgTime} days</span>
+                        <span className="text-xs text-[#5A5A5A]">Recorded requests: {right.requests}</span>
                         <span className="inline-flex items-center gap-1 text-xs text-[#2D7D46]">
                           <CheckCircle className="w-3 h-3" />
                           Compliant
@@ -782,14 +826,15 @@ const NDPRCompliance = () => {
               <h3 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Recent Compliance Activity</h3>
               <div className="bg-white border border-[#E8E3DC]">
                 <div className="divide-y divide-[#F0EDE8]">
-                  {[
-                    { action: 'Consent granted', subject: 'John Adebayo', time: '2 hours ago', type: 'consent' },
-                    { action: 'Data access request processed', subject: 'Mary Johnson', time: '4 hours ago', type: 'request' },
-                    { action: 'Monthly compliance audit completed', subject: 'System', time: '1 day ago', type: 'audit' },
-                    { action: 'Data breach notification sent', subject: 'NITDA', time: '2 days ago', type: 'breach' },
-                    { action: 'Consent withdrawn', subject: 'David Okon', time: '3 days ago', type: 'consent' }
-                  ].map((activity, index) => (
-                    <div key={index} className="p-4 flex items-center justify-between hover:bg-[#F7F5F2] transition-colors">
+                  {auditLogs.slice(0, 5).map((log) => {
+                    const activity = {
+                      action: log.actionType || 'Compliance activity',
+                      subject: log.description || log.resourceType || 'System',
+                      time: formatDate(log.created_at),
+                      type: log.actionType?.includes('breach') ? 'breach' : log.actionType?.includes('request') ? 'request' : log.actionType?.includes('consent') ? 'consent' : 'audit',
+                    };
+                    return (
+                    <div key={log.id} className="p-4 flex items-center justify-between hover:bg-[#F7F5F2] transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded flex items-center justify-center ${
                           activity.type === 'consent' ? 'bg-[#E8F5EF]' :
@@ -809,7 +854,9 @@ const NDPRCompliance = () => {
                       </div>
                       <span className="text-xs text-[#B0A89E]">{activity.time}</span>
                     </div>
-                  ))}
+                    );
+                  })}
+                  {auditLogs.length === 0 && <p className="p-4 text-sm text-[#5A5A5A]">No compliance activity recorded.</p>}
                 </div>
               </div>
             </div>
@@ -910,17 +957,19 @@ const NDPRCompliance = () => {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              <IconButton
-                                icon={Eye}
-                                onClick={() => {}} // View details
-                                tooltip="View Details"
-                                variant="primary"
-                                size="sm"
-                              />
                               {consent.status === 'active' && (
                                 <IconButton
                                   icon={XCircle}
-                                  onClick={() => {}} // Withdraw consent
+                                  onClick={async () => {
+                                    const reason = window.prompt('Reason for withdrawing this consent:');
+                                    if (reason === null) return;
+                                    try {
+                                      await dispatch(withdrawConsent({ consentId: consent.id, reason })).unwrap();
+                                      setSuccessMessage('Consent withdrawn successfully.');
+                                    } catch (withdrawError) {
+                                      setErrorMessage(withdrawError.message || 'Unable to withdraw consent.');
+                                    }
+                                  }}
                                   tooltip="Withdraw Consent"
                                   variant="danger"
                                   size="sm"
@@ -1051,13 +1100,6 @@ const NDPRCompliance = () => {
                                   />
                                 </>
                               )}
-                              <IconButton
-                                icon={Eye}
-                                onClick={() => {}} // View details
-                                tooltip="View Details"
-                                variant="primary"
-                                size="sm"
-                              />
                             </div>
                           </td>
                         </tr>
@@ -1112,7 +1154,7 @@ const NDPRCompliance = () => {
                       </div>
                       <div>
                         <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">Response Time</p>
-                        <p className="text-sm font-medium text-[#1A1A1A]">{breach.responseTime} hours</p>
+                        <p className="text-sm font-medium text-[#1A1A1A]">{breach.responseTimeHours || 0} hours</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">NITDA Notified</p>
@@ -1131,31 +1173,22 @@ const NDPRCompliance = () => {
 
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-[#F0EDE8]">
                       <ButtonWithTooltip
-                        onClick={() => {}} // View full report
-                        tooltip="View full breach report"
-                        variant="secondary"
-                        size="sm"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View Report
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip
-                        onClick={() => {}} // Update status
+                        onClick={async () => {
+                          const nextStatus = window.prompt('Enter status: investigating, contained, resolved, or reported', breach.status);
+                          if (!nextStatus || !['investigating', 'contained', 'resolved', 'reported'].includes(nextStatus)) return;
+                          try {
+                            await dispatch(updateBreachStatus({ breachId: breach.id, status: nextStatus })).unwrap();
+                            setSuccessMessage('Breach status updated.');
+                          } catch (statusError) {
+                            setErrorMessage(statusError.message || 'Unable to update breach status.');
+                          }
+                        }}
                         tooltip="Update breach status"
                         variant="primary"
                         size="sm"
                       >
                         <Edit className="w-3.5 h-3.5" />
                         Update Status
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip
-                        onClick={() => {}} // Download evidence
-                        tooltip="Download evidence"
-                        variant="secondary"
-                        size="sm"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Evidence
                       </ButtonWithTooltip>
                     </div>
                   </div>
@@ -1184,14 +1217,14 @@ const NDPRCompliance = () => {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-[#1A1A1A]">{log.action}</p>
-                          <p className="text-xs text-[#5A5A5A]">
-                            User: {log.user} | Patient: {log.patientId} | Data: {log.dataAccessed}
+                            <p className="text-xs text-[#5A5A5A]">
+                            {log.description || log.resourceType || 'Compliance event'}{log.patientId ? ` · Patient: ${log.patientId}` : ''}
                           </p>
                         </div>
                       </div>
                       <div className="text-right sm:text-left">
-                        <p className="text-sm text-[#5A5A5A]">{new Date(log.timestamp).toLocaleString('en-NG')}</p>
-                        <p className="text-xs text-[#B0A89E]">{log.ipAddress}</p>
+                        <p className="text-sm text-[#5A5A5A]">{log.created_at ? new Date(log.created_at).toLocaleString('en-NG') : 'N/A'}</p>
+                        <p className="text-xs text-[#B0A89E]">{log.ipAddress || 'IP not recorded'}</p>
                       </div>
                     </div>
                   ))}
@@ -1209,69 +1242,49 @@ const NDPRCompliance = () => {
               <div className="bg-white border border-[#E8E3DC] p-5">
                 <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Generate Reports</h4>
                 <div className="space-y-2">
-                  <button className="w-full p-3 bg-[#F7F5F2] border border-[#E8E3DC] hover:border-[#008751] hover:bg-[#F7F5F2] transition-colors text-left">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-[#1A1A1A] text-sm">Consent Audit Report</p>
-                        <p className="text-xs text-[#5A5A5A]">Monthly consent compliance</p>
+                  {['consent_audit', 'data_subject_rights', 'breach_incident', 'annual_compliance'].map((reportType) => (
+                    <button
+                      key={reportType}
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const end = new Date();
+                          const start = new Date(end.getFullYear(), 0, 1);
+                          await dispatch(generateComplianceReport({
+                            reportType,
+                            title: reportType.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+                            periodStart: start.toISOString().slice(0, 10),
+                            periodEnd: end.toISOString().slice(0, 10),
+                            status: 'generated',
+                          })).unwrap();
+                          await dispatch(fetchComplianceReports());
+                          setSuccessMessage('Compliance report generated.');
+                        } catch (reportError) {
+                          setErrorMessage(reportError.message || 'Unable to generate compliance report.');
+                        }
+                      }}
+                      className="w-full p-3 bg-[#F7F5F2] border border-[#E8E3DC] hover:border-[#008751] hover:bg-[#F7F5F2] transition-colors text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-[#1A1A1A] text-sm">{reportType.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}</p>
+                          <p className="text-xs text-[#5A5A5A]">Generate from persisted tenant compliance records</p>
+                        </div>
+                        <Download className="w-4 h-4 text-[#5A5A5A]" />
                       </div>
-                      <Download className="w-4 h-4 text-[#5A5A5A]" />
-                    </div>
-                  </button>
-
-                  <button className="w-full p-3 bg-[#F7F5F2] border border-[#E8E3DC] hover:border-[#008751] hover:bg-[#F7F5F2] transition-colors text-left">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-[#1A1A1A] text-sm">Data Subject Rights Report</p>
-                        <p className="text-xs text-[#5A5A5A]">Request processing metrics</p>
-                      </div>
-                      <Download className="w-4 h-4 text-[#5A5A5A]" />
-                    </div>
-                  </button>
-
-                  <button className="w-full p-3 bg-[#F7F5F2] border border-[#E8E3DC] hover:border-[#008751] hover:bg-[#F7F5F2] transition-colors text-left">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-[#1A1A1A] text-sm">Data Breach Report</p>
-                        <p className="text-xs text-[#5A5A5A]">Incident response analysis</p>
-                      </div>
-                      <Download className="w-4 h-4 text-[#5A5A5A]" />
-                    </div>
-                  </button>
-
-                  <button className="w-full p-3 bg-[#F7F5F2] border border-[#E8E3DC] hover:border-[#008751] hover:bg-[#F7F5F2] transition-colors text-left">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-[#1A1A1A] text-sm">Annual NDPR Compliance</p>
-                        <p className="text-xs text-[#5A5A5A]">Comprehensive compliance review</p>
-                      </div>
-                      <Download className="w-4 h-4 text-[#5A5A5A]" />
-                    </div>
-                  </button>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Compliance Checklist */}
+              {/* Persisted report history */}
               <div className="bg-white border border-[#E8E3DC] p-5">
-                <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">NDPR Compliance Checklist</h4>
+                <h4 className="text-sm font-display font-semibold text-[#1A1A1A] mb-4">Generated Report History</h4>
                 <div className="space-y-2">
-                  {[
-                    { item: 'Data Protection Officer appointed', status: true },
-                    { item: 'Privacy policy published', status: true },
-                    { item: 'Consent management system', status: true },
-                    { item: 'Data breach response plan', status: true },
-                    { item: 'Staff training program', status: true },
-                    { item: 'Data mapping completed', status: true },
-                    { item: 'Third-party assessments', status: false },
-                    { item: 'Cross-border transfer agreements', status: true }
-                  ].map(check => (
-                    <div key={check.item} className="flex items-center justify-between py-2 border-b border-[#F0EDE8] last:border-0">
-                      <span className="text-sm text-[#1A1A1A]">{check.item}</span>
-                      {check.status ? (
-                        <CheckCircle className="w-5 h-5 text-[#2D7D46]" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-[#C8553D]" />
-                      )}
+                  {complianceReports.length === 0 ? <p className="text-sm text-[#5A5A5A]">No compliance reports have been generated.</p> : complianceReports.slice(0, 8).map((report) => (
+                    <div key={report.id} className="flex items-center justify-between py-2 border-b border-[#F0EDE8] last:border-0">
+                      <div><p className="text-sm text-[#1A1A1A]">{report.title}</p><p className="text-xs text-[#5A5A5A]">{formatDate(report.periodStart)} - {formatDate(report.periodEnd)}</p></div>
+                      <StatusBadge status={report.status} />
                     </div>
                   ))}
                 </div>

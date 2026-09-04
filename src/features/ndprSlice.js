@@ -212,6 +212,20 @@ export const generateComplianceReport = createAsyncThunk(
   }
 );
 
+export const fetchComplianceReports = createAsyncThunk(
+  'ndpr/fetchComplianceReports',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => { if (value) qs.append(key, value); });
+      const data = await apiRequest(`${API_BASE}/compliance-reports/${qs.toString() ? `?${qs}` : ''}`);
+      return Array.isArray(data) ? data : (data.results || []);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to load compliance reports.');
+    }
+  }
+);
+
 export const searchComplianceData = (term) => (dispatch) => {
   dispatch(setSearchTerm(term));
 };
@@ -281,6 +295,9 @@ const ndprSlice = createSlice({
 
       .addCase(fetchComplianceMetrics.fulfilled, (state, action) => {
         state.complianceMetrics = { ...state.complianceMetrics, ...action.payload };
+      })
+      .addCase(fetchComplianceReports.fulfilled, (state, action) => {
+        state.complianceReports = action.payload;
       });
   },
 });
