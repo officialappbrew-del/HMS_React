@@ -486,7 +486,7 @@ const openDetailModal = async (publicId) => {
                     <td className="px-3 sm:px-4 py-3 text-sm text-slate-700 font-medium hidden sm:table-cell">
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-slate-400" />
-                        {tenant.user_count || 0}
+                        {tenant.user_count || 0} / {tenant.max_users === 0 ? 'Unlimited' : (tenant.max_users ?? tenant.subscription_plan_details?.max_users ?? '—')}
                       </span>
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-sm text-slate-700 font-medium hidden md:table-cell">

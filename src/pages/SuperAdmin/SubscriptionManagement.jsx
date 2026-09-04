@@ -120,7 +120,7 @@ const SubscriptionManagement = () => {
       price_quarterly: plan.price_quarterly || '',
       price_yearly: plan.price_yearly || '',
       currency: plan.currency || 'NGN',
-      max_users: plan.max_users || 5,
+      max_users: plan.max_users ?? 5,
       max_patients: plan.max_patients || 1000,
       max_storage_gb: plan.max_storage_gb || 10,
       max_api_calls_per_day: plan.max_api_calls_per_day || 10000,
@@ -525,8 +525,9 @@ const SubscriptionManagement = () => {
                   <h4 className="text-sm font-semibold text-[#1A1A1A] mb-3">Limits</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Max Users</label>
-                      <input type="number" value={formData.max_users} onChange={(e) => updateForm('max_users', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded" />
+                      <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Max Users *</label>
+                      <input type="number" min="0" required value={formData.max_users} onChange={(e) => updateForm('max_users', e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-[#D8D4CD] focus:border-[#008751] focus:outline-none transition-colors rounded" />
+                      <p className="mt-1 text-[10px] text-[#5A5A5A]">Enter 0 for unlimited users.</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-[#5A5A5A] mb-1">Max Patients</label>
