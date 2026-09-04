@@ -145,7 +145,6 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
   };
 
   return (
-    <Tooltip text={tooltip}>
       <button
         onClick={onClick}
         disabled={disabled}
@@ -155,7 +154,6 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
       >
         <Icon className={iconSizes[size]} />
       </button>
-    </Tooltip>
   );
 };
 
@@ -177,7 +175,6 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
   };
 
   return (
-    <Tooltip text={tooltip}>
       <button
         type={type}
         onClick={onClick}
@@ -188,7 +185,6 @@ const ButtonWithTooltip = ({ children, onClick, tooltip, variant = 'primary', cl
       >
         {children}
       </button>
-    </Tooltip>
   );
 };
 
@@ -209,7 +205,6 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
   };
 
   return (
-    <Tooltip text={tooltip}>
       <div 
         onClick={onClick}
         className={`bg-white border border-[#E8E3DC] p-4 sm:p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
@@ -217,7 +212,7 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-medium text-[#5A5A5A] uppercase tracking-wider">{title}</p>
-            <p className="mt-1 text-xl sm:text-2xl lg:text-3xl font-display font-bold text-[#1A1A1A] tracking-tight truncate">{value}</p>
+            <p className="mt-1 text-xl sm:text-2xl lg:text-3xl font-display font-bold text-[#1A1A1A] tracking-tight">{value}</p>
             {subValue && (
               <p className="text-xs text-[#5A5A5A] mt-0.5 truncate">{subValue}</p>
             )}
@@ -234,8 +229,15 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
           </div>
         </div>
       </div>
-    </Tooltip>
   );
+};
+
+const formatCompactNumber = (value) => {
+  const number = Number(value) || 0;
+  const absolute = Math.abs(number);
+  if (absolute >= 1000000) return `${(number / 1000000).toFixed(1).replace(/\.0$/, '')}m`;
+  if (absolute >= 1000) return `${(number / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  return number.toLocaleString();
 };
 
 // ==================== PROFILE MODAL ====================
@@ -2353,8 +2355,8 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4">
           <StatsCard
             title="Registered Patients"
-            value={stats.totalPatients.toLocaleString()}
-            subValue={`${stats.todayAppointments} seen today`}
+            value={formatCompactNumber(stats.totalPatients)}
+            subValue={`${formatCompactNumber(stats.todayAppointments)} seen today`}
             icon={Users}
             color="green"
             trend="up"
@@ -2365,7 +2367,7 @@ const AdminDashboard = () => {
           <StatsCard
             title="Bed Occupancy"
             value={`${stats.occupancyRate}%`}
-            subValue={`${stats.occupiedBeds} of ${stats.totalBeds} occupied`}
+            subValue={`${formatCompactNumber(stats.occupiedBeds)} of ${formatCompactNumber(stats.totalBeds)} occupied`}
             icon={Bed}
             color="gold"
             trend={stats.occupancyRate > 80 ? 'up' : 'neutral'}
@@ -2375,8 +2377,8 @@ const AdminDashboard = () => {
           />
           <StatsCard
             title="Revenue"
-            value={stats.totalRevenue > 999999 ? `₦${(stats.totalRevenue / 1000000).toFixed(1)}M` : `₦${stats.totalRevenue.toLocaleString()}`}
-            subValue={`₦${stats.totalRevenue.toLocaleString()} total`}
+            value={`₦${formatCompactNumber(stats.totalRevenue)}`}
+            subValue={`₦${formatCompactNumber(stats.totalRevenue)} total`}
             icon={DollarSign}
             color="green"
             trend={revenueGrowthTrend}
@@ -2386,8 +2388,8 @@ const AdminDashboard = () => {
           />
           <StatsCard
             title="Critical Alerts"
-            value={stats.criticalAlerts}
-            subValue={`${stats.lowStockItems} low stock items`}
+            value={formatCompactNumber(stats.criticalAlerts)}
+            subValue={`${formatCompactNumber(stats.lowStockItems)} low stock items`}
             icon={AlertCircle}
             color="terracotta"
             trend={stats.criticalAlerts > 0 ? 'up' : 'neutral'}
@@ -2414,15 +2416,13 @@ const AdminDashboard = () => {
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
-                <Tooltip key={index} text={`Go to ${action.label}`}>
-                  <button
+                <button
                     onClick={() => navigate(action.action)}
                     className={`${action.color} text-white p-3 lg:p-4 text-left transition-opacity hover:opacity-85 flex flex-col items-start`}
                   >
                     <Icon className="w-4 h-4 lg:w-5 lg:h-5 mb-1" />
                     <span className="text-xs font-medium leading-tight">{action.label}</span>
                   </button>
-                </Tooltip>
               );
             })}
           </div>
@@ -3520,8 +3520,7 @@ const renderDepartmentsContent = () => {
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <Tooltip key={tab.id} text={`View ${tab.label}`}>
-                <button
+              <button
                   onClick={() => {
                     setActiveTab(tab.id);
                     setCurrentPage(1);
@@ -3540,7 +3539,6 @@ const renderDepartmentsContent = () => {
                     </span>
                   )}
                 </button>
-              </Tooltip>
             );
           })}
         </nav>

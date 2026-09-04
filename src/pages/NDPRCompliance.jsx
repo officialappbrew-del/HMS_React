@@ -230,7 +230,6 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
   };
 
   return (
-    <Tooltip text={tooltip}>
       <div 
         onClick={onClick}
         className={`bg-white border border-[#E8E3DC] p-5 ${onClick ? 'cursor-pointer hover:border-[#008751] transition-colors' : ''} ${className}`}
@@ -255,7 +254,6 @@ const StatsCard = ({ title, value, subValue, icon: Icon, color, trend, trendValu
           </div>
         </div>
       </div>
-    </Tooltip>
   );
 };
 
