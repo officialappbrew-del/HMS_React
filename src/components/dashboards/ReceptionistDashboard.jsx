@@ -171,23 +171,23 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
         onClick={onClose}
       />
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
-          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[85vh] overflow-hidden transform transition-all duration-300 scale-100">
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold">My Profile</h2>
-                <p className="text-sm text-blue-100 mt-1">View and update your personal information</p>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">My Profile</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">View and update your personal information</p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
           </div>
 
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+          <div className="p-4 sm:p-5 overflow-y-auto max-h-[calc(85vh-150px)]">
             {(error || success) && (
               <div className={`mb-4 p-3 rounded-lg text-sm whitespace-pre-line ${error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                 {error || success}
@@ -195,9 +195,9 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
             )}
 
             {!loading && (
-              <div className="flex flex-col items-center mb-6">
+              <div className="flex flex-col items-center mb-5">
                 <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                  <div className="w-20 h-20 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden">
                     {profilePicturePreview ? (
                       <img
                         key={profilePicturePreview}
@@ -212,7 +212,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                       />
                     ) : null}
                     <div className="w-full h-full items-center justify-center profile-fallback" style={{ display: profilePicturePreview ? 'none' : 'flex' }}>
-                      <UserIcon className="w-12 h-12 text-gray-400" />
+                      <UserIcon className="w-10 h-10 text-gray-400" />
                     </div>
                   </div>
                 </div>
@@ -256,8 +256,8 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                 <p className="text-gray-500 text-sm mt-2">Loading profile...</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">First Name *</label>
                     <input
@@ -278,7 +278,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Email *</label>
                     <input
@@ -299,7 +299,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Employee ID</label>
                     <input
@@ -320,7 +320,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
                     <input
@@ -341,7 +341,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">License Number</label>
                     <input
@@ -380,7 +380,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, onChange, onSave, loading,
             )}
           </div>
 
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex flex-wrap justify-end gap-2">
+          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-3 sm:p-4 flex flex-wrap justify-end gap-2">
             <ButtonWithTooltip
               onClick={onClose}
               tooltip="Close profile editor"
@@ -1368,23 +1368,6 @@ const displayTenantName = authTenant?.name || 'Hospital';
     setSelectedPatient(null);
   };
 
-  const getPatientCondition = (patient) => {
-    if (patient.chronic_conditions) {
-      const conditions = patient.chronic_conditions.split(',').map(c => c.trim());
-      return conditions[0] || 'Under observation';
-    }
-    if (patient.notes) {
-      const noteLines = patient.notes.split('\n').filter(line => line.trim());
-      if (noteLines.length > 0) {
-        return noteLines[0].substring(0, 30) + (noteLines[0].length > 30 ? '...' : '');
-      }
-    }
-    if (patient.known_allergies) {
-      return 'Allergy: ' + patient.known_allergies.split(',')[0].trim();
-    }
-    return 'Active patient';
-  };
-
   const formatDate = (date) => {
     if (!date) return 'N/A';
     try {
@@ -1411,7 +1394,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'queue', label: 'Queue', icon: Clipboard },
     { id: 'appointments', label: 'Appointments', icon: Calendar },
-    { id: 'checkins', label: 'Check-ins', icon: UserCheck },
+    // { id: 'checkins', label: 'Check-ins', icon: UserCheck },
     { id: 'patients', label: 'Patients', icon: Users },
     { id: 'my-roster', label: 'My Roster', icon: Calendar },
   ];
@@ -1926,16 +1909,15 @@ const displayTenantName = authTenant?.name || 'Hospital';
             <p className="text-gray-500 text-sm">No patients found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Condition</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Last Visit</th>
+                  <th className="pb-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1949,30 +1931,22 @@ const displayTenantName = authTenant?.name || 'Hospital';
                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
                             {patient.name && patient.name.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <span className="text-sm font-medium text-gray-900">{patient.name || 'Unnamed Patient'}</span>
+                          <div className="min-w-0">
+                            <span className="text-sm font-medium text-gray-900 truncate block">{patient.name || 'Unnamed Patient'}</span>
                             {patient.age && (
-                              <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>
+                              <span className="text-xs text-gray-500">({patient.age}y)</span>
                             )}
-                            {(patient.mrn || patient.hospital_number) && (
-                              <div className="text-[10px] sm:text-xs text-gray-400">
-                                {patient.mrn ? `MRN: ${patient.mrn}` : ''}
-                                {patient.mrn && patient.hospital_number ? ' • ' : ''}
-                                {patient.hospital_number ? `HN: ${patient.hospital_number}` : ''}
+                            {patient.mrn && (
+                              <div className="text-[10px] text-gray-400 truncate">
+                                MRN: {patient.mrn}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="py-3 hidden sm:table-cell">
-                        <div className="text-xs text-gray-600">{patient.phone || 'No phone'}</div>
-                        <div className="text-[10px] text-gray-400">{patient.email || 'No email'}</div>
-                      </td>
-                      <td className="py-3 hidden md:table-cell">
-                        <span className="text-xs text-gray-600">{getPatientCondition(patient)}</span>
-                        {patient.bloodType && (
-                          <div className="text-[10px] text-gray-400">Blood: {patient.bloodType}</div>
-                        )}
+                        <div className="text-xs text-gray-600 truncate max-w-[120px]">{patient.phone || 'No phone'}</div>
+                        <div className="text-[10px] text-gray-400 truncate max-w-[120px]">{patient.email || 'No email'}</div>
                       </td>
                       <td className="py-3">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
@@ -1980,7 +1954,7 @@ const displayTenantName = authTenant?.name || 'Hospital';
                         </span>
                       </td>
                       <td className="py-3 hidden lg:table-cell">
-                        <span className="text-xs text-gray-600">
+                        <span className="text-xs text-gray-600 whitespace-nowrap">
                           {formatDate(patient.last_visit || patient.lastVisit || patient.registration_date)}
                         </span>
                       </td>
@@ -1992,6 +1966,20 @@ const displayTenantName = authTenant?.name || 'Hospital';
                             tooltip="View patient details"
                             variant="primary"
                           />
+                          <IconButton
+                            icon={Edit}
+                            onClick={() => navigate(`/patients/edit/${patient.id}`)}
+                            tooltip="Edit patient"
+                            variant="primary"
+                          />
+                          {isInactive && (
+                            <IconButton
+                              icon={RotateCcw}
+                              onClick={() => handleRestorePatient(patient)}
+                              tooltip="Restore patient"
+                              variant="success"
+                            />
+                          )}
                           <button
                             type="button"
                             onClick={() => handleCreateAdmissionForPatient(patient)}
@@ -2000,12 +1988,6 @@ const displayTenantName = authTenant?.name || 'Hospital';
                             <Plus className="w-3 h-3" />
                             Admit
                           </button>
-                          <IconButton
-                            icon={Edit}
-                            onClick={() => navigate(`/patients/edit/${patient.id}`)}
-                            tooltip="Edit patient"
-                            variant="primary"
-                          />
                           <IconButton
                             icon={FileText}
                             onClick={() => navigate(`/patients/${patient.id}/emr`)}
@@ -2018,14 +2000,6 @@ const displayTenantName = authTenant?.name || 'Hospital';
                             tooltip="View patient journey and bill"
                             variant="info"
                           />
-                          {isInactive && (
-                            <IconButton
-                              icon={RotateCcw}
-                              onClick={() => handleRestorePatient(patient)}
-                              tooltip="Restore patient"
-                              variant="success"
-                            />
-                          )}
                         </div>
                       </td>
                     </tr>
