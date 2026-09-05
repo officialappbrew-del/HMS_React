@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
 import { logout } from '../utils/api';
-import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, CreditCard, LogOut, BarChart3, Share2, FlaskConical, PackageSearch, GitMerge } from 'lucide-react';
+import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, CreditCard, LogOut, BarChart3, Share2, FlaskConical, PackageSearch, GitMerge, UserRoundCog, WalletCards } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose }) => {
   const navigate = useNavigate();
@@ -18,6 +18,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: Calendar, label: 'Appointments', path: '/appointments' },
       { icon: FileText, label: 'Billing', path: '/billing' },
       { icon: Building2, label: 'Staff Management', path: '/staff' },
+      { icon: UserRoundCog, label: 'HR Workspace', path: '/hr' },
       { icon: Heart, label: 'Admissions', path: '/admissions' },
       { icon: Pill, label: 'Inventory', path: '/pharmacy' },
       { icon: Shield, label: 'Compliance', path: '/ndpr-compliance' },
@@ -26,6 +27,25 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
       { icon: FlaskConical, label: 'Mirth Connect', path: '/mirth-connect' },
       { icon: Settings, label: 'Settings', path: '/settings' },
       { icon: CreditCard, label: 'Subscription', path: '/subscription' }
+    ],
+    accountant: [
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
+      { icon: WalletCards, label: 'Accounts', path: '/accounts' },
+      { icon: FileText, label: 'Patient Billing', path: '/billing' },
+      { icon: BarChart3, label: 'Financial Reports', path: '/financial-analytics' },
+      { icon: Clipboard, label: 'Budgeting', path: '/budgeting-forecasting' },
+    ],
+    billing_officer: [
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
+      { icon: WalletCards, label: 'Accounts', path: '/accounts' },
+      { icon: FileText, label: 'Patient Billing', path: '/billing' },
+    ],
+    hr_manager: [
+      { icon: Home, label: 'Dashboard', path: '/dashboard' },
+      { icon: UserRoundCog, label: 'HR Workspace', path: '/hr' },
+      { icon: Building2, label: 'Staff Directory', path: '/staff-directory' },
+      { icon: Calendar, label: 'Duty Roster', path: '/duty-roster' },
+      { icon: FileText, label: 'Performance', path: '/performance-management' },
     ],
     doctor: [
       { icon: Home, label: 'Dashboard', path: '/dashboard' },

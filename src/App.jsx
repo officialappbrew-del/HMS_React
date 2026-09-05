@@ -44,6 +44,8 @@ const LicenseTracking = lazy(() => import('./pages/LicenseTracking'));
 const DutyRoster = lazy(() => import('./pages/DutyRoster'));
 const PerformanceManagement = lazy(() => import('./pages/PerformanceManagement'));
 const PayrollManagement = lazy(() => import('./pages/PayrollManagement'));
+const HRDashboard = lazy(() => import('./components/dashboards/HRDashboard'));
+const AccountsDashboard = lazy(() => import('./components/dashboards/AccountsDashboard'));
 const EquipmentManagement = lazy(() => import('./pages/EquipmentManagement'));
 const MaintenanceManagement = lazy(() => import('./pages/MaintenanceManagement'));
 const GeneratorManagement = lazy(() => import('./pages/GeneratorManagement'));
@@ -455,6 +457,8 @@ function AppLayout() {
                 <Route path="/duty-roster" element={<ProtectedRoute><DutyRoster /></ProtectedRoute>} />
                 <Route path="/performance-management" element={<ProtectedRoute><PerformanceManagement /></ProtectedRoute>} />
                 <Route path="/payroll-management" element={<ProtectedRoute><PayrollManagement /></ProtectedRoute>} />
+                <Route path="/hr" element={<ProtectedRoute allowedRoles={['admin', 'tenant_admin', 'hr_manager', 'super_admin', 'system_admin']}><HRDashboard /></ProtectedRoute>} />
+                <Route path="/accounts" element={<ProtectedRoute allowedRoles={['admin', 'tenant_admin', 'accountant', 'billing_officer', 'super_admin', 'system_admin']}><AccountsDashboard /></ProtectedRoute>} />
                 <Route path="/equipment" element={<ProtectedRoute><EquipmentManagement /></ProtectedRoute>} />
                 <Route path="/maintenance" element={<ProtectedRoute><MaintenanceManagement /></ProtectedRoute>} />
                 <Route path="/generators" element={<ProtectedRoute><GeneratorManagement /></ProtectedRoute>} />
