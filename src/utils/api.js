@@ -763,6 +763,52 @@ export const financialApi = {
   createReport: (data) => apiRequest('/api/v1/budgeting/reports/', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+export const accountsApi = {
+  getAccountsSummary: () => apiRequest('/api/v1/accounts/summary/'),
+  getChartOfAccounts: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/accounts/chart-of-accounts/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getJournalEntries: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/accounts/journal-entries/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getVendors: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/accounts/vendors/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getPurchaseOrders: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/accounts/purchase-orders/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getVendorPayments: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/accounts/vendor-payments/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getAssets: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/accounts/assets/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getTaxConfiguration: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/accounts/tax-configuration/${qsStr ? '?' + qsStr : ''}`);
+  },
+};
+
 export const vitalsApi = {
   getVitalSigns: (params = {}) => {
     const qs = new URLSearchParams();
