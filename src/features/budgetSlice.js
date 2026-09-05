@@ -1,26 +1,152 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { financialApi } from '../utils/api';
 
-// Async thunks for API calls
+const asList = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.results)) return response.results;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+};
+
+const normalizeBudget = (item) => {
+  if (!item || typeof item !== 'object') return item;
+  const { id, department, category, year, period, amount, utilized, variance, description, status, approval_required, approved_by, start_date, end_date, created_at, updated_at } = item;
+  return {
+    ...item,
+    id: id ?? item.id,
+    department: department ?? '',
+    category: category ?? '',
+    year: Number(year) || new Date().getFullYear(),
+    period: period || 'annual',
+    amount: Number(amount) || 0,
+    utilized: Number(utilized) || 0,
+    variance: Number(variance) || 0,
+    description: description || '',
+    status: status || 'draft',
+    approvalRequired: approval_required ?? false,
+    approvedBy: approved_by || '',
+    startDate: start_date || '',
+    endDate: end_date || '',
+    createdAt: created_at || '',
+    updatedAt: updated_at || '',
+  };
+};
+
+const normalizeForecast = (item) => {
+  if (!item || typeof item !== 'object') return item;
+  const { id, category, period, year, predicted_amount, confidence_level, assumptions, methodology, accuracy, actual_amount, created_at, updated_at } = item;
+  return {
+    ...item,
+    id: id ?? item.id,
+    category: category ?? '',
+    period: period || 'quarterly',
+    year: Number(year) || new Date().getFullYear(),
+    predictedAmount: Number(predicted_amount) || 0,
+    confidenceLevel: Number(confidence_level) || 0,
+    assumptions: assumptions || '',
+    methodology: methodology || '',
+    accuracy: Number(accuracy) || 0,
+    actualAmount: Number(actual_amount) || 0,
+    createdAt: created_at || '',
+    updatedAt: updated_at || '',
+  };
+};
+
+const normalizeGrant = (item) => {
+  if (!item || typeof item !== 'object') return item;
+  const { id, name, donor, amount, start_date, end_date, purpose, conditions, contact_person, reporting_frequency, status, utilized, last_report_date, created_at, updated_at } = item;
+  return {
+    ...item,
+    id: id ?? item.id,
+    name: name || '',
+    donor: donor || '',
+    amount: Number(amount) || 0,
+    startDate: start_date || '',
+    endDate: end_date || '',
+    purpose: purpose || '',
+    conditions: conditions || '',
+    contactPerson: contact_person || '',
+    reportingFrequency: reporting_frequency || 'quarterly',
+    status: status || 'active',
+    utilized: Number(utilized) || 0,
+    lastReportDate: last_report_date || '',
+    createdAt: created_at || '',
+    updatedAt: updated_at || '',
+  };
+};
+
+const normalizeVariance = (item) => {
+  if (!item || typeof item !== 'object') return item;
+  const { id, budget, budget_name, period, year, planned_amount, actual_amount, variance_amount, variance_percentage, notes, alert_triggered, created_at, updated_at } = item;
+  return {
+    ...item,
+    id: id ?? item.id,
+    budgetId: typeof budget === 'object' ? (budget?.id ?? budget) : budget,
+    budgetName: budget_name || '',
+    period: period || '',
+    year: Number(year) || new Date().getFullYear(),
+    plannedAmount: Number(planned_amount) || 0,
+    actualAmount: Number(actual_amount) || 0,
+    varianceAmount: Number(variance_amount) || 0,
+    variancePercentage: Number(variance_percentage) || 0,
+    notes: notes || '',
+    alertTriggered: Boolean(alert_triggered),
+    createdAt: created_at || '',
+    updatedAt: updated_at || '',
+  };
+};
+
+const normalizeReport = (item) => {
+  if (!item || typeof item !== 'object') return item;
+  const { id, report_type, title, period_start, period_end, generated_by, file_path, summary, created_at, updated_at } = item;
+  return {
+    ...item,
+    id: id ?? item.id,
+    reportType: report_type || '',
+    title: title || '',
+    periodStart: period_start || '',
+    periodEnd: period_end || '',
+    generatedBy: generated_by || '',
+    filePath: file_path || '',
+    summary: summary || '',
+    createdAt: created_at || '',
+    updatedAt: updated_at || '',
+  };
+};
+
+export const fetchBudgets = createAsyncThunk(
+  'budget/fetchBudgets',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await financialApi.getBudgets();
+      const list = asList(response);
+      return list.map(normalizeBudget);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to fetch budgets');
+    }
+  }
+);
+
+export const fetchBudget = createAsyncThunk(
+  'budget/fetchBudget',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await financialApi.getBudget(id);
+      return normalizeBudget(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to fetch budget');
+    }
+  }
+);
+
 export const createBudget = createAsyncThunk(
   'budget/createBudget',
   async (budgetData, { rejectWithValue }) => {
     try {
-      // In a real app, this would be an API call
-      // const response = await api.post('/budgets', budgetData);
-      // return response.data;
-
-      // Mock implementation
-      const newBudget = {
-        id: Date.now(),
-        ...budgetData,
-        status: 'draft',
-        createdAt: new Date().toISOString(),
-        utilized: 0,
-        variance: 0
-      };
-      return newBudget;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await financialApi.createBudget(budgetData);
+      return normalizeBudget(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create budget');
     }
   }
 );
@@ -29,10 +155,47 @@ export const updateBudget = createAsyncThunk(
   'budget/updateBudget',
   async ({ id, updates }, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return { id, ...updates };
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await financialApi.updateBudget(id, updates);
+      return normalizeBudget(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update budget');
+    }
+  }
+);
+
+export const deleteBudget = createAsyncThunk(
+  'budget/deleteBudget',
+  async (id, { rejectWithValue }) => {
+    try {
+      await financialApi.deleteBudget(id);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to delete budget');
+    }
+  }
+);
+
+export const fetchBudgetSummary = createAsyncThunk(
+  'budget/fetchSummary',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await financialApi.getBudgetSummary();
+      return response;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to fetch budget summary');
+    }
+  }
+);
+
+export const fetchForecasts = createAsyncThunk(
+  'budget/fetchForecasts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await financialApi.getForecasts();
+      const list = asList(response);
+      return list.map(normalizeForecast);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to fetch forecasts');
     }
   }
 );
@@ -41,17 +204,10 @@ export const createForecast = createAsyncThunk(
   'budget/createForecast',
   async (forecastData, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      const newForecast = {
-        id: Date.now(),
-        ...forecastData,
-        createdAt: new Date().toISOString(),
-        accuracy: 0,
-        lastUpdated: new Date().toISOString()
-      };
-      return newForecast;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await financialApi.createForecast(forecastData);
+      return normalizeForecast(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create forecast');
     }
   }
 );
@@ -60,10 +216,35 @@ export const updateForecast = createAsyncThunk(
   'budget/updateForecast',
   async ({ id, updates }, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return { id, ...updates, lastUpdated: new Date().toISOString() };
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await financialApi.updateForecast(id, updates);
+      return normalizeForecast(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update forecast');
+    }
+  }
+);
+
+export const deleteForecast = createAsyncThunk(
+  'budget/deleteForecast',
+  async (id, { rejectWithValue }) => {
+    try {
+      await financialApi.deleteForecast(id);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to delete forecast');
+    }
+  }
+);
+
+export const fetchGrants = createAsyncThunk(
+  'budget/fetchGrants',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await financialApi.getGrants();
+      const list = asList(response);
+      return list.map(normalizeGrant);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to fetch grants');
     }
   }
 );
@@ -72,18 +253,10 @@ export const createGrant = createAsyncThunk(
   'budget/createGrant',
   async (grantData, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      const newGrant = {
-        id: Date.now(),
-        ...grantData,
-        status: 'active',
-        utilized: 0,
-        createdAt: new Date().toISOString(),
-        lastReportDate: null
-      };
-      return newGrant;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await financialApi.createGrant(grantData);
+      return normalizeGrant(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create grant');
     }
   }
 );
@@ -92,205 +265,77 @@ export const updateGrant = createAsyncThunk(
   'budget/updateGrant',
   async ({ id, updates }, { rejectWithValue }) => {
     try {
-      // Mock implementation
-      return { id, ...updates, lastUpdated: new Date().toISOString() };
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await financialApi.updateGrant(id, updates);
+      return normalizeGrant(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to update grant');
     }
   }
 );
 
-export const generateBudgetReport = createAsyncThunk(
-  'budget/generateBudgetReport',
-  async (reportParams, { rejectWithValue }) => {
+export const deleteGrant = createAsyncThunk(
+  'budget/deleteGrant',
+  async (id, { rejectWithValue }) => {
     try {
-      // Mock implementation - would generate and download a report
-      console.log('Generating budget report with params:', reportParams);
-      return { success: true, message: 'Report generated successfully' };
-    } catch (error) {
-      return rejectWithValue(error.message);
+      await financialApi.deleteGrant(id);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to delete grant');
     }
   }
 );
 
-export const monitorBudgetVariance = createAsyncThunk(
-  'budget/monitorBudgetVariance',
+export const fetchVariances = createAsyncThunk(
+  'budget/fetchVariances',
   async (_, { rejectWithValue }) => {
     try {
-      // Mock implementation - would calculate variance data
-      const varianceData = {
-        overall: 2.3,
-        departments: {
-          emergency: -2.1,
-          surgery: 1.8,
-          medicine: -3.2,
-          pediatrics: 4.1,
-          pharmacy: 2.7,
-          laboratory: -1.5
-        },
-        categories: {
-          staff: -2.8,
-          drugs: 1.2,
-          equipment: -3.1,
-          maintenance: 2.4,
-          training: 5.2,
-          utilities: -1.8
-        },
-        alerts: [
-          { id: 1, type: 'over_budget', department: 'Surgery', variance: 4.1, priority: 'high' },
-          { id: 2, type: 'under_budget', department: 'Training', variance: -5.2, priority: 'medium' },
-          { id: 3, type: 'on_track', department: 'Equipment', variance: -1.8, priority: 'low' }
-        ]
-      };
-      return varianceData;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await financialApi.getVariances();
+      const list = asList(response);
+      return list.map(normalizeVariance);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to fetch budget variances');
     }
   }
 );
 
-// Initial state
+export const fetchReports = createAsyncThunk(
+  'budget/fetchReports',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await financialApi.getReports();
+      const list = asList(response);
+      return list.map(normalizeReport);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to fetch budget reports');
+    }
+  }
+);
+
+export const createReport = createAsyncThunk(
+  'budget/createReport',
+  async (reportData, { rejectWithValue }) => {
+    try {
+      const response = await financialApi.createReport(reportData);
+      return normalizeReport(response);
+    } catch (err) {
+      return rejectWithValue(err.message || 'Failed to create report');
+    }
+  }
+);
+
 const initialState = {
-  budgets: [
-    {
-      id: 1,
-      department: 'Emergency',
-      category: 'staff',
-      year: 2024,
-      period: 'annual',
-      amount: 45000000,
-      utilized: 38000000,
-      description: 'Emergency department staff salaries and benefits',
-      status: 'approved',
-      approvalRequired: true,
-      approvedBy: 'Dr. Adebayo',
-      createdAt: '2024-01-15T10:00:00Z',
-      variance: -2.1
-    },
-    {
-      id: 2,
-      department: 'Surgery',
-      category: 'equipment',
-      year: 2024,
-      period: 'annual',
-      amount: 65000000,
-      utilized: 52000000,
-      description: 'Surgical equipment and maintenance',
-      status: 'approved',
-      approvalRequired: true,
-      approvedBy: 'Dr. Okon',
-      createdAt: '2024-01-20T14:30:00Z',
-      variance: 1.8
-    },
-    {
-      id: 3,
-      department: 'Pharmacy',
-      category: 'drugs',
-      year: 2024,
-      period: 'annual',
-      amount: 25000000,
-      utilized: 21000000,
-      description: 'Essential drugs and medications',
-      status: 'approved',
-      approvalRequired: true,
-      approvedBy: 'Dr. Ibrahim',
-      createdAt: '2024-01-25T09:15:00Z',
-      variance: 2.7
-    }
-  ],
-  forecasts: [
-    {
-      id: 1,
-      category: 'revenue',
-      period: 'quarterly',
-      year: 2024,
-      predictedAmount: 200000000,
-      confidenceLevel: 85,
-      assumptions: 'Based on historical data and patient volume growth',
-      methodology: 'Regression analysis with seasonal adjustments',
-      createdAt: '2024-02-01T11:00:00Z',
-      accuracy: 82,
-      lastUpdated: '2024-02-15T16:45:00Z'
-    },
-    {
-      id: 2,
-      category: 'expenses',
-      period: 'quarterly',
-      year: 2024,
-      predictedAmount: 180000000,
-      confidenceLevel: 78,
-      assumptions: 'Inflation rate of 15%, staff cost increase of 10%',
-      methodology: 'Historical trend analysis',
-      createdAt: '2024-02-01T11:30:00Z',
-      accuracy: 75,
-      lastUpdated: '2024-02-15T17:00:00Z'
-    }
-  ],
-  grants: [
-    {
-      id: 1,
-      name: 'COVID-19 Emergency Response Grant',
-      donor: 'World Health Organization',
-      amount: 15000000,
-      startDate: '2024-01-01',
-      endDate: '2024-12-31',
-      purpose: 'Emergency medical supplies and equipment for COVID-19 response',
-      conditions: 'Monthly reporting required, funds must be used within 12 months',
-      contactPerson: 'Dr. Sarah Johnson',
-      reportingFrequency: 'monthly',
-      status: 'active',
-      utilized: 65,
-      createdAt: '2024-01-10T08:00:00Z',
-      lastReportDate: '2024-02-01'
-    },
-    {
-      id: 2,
-      name: 'Maternal Health Initiative',
-      donor: 'Bill & Melinda Gates Foundation',
-      amount: 25000000,
-      startDate: '2024-03-01',
-      endDate: '2025-02-28',
-      purpose: 'Improve maternal and child healthcare services',
-      conditions: 'Quarterly progress reports, focus on rural communities',
-      contactPerson: 'Ms. Grace Adeyemi',
-      reportingFrequency: 'quarterly',
-      status: 'active',
-      utilized: 25,
-      createdAt: '2024-02-15T10:30:00Z',
-      lastReportDate: null
-    }
-  ],
-  budgetVariance: {
-    overall: 2.3,
-    departments: {
-      emergency: -2.1,
-      surgery: 1.8,
-      medicine: -3.2,
-      pediatrics: 4.1,
-      pharmacy: 2.7,
-      laboratory: -1.5
-    },
-    categories: {
-      staff: -2.8,
-      drugs: 1.2,
-      equipment: -3.1,
-      maintenance: 2.4,
-      training: 5.2,
-      utilities: -1.8
-    },
-    alerts: [
-      { id: 1, type: 'over_budget', department: 'Surgery', variance: 4.1, priority: 'high' },
-      { id: 2, type: 'under_budget', department: 'Training', variance: -5.2, priority: 'medium' },
-      { id: 3, type: 'on_track', department: 'Equipment', variance: -1.8, priority: 'low' }
-    ]
-  },
+  budgets: [],
+  forecasts: [],
+  grants: [],
+  variances: [],
+  reports: [],
+  budgetSummary: null,
   searchTerm: '',
   filterBy: 'all',
   loading: false,
   error: null
 };
 
-// Budget slice
 const budgetSlice = createSlice({
   name: 'budget',
   initialState,
@@ -303,151 +348,121 @@ const budgetSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
-    },
-    updateBudgetUtilization: (state, action) => {
-      const { id, utilized } = action.payload;
-      const budget = state.budgets.find(b => b.id === id);
-      if (budget) {
-        budget.utilized = utilized;
-        budget.variance = ((utilized - budget.amount) / budget.amount) * 100;
-      }
-    },
-    updateGrantUtilization: (state, action) => {
-      const { id, utilized } = action.payload;
-      const grant = state.grants.find(g => g.id === id);
-      if (grant) {
-        grant.utilized = utilized;
-      }
-    },
-    updateForecastAccuracy: (state, action) => {
-      const { id, accuracy } = action.payload;
-      const forecast = state.forecasts.find(f => f.id === id);
-      if (forecast) {
-        forecast.accuracy = accuracy;
-        forecast.lastUpdated = new Date().toISOString();
-      }
     }
   },
   extraReducers: (builder) => {
     builder
-      // Create Budget
-      .addCase(createBudget.pending, (state) => {
+      .addCase(fetchBudgets.pending, (state) => {
         state.loading = true;
         state.error = null;
+      })
+      .addCase(fetchBudgets.fulfilled, (state, action) => {
+        state.loading = false;
+        state.budgets = action.payload || [];
+      })
+      .addCase(fetchBudgets.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(fetchBudget.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.budgets.findIndex(b => b.id === action.payload.id);
+        if (index !== -1) {
+          state.budgets[index] = action.payload;
+        }
       })
       .addCase(createBudget.fulfilled, (state, action) => {
         state.loading = false;
         state.budgets.push(action.payload);
       })
-      .addCase(createBudget.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
-      // Update Budget
-      .addCase(updateBudget.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
       .addCase(updateBudget.fulfilled, (state, action) => {
         state.loading = false;
         const index = state.budgets.findIndex(b => b.id === action.payload.id);
         if (index !== -1) {
-          state.budgets[index] = { ...state.budgets[index], ...action.payload };
+          state.budgets[index] = action.payload;
         }
       })
-      .addCase(updateBudget.rejected, (state, action) => {
+      .addCase(deleteBudget.fulfilled, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.budgets = state.budgets.filter(b => b.id !== action.payload);
       })
-
-      // Create Forecast
-      .addCase(createForecast.pending, (state) => {
+      .addCase(fetchBudgetSummary.fulfilled, (state, action) => {
+        state.loading = false;
+        state.budgetSummary = action.payload;
+      })
+      .addCase(fetchForecasts.pending, (state) => {
         state.loading = true;
         state.error = null;
+      })
+      .addCase(fetchForecasts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.forecasts = action.payload || [];
+      })
+      .addCase(fetchForecasts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       .addCase(createForecast.fulfilled, (state, action) => {
         state.loading = false;
         state.forecasts.push(action.payload);
       })
-      .addCase(createForecast.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
-      // Update Forecast
-      .addCase(updateForecast.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
       .addCase(updateForecast.fulfilled, (state, action) => {
         state.loading = false;
         const index = state.forecasts.findIndex(f => f.id === action.payload.id);
         if (index !== -1) {
-          state.forecasts[index] = { ...state.forecasts[index], ...action.payload };
+          state.forecasts[index] = action.payload;
         }
       })
-      .addCase(updateForecast.rejected, (state, action) => {
+      .addCase(deleteForecast.fulfilled, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.forecasts = state.forecasts.filter(f => f.id !== action.payload);
       })
-
-      // Create Grant
-      .addCase(createGrant.pending, (state) => {
+      .addCase(fetchGrants.pending, (state) => {
         state.loading = true;
         state.error = null;
+      })
+      .addCase(fetchGrants.fulfilled, (state, action) => {
+        state.loading = false;
+        state.grants = action.payload || [];
+      })
+      .addCase(fetchGrants.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       .addCase(createGrant.fulfilled, (state, action) => {
         state.loading = false;
         state.grants.push(action.payload);
       })
-      .addCase(createGrant.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
-      // Update Grant
-      .addCase(updateGrant.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
       .addCase(updateGrant.fulfilled, (state, action) => {
         state.loading = false;
         const index = state.grants.findIndex(g => g.id === action.payload.id);
         if (index !== -1) {
-          state.grants[index] = { ...state.grants[index], ...action.payload };
+          state.grants[index] = action.payload;
         }
       })
-      .addCase(updateGrant.rejected, (state, action) => {
+      .addCase(deleteGrant.fulfilled, (state, action) => {
+        state.loading = false;
+        state.grants = state.grants.filter(g => g.id !== action.payload);
+      })
+      .addCase(fetchVariances.fulfilled, (state, action) => {
+        state.loading = false;
+        state.variances = action.payload || [];
+      })
+      .addCase(fetchVariances.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Generate Budget Report
-      .addCase(generateBudgetReport.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(generateBudgetReport.fulfilled, (state) => {
+      .addCase(fetchReports.fulfilled, (state, action) => {
         state.loading = false;
+        state.reports = action.payload || [];
       })
-      .addCase(generateBudgetReport.rejected, (state, action) => {
+      .addCase(fetchReports.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Monitor Budget Variance
-      .addCase(monitorBudgetVariance.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(monitorBudgetVariance.fulfilled, (state, action) => {
+      .addCase(createReport.fulfilled, (state, action) => {
         state.loading = false;
-        state.budgetVariance = action.payload;
-      })
-      .addCase(monitorBudgetVariance.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
+        state.reports.push(action.payload);
       });
   }
 });
@@ -455,10 +470,7 @@ const budgetSlice = createSlice({
 export const {
   searchBudgets,
   filterBudgets,
-  clearError,
-  updateBudgetUtilization,
-  updateGrantUtilization,
-  updateForecastAccuracy
+  clearError
 } = budgetSlice.actions;
 
 export default budgetSlice.reducer;

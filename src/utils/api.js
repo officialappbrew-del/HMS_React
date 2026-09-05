@@ -723,7 +723,44 @@ export const financialApi = {
     const qsStr = qs.toString();
     return apiRequest(`/api/v1/budgeting/budgets/${qsStr ? '?' + qsStr : ''}`);
   },
+  getBudget: (id) => apiRequest(`/api/v1/budgeting/budgets/${id}/`),
   createBudget: (data) => apiRequest('/api/v1/budgeting/budgets/', { method: 'POST', body: JSON.stringify(data) }),
+  updateBudget: (id, data) => apiRequest(`/api/v1/budgeting/budgets/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteBudget: (id) => apiRequest(`/api/v1/budgeting/budgets/${id}/`, { method: 'DELETE' }),
+  getBudgetSummary: () => apiRequest('/api/v1/budgeting/budgets/summary/'),
+  getForecasts: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/budgeting/forecasts/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getForecast: (id) => apiRequest(`/api/v1/budgeting/forecasts/${id}/`),
+  createForecast: (data) => apiRequest('/api/v1/budgeting/forecasts/', { method: 'POST', body: JSON.stringify(data) }),
+  updateForecast: (id, data) => apiRequest(`/api/v1/budgeting/forecasts/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteForecast: (id) => apiRequest(`/api/v1/budgeting/forecasts/${id}/`, { method: 'DELETE' }),
+  getGrants: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/budgeting/grants/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getGrant: (id) => apiRequest(`/api/v1/budgeting/grants/${id}/`),
+  createGrant: (data) => apiRequest('/api/v1/budgeting/grants/', { method: 'POST', body: JSON.stringify(data) }),
+  updateGrant: (id, data) => apiRequest(`/api/v1/budgeting/grants/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteGrant: (id) => apiRequest(`/api/v1/budgeting/grants/${id}/`, { method: 'DELETE' }),
+  getVariances: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/budgeting/variances/${qsStr ? '?' + qsStr : ''}`);
+  },
+  getReports: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') qs.append(k, v); });
+    const qsStr = qs.toString();
+    return apiRequest(`/api/v1/budgeting/reports/${qsStr ? '?' + qsStr : ''}`);
+  },
+  createReport: (data) => apiRequest('/api/v1/budgeting/reports/', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const vitalsApi = {

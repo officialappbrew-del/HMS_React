@@ -39,8 +39,9 @@ const HRDashboard = () => {
       const legacyLeaveData = resultData(legacyLeaveResult);
 
       if (summaryData) setSummary(summaryData);
-      if (employeeData) {
-        setEmployees(listData(employeeData));
+      const primaryEmployees = listData(employeeData);
+      if (primaryEmployees.length) {
+        setEmployees(primaryEmployees);
       } else {
         const fallbackEmployees = await apiRequest('/api/v1/tenants/users/?page_size=200').catch(() => []);
         setEmployees(listData(fallbackEmployees).filter(employee => employee.role !== 'patient' && employee.employment_status !== 'terminated'));

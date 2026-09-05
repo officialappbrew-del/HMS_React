@@ -42,7 +42,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
     ],
     hr_manager: [
       { icon: Home, label: 'Dashboard', path: '/dashboard' },
-      { icon: UserRoundCog, label: 'HR Workspace', path: '/hr' },
       { icon: Building2, label: 'Staff Directory', path: '/staff-directory' },
       { icon: Calendar, label: 'Duty Roster', path: '/duty-roster' },
       { icon: FileText, label: 'Performance', path: '/performance-management' },

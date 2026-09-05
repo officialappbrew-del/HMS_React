@@ -1,5 +1,4 @@
-import { useSelector, useDispatch } from 'react-redux';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus,
   BarChart3,
@@ -63,7 +62,6 @@ import {
 } from 'lucide-react';
 import GenericModal from '../components/GenericModal';
 import { apiRequest, parseListResponse } from '../utils/api';
-import { addAppraisal, addResearchOutput, addTeachingHours, addSatisfactionScore, addIncidentRecord } from '../features/performanceSlice';
 
 // ==================== TOOLTIP COMPONENT ====================
 const Tooltip = ({ children, text, position = 'top' }) => {
@@ -387,15 +385,13 @@ const IncidentCard = ({ incident, staff }) => {
 
 // ==================== MAIN COMPONENT ====================
 const PerformanceManagement = () => {
-  const performanceState = useSelector(state => state.performance) || {};
-  const appraisals = performanceState.appraisals || [];
-  const auditRecords = performanceState.auditRecords || [];
-  const researchOutput = performanceState.researchOutput || [];
-  const teachingHours = performanceState.teachingHours || [];
-  const satisfactionScores = performanceState.satisfactionScores || [];
-  const incidentRecords = performanceState.incidentRecords || [];
-  const dispatch = useDispatch();
-  const { staff } = useSelector(state => state.staff);
+  const [appraisals, setAppraisals] = useState([]);
+  const [auditRecords, setAuditRecords] = useState([]);
+  const [researchOutput, setResearchOutput] = useState([]);
+  const [teachingHours, setTeachingHours] = useState([]);
+  const [satisfactionScores, setSatisfactionScores] = useState([]);
+  const [incidentRecords, setIncidentRecords] = useState([]);
+  const [staff, setStaff] = useState([]);
 
   const [activeTab, setActiveTab] = useState('appraisals');
   const [showAppraisalForm, setShowAppraisalForm] = useState(false);
@@ -438,34 +434,29 @@ const PerformanceManagement = () => {
       setIsLoading(true);
       setErrorMessage('');
       try {
-        const [appraisalResponse, auditResponse, researchResponse, teachingResponse, satisfactionResponse, incidentResponse] = await Promise.all([
+        const [appraisalResponse, auditResponse, researchResponse, teachingResponse, satisfactionResponse, incidentResponse, staffResponse] = await Promise.all([
           apiRequest('/api/v1/ward-rounds/performance-appraisals/'),
           apiRequest('/api/v1/ward-rounds/performance-audits/'),
           apiRequest('/api/v1/ward-rounds/research-outputs/'),
           apiRequest('/api/v1/ward-rounds/teaching-activities/'),
           apiRequest('/api/v1/ward-rounds/satisfaction-surveys/'),
-          apiRequest('/api/v1/ward-rounds/performance-incidents/')
+          apiRequest('/api/v1/ward-rounds/performance-incidents/'),
+          apiRequest('/api/v1/tenants/users/?page_size=200')
         ]);
 
-        parseListResponse(appraisalResponse).forEach(item => {
-          dispatch(addAppraisal({ ...item, appraisalId: item.appraisalId || item.id, comments: item.comments || item.overallComments }));
-        });
-
-        parseListResponse(researchResponse).forEach(item => {
-          dispatch(addResearchOutput({ ...item, researchId: item.researchId || item.id }));
-        });
-
-        parseListResponse(teachingResponse).forEach(item => {
-          dispatch(addTeachingHours({ ...item, teachingId: item.teachingId || item.id }));
-        });
-
-        parseListResponse(satisfactionResponse).forEach(item => {
-          dispatch(addSatisfactionScore({ ...item, satisfactionId: item.satisfactionId || item.id }));
-        });
-
-        parseListResponse(incidentResponse).forEach(item => {
-          dispatch(addIncidentRecord({ ...item, incidentId: item.incidentId || item.id, investigationStatus: item.investigationStatus || item.status || 'Open' }));
-        });
+        const normalize = (response) => parseListResponse(response);
+        setAppraisals(normalize(appraisalResponse).map(item => ({ ...item, appraisalId: item.appraisalId || item.id, appraisalPeriod: item.appraisalPeriod || item.period, comments: item.comments || item.overallComments, overallRating: item.overallRating || item.rating })));
+        setAuditRecords(normalize(auditResponse).map(item => ({ ...item, auditId: item.auditId || item.id })));
+        setResearchOutput(normalize(researchResponse).map(item => ({ ...item, researchId: item.researchId || item.id, journal: item.journal || item.journalName })));
+        setTeachingHours(normalize(teachingResponse).map(item => ({ ...item, teachingId: item.teachingId || item.id })));
+        setSatisfactionScores(normalize(satisfactionResponse).map(item => ({ ...item, satisfactionId: item.satisfactionId || item.id })));
+        setIncidentRecords(normalize(incidentResponse).map(item => ({ ...item, incidentId: item.incidentId || item.id, investigationStatus: item.investigationStatus || item.status || 'Open' })));
+        setStaff(normalize(staffResponse).filter(item => item.role !== 'patient' && item.employment_status !== 'terminated').map(item => ({
+          ...item,
+          staffId: item.employee_id || item.id,
+          employeeId: item.employee_id,
+          name: item.name || item.full_name || `${item.first_name || ''} ${item.last_name || ''}`.trim(),
+        })));
       } catch (err) {
         setErrorMessage(err.message || 'Failed to load performance data.');
       } finally {
@@ -474,7 +465,7 @@ const PerformanceManagement = () => {
     };
 
     loadPerformanceData();
-  }, [dispatch]);
+  }, []);
 
   const handleAddAppraisal = async () => {
     setErrorMessage('');
@@ -510,12 +501,12 @@ const PerformanceManagement = () => {
         body: JSON.stringify(payload)
       });
 
-      dispatch(addAppraisal({
+      setAppraisals(prev => [{
         ...response,
         appraisalId: response.appraisalId || response.id,
         comments: response.comments || response.overallComments,
         overallRating: response.overallRating || response.rating
-      }));
+      }, ...prev]);
 
       setShowAppraisalForm(false);
       setSuccessMessage('Appraisal added successfully.');
@@ -574,7 +565,7 @@ const PerformanceManagement = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-display font-bold text-[#1A1A1A] tracking-tight">
-                Performance Management
+                Performance Management 
               </h1>
               <p className="text-xs sm:text-sm text-[#5A5A5A]">
                 Track staff appraisals, audits, research, and satisfaction
