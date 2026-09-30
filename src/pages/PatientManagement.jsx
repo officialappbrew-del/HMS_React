@@ -575,6 +575,20 @@ const PatientModal = ({
                 {patient?.hospital_number ? ` • HN: ${patient.hospital_number}` : ''}
               </p>
             </div>
+            <div className="bg-blue-50 rounded p-2 col-span-2">
+              <p className="text-[10px] text-blue-700 uppercase font-medium">Registration record</p>
+              <p className="font-medium text-gray-900">
+                {patient?.registration_source === 'self_service' ? 'Patient self-registration' : 'Staff dashboard'}
+              </p>
+              <p className="text-xs text-gray-600">
+                {patient?.registration_source === 'self_service'
+                  ? 'Registered by the patient'
+                  : [patient?.registered_by_name, patient?.registered_by_role].filter(Boolean).join(' · ') || 'Staff member not recorded'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {patient?.registration_date ? new Date(patient.registration_date).toLocaleString() : 'Registration time unavailable'}
+              </p>
+            </div>
             <div className="bg-gray-50 rounded p-2">
               <p className="text-[10px] text-gray-500 uppercase font-medium">Full Name</p>
               <p className="font-medium text-gray-900">{patient?.name || patient?.full_name || 'N/A'}</p>
@@ -1992,6 +2006,7 @@ const [showPrintModal, setShowPrintModal] = useState(false);
   const [searchTermLocal, setSearchTermLocal] = useState('');
   const [sortByLocal, setSortByLocal] = useState('name');
   const [filterByLocal, setFilterByLocal] = useState('all');
+  const [registrationSourceFilter, setRegistrationSourceFilter] = useState('all');
   
   const [nigerianStates, setNigerianStates] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -2036,6 +2051,14 @@ const [showPrintModal, setShowPrintModal] = useState(false);
     const search = overrides.search !== undefined ? overrides.search : searchTermLocal;
     const status = overrides.status !== undefined ? overrides.status : statusFilter;
     const stateFilter = overrides.state !== undefined ? overrides.state : filterByLocal;
+    const sourceFilter = overrides.registration_source !== undefined
+      ? overrides.registration_source
+      : registrationSourceFilter;
+    const ordering = overrides.ordering !== undefined ? overrides.ordering : (
+      sortByLocal === 'date' ? '-registration_date' :
+      sortByLocal === 'oldest' ? 'registration_date' :
+      sortByLocal === 'state' ? 'state' : 'name'
+    );
     const pageSize = overrides.page_size || 10;
     const page = overrides.page;
 
@@ -2043,6 +2066,8 @@ const [showPrintModal, setShowPrintModal] = useState(false);
     if (search && search.trim()) params.append('search', search.trim());
     if (status !== undefined) params.append('status', status);
     if (stateFilter && stateFilter !== 'all') params.append('state', stateFilter);
+    if (sourceFilter && sourceFilter !== 'all') params.append('registration_source', sourceFilter);
+    if (ordering) params.append('ordering', ordering);
     if (pageSize) params.append('page_size', pageSize);
     if (page) params.append('page', page);
 
@@ -2085,6 +2110,9 @@ const [showPrintModal, setShowPrintModal] = useState(false);
       next_of_kin_address: patient.next_of_kin_address || patient.emergencyAddress || '',
       preferred_language: patient.preferred_language || patient.language_spoken || 'English',
       registration_date: patient.registration_date || patient.createdAt || '',
+      registration_source: patient.registration_source || 'staff_dashboard',
+      registered_by_name: patient.registered_by_name || '',
+      registered_by_role: patient.registered_by_role || '',
     };
   };
 
@@ -2662,6 +2690,19 @@ const handleRestorePatient = (patient) => {
     loadPatients(buildPatientsUrl({ state, status: 'all' }), { silent: true });
   };
 
+  const handleFilterByRegistrationSource = (source) => {
+    setRegistrationSourceFilter(source);
+    loadPatients(buildPatientsUrl({ registration_source: source }), { silent: true });
+  };
+
+  const handleSortBy = (sortBy) => {
+    setSortByLocal(sortBy);
+    dispatch(sortPatients(sortBy === 'oldest' ? 'date' : sortBy));
+    const ordering = sortBy === 'date' ? '-registration_date' :
+      sortBy === 'oldest' ? 'registration_date' : sortBy;
+    loadPatients(buildPatientsUrl({ ordering }), { silent: true });
+  };
+
   // ===== FILTER PATIENTS BY STATUS =====
   const getFilteredPatientsByStatus = () => {
     // Use localPatients first, fallback to filteredPatients or patients
@@ -2914,7 +2955,7 @@ const handleRestorePatient = (patient) => {
         </div>
 
         {/* Status Filter Indicator */}
-        {(statusFilter !== 'all' || filterByLocal !== 'all') && (
+        {(statusFilter !== 'all' || filterByLocal !== 'all' || registrationSourceFilter !== 'all') && (
           <div className="mb-4 flex items-center gap-2 flex-wrap">
             {statusFilter !== 'all' && (
               <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
@@ -2943,6 +2984,19 @@ const handleRestorePatient = (patient) => {
                     handleFilterByState('all');
                   }}
                   className="ml-1 hover:bg-purple-200 rounded p-0.5 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {registrationSourceFilter !== 'all' && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-100 text-blue-800">
+                <FilterIcon className="w-3 h-3" />
+                Origin: {registrationSourceFilter === 'self_service' ? 'Patient self-registration' : 'Staff dashboard'}
+                <button
+                  onClick={() => handleFilterByRegistrationSource('all')}
+                  className="ml-1 hover:bg-blue-200 rounded p-0.5 transition-colors"
+                  aria-label="Clear registration origin filter"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -3046,6 +3100,16 @@ const handleRestorePatient = (patient) => {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <select
+                  value={registrationSourceFilter}
+                  onChange={(e) => handleFilterByRegistrationSource(e.target.value)}
+                  aria-label="Filter by registration origin"
+                  className="px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="all">All registration origins</option>
+                  <option value="self_service">Patient self-registration</option>
+                  <option value="staff_dashboard">Staff dashboard</option>
+                </select>
+                <select
                   value={statusFilter}
                   onChange={(e) => handleFilterByStatus(e.target.value)}
                   className="px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
@@ -3057,14 +3121,12 @@ const handleRestorePatient = (patient) => {
                 
                 <select
                   value={sortByLocal}
-                  onChange={(e) => {
-                    setSortByLocal(e.target.value);
-                    dispatch(sortPatients(e.target.value));
-                  }}
+                  onChange={(e) => handleSortBy(e.target.value)}
                   className="px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 >
                   <option value="name">Name A-Z</option>
-                  <option value="date">Newest</option>
+                  <option value="date">Newest registered</option>
+                  <option value="oldest">Oldest registered</option>
                   <option value="state">State</option>
                 </select>
                 <select
@@ -3106,13 +3168,14 @@ const handleRestorePatient = (patient) => {
             ) : (
               <>
                 <div className="overflow-x-auto -mx-3">
-                  <table className="w-full min-w-[600px]">
+                  <table className="w-full min-w-[760px]">
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
                         <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
                         <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Contact</th>
                         <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Location</th>
+                        <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Registration</th>
                         <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="pb-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
@@ -3153,6 +3216,19 @@ const handleRestorePatient = (patient) => {
                             <td className="py-2 hidden md:table-cell">
                               <div className="text-sm text-gray-600">{patient.state || '-'}</div>
                               <div className="text-xs text-gray-400">{patient.city || patient.lga || '-'}</div>
+                            </td>
+                            <td className="py-2 hidden lg:table-cell">
+                              <div className="text-sm text-gray-700">
+                                {patient.registration_source === 'self_service' ? 'Self Registration' : 'Staff Registration'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {patient.registration_source === 'self_service'
+                                  ? 'Patient'
+                                  : [patient.registered_by_name, patient.registered_by_role].filter(Boolean).join(' · ') || 'Staff member not recorded'}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {patient.registration_date ? new Date(patient.registration_date).toLocaleString() : 'Time unavailable'}
+                              </div>
                             </td>
                             <td className="py-2">
                               <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${

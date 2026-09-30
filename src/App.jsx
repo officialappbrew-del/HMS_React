@@ -7,7 +7,7 @@ import PageErrorBoundary from './components/PageErrorBoundary';
 import { getUserPreferences } from './utils/cookies';
 import Loader from './components/Loader';
 import { apiRequest, parseListResponse, checkAuthStatus } from './utils/api';
-import { isAdminSubdomain } from './utils/subdomain';
+import { getSubdomain, isAdminSubdomain } from './utils/subdomain';
 
 
 const RoleInsightPanel = lazy(() => import('./components/dashboards/RoleInsightPanel'));
@@ -70,6 +70,7 @@ const OrderEntrySystem = lazy(() => import('./pages/OrderEntrySystem'));
 const EmergencyDepartmentManagement = lazy(() => import('./pages/EmergencyDepartmentManagement'));
 const NHISManagement = lazy(() => import('./pages/NHISManagement'));
 const PatientPortal = lazy(() => import('./pages/PatientPortal'));
+const MessagingCenter = lazy(() => import('./pages/MessagingCenter'));
 const MobileMoneyIntegration = lazy(() => import('./pages/MobileMoneyIntegration'));
 const AppointmentReminders = lazy(() => import('./pages/AppointmentReminders'));
 const NCDCDiseaseSurveillance = lazy(() => import('./pages/NCDCDiseaseSurveillance'));
@@ -179,6 +180,10 @@ const NotFoundLayout = ({ children }) => {
   };
 
   const PublicRoute = ({ children, allowAuthenticated = false }) => {
+    if (isPatientSession() && !allowAuthenticated) {
+      return <Navigate to="/patient-portal" replace />;
+    }
+
   if (isAuthenticated() && !allowAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -207,6 +212,7 @@ function AppLayout() {
    const [rightSidebarData, setRightSidebarData] = useState(null);
    const [rightSidebarLoading, setRightSidebarLoading] = useState(false);
    const [rightSidebarError, setRightSidebarError] = useState(null);
+  const [tenantBranding, setTenantBranding] = useState(null);
    const navigate = useNavigate();
 
   const [auditLogs, setAuditLogs] = useState([]);
@@ -298,7 +304,34 @@ function AppLayout() {
   }, [adminSubdomain]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    const tenantSubdomain = getSubdomain();
+    if (!tenantSubdomain || tenantSubdomain.toLowerCase() === 'admin' || isPublicPage || adminSubdomain) {
+      setTenantBranding(null);
+      return;
+    }
+
+    let cancelled = false;
+    apiRequest(`/api/v1/tenants/public-config/?tenant_subdomain=${encodeURIComponent(tenantSubdomain)}`)
+      .then((config) => {
+        if (cancelled) return;
+        const tenant = config?.tenant || null;
+        setTenantBranding(tenant);
+        const emailCacheKey = `tenantSupportEmail:${window.location.hostname}`;
+        if (tenant?.email) {
+          localStorage.setItem(emailCacheKey, tenant.email);
+        } else {
+          localStorage.removeItem(emailCacheKey);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTenantBranding(null);
+      });
+
+    return () => { cancelled = true; };
+  }, [isPublicPage, adminSubdomain]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isPublicPage || adminSubdomain) return;
 
     let cancelled = false;
     const runPrefetch = () => {
@@ -320,7 +353,7 @@ function AppLayout() {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [isPublicPage, adminSubdomain]);
 
    useEffect(() => {
     if (adminSubdomain || ['doctor', 'nurse', 'pharmacist', 'receptionist', 'lab_tech', 'lab_manager'].includes(userRole)) {
@@ -403,6 +436,7 @@ function AppLayout() {
               setIsCollapsed={setIsSidebarCollapsed}
               userRole={userRole}
               isRootAdmin={isRootAdmin}
+              tenantBranding={tenantBranding}
               isMobileOpen={isSidebarOpenOnMobile}
               onMobileClose={() => setIsSidebarOpenOnMobile(false)}
             />
@@ -415,6 +449,7 @@ function AppLayout() {
             <Suspense fallback={null}>
               <Header
                 userRole={userRole}
+                tenantBranding={tenantBranding}
                 onToggleSidebar={() => setIsSidebarOpenOnMobile(!isSidebarOpenOnMobile)}
               />
             </Suspense>
@@ -447,6 +482,7 @@ function AppLayout() {
                 <Route path="/laboratory" element={<ProtectedRoute allowedRoles={['lab_tech', 'lab_manager', 'admin', 'super_admin', 'system_admin']}><LaboratoryPage /></ProtectedRoute>} />
                 <Route path="/staff" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
                 <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+                <Route path="/messages" element={<ProtectedRoute><MessagingCenter /></ProtectedRoute>} />
                 <Route path="/inventory" element={<ProtectedRoute><Navigate to="/pharmacy" replace /></ProtectedRoute>} />
                 <Route path="/bed-allocation" element={<ProtectedRoute><Navigate to="/admissions" replace /></ProtectedRoute>} />
                 <Route path="/admissions" element={<ProtectedRoute><AdmissionManagement /></ProtectedRoute>} />
@@ -522,7 +558,7 @@ function AppLayout() {
         {!isPublicPage && (
           <div className="print:hidden">
             <Suspense fallback={null}>
-              <Footer />
+              <Footer tenantBranding={tenantBranding} />
             </Suspense>
           </div>
         )}

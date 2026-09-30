@@ -639,6 +639,7 @@ const Signup = () => {
   const [countries, setCountries] = useState([]);
   const [facilityTypes, setFacilityTypes] = useState([]);
   const [signupResponse, setSignupResponse] = useState(null);
+  const [tenantBranding, setTenantBranding] = useState(null);
   const [isFocused, setIsFocused] = useState({});
   const [now, setNow] = useState(() => new Date());
   const [mounted, setMounted] = useState(false);
@@ -672,6 +673,7 @@ const Signup = () => {
           cacheTtl: 30000,
           signal: abortController.signal,
         });
+        setTenantBranding(data?.tenant || null);
         
         if (!data.allow_new_signups) {
           setSignupState('closed');
@@ -900,11 +902,15 @@ const Signup = () => {
 
         <div className="relative z-10">
           <Link to="/" className="inline-flex items-center gap-3">
-            <span className="inline-flex rounded-lg border border-[#C79A3D]/40 bg-[#C79A3D]/10 p-2.5">
-              <Icon name="ShieldCheck" className="h-5 w-5 text-[#C79A3D]" />
-            </span>
-            <span className="font-['Lora'] text-lg font-semibold tracking-tight text-[#F6F2E7]">
-              SmartCare<span className="text-[#C79A3D]">HMS</span>
+            {tenantBranding?.logo_url ? (
+              <img src={tenantBranding.logo_url} alt={`${tenantBranding.name || 'Hospital'} logo`} className="h-10 w-10 rounded-md bg-white object-contain p-1" />
+            ) : (
+              <span className="inline-flex rounded-lg border border-[#C79A3D]/40 bg-[#C79A3D]/10 p-2.5">
+                <Icon name="ShieldCheck" className="h-5 w-5 text-[#C79A3D]" />
+              </span>
+            )}
+            <span className="max-w-[min(20rem,65vw)] whitespace-normal break-words font-['Lora'] text-lg font-semibold leading-tight text-[#F6F2E7]">
+              {tenantBranding?.name || 'SmartCare HMS'}
             </span>
           </Link>
 
@@ -1149,7 +1155,7 @@ const Signup = () => {
           <p className="mt-5 text-center text-[11px] leading-snug text-[#9AA6A0]">
             Need help? Contact your system administrator
             <span className="mx-2 hidden sm:inline">&middot;</span>
-            <span className="block sm:inline">&copy; {new Date().getFullYear()} SmartCare HMS</span>
+            <span className="block sm:inline">&copy; {new Date().getFullYear()} {tenantBranding?.name || 'SmartCare HMS'}</span>
           </p>
         </div>
       </main>

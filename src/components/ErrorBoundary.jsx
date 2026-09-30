@@ -70,6 +70,16 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      const tenantEmail = (() => {
+        try {
+          const hostname = window.location.hostname;
+          return localStorage.getItem(`tenantSupportEmail:${hostname}`) || '';
+        } catch {
+          return '';
+        }
+      })();
+      const supportEmail = tenantEmail || 'support@smartcarehms.com';
+
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 via-slate-50 to-orange-50 flex items-center justify-center p-4">
           <div className="max-w-2xl w-full">
@@ -184,10 +194,10 @@ class ErrorBoundary extends Component {
               </p>
               <div className="flex gap-2 flex-wrap">
                 <a
-                  href="mailto:support@smartcarehms.com"
+                  href={`mailto:${supportEmail}`}
                   className="text-sm text-blue-600 hover:text-blue-800 font-semibold"
                 >
-                  Email Support
+                  Email {tenantEmail ? 'Hospital' : 'Support'}
                 </a>
                 <span className="text-slate-300">•</span>
                 <a

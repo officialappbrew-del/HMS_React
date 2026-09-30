@@ -4,10 +4,12 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Menu, Bell, Search, UserCircle, Moon, Sun, ChevronDown } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { getUserPreferences, setUserPreferences } from '../utils/cookies';
-import { logout, notificationsApi } from '../utils/api';
+import { logout, notificationsApi, messagingApi } from '../utils/api';
 
-const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
+const Header = ({ userRole: propUserRole, onToggleSidebar, tenantBranding }) => {
   const { branding = { logo: '' }, subdomain = 'hospital' } = useSelector(state => state.tenant || {});
+  const brandName = tenantBranding?.name || branding.site_name || 'SmartCare HMS';
+  const brandLogo = tenantBranding?.logo_url || branding.logo || '';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hospitalOpsMenuOpen, setHospitalOpsMenuOpen] = useState(false);
   const [workforceMenuOpen, setWorkforceMenuOpen] = useState(false);
@@ -44,12 +46,23 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
       notificationRequestRef.current = true;
       setNotificationsLoading(true);
       setNotificationsError('');
-      const countResponse = await notificationsApi.getUnreadCount();
-      const unreadCount = Number(countResponse?.count || 0);
+      const [countResponse, messageCountResponse] = await Promise.all([
+        notificationsApi.getUnreadCount(),
+        messagingApi.getUnreadCount(),
+      ]);
+      const unreadCount = `${Number(countResponse?.count || 0)}-${Number(messageCountResponse?.count || 0)}`;
 
-      if (unreadCountRef.current !== unreadCount || unreadCount === 0) {
-        const response = await notificationsApi.getUnread();
-        setNotifications(Array.isArray(response) ? response : (response?.results || []));
+      if (unreadCountRef.current !== unreadCount || unreadCount === '0-0') {
+        const [response, messageResponse] = await Promise.all([
+          notificationsApi.getUnread(),
+          messagingApi.getNotifications(),
+        ]);
+        const systemNotifications = Array.isArray(response) ? response : (response?.results || []);
+        const messageNotifications = Array.isArray(messageResponse) ? messageResponse : (messageResponse?.results || []);
+        setNotifications([
+          ...systemNotifications,
+          ...messageNotifications.map((item) => ({ ...item, id: `message-${item.id}`, source: 'messaging', notification_id: item.id })),
+        ]);
         unreadCountRef.current = unreadCount;
       }
     } catch (error) {
@@ -78,11 +91,15 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     };
   }, []);
 
-  const markNotificationAsRead = async (notificationId) => {
+  const markNotificationAsRead = async (notification) => {
     try {
-      await notificationsApi.markAsRead(notificationId);
-      setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
-      unreadCountRef.current = Math.max(0, (unreadCountRef.current ?? notifications.length) - 1);
+      if (notification.source === 'messaging') {
+        await messagingApi.markNotificationRead(notification.notification_id);
+      } else {
+        await notificationsApi.markAsRead(notification.id);
+      }
+      setNotifications((current) => current.filter((item) => item.id !== notification.id));
+      unreadCountRef.current = null;
     } catch (error) {
       setNotificationsError(error.message || 'Unable to mark notification as read.');
     }
@@ -90,12 +107,22 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
 
   const markAllNotificationsAsRead = async () => {
     try {
-      await notificationsApi.markAllAsRead();
+      await Promise.all([notificationsApi.markAllAsRead(), messagingApi.markAllNotificationsRead()]);
       setNotifications([]);
       unreadCountRef.current = 0;
     } catch (error) {
       setNotificationsError(error.message || 'Unable to mark notifications as read.');
     }
+  };
+
+  const openMessagingNotification = (notification) => {
+    markNotificationAsRead(notification);
+    setShowNotifications(false);
+    const params = new URLSearchParams({
+      conversationId: String(notification.conversation),
+      kind: notification.conversation_kind || 'patient',
+    });
+    navigate(`/messages?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -129,6 +156,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/patients', label: 'Patients' },
     { to: '/appointments', label: 'Appointments' },
+    { to: '/messages', label: 'Messages' },
   ];
 
   const hospitalOpsLinks = [
@@ -180,6 +208,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
       { path: '/dashboard', label: 'Dashboard', aliases: ['home', 'overview'] },
       { path: '/patients', label: 'Patient Management', aliases: ['patients', 'patient records', 'registrations'] },
       { path: '/appointments', label: 'Appointments', aliases: ['schedule', 'booking', 'visits'] },
+      { path: '/messages', label: 'Messages', aliases: ['inbox', 'patient messages', 'staff chat'] },
       { path: '/billing', label: 'Billing', aliases: ['payments', 'invoices', 'charges'] },
       { path: '/pharmacy', label: 'Pharmacy', aliases: ['medication', 'drugs', 'dispensary'] },
       { path: '/consultation', label: 'Consultation', aliases: ['doctor notes', 'visits', 'clinical'] },
@@ -301,10 +330,10 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
         <div className="px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <div onClick={handleLogoClick} className="flex min-w-0 cursor-pointer items-center gap-3">
-              {branding.logo && (
+              {brandLogo && (
                 <img
-                  src={branding.logo}
-                  alt="Logo"
+                  src={brandLogo}
+                  alt={`${brandName} logo`}
                   className="h-10 w-10 rounded-xl bg-slate-100 object-contain p-1"
                   onError={(e) => {
                     e.target.style.display = 'none';
@@ -312,7 +341,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
                 />
               )}
               <div className="min-w-0">
-                <h1 className={`truncate text-base font-semibold sm:text-lg ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>SmartCare HMS</h1>
+                <h1 className={`truncate text-base font-semibold sm:text-lg ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{brandName}</h1>
                 <p className={`hidden text-xs sm:block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{subdomain || 'Hospital'} Operations</p>
               </div>
             </div>
@@ -405,7 +434,7 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
                           <div className="flex items-start justify-between gap-3">
                             <p className={`min-w-0 text-sm font-medium ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{item.title}</p>
                             <button
-                              onClick={() => markNotificationAsRead(item.id)}
+                              onClick={() => markNotificationAsRead(item)}
                               aria-label={`Mark ${item.title} as read`}
                               className={`shrink-0 text-xs font-medium ${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
                             >
@@ -413,7 +442,17 @@ const Header = ({ userRole: propUserRole, onToggleSidebar }) => {
                             </button>
                           </div>
                           <p className={`mt-1 break-words text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.message}</p>
-                          <p className={`mt-1 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.time_since ? `${item.time_since} ago` : 'Just now'}</p>
+                          <div className="mt-2 flex items-center justify-between gap-3">
+                            <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{item.time_since ? `${item.time_since} ago` : 'Just now'}</p>
+                            {item.source === 'messaging' && (
+                              <button
+                                onClick={() => openMessagingNotification(item)}
+                                className={`shrink-0 text-xs font-semibold ${isDark ? 'text-teal-300 hover:text-teal-200' : 'text-teal-700 hover:text-teal-800'}`}
+                              >
+                                Open conversation
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

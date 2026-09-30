@@ -18,7 +18,9 @@ import {
   markNotificationRead, hydratePortalData,
 } from '../features/patientPortalSlice';
 import { apiRequest } from '../utils/api';
-import { Link, useNavigate } from 'react-router-dom';
+import { getSubdomain } from '../utils/subdomain';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import MessagingPanel from '../components/MessagingPanel';
 
 // ==================== THEME CONSTANTS ====================
 // Light theme – matching PatientManagement
@@ -393,6 +395,7 @@ const TelemedicineModal = ({ isOpen, onClose, onSubmit, isSubmitting = false }) 
 
 const PatientPortal = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
   const navigate = useNavigate();
 
   const {
@@ -402,8 +405,17 @@ const PatientPortal = () => {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentPatient, setCurrentPatient] = useState(null);
-  const [tenantDetails, setTenantDetails] = useState(null);
+  const [tenantDetails, setTenantDetails] = useState(() => {
+    const subdomain = getSubdomain();
+    if (!subdomain || subdomain.toLowerCase() === 'admin') return null;
+    return { domain: typeof window !== 'undefined' ? window.location.hostname : subdomain };
+  });
   const [loginForm, setLoginForm] = useState({ identifier: '', password: '' });
+  const [showRegistration, setShowRegistration] = useState(() => new URLSearchParams(location.search).get('register') === 'true');
+  const [registrationForm, setRegistrationForm] = useState({
+    first_name: '', last_name: '', date_of_birth: '', gender: 'unknown',
+    phone: '', email: '', password: '', password_confirm: '',
+  });
   const [loginLoading, setLoginLoading] = useState(false);
   const [portalError, setPortalError] = useState('');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
@@ -412,6 +424,8 @@ const PatientPortal = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegistrationPassword, setShowRegistrationPassword] = useState(false);
+  const [showRegistrationPasswordConfirm, setShowRegistrationPasswordConfirm] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isFocused, setIsFocused] = useState({ identifier: false, password: false });
@@ -438,10 +452,24 @@ const PatientPortal = () => {
 
   const getPatientDisplayName = () => currentPatient?.full_name || currentPatient?.name ||
     [currentPatient?.first_name, currentPatient?.last_name].filter(Boolean).join(' ').trim() || 'Patient';
+  const patientRecordNumber = currentPatient?.hospital_number || currentPatient?.mrn || currentPatient?.login_id;
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const tenantSubdomain = getSubdomain();
+    if (!tenantSubdomain || tenantSubdomain.toLowerCase() === 'admin') return;
+
+    let cancelled = false;
+    apiRequest(`/api/v1/tenants/public-config/?tenant_subdomain=${encodeURIComponent(tenantSubdomain)}`, { cacheTtl: 30000 })
+      .then((config) => {
+        if (!cancelled && config?.tenant) setTenantDetails(config.tenant);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -538,6 +566,34 @@ const PatientPortal = () => {
       setTenantDetails(portalData?.tenant || null);
     } catch (error) {
       setPortalError(error.message || 'Unable to sign in.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handlePatientRegistration = async (e) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setPortalError('');
+    setMessage('');
+    try {
+      const response = await apiRequest('/api/v1/patients/register/', {
+        method: 'POST',
+        body: JSON.stringify(registrationForm),
+      });
+      const accessToken = response?.access_token;
+      if (!accessToken) throw new Error('No access token returned after registration.');
+      localStorage.setItem('patientAccessToken', accessToken);
+      localStorage.setItem('patientRefreshToken', response?.refresh_token || '');
+      localStorage.setItem('isPatientAuthenticated', 'true');
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('authToken', accessToken);
+      const portalData = await apiRequest('/api/v1/patients/patients/portal/');
+      dispatch(hydratePortalData(portalData));
+      setCurrentPatient(portalData?.patient || null);
+      setTenantDetails(portalData?.tenant || null);
+    } catch (error) {
+      setPortalError(error.message || 'Unable to create your account.');
     } finally {
       setLoginLoading(false);
     }
@@ -744,6 +800,7 @@ const PatientPortal = () => {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'messages', label: 'Messages', icon: MessagesSquare },
     { id: 'appointments', label: 'Appointments', icon: Calendar },
     { id: 'records', label: 'Records', icon: ClipboardList },
     { id: 'prescriptions', label: 'Prescriptions', icon: Pill },
@@ -766,7 +823,7 @@ const PatientPortal = () => {
                 <ShieldCheck className="h-5 w-5 text-blue-600" />
               </span>
               <span className="font-serif text-lg font-semibold text-gray-900">
-                SmartCare<span className="text-blue-600">HMS</span>
+                {tenantDetails?.name || <>SmartCare<span className="text-blue-600">HMS</span></>}
               </span>
             </Link>
             <div className="mt-8 h-12 text-blue-400/50">
@@ -774,7 +831,7 @@ const PatientPortal = () => {
                 <path d="M0,24 L58,24 L74,24 L84,6 L94,42 L104,24 L120,24 L200,24 L258,24 L274,24 L284,6 L294,42 L304,24 L320,24 L400,24 L458,24 L474,24 L484,6 L494,42 L504,24 L520,24 L600,24 L658,24 L674,24 L684,6 L694,42 L704,24 L720,24 L800,24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.25em] text-blue-600">Patient Portal</p>
+            <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.25em] text-blue-600">{tenantDetails?.name || 'Hospital Patient Portal'}</p>
             <h1 className="mt-3 max-w-sm font-serif text-[32px] font-semibold leading-[1.15] text-gray-900 sm:text-[38px] lg:text-[42px]">Your health, connected.</h1>
             <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-gray-600">View appointments, access records, manage prescriptions, and stay connected with your care team.</p>
             <dl className="mt-10 hidden grid-cols-2 gap-x-6 gap-y-6 sm:grid lg:mt-12">
@@ -810,12 +867,26 @@ const PatientPortal = () => {
         <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8 lg:px-12 bg-gray-50">
           <div className="w-full max-w-[400px] motion-safe:animate-fade-in-up">
             <Card className="p-6">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-blue-600">{showForgotPassword ? 'Password recovery' : 'Patient access'}</p>
+              {showRegistration && (
+                <div className="mb-5 flex items-center gap-3 border-b border-gray-200 pb-4">
+                  {tenantDetails?.logo_url ? (
+                    <img src={tenantDetails.logo_url} alt="" className="h-10 w-10 rounded-md object-contain" />
+                  ) : (
+                    <span className="inline-flex rounded-md bg-blue-50 p-2"><Hospital className="h-5 w-5 text-blue-700" /></span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block font-mono text-[10px] uppercase tracking-wider text-gray-500">Hospital</span>
+                    <span className="block truncate text-sm font-semibold text-gray-900">{tenantDetails?.name || tenantDetails?.domain || 'Hospital workspace'}</span>
+                    {tenantDetails?.city && <span className="block truncate text-xs text-gray-500">{[tenantDetails.city, tenantDetails.state].filter(Boolean).join(', ')}</span>}
+                  </span>
+                </div>
+              )}
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-blue-600">{showForgotPassword ? 'Password recovery' : showRegistration ? 'Create patient account' : 'Patient access'}</p>
               <h2 className="mt-1.5 font-serif text-xl font-semibold leading-snug text-gray-900 sm:text-[22px]">
-                {showForgotPassword ? tokenVerified ? 'Set new password' : tokenSent ? 'Verify token' : 'Forgot password?' : 'Welcome back'}
+                {showForgotPassword ? tokenVerified ? 'Set new password' : tokenSent ? 'Verify token' : 'Forgot password?' : showRegistration ? 'Start your care journey' : 'Welcome back'}
               </h2>
               <p className="mt-1.5 text-[13px] leading-snug text-gray-500">
-                {showForgotPassword ? tokenVerified ? 'Choose and confirm your new password.' : tokenSent ? 'Enter the reset token sent to your email.' : 'Enter your identifier and we\'ll send a reset token.' : 'Sign in to access your care dashboard.'}
+                {showForgotPassword ? tokenVerified ? 'Choose and confirm your new password.' : tokenSent ? 'Enter the reset token sent to your email.' : 'Enter your identifier and we\'ll send a reset token.' : showRegistration ? `Create an account${tenantDetails?.name ? ` with ${tenantDetails.name}` : ' for this hospital'}.` : 'Sign in to access your care dashboard.'}
               </p>
 
               {(portalError || message) && (
@@ -825,13 +896,13 @@ const PatientPortal = () => {
                 </div>
               )}
 
-              {!showForgotPassword ? (
+              {!showForgotPassword && !showRegistration ? (
                 <form className="mt-5 space-y-4" onSubmit={handlePatientLogin}>
                   <div>
                     <label htmlFor="identifier" className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-gray-500">Patient identifier</label>
                     <div className="relative">
                       <User className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors ${isFocused.identifier ? 'text-blue-600' : 'text-gray-400'}`} />
-                      <input id="identifier" type="text" required value={loginForm.identifier} onChange={(e) => setLoginForm({ ...loginForm, identifier: e.target.value })} onFocus={() => setIsFocused({ ...isFocused, identifier: true })} onBlur={() => setIsFocused({ ...isFocused, identifier: false })} placeholder="Hospital number or patient ID" className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3.5 text-[13.5px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                      <input id="identifier" type="text" required value={loginForm.identifier} onChange={(e) => setLoginForm({ ...loginForm, identifier: e.target.value })} onFocus={() => setIsFocused({ ...isFocused, identifier: true })} onBlur={() => setIsFocused({ ...isFocused, identifier: false })} placeholder="Hospital number or MRN" className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3.5 text-[13.5px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
                     </div>
                   </div>
                   <div>
@@ -849,7 +920,31 @@ const PatientPortal = () => {
                   <PrimaryButton type="submit" loading={loginLoading} className="w-full" icon={ArrowRight}>
                     {loginLoading ? 'Signing in' : 'Sign in'}
                   </PrimaryButton>
+                  <a href="/patient-portal?register=true" className="block w-full text-center text-[13px] font-medium text-blue-600 hover:text-blue-700">Create an account{tenantDetails?.name ? ` at ${tenantDetails.name}` : ''}</a>
                   <p className="text-center text-[11px] leading-snug text-gray-400">By signing in, you agree to our Terms of Service and Privacy Policy.</p>
+                </form>
+              ) : showRegistration ? (
+                <form className="mt-5 space-y-3" onSubmit={handlePatientRegistration}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input required placeholder="First name" value={registrationForm.first_name} onChange={(e) => setRegistrationForm({ ...registrationForm, first_name: e.target.value })} className="rounded-lg border border-gray-300 px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                    <input required placeholder="Last name" value={registrationForm.last_name} onChange={(e) => setRegistrationForm({ ...registrationForm, last_name: e.target.value })} className="rounded-lg border border-gray-300 px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
+                  <input required type="date" value={registrationForm.date_of_birth} onChange={(e) => setRegistrationForm({ ...registrationForm, date_of_birth: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <select required value={registrationForm.gender} onChange={(e) => setRegistrationForm({ ...registrationForm, gender: e.target.value })} className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="unknown">Gender</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select>
+                    <input required placeholder="Phone number" value={registrationForm.phone} onChange={(e) => setRegistrationForm({ ...registrationForm, phone: e.target.value })} className="rounded-lg border border-gray-300 px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
+                  <input type="email" placeholder="Email address" value={registrationForm.email} onChange={(e) => setRegistrationForm({ ...registrationForm, email: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                  <div className="relative">
+                    <input required type={showRegistrationPassword ? 'text' : 'password'} minLength="8" placeholder="Password (8+ characters)" value={registrationForm.password} onChange={(e) => setRegistrationForm({ ...registrationForm, password: e.target.value })} className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-10 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                    <button type="button" onClick={() => setShowRegistrationPassword((visible) => !visible)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={showRegistrationPassword ? 'Hide password' : 'Show password'}>{showRegistrationPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
+                  </div>
+                  <div className="relative">
+                    <input required type={showRegistrationPasswordConfirm ? 'text' : 'password'} minLength="8" placeholder="Confirm password" value={registrationForm.password_confirm} onChange={(e) => setRegistrationForm({ ...registrationForm, password_confirm: e.target.value })} className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-10 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                    <button type="button" onClick={() => setShowRegistrationPasswordConfirm((visible) => !visible)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={showRegistrationPasswordConfirm ? 'Hide confirm password' : 'Show confirm password'}>{showRegistrationPasswordConfirm ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
+                  </div>
+                  <PrimaryButton type="submit" loading={loginLoading} className="w-full" icon={ArrowRight}>{loginLoading ? 'Creating account' : 'Create account'}</PrimaryButton>
+                  <button type="button" onClick={() => { setShowRegistration(false); setPortalError(''); }} className="w-full text-[13px] font-medium text-blue-600 hover:text-blue-700">Back to patient login</button>
                 </form>
               ) : showForgotPassword ? (
                 tokenVerified ? (
@@ -959,11 +1054,15 @@ const PatientPortal = () => {
     <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 text-gray-900">
       {/* Mobile Header */}
       <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex rounded-lg bg-blue-100 p-1.5">
-            <ShieldCheck className="h-5 w-5 text-blue-600" />
-          </span>
-          <span className="font-serif text-lg font-semibold text-gray-900">SmartCare<span className="text-blue-600">HMS</span></span>
+        <div className="flex min-w-0 items-center gap-2">
+          {tenantDetails?.logo_url ? (
+            <img src={tenantDetails.logo_url} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" />
+          ) : (
+            <span className="inline-flex shrink-0 rounded-lg bg-blue-100 p-1.5">
+              <ShieldCheck className="h-5 w-5 text-blue-600" />
+            </span>
+          )}
+          <span className="min-w-0 max-w-[calc(100vw-8rem)] whitespace-normal break-words font-serif text-sm font-semibold leading-tight text-gray-900">{tenantDetails?.name || 'SmartCare HMS'}</span>
         </div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-gray-100">
           <Menu className="w-5 h-5 text-gray-500" />
@@ -975,10 +1074,14 @@ const PatientPortal = () => {
         <aside className={`fixed inset-y-0 left-0 z-40 w-[82vw] max-w-[280px] bg-white border-r border-gray-200 transition-transform duration-300 lg:static lg:z-auto lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} h-screen lg:h-auto`}>
           <div className="flex h-full flex-col">
             <div className="p-5 border-b border-gray-200 flex items-center gap-3">
-              <span className="inline-flex rounded-lg bg-blue-100 p-2">
-                <ShieldCheck className="h-6 w-6 text-blue-600" />
-              </span>
-              <span className="font-serif text-lg font-semibold text-gray-900">SmartCare<span className="text-blue-600">HMS</span></span>
+              {tenantDetails?.logo_url ? (
+                <img src={tenantDetails.logo_url} alt="" className="h-10 w-10 shrink-0 rounded-md object-contain" />
+              ) : (
+                <span className="inline-flex shrink-0 rounded-lg bg-blue-100 p-2">
+                  <ShieldCheck className="h-6 w-6 text-blue-600" />
+                </span>
+              )}
+              <span className="min-w-0 flex-1 whitespace-normal break-words font-serif text-sm font-semibold leading-tight text-gray-900">{tenantDetails?.name || 'SmartCare HMS'}</span>
             </div>
 
             <div className="p-4 border-b border-gray-200">
@@ -988,7 +1091,7 @@ const PatientPortal = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{getPatientDisplayName()}</p>
-                  <p className="text-xs text-gray-500 truncate">Patient ID: {currentPatient?.id || 'N/A'}</p>
+                  <p className="text-xs text-gray-500 truncate">Hospital No.: {patientRecordNumber || 'Reference pending'}</p>
                 </div>
               </div>
             </div>
@@ -1072,6 +1175,7 @@ const PatientPortal = () => {
 
                 {/* Content */}
                 <div className="p-5">
+                  {activeTab === 'messages' && <MessagingPanel patient />}
                   {activeTab === 'dashboard' && (
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">

@@ -494,7 +494,7 @@ const AdmissionManagement = () => {
   const viewTabs = [
     { id: 'ipd', label: 'IPD Command Centre', icon: Stethoscope, priority: 'primary' },
     { id: 'overview', label: 'Overview', icon: FileText, priority: 'secondary' },
-    { id: 'bed-allocation', label: 'Patient Admin', icon: UserPlus, priority: 'secondary' },
+    { id: 'bed-allocation', label: 'Bed & Ward', icon: UserPlus, priority: 'secondary' },
   ];
 
   // Handlers

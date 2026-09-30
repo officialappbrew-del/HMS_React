@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import  { apiRequest} from "../utils/api";
+import { apiRequest } from "../utils/api";
+import { getSubdomain } from "../utils/subdomain";
 
 // ============================================================
 // OPTIMIZED ICON COMPONENT - Dynamically imports only needed icons
@@ -237,9 +238,14 @@ const Login = () => {
 
     try {
       const loginIdentifier = formData.email.trim();
+      const currentSubdomain = getSubdomain();
       const payload = {
         password: formData.password,
       };
+
+      if (currentSubdomain && currentSubdomain.toLowerCase() !== 'admin') {
+        payload.tenant_domain = currentSubdomain;
+      }
 
       if (loginIdentifier) {
         payload.user_id = loginIdentifier;
@@ -753,6 +759,13 @@ const Login = () => {
                     </>
                   )}
                 </button>
+
+                <a
+                  href="/patient-portal?register=true"
+                  className="block text-center text-[13px] font-medium text-[#3E6E58] transition-colors hover:text-[#2C5245] hover:underline"
+                >
+                  Create a patient account
+                </a>
 
                 <p className="text-center text-[11px] leading-snug text-[#9AA6A0]">
                   By signing in, you agree to our Terms of Service and Privacy Policy.

@@ -4,7 +4,7 @@ import ConfirmModal from './ConfirmModal';
 import { logout } from '../utils/api';
 import { Home, Users, Calendar, FileText, Pill, Bed, Heart, Stethoscope, Building2, Activity, Clipboard, Shield, Ambulance, Phone, ChevronLeft, ChevronRight, Settings, CreditCard, LogOut, BarChart3, Share2, FlaskConical, PackageSearch, GitMerge, UserRoundCog, WalletCards } from 'lucide-react';
 
-const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose }) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileOpen, onMobileClose, tenantBranding }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -148,16 +148,22 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, userRole, isRootAdmin, isMobileO
         <div className="flex h-full min-h-0 flex-col">
           {/* Brand + collapse */}
           <div className="flex items-center justify-between border-b border-slate-200/60 px-4 py-3.5">
-            {!isCollapsed && (
+            {!isCollapsed ? (
               <div className="flex items-center gap-2.5">
-                <span className="inline-flex items-center justify-center rounded-lg border border-[#C79A3D]/30 bg-[#C79A3D]/10 p-1.5">
-                  <Shield className="h-4.5 w-4.5 text-[#C79A3D]" />
-                </span>
-                <h2 className="font-['Lora'] text-base font-semibold text-[#1C2B27]">
-                  SmartCare<span className="text-[#C79A3D]">HMS</span>
+                {tenantBranding?.logo_url ? (
+                  <img src={tenantBranding.logo_url} alt={`${tenantBranding.name || 'Hospital'} logo`} className="h-8 w-8 shrink-0 rounded-md object-contain" />
+                ) : (
+                  <span className="inline-flex items-center justify-center rounded-lg border border-[#C79A3D]/30 bg-[#C79A3D]/10 p-1.5">
+                    <Shield className="h-4.5 w-4.5 text-[#C79A3D]" />
+                  </span>
+                )}
+                <h2 className="min-w-0 break-words font-['Lora'] text-sm font-semibold leading-tight text-[#1C2B27]">
+                  {tenantBranding?.name || 'SmartCare HMS'}
                 </h2>
               </div>
-            )}
+            ) : tenantBranding?.logo_url ? (
+              <img src={tenantBranding.logo_url} alt={`${tenantBranding.name || 'Hospital'} logo`} className="h-8 w-8 rounded-md object-contain" />
+            ) : null}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"

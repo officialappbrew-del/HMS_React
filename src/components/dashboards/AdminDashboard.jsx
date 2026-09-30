@@ -3521,6 +3521,7 @@ const renderDepartmentsContent = () => {
             const Icon = tab.icon;
             return (
               <button
+                  key={tab.id}
                   onClick={() => {
                     setActiveTab(tab.id);
                     setCurrentPage(1);

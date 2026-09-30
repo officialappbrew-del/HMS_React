@@ -83,7 +83,7 @@ const IconButton = ({ icon: Icon, onClick, tooltip, variant = 'default', classNa
           disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
       >
-        <Icon className={iconSizes[size]} />
+        <FontAwesomeIcon icon={Icon} className={iconSizes[size]} />
       </button>
     </Tooltip>
   );
@@ -387,7 +387,10 @@ const Settings = () => {
   const [inviteExpiryHours, setInviteExpiryHours] = useState(72);
   const [inviteMessage, setInviteMessage] = useState('');
   const [inviteLink, setInviteLink] = useState('');
+  const [inviteRecordId, setInviteRecordId] = useState(null);
+  const [inviteRecipient, setInviteRecipient] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteEmailSending, setInviteEmailSending] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [inviteFeedback, setInviteFeedback] = useState('');
   const [inviteFeedbackType, setInviteFeedbackType] = useState('');
@@ -753,6 +756,8 @@ const Settings = () => {
 
       const link = `${window.location.origin}/invitation-signup?token=${token}&data=${encryptedData}`;
       setInviteLink(link);
+      setInviteRecordId(response?.id || null);
+      setInviteRecipient(inviteEmail.trim().toLowerCase());
       setInviteEmail('');
       setInviteRole('doctor');
       setInviteExpiryHours(72);
@@ -774,12 +779,29 @@ const Settings = () => {
     }
   };
 
+  const handleSendInvitationEmail = async () => {
+    if (!inviteRecordId || !inviteLink) return;
+    setInviteEmailSending(true);
+    setInviteFeedback('');
+    setInviteFeedbackType('');
+    try {
+      const result = await tenantSettingsApi.sendInvitationEmail(inviteRecordId, inviteLink);
+      setInviteFeedback(result?.detail || 'Invitation email sent.');
+      setInviteFeedbackType('success');
+    } catch (error) {
+      setInviteFeedback(error.message || 'Unable to send invitation email.');
+      setInviteFeedbackType('error');
+    } finally {
+      setInviteEmailSending(false);
+    }
+  };
+
   const handleApproveUser = async (userId) => {
     try {
       await tenantSettingsApi.approveUser(userId);
       await loadPendingUsers();
       await loadInvitations();
-      setInviteFeedback('User approved successfully.');
+      setInviteFeedback('User approved successfully. The account is now available in Staff Management.');
       setInviteFeedbackType('success');
     } catch (error) {
       console.error('Approve user error:', error);
@@ -1945,14 +1967,25 @@ const Settings = () => {
               )}
             </ButtonWithTooltip>
             {inviteLink && (
-              <ButtonWithTooltip
-                onClick={() => navigator.clipboard.writeText(inviteLink).then(() => setInviteCopied(true))}
-                tooltip="Copy invitation link"
-                variant="secondary"
-              >
-                <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
-                {inviteCopied ? 'Copied' : 'Copy link'}
-              </ButtonWithTooltip>
+              <>
+                <ButtonWithTooltip
+                  onClick={() => navigator.clipboard.writeText(inviteLink).then(() => setInviteCopied(true))}
+                  tooltip="Copy invitation link"
+                  variant="secondary"
+                >
+                  <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
+                  {inviteCopied ? 'Copied' : 'Copy link'}
+                </ButtonWithTooltip>
+                <ButtonWithTooltip
+                  onClick={handleSendInvitationEmail}
+                  tooltip={`Email invitation to ${inviteRecipient || 'the invited address'}`}
+                  variant="secondary"
+                  disabled={inviteEmailSending || !inviteRecordId}
+                >
+                  <FontAwesomeIcon icon={inviteEmailSending ? faSpinner : faEnvelope} className={`mr-1.5 ${inviteEmailSending ? 'animate-spin' : ''}`} />
+                  {inviteEmailSending ? 'Sending...' : 'Send invite email'}
+                </ButtonWithTooltip>
+              </>
             )}
           </div>
 

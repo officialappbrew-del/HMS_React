@@ -19,6 +19,8 @@ const PUBLIC_AUTH_PATHS = [
   '/api/v1/tenants/public-config/',
   '/api/v1/patients/login/',
   '/api/v1/patients/login',
+  '/api/v1/patients/register/',
+  '/api/v1/patients/register',
 ];
 
 const getCsrfToken = () => {
@@ -396,6 +398,8 @@ const csrfToken = isMutating ? getCsrfToken() : '';
               }
               if (method === 'GET') {
                 cacheResponse(requestKey, data, retryOptions.cacheTtl ?? 5000);
+              } else {
+                responseCache.clear();
               }
               return data;
             })();
@@ -424,6 +428,8 @@ const csrfToken = isMutating ? getCsrfToken() : '';
 
       if (method === 'GET') {
         cacheResponse(requestKey, data, options.cacheTtl ?? 5000);
+      } else {
+        responseCache.clear();
       }
 
       return data;
@@ -531,6 +537,10 @@ export const tenantSettingsApi = {
       ...data,
       frontend_base_url: typeof window !== 'undefined' ? window.location.origin : undefined,
     }),
+  }),
+  sendInvitationEmail: (id, registrationUrl) => apiRequest(`/api/v1/tenants/invitations/${id}/send-email/`, {
+    method: 'POST',
+    body: JSON.stringify({ registration_url: registrationUrl }),
   }),
   listInvitations: () => apiRequest('/api/v1/tenants/invitations/'),
   archiveInvitation: (id) => apiRequest(`/api/v1/tenants/invitations/${id}/archive/`, { method: 'POST' }),
@@ -1200,6 +1210,27 @@ export const notificationsApi = {
   getUnreadCount: () => apiRequest('/api/v1/auth/notifications/unread_count/'),
   markAsRead: (id) => apiRequest(`/api/v1/auth/notifications/${id}/mark_as_read/`, { method: 'POST' }),
   markAllAsRead: () => apiRequest('/api/v1/auth/notifications/mark_all_as_read/', { method: 'POST' }),
+};
+
+export const messagingApi = {
+  getConversations: (params = {}) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') query.append(key, value);
+    });
+    const queryString = query.toString();
+    return apiRequest(`/api/v1/messaging/conversations/${queryString ? `?${queryString}` : ''}`);
+  },
+  createConversation: (data) => apiRequest('/api/v1/messaging/conversations/', { method: 'POST', body: JSON.stringify(data) }),
+  getMessages: (id) => apiRequest(`/api/v1/messaging/conversations/${id}/messages/`),
+  sendMessage: (id, data) => apiRequest(`/api/v1/messaging/conversations/${id}/messages/`, { method: 'POST', body: JSON.stringify(data) }),
+  assignConversation: (id, assigneeId) => apiRequest(`/api/v1/messaging/conversations/${id}/assign/`, { method: 'POST', body: JSON.stringify({ assignee_id: assigneeId }) }),
+  setConversationStatus: (id, status) => apiRequest(`/api/v1/messaging/conversations/${id}/status/`, { method: 'POST', body: JSON.stringify({ status }) }),
+  getStaff: () => apiRequest('/api/v1/messaging/staff/'),
+  getNotifications: () => apiRequest('/api/v1/messaging/notifications/'),
+  getUnreadCount: () => apiRequest('/api/v1/messaging/notifications/unread-count/'),
+  markNotificationRead: (id) => apiRequest('/api/v1/messaging/notifications/', { method: 'POST', body: JSON.stringify({ notification_id: id }) }),
+  markAllNotificationsRead: () => apiRequest('/api/v1/messaging/notifications/', { method: 'POST', body: JSON.stringify({}) }),
 };
 
 export const feedbackApi = {
