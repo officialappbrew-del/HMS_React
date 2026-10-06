@@ -4,7 +4,7 @@ const initialState = {
   currentTenant: null,
   subdomain: window.location.hostname.split('.')[0],
   branding: {
-    logo: '/logo.png',
+    logo: '/logo.svg',
     colors: {
       primary: '#008751', // Nigerian green
       secondary: '#FFC107', // Nigerian gold
